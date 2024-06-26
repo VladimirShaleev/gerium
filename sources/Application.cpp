@@ -6,8 +6,8 @@ gerium_runtime_platform_t Application::getPlatform() const noexcept {
     return onGetPlatform();
 }
 
-gerium_state_t Application::run() noexcept {
-    return onRun();
+void Application::run() {
+    onRun();
 }
 
 void Application::exit() noexcept {
@@ -36,7 +36,9 @@ gerium_runtime_platform_t gerium_application_get_platform(gerium_application_t a
 
 gerium_state_t gerium_application_run(gerium_application_t application) {
     assert(application);
-    return alias_cast<Application*>(application)->run();
+    return application->invoke<Application>([](auto obj) {
+        obj->run();
+    });
 }
 
 void gerium_application_exit(gerium_application_t application) {

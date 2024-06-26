@@ -64,12 +64,12 @@ gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
     return GERIUM_RUNTIME_PLATFORM_WINDOWS;
 }
 
-gerium_state_t Win32Application::onRun() noexcept {
+void Win32Application::onRun() {
     if (!_hWnd) {
-        return GERIUM_STATE_APPLICATION_TERMINATED;
+        throw Exception(GERIUM_STATE_APPLICATION_TERMINATED, "The application is already completed");
     }
     if (_running) {
-        return GERIUM_STATE_APPLICATION_RUNNING;
+        throw Exception(GERIUM_STATE_APPLICATION_RUNNING, "The application is already running");
     }
     _running = true;
 
@@ -92,8 +92,6 @@ gerium_state_t Win32Application::onRun() noexcept {
     }
 
     UnregisterClassW(_kClassName, _hInstance);
-
-    return GERIUM_STATE_SUCCESS;
 }
 
 void Win32Application::onExit() noexcept {

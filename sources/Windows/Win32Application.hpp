@@ -15,7 +15,7 @@ public:
 
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
-    gerium_state_t onRun() noexcept override;
+    void onRun() override;
     void onExit() noexcept override;
 
     LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam);

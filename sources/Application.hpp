@@ -11,13 +11,13 @@ class Application : public _gerium_application {
 public:
     gerium_runtime_platform_t getPlatform() const noexcept;
 
-    gerium_state_t run() noexcept;
+    void run();
     void exit() noexcept;
 
 protected:
 private:
     virtual gerium_runtime_platform_t onGetPlatform() const noexcept = 0;
-    virtual gerium_state_t onRun() noexcept = 0;
+    virtual void onRun() = 0;
     virtual void onExit() noexcept = 0;
 };
 
