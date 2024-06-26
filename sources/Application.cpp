@@ -34,7 +34,7 @@ gerium_runtime_platform_t gerium_application_get_platform(gerium_application_t a
     return alias_cast<Application*>(application)->getPlatform();
 }
 
-gerium_state_t gerium_application_run(gerium_application_t application) {
+gerium_result_t gerium_application_run(gerium_application_t application) {
     assert(application);
     return application->invoke<Application>([](auto obj) {
         obj->run();

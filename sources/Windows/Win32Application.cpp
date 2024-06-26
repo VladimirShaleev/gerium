@@ -27,7 +27,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
     wndClassEx.hIconSm       = nullptr;
 
     if (!RegisterClassExW(&wndClassEx)) {
-        throw Exception(GERIUM_STATE_NO_DISPLAY, "Failed to register window");
+        throw Exception(GERIUM_RESULT_NO_DISPLAY, "Failed to register window");
     }
 
     RECT rect;
@@ -54,7 +54,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
 
     if (!_hWnd) {
         UnregisterClassW(_kClassName, _hInstance);
-        throw Exception(GERIUM_STATE_NO_DISPLAY, "Failed to create window");
+        throw Exception(GERIUM_RESULT_NO_DISPLAY, "Failed to create window");
     }
 
     SetWindowLongPtr(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
@@ -66,10 +66,10 @@ gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
 
 void Win32Application::onRun() {
     if (!_hWnd) {
-        throw Exception(GERIUM_STATE_APPLICATION_TERMINATED, "The application is already completed");
+        throw Exception(GERIUM_RESULT_APPLICATION_TERMINATED, "The application is already completed");
     }
     if (_running) {
-        throw Exception(GERIUM_STATE_APPLICATION_RUNNING, "The application is already running");
+        throw Exception(GERIUM_RESULT_APPLICATION_RUNNING, "The application is already running");
     }
     _running = true;
 
@@ -147,7 +147,7 @@ LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 
 } // namespace gerium::windows
 
-gerium_state_t gerium_windows_application_create(gerium_utf8_t title,
+gerium_result_t gerium_windows_application_create(gerium_utf8_t title,
                                                  gerium_uint32_t width,
                                                  gerium_uint32_t height,
                                                  gerium_application_mode_flags_t mode,

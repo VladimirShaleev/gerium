@@ -7,18 +7,18 @@ namespace gerium {
 
 class Exception : public std::runtime_error {
 public:
-    Exception(gerium_state_t state, const char* message) : std::runtime_error(message), _state(state) {
+    Exception(gerium_result_t result, const char* message) : std::runtime_error(message), _result(result) {
     }
 
-    Exception(gerium_state_t state, const std::string& message) : std::runtime_error(message), _state(state) {
+    Exception(gerium_result_t result, const std::string& message) : std::runtime_error(message), _result(result) {
     }
 
-    gerium_state_t state() const noexcept {
-        return _state;
+    gerium_result_t result() const noexcept {
+        return _result;
     }
 
 private:
-    const gerium_state_t _state;
+    const gerium_result_t _result;
 };
 
 } // namespace gerium

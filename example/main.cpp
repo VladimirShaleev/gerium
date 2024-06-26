@@ -5,8 +5,8 @@ int main() {
     gerium_application_t application;
     auto state = gerium_windows_application_create(
         "test", 800, 600, GERIUM_APPLICATION_MODE_RESIZABLE_BIT, nullptr, &application);
-    if (state != GERIUM_STATE_SUCCESS) {
-        std::cerr << gerium_state_to_string(state) << std::endl;
+    if (state != GERIUM_RESULT_SUCCESS) {
+        std::cerr << gerium_result_to_string(state) << std::endl;
         return 1;
     }
 

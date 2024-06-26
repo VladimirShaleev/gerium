@@ -14,7 +14,7 @@
 
 GERIUM_BEGIN
 
-gerium_public gerium_state_t
+gerium_public gerium_result_t
 gerium_windows_application_create(gerium_utf8_t title,
                                   gerium_uint32_t width,
                                   gerium_uint32_t height,
