@@ -29,10 +29,17 @@ cmake_dependent_option(GERIUM_BUILD_TESTS "Build tests" ON
 cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
   "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
+file(GLOB_RECURSE GERIUM_INCLUDE "/include/*.h")
 file(GLOB_RECURSE GERIUM_SOURCES "sources/*.hpp" "sources/*.cpp")
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_INCLUDE})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES})
 
 add_library(gerium ${GERIUM_SOURCES})
+add_library(gerium::gerium ALIAS gerium)
+
+target_include_directories(gerium INTERFACE
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
 
 # target_precompile_headers(gerium PRIVATE "sources/common.hpp")
 target_compile_features(gerium PRIVATE cxx_std_20)

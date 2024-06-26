@@ -169,7 +169,7 @@ PenaltyExcessCharacter: 1000000
 PenaltyIndentedWhitespace: 0
 PenaltyReturnTypeOnItsOwnLine: 120
 PointerAlignment: Left
-PPIndentWidth:   2
+PPIndentWidth:   1
 QualifierAlignment: Custom
 QualifierOrder: ['inline', 'friend', 'static', 'constexpr', 'const', 'type']
 ReferenceAlignment: Pointer
@@ -231,10 +231,6 @@ TabWidth:        8
 UseTab:          Never
 VerilogBreakBetweenInstancePorts: true
 WhitespaceSensitiveMacros:
-  - BOOST_PP_STRINGIZE
-  - CF_SWIFT_NAME
-  - NS_SWIFT_NAME
-  - PP_STRINGIZE
-  - STRINGIZE
+  - GERIUM_VERSION_STRINGIZE
 ...
 
