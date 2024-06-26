@@ -9,13 +9,13 @@ add_executable(gerium-tests ${GERIUM_TESTS})
 target_link_libraries(gerium-tests PRIVATE gerium GTest::gtest GTest::gtest_main GTest::gmock)
 
 if(MSVC)
-  if(GERIUM_MSVC_DYNAMIC_RUNTIME)
-    set_target_properties(gerium-tests PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-  else()
-    set_target_properties(gerium-tests PROPERTIES
-      MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-  endif()
+    if(GERIUM_MSVC_DYNAMIC_RUNTIME)
+        set_target_properties(gerium-tests PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    else()
+        set_target_properties(gerium-tests PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
 endif()
 
 include(GoogleTest)
