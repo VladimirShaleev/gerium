@@ -13,6 +13,8 @@
 
 GERIUM_BEGIN
 
+typedef struct _gerium_application* gerium_application_t;
+
 typedef enum
 {
    GERIUM_STATE_SUCCESS               = 0,
@@ -21,8 +23,31 @@ typedef enum
    GERIUM_STATE_NOT_IMPLEMENTED       = 3,
    GERIUM_STATE_FEATURE_NOT_SUPPORTED = 4,
    GERIUM_STATE_INVALID_ARGUMENT      = 5,
+   GERIUM_STATE_NO_DISPLAY            = 6,
    GERIUM_STATE_MAX_ENUM              = 0x7FFFFFFF
 } gerium_state_t;
+
+typedef enum
+{
+   GERIUM_RUNTIME_PLATFORM_UNKNOWN  = 0,
+   GERIUM_RUNTIME_PLATFORM_ANDROID  = 1,
+   GERIUM_RUNTIME_PLATFORM_IOS      = 2,
+   GERIUM_RUNTIME_PLATFORM_WEB      = 3,
+   GERIUM_RUNTIME_PLATFORM_WINDOWS  = 4,
+   GERIUM_RUNTIME_PLATFORM_LINUX    = 5,
+   GERIUM_RUNTIME_PLATFORM_MAC_OS   = 6,
+   GERIUM_RUNTIME_PLATFORM_MAX_ENUM = 0x7FFFFFFF
+} gerium_runtime_platform_t;
+
+typedef enum
+{
+   GERIUM_APPLICATION_MODE_NONE_BIT       = 0,
+   GERIUM_APPLICATION_MODE_FULLSCREEN_BIT = 1,
+   GERIUM_APPLICATION_MODE_RESIZABLE_BIT  = 2,
+   GERIUM_APPLICATION_MODE_TOPMOST        = 4,
+   GERIUM_APPLICATION_MODE_MAX_ENUM       = 0x7FFFFFFF
+} gerium_application_mode_flags_t;
+GERIUM_FLAGS(gerium_application_mode_flags_t)
 
 gerium_public gerium_uint32_t
 gerium_version(void);
@@ -32,6 +57,21 @@ gerium_version_string(void);
 
 gerium_public gerium_utf8_t
 gerium_state_to_string(gerium_state_t state);
+
+gerium_public gerium_application_t
+gerium_application_reference(gerium_application_t application);
+
+gerium_public void
+gerium_application_destroy(gerium_application_t application);
+
+gerium_public gerium_runtime_platform_t
+gerium_application_get_platform(gerium_application_t application);
+
+gerium_public gerium_state_t
+gerium_application_run(gerium_application_t application);
+
+gerium_public void
+gerium_application_exit(gerium_application_t application);
 
 GERIUM_END
 

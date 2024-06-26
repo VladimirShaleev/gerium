@@ -37,7 +37,8 @@ namespace gerium {
 
 template <typename AliasedType, typename Type>
 gerium_inline AliasedType alias_cast(Type ptr) noexcept {
-    static_assert(std::is_pointer_v(ptr), "Type must be a pointer");
+    static_assert(std::is_pointer_v<AliasedType>, "AliasedType must be a pointer");
+    static_assert(std::is_pointer_v<Type>, "Type must be a pointer");
     AliasedType result;
     memcpy(&result, &ptr, sizeof(AliasedType));
     return result;

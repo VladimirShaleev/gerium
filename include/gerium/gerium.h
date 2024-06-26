@@ -15,4 +15,8 @@
 # include "gerium-web.h"
 #endif
 
+#ifdef GERIUM_PLATFORM_WINDOWS
+# include "gerium-windows.h"
+#endif
+
 #endif
