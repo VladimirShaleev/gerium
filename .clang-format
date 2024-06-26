@@ -51,7 +51,7 @@ AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 AttributeMacros:
-  - __capability
+  - gerium_inline
 BinPackArguments: false
 BinPackParameters: false
 BitFieldColonSpacing: Both

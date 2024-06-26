@@ -13,7 +13,11 @@
 
 GERIUM_BEGIN
 
+gerium_public gerium_uint32_t
+gerium_version(void);
 
+gerium_public gerium_utf8_t
+gerium_version_string(void);
 
 GERIUM_END
 

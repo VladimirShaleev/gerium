@@ -4,6 +4,7 @@ include(cmake/version.cmake)
 option(GERIUM_USE_VCPKG "Use the vcpkg package manager to resolve dependencies." ON)
 option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
 if(GERIUM_USE_VCPKG)
   if(DEFINED ENV{VCPKG_ROOT})
@@ -34,18 +35,23 @@ file(GLOB_RECURSE GERIUM_SOURCES "sources/*.hpp" "sources/*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_INCLUDE})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES})
 
-add_library(gerium ${GERIUM_SOURCES})
+add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
 
-target_include_directories(gerium INTERFACE
+target_include_directories(gerium PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-# target_precompile_headers(gerium PRIVATE "sources/common.hpp")
+target_precompile_headers(gerium PRIVATE "sources/Gerium.hpp")
 target_compile_features(gerium PRIVATE cxx_std_20)
 set_target_properties(gerium PROPERTIES
   CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF)
+  CXX_EXTENSIONS OFF
+  POSITION_INDEPENDENT_CODE ON
+  WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+if(NOT BUILD_SHARED_LIBS)
+  target_compile_definitions(gerium PUBLIC GERIUM_STATIC_BUILD)
+endif()
 
 if(MSVC)
   target_compile_options(gerium PUBLIC /GR-)

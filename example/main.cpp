@@ -2,6 +2,6 @@
 #include <iostream>
 
 int main() {
-    std::cout << GERIUM_VERSION_STRING << std::endl;
+    std::cout << gerium_version_string() << std::endl;
     return 0;
 }

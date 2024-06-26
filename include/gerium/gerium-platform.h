@@ -54,7 +54,7 @@ typedef float       gerium_float32_t;
 typedef double      gerium_float64_t;
 typedef const char* gerium_utf8_t;   
 typedef void*       gerium_data_t;   
-typedef const char* gerium_cdata_t;  
+typedef const void* gerium_cdata_t;  
 
 #ifdef __cplusplus
 # define GERIUM_FLAGS(gerium_enum_t)                                                                          \
