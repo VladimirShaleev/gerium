@@ -1,0 +1,343 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 16,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "release",
+            "displayName": "Release only configuration",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug only configuration",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "win64-base",
+            "displayName": "Windows 64-bit base configuration",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "win32-base",
+            "displayName": "Windows 32-bit base configuration",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x86-windows-static"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "linux-base",
+            "displayName": "Linux base configuration",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-linux"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "osx-base",
+            "displayName": "Mac OS base configuration",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-osx"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
+            "name": "win64-release",
+            "displayName": "Windows x64 default config (static, release)",
+            "inherits": [
+                "win64-base",
+                "release"
+            ]
+        },
+        {
+            "name": "win64-debug",
+            "displayName": "Windows x64 default config (static, debug)",
+            "inherits": [
+                "win64-base",
+                "debug"
+            ]
+        },
+        {
+            "name": "win32-release",
+            "displayName": "Windows x86 default config (static, release)",
+            "inherits": [
+                "win32-base",
+                "release"
+            ]
+        },
+        {
+            "name": "win32-debug",
+            "displayName": "Windows x86 default config (static, debug)",
+            "inherits": [
+                "win32-base",
+                "debug"
+            ]
+        },
+        {
+            "name": "linux-release",
+            "displayName": "Linux default config (dynamic, release)",
+            "inherits": [
+                "linux-base",
+                "release"
+            ]
+        },
+        {
+            "name": "linux-debug",
+            "displayName": "Linux default config (dynamic, debug)",
+            "inherits": [
+                "linux-base",
+                "debug"
+            ]
+        },
+        {
+            "name": "osx-release",
+            "displayName": "Mac OS default config (dynamic, release)",
+            "inherits": [
+                "osx-base",
+                "release"
+            ]
+        },
+        {
+            "name": "osx-debug",
+            "displayName": "Mac OS default config (dynamic, debug)",
+            "inherits": [
+                "osx-base",
+                "debug"
+            ]
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "win64-release",
+            "configurePreset": "win64-release",
+            "configuration": "Release"
+        },
+        {
+            "name": "win64-debug",
+            "configurePreset": "win64-debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "win32-release",
+            "configurePreset": "win32-release",
+            "configuration": "Release"
+        },
+        {
+            "name": "win32-debug",
+            "configurePreset": "win32-debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "linux-release",
+            "configurePreset": "linux-release"
+        },
+        {
+            "name": "linux-debug",
+            "configurePreset": "linux-debug"
+        },
+        {
+            "name": "osx-release",
+            "configurePreset": "osx-release"
+        },
+        {
+            "name": "osx-debug",
+            "configurePreset": "osx-debug"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "test-base",
+            "hidden": true,
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": false
+            }
+        },
+        {
+            "name": "win64-debug",
+            "configurePreset": "win64-debug",
+            "inherits": [
+                "test-base"
+            ]
+        },
+        {
+            "name": "win64-release",
+            "configurePreset": "win64-release",
+            "inherits": [
+                "test-base"
+            ]
+        },
+        {
+            "name": "linux-debug",
+            "configurePreset": "linux-debug",
+            "inherits": [
+                "test-base"
+            ]
+        },
+        {
+            "name": "linux-release",
+            "configurePreset": "linux-release",
+            "inherits": [
+                "test-base"
+            ]
+        },
+        {
+            "name": "osx-debug",
+            "configurePreset": "osx-debug",
+            "inherits": [
+                "test-base"
+            ]
+        },
+        {
+            "name": "osx-release",
+            "configurePreset": "osx-release",
+            "inherits": [
+                "test-base"
+            ]
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "win64-debug",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win64-debug"
+                },
+                {
+                    "type": "build",
+                    "name": "win64-debug"
+                },
+                {
+                    "type": "test",
+                    "name": "win64-debug"
+                }
+            ]
+        },
+        {
+            "name": "win64-release",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win64-release"
+                },
+                {
+                    "type": "build",
+                    "name": "win64-release"
+                },
+                {
+                    "type": "test",
+                    "name": "win64-release"
+                }
+            ]
+        },
+        {
+            "name": "linux-debug",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "linux-debug"
+                },
+                {
+                    "type": "build",
+                    "name": "linux-debug"
+                },
+                {
+                    "type": "test",
+                    "name": "linux-debug"
+                }
+            ]
+        },
+        {
+            "name": "linux-release",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "linux-release"
+                },
+                {
+                    "type": "build",
+                    "name": "linux-release"
+                },
+                {
+                    "type": "test",
+                    "name": "linux-release"
+                }
+            ]
+        },
+        {
+            "name": "osx-debug",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "osx-debug"
+                },
+                {
+                    "type": "build",
+                    "name": "osx-debug"
+                },
+                {
+                    "type": "test",
+                    "name": "osx-debug"
+                }
+            ]
+        },
+        {
+            "name": "osx-release",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "osx-release"
+                },
+                {
+                    "type": "build",
+                    "name": "osx-release"
+                },
+                {
+                    "type": "test",
+                    "name": "osx-release"
+                }
+            ]
+        }
+    ]
+}
