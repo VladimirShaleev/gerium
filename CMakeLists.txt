@@ -22,6 +22,8 @@ endif()
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
+find_path(UTF8H_INCLUDE_DIRS "utf8h/utf8.h")
+
 include(CMakeDependentOption)
 include(CTest)
 
@@ -43,6 +45,8 @@ endif()
 
 add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
+
+target_include_directories(gerium PRIVATE ${UTF8H_INCLUDE_DIRS})
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -83,7 +87,8 @@ endif()
 
 if(MSVC)
     target_compile_options(gerium PUBLIC /GR-)
-    target_compile_options(gerium PRIVATE -DNOMINMAX)
+    target_compile_definitions(gerium PRIVATE -DNOMINMAX)
+    target_compile_definitions(gerium PRIVATE UNICODE _UNICODE)
     if(GERIUM_MSVC_DYNAMIC_RUNTIME)
         set_target_properties(gerium PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")

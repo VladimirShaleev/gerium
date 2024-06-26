@@ -7,19 +7,13 @@ Win32Application::Win32Application(gerium_utf8_t title,
                                    gerium_uint32_t height,
                                    gerium_application_mode_flags_t mode,
                                    HINSTANCE instance) :
-    _hInstance(instance ? instance : GetModuleHandle(nullptr)),
+    _hInstance(instance ? instance : GetModuleHandleW(nullptr)),
     _hWnd(nullptr),
-    _title(title) {
+    _running(false) {
     SetProcessDPIAware();
-}
 
-gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
-    return GERIUM_RUNTIME_PLATFORM_WINDOWS;
-}
-
-gerium_state_t Win32Application::onRun() noexcept {
-    WNDCLASSEX wndClassEx;
-    wndClassEx.cbSize        = sizeof(WNDCLASSEX);
+    WNDCLASSEXW wndClassEx;
+    wndClassEx.cbSize        = sizeof(WNDCLASSEXW);
     wndClassEx.style         = 0;
     wndClassEx.lpfnWndProc   = wndProc;
     wndClassEx.cbClsExtra    = 0;
@@ -32,36 +26,52 @@ gerium_state_t Win32Application::onRun() noexcept {
     wndClassEx.lpszClassName = _kClassName;
     wndClassEx.hIconSm       = nullptr;
 
-    if (!RegisterClassEx(&wndClassEx)) {
-        return GERIUM_STATE_NO_DISPLAY;
+    if (!RegisterClassExW(&wndClassEx)) {
+        throw Exception(GERIUM_STATE_NO_DISPLAY, "Failed to register window");
     }
 
     RECT rect;
     rect.left   = 0;
-    rect.right  = 800;
+    rect.right  = (LONG) width;
     rect.top    = 0;
-    rect.bottom = 600;
-    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW | WS_VISIBLE, FALSE);
+    rect.bottom = (LONG) height;
+    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 
-    _hWnd = CreateWindowEx(WS_EX_TOPMOST,
-                           _kClassName,
-                           _title.c_str(),
-                           WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-                           CW_USEDEFAULT,
-                           CW_USEDEFAULT,
-                           rect.right - rect.left,
-                           rect.bottom - rect.top,
-                           nullptr,
-                           nullptr,
-                           _hInstance,
-                           nullptr);
+    auto wTitle = wideString(title);
+
+    _hWnd = CreateWindowExW(WS_EX_TOPMOST,
+                            _kClassName,
+                            wTitle.c_str(),
+                            WS_OVERLAPPEDWINDOW,
+                            CW_USEDEFAULT,
+                            CW_USEDEFAULT,
+                            rect.right - rect.left,
+                            rect.bottom - rect.top,
+                            nullptr,
+                            nullptr,
+                            _hInstance,
+                            nullptr);
 
     if (!_hWnd) {
-        UnregisterClass(_kClassName, _hInstance);
-        return GERIUM_STATE_NO_DISPLAY;
+        UnregisterClassW(_kClassName, _hInstance);
+        throw Exception(GERIUM_STATE_NO_DISPLAY, "Failed to create window");
     }
 
     SetWindowLongPtr(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
+}
+
+gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
+    return GERIUM_RUNTIME_PLATFORM_WINDOWS;
+}
+
+gerium_state_t Win32Application::onRun() noexcept {
+    if (!_hWnd) {
+        return GERIUM_STATE_APPLICATION_TERMINATED;
+    }
+    if (_running) {
+        return GERIUM_STATE_APPLICATION_RUNNING;
+    }
+    _running = true;
 
     ShowWindow(_hWnd, SW_SHOWNORMAL);
     UpdateWindow(_hWnd);
@@ -81,10 +91,16 @@ gerium_state_t Win32Application::onRun() noexcept {
         }
     }
 
+    UnregisterClassW(_kClassName, _hInstance);
+
     return GERIUM_STATE_SUCCESS;
 }
 
 void Win32Application::onExit() noexcept {
+    if (_hWnd) {
+        DestroyWindow(_hWnd);
+        _hWnd = nullptr;
+    }
 }
 
 LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
@@ -107,6 +123,14 @@ bool Win32Application::waitInBackground(LPMSG pMsg) {
         }
     }
     return false;
+}
+
+std::wstring Win32Application::wideString(gerium_utf8_t utf8) {
+    auto byteCount = (int) utf8len(utf8);
+    std::wstring result;
+    result.resize(byteCount * 4 + 1);
+    MultiByteToWideChar(CP_UTF8, 0, (LPCCH) utf8, byteCount, result.data(), (int) result.size());
+    return result;
 }
 
 LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {

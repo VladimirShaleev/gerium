@@ -4,8 +4,11 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
+
+#include <utf8h/utf8.h>
 
 #ifndef GERIUM_STATIC_BUILD
 # ifdef _MSC_VER

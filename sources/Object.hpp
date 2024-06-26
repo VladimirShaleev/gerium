@@ -1,7 +1,7 @@
 #ifndef GERIUM_OBJECT_HPP
 #define GERIUM_OBJECT_HPP
 
-#include "Gerium.hpp"
+#include "Exceptions.hpp"
 
 namespace gerium {
 
@@ -26,6 +26,8 @@ gerium_inline gerium_state_t Object::create(T*& obj, Args&&... args) noexcept {
     try {
         obj = new (std::nothrow) D(args...);
         return obj ? GERIUM_STATE_SUCCESS : GERIUM_STATE_OUT_OF_MEMORY;
+    } catch (const Exception& exc) {
+        return exc.state();
     } catch (...) {
         return GERIUM_STATE_UNKNOWN_ERROR;
     }

@@ -17,14 +17,16 @@ typedef struct _gerium_application* gerium_application_t;
 
 typedef enum
 {
-   GERIUM_STATE_SUCCESS               = 0,
-   GERIUM_STATE_UNKNOWN_ERROR         = 1,
-   GERIUM_STATE_OUT_OF_MEMORY         = 2,
-   GERIUM_STATE_NOT_IMPLEMENTED       = 3,
-   GERIUM_STATE_FEATURE_NOT_SUPPORTED = 4,
-   GERIUM_STATE_INVALID_ARGUMENT      = 5,
-   GERIUM_STATE_NO_DISPLAY            = 6,
-   GERIUM_STATE_MAX_ENUM              = 0x7FFFFFFF
+   GERIUM_STATE_SUCCESS                = 0,
+   GERIUM_STATE_UNKNOWN_ERROR          = 1,
+   GERIUM_STATE_OUT_OF_MEMORY          = 2,
+   GERIUM_STATE_NOT_IMPLEMENTED        = 3,
+   GERIUM_STATE_FEATURE_NOT_SUPPORTED  = 4,
+   GERIUM_STATE_INVALID_ARGUMENT       = 5,
+   GERIUM_STATE_NO_DISPLAY             = 6,
+   GERIUM_STATE_APPLICATION_RUNNING    = 7,
+   GERIUM_STATE_APPLICATION_TERMINATED = 8,
+   GERIUM_STATE_MAX_ENUM               = 0x7FFFFFFF
 } gerium_state_t;
 
 typedef enum

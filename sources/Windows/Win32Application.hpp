@@ -21,13 +21,14 @@ private:
     LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam);
 
     static bool waitInBackground(LPMSG pMsg);
+    static std::wstring wideString(gerium_utf8_t utf8);
     static LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-    static constexpr char _kClassName[] = "Gerium";
+    static constexpr wchar_t _kClassName[] = L"Gerium";
 
     HINSTANCE _hInstance;
     HWND _hWnd;
-    std::string _title;
+    bool _running;
 };
 
 } // namespace gerium::windows
