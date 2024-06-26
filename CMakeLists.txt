@@ -26,6 +26,8 @@ include(CTest)
 
 cmake_dependent_option(GERIUM_BUILD_TESTS "Build tests" ON
   "BUILD_TESTING;CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
+cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
+  "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
 file(GLOB_RECURSE GERIUM_SOURCES "sources/*.hpp" "sources/*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES})
@@ -52,13 +54,17 @@ elseif(APPLE)
   enable_language(OBJCXX)
   file(GLOB_RECURSE GERIUM_SOURCES_OBJC "sources/*.mm")
   source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES_OBJC})
-  target_sources(vision-flow PRIVATE ${GERIUM_SOURCES_OBJC})
-  # target_link_libraries(vision-flow PRIVATE "${MOLTEN_VK_SRC}/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
-  target_link_libraries(vision-flow PRIVATE "-framework IOSurface")
+  target_sources(gerium PRIVATE ${GERIUM_SOURCES_OBJC})
+  # target_link_libraries(gerium PRIVATE "${MOLTEN_VK_SRC}/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
+  target_link_libraries(gerium PRIVATE "-framework IOSurface")
 elseif(NOT APPLE)
-  target_compile_options(vision-flow PUBLIC -fno-rtti)
+  target_compile_options(gerium PUBLIC -fno-rtti)
 endif()
 
 if(GERIUM_BUILD_TESTS)
   add_subdirectory(tests)
+endif()
+
+if(GERIUM_BUILD_SAMPLE)
+  add_subdirectory(example)
 endif()
