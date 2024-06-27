@@ -18,8 +18,8 @@ private:
 
     void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const override;
 
-    bool onGetFullscreen() const noexcept override;
-    void onSetFullscreen(bool fullscreen) noexcept override;
+    bool onIsFullscreen() const noexcept override;
+    void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept override;
 
     void onRun() override;
     void onExit() noexcept override;

@@ -44,12 +44,14 @@ gerium_result_t Application::getDisplayInfo(gerium_uint32_t& displayCount,
     });
 }
 
-bool Application::getFullscreen() const noexcept {
-    return onGetFullscreen();
+bool Application::isFullscreen() const noexcept {
+    return onIsFullscreen();
 }
 
-void Application::setFullscreen(bool fullscreen) noexcept {
-    onSetFullscreen(fullscreen);
+void Application::fullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept {
+    if (fullscreen != isFullscreen()) {
+        onFullscreen(fullscreen, mode);
+    }
 }
 
 gerium_result_t Application::run() noexcept {
@@ -124,14 +126,16 @@ gerium_result_t gerium_application_get_display_info(gerium_application_t applica
     return alias_cast<Application*>(application)->getDisplayInfo(*display_count, displays);
 }
 
-gerium_bool_t gerium_application_get_fullscreen(gerium_application_t application) {
+gerium_bool_t gerium_application_is_fullscreen(gerium_application_t application) {
     assert(application);
-    return alias_cast<Application*>(application)->getFullscreen() ? 1 : 0;
+    return alias_cast<Application*>(application)->isFullscreen() ? 1 : 0;
 }
 
-void gerium_application_set_fullscreen(gerium_application_t application, gerium_bool_t fullscreen) {
+void gerium_application_fullscreen(gerium_application_t application,
+                                   gerium_bool_t fullscreen,
+                                   const gerium_display_mode_t* mode) {
     assert(application);
-    alias_cast<Application*>(application)->setFullscreen(fullscreen);
+    alias_cast<Application*>(application)->fullscreen(fullscreen, mode);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

@@ -142,120 +142,39 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
     }
 }
 
-bool Win32Application::onGetFullscreen() const noexcept {
+bool Win32Application::onIsFullscreen() const noexcept {
     return _style != 0;
 }
 
-BOOL monitorEnum(HMONITOR hMonitor, HDC, LPRECT, LPARAM) {
-    MONITORINFOEX info{ sizeof(MONITORINFOEX) };
-    GetMonitorInfoW(hMonitor, &info);
-
-    return true;
-}
-
-void Win32Application::onSetFullscreen(bool fullscreen) noexcept {
+void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept {
     if (fullscreen) {
-        std::vector<DISPLAYCONFIG_PATH_INFO> paths;
-        std::vector<DISPLAYCONFIG_MODE_INFO> modes;
-        UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE;
-        LONG result  = ERROR_SUCCESS;
-
-        do {
-            // Determine how many path and mode structures to allocate
-            UINT32 pathCount, modeCount;
-            result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
-
-            if (result != ERROR_SUCCESS) {
-                // return HRESULT_FROM_WIN32(result);
-            }
-
-            // Allocate the path and mode arrays
-            paths.resize(pathCount);
-            modes.resize(modeCount);
-
-            // Get all active paths and their modes
-            result = QueryDisplayConfig(flags, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
-
-            // The function may have returned fewer paths/modes than estimated
-            paths.resize(pathCount);
-            modes.resize(modeCount);
-
-            // It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
-            // that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
-        } while (result == ERROR_INSUFFICIENT_BUFFER);
-
-        if (result != ERROR_SUCCESS) {
-            // return HRESULT_FROM_WIN32(result);
-        }
-
-        // For each active path
-        for (auto& path : paths) {
-            // Find the target (monitor) friendly name
-            DISPLAYCONFIG_TARGET_DEVICE_NAME targetName = {};
-            targetName.header.adapterId                 = path.targetInfo.adapterId;
-            targetName.header.id                        = path.targetInfo.id;
-            targetName.header.type                      = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
-            targetName.header.size                      = sizeof(targetName);
-            result                                      = DisplayConfigGetDeviceInfo(&targetName.header);
-
-            if (result != ERROR_SUCCESS) {
-                // return HRESULT_FROM_WIN32(result);
-            }
-
-            // Find the adapter device name
-            DISPLAYCONFIG_ADAPTER_NAME adapterName = {};
-            adapterName.header.adapterId           = path.targetInfo.adapterId;
-            adapterName.header.type                = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
-            adapterName.header.size                = sizeof(adapterName);
-
-            result = DisplayConfigGetDeviceInfo(&adapterName.header);
-
-            if (result != ERROR_SUCCESS) {
-                // return HRESULT_FROM_WIN32(result);
-            }
-
-            DISPLAYCONFIG_SOURCE_DEVICE_NAME soruceName = {};
-            soruceName.header.adapterId                 = path.sourceInfo.adapterId;
-            soruceName.header.id                        = path.sourceInfo.id;
-            soruceName.header.type                      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-            soruceName.header.size                      = sizeof(soruceName);
-
-            result = DisplayConfigGetDeviceInfo(&soruceName.header);
-
-            if (result != ERROR_SUCCESS) {
-                // return HRESULT_FROM_WIN32(result);
-            }
-
-            std::wostringstream ss;
-            ss << L"Monitor with name "
-               << (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName : L"Unknown")
-               << L" is connected to adapter " << adapterName.adapterDevicePath << L" on target " << path.targetInfo.id
-               << L"\n";
-
-            auto a = ss.str();
-            auto b = a;
-        }
-
-        DISPLAY_DEVICEW display{ sizeof(DISPLAY_DEVICEW) };
-        for (DWORD i = 0; EnumDisplayDevicesW(nullptr, i, &display, 0); ++i) {
-            // DISPLAY_DEVICEW displayName{ sizeof(DISPLAY_DEVICEW) };
-            // EnumDisplayDevicesW(display.DeviceName, 0, &displayName, 0);
-
-            // GetMonitorInfo(MonitorFromWindow(_hWnd, MONITOR_DEFAULTTOPRIMARY))
-
-            if (display.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) {
-                DEVMODEW devMode{};
-                for (DWORD mode = 0; EnumDisplaySettingsW(display.DeviceName, mode, &devMode); ++mode) {
-                    auto a = devMode;
-                }
-            }
-        }
-
         saveWindowPlacement();
+
+        DEVMODE currentMode{};
+        if (!EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &currentMode)) {
+            return;
+        }
+
+        auto newMode = currentMode;
+        if (mode) {
+            newMode.dmPelsWidth  = mode->width;
+            newMode.dmPelsHeight = mode->height;
+            newMode.dmFields     = DM_PELSWIDTH | DM_PELSHEIGHT;
+            if (mode->refresh_rate) {
+                newMode.dmDisplayFrequency = mode->refresh_rate;
+                newMode.dmFields |= DM_DISPLAYFREQUENCY;
+            }
+        }
+
+        if (ChangeDisplaySettings(&newMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            ChangeDisplaySettings(&currentMode, CDS_FULLSCREEN);
+        }
+
         SetWindowLong(_hWnd, GWL_STYLE, WS_POPUP);
         SetWindowLong(_hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
         ShowWindow(_hWnd, SW_SHOWMAXIMIZED);
     } else {
+        ChangeDisplaySettings(nullptr, 0);
         restoreWindowPlacement();
     }
 }
@@ -306,7 +225,7 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_SYSKEYUP:
             if (wParam == VK_RETURN) {
-                gerium_application_set_fullscreen(this, !gerium_application_get_fullscreen(this));
+                gerium_application_fullscreen(this, !gerium_application_is_fullscreen(this), nullptr);
             }
             break;
 
@@ -341,8 +260,8 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
                     _visibility = false;
                     break;
                 case SIZE_MAXIMIZED:
-                    callStateFunc(onGetFullscreen() ? GERIUM_APPLICATION_STATE_FULLSCREEN
-                                                    : GERIUM_APPLICATION_STATE_MAXIMIZE);
+                    callStateFunc(onIsFullscreen() ? GERIUM_APPLICATION_STATE_FULLSCREEN
+                                                   : GERIUM_APPLICATION_STATE_MAXIMIZE);
                     break;
             }
             if (_visibility != prevVisibility) {

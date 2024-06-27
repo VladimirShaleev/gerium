@@ -128,11 +128,12 @@ gerium_application_get_display_info(gerium_application_t application,
                                     gerium_display_info_t* displays);
 
 gerium_public gerium_bool_t
-gerium_application_get_fullscreen(gerium_application_t application);
+gerium_application_is_fullscreen(gerium_application_t application);
 
 gerium_public void
-gerium_application_set_fullscreen(gerium_application_t application,
-                                  gerium_bool_t fullscreen);
+gerium_application_fullscreen(gerium_application_t application,
+                              gerium_bool_t fullscreen,
+                              const gerium_display_mode_t* mode);
 
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);

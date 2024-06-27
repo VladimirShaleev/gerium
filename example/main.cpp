@@ -66,6 +66,11 @@ int main() {
         gerium_uint32_t displayCount = 10;
         check(gerium_application_get_display_info(application, &displayCount, displays));
 
+        std::cout << "Avaiable monitors:" << std::endl;
+        for (gerium_uint32_t i = 0; i < displayCount; ++i) {
+            std::cout << '\t' << displays[i].device_name << std::endl;
+        }
+
         gerium_application_set_frame_func(application, frame, nullptr);
         gerium_application_set_state_func(application, state, nullptr);
         check(gerium_application_run(application));
