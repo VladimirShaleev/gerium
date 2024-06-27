@@ -28,6 +28,10 @@ private:
 
     void saveWindowPlacement();
     void restoreWindowPlacement();
+    void enumDisplays(gerium_uint32_t displayCount,
+                      gerium_uint32_t& displayIndex,
+                      bool primary,
+                      gerium_display_info_t* displays) const;
 
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);
@@ -46,7 +50,6 @@ private:
     LONG _styleEx;
     mutable std::map<std::wstring, std::string> _monitors;
     mutable std::vector<gerium_display_mode_t> _modes;
-    mutable std::vector<std::string> _gpuNames;
     mutable std::vector<std::string> _displayNames;
 };
 

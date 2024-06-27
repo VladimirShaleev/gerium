@@ -73,7 +73,6 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
     if (displays) {
         _monitors.clear();
         _modes.clear();
-        _gpuNames.clear();
         _displayNames.clear();
 
         std::vector<DISPLAYCONFIG_PATH_INFO> paths;
@@ -129,48 +128,18 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
     }
 
     gerium_uint32_t displayIndex = 0;
+    enumDisplays(displayCount, displayIndex, true, displays);
+    enumDisplays(displayCount, displayIndex, false, displays);
+    displayCount = displayIndex;
 
-    DISPLAY_DEVICEW display{ sizeof(DISPLAY_DEVICEW) };
-    for (DWORD i = 0; EnumDisplayDevicesW(nullptr, i, &display, 0); ++i) {
-        if (display.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) {
-            if (displays) {
-                if (displayIndex == displayCount) {
-                    break;
-                }
-                gerium_display_info_t& info = displays[displayIndex++];
-
-                if (auto it = _monitors.find(display.DeviceName); it != _monitors.end()) {
-                    info.device_name = it->second.data();
-                } else {
-                    info.device_name = "Unknown";
-                }
-
-                _gpuNames.push_back(utf8String(display.DeviceString));
-                info.gpu_name = _gpuNames.back().data();
-
-                DISPLAY_DEVICEW displayName{ sizeof(DISPLAY_DEVICEW) };
-                EnumDisplayDevicesW(display.DeviceName, 0, &displayName, 0);
-                _displayNames.push_back(utf8String(displayName.DeviceString));
-                info.name = _displayNames.back().data();
-
-                info.mode_count = 0;
-                DEVMODEW devMode{};
-                for (DWORD m = 0; EnumDisplaySettingsW(display.DeviceName, m, &devMode); ++m) {
-                    if (devMode.dmDisplayFrequency <= 1 || devMode.dmDisplayFrequency >= 30) {
-                        ++info.mode_count;
-                        _modes.emplace_back(
-                            gerium_uint16_t(devMode.dmPelsWidth),
-                            gerium_uint16_t(devMode.dmPelsHeight),
-                            gerium_uint16_t(devMode.dmDisplayFrequency == 1 ? 0 : devMode.dmDisplayFrequency));
-                    }
-                }
-                info.modes = _modes.data() + _modes.size() - info.mode_count;
-            } else {
-                ++displayIndex;
-            }
+    if (displays) {
+        for (gerium_uint32_t i = 0, offset = 0; i < displayIndex; ++i) {
+            displays[i].gpu_name = _displayNames[i * 2].data();
+            displays[i].name     = _displayNames[i * 2 + 1].data();
+            displays[i].modes    = _modes.data() + offset;
+            offset += displays[i].mode_count;
         }
     }
-    displayCount = displayIndex;
 }
 
 bool Win32Application::onGetFullscreen() const noexcept {
@@ -409,6 +378,54 @@ void Win32Application::restoreWindowPlacement() {
     SetWindowPlacement(_hWnd, &_windowPlacement);
     _style   = 0;
     _styleEx = 0;
+}
+
+void Win32Application::enumDisplays(gerium_uint32_t displayCount,
+                                    gerium_uint32_t& displayIndex,
+                                    bool primary,
+                                    gerium_display_info_t* displays) const {
+    DISPLAY_DEVICEW display{ sizeof(DISPLAY_DEVICEW) };
+    for (DWORD i = 0; EnumDisplayDevicesW(nullptr, i, &display, 0); ++i) {
+        if (display.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) {
+            bool displayPrimary = display.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE;
+            if (displayPrimary != primary) {
+                continue;
+            }
+            if (displays) {
+                if (displayIndex == displayCount) {
+                    break;
+                }
+
+                gerium_display_info_t& info = displays[displayIndex++];
+                info.mode_count             = 0;
+
+                if (auto it = _monitors.find(display.DeviceName); it != _monitors.end()) {
+                    info.device_name = it->second.data();
+                } else {
+                    info.device_name = "Unknown";
+                }
+
+                DISPLAY_DEVICEW displayName{ sizeof(DISPLAY_DEVICEW) };
+                EnumDisplayDevicesW(display.DeviceName, 0, &displayName, 0);
+
+                _displayNames.push_back(utf8String(display.DeviceString));
+                _displayNames.push_back(utf8String(displayName.DeviceString));
+
+                DEVMODEW devMode{};
+                for (DWORD m = 0; EnumDisplaySettingsW(display.DeviceName, m, &devMode); ++m) {
+                    if (devMode.dmDisplayFrequency <= 1 || devMode.dmDisplayFrequency >= 30) {
+                        ++info.mode_count;
+                        _modes.emplace_back(
+                            gerium_uint16_t(devMode.dmPelsWidth),
+                            gerium_uint16_t(devMode.dmPelsHeight),
+                            gerium_uint16_t(devMode.dmDisplayFrequency == 1 ? 0 : devMode.dmDisplayFrequency));
+                    }
+                }
+            } else {
+                ++displayIndex;
+            }
+        }
+    }
 }
 
 bool Win32Application::waitInBackground(LPMSG pMsg) {
