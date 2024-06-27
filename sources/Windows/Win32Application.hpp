@@ -29,6 +29,8 @@ private:
     HINSTANCE _hInstance;
     HWND _hWnd;
     bool _running;
+    bool _resizing;
+    bool _visibility;
 };
 
 } // namespace gerium::windows

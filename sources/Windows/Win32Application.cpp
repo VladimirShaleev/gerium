@@ -9,7 +9,9 @@ Win32Application::Win32Application(gerium_utf8_t title,
                                    HINSTANCE instance) :
     _hInstance(instance ? instance : GetModuleHandleW(nullptr)),
     _hWnd(nullptr),
-    _running(false) {
+    _running(false),
+    _resizing(false),
+    _visibility(false) {
     SetProcessDPIAware();
 
     WNDCLASSEXW wndClassEx;
@@ -39,7 +41,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
 
     auto wTitle = wideString(title);
 
-    _hWnd = CreateWindowExW(WS_EX_TOPMOST,
+    _hWnd = CreateWindowExW(0,
                             _kClassName,
                             wTitle.c_str(),
                             WS_OVERLAPPEDWINDOW,
@@ -73,6 +75,10 @@ void Win32Application::onRun() {
     }
     _running = true;
 
+    if (!callStateFunc(GERIUM_APPLICATION_STATE_CREATE) || !callStateFunc(GERIUM_APPLICATION_STATE_INITIALIZE)) {
+        throw Exception(GERIUM_RESULT_APPLICATION_TERMINATED, "The callback requested application termination");
+    }
+
     ShowWindow(_hWnd, SW_SHOWNORMAL);
     UpdateWindow(_hWnd);
 
@@ -97,12 +103,57 @@ void Win32Application::onRun() {
 void Win32Application::onExit() noexcept {
     if (_hWnd) {
         DestroyWindow(_hWnd);
-        _hWnd = nullptr;
     }
 }
 
 LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
+    auto prevVisibility = _visibility;
     switch (message) {
+        case WM_CLOSE:
+            callStateFunc(GERIUM_APPLICATION_STATE_INVISIBLE);
+            exit();
+            break;
+
+        case WM_ACTIVATEAPP:
+            callStateFunc(wParam ? GERIUM_APPLICATION_STATE_GOT_FOCUS : GERIUM_APPLICATION_STATE_LOST_FOCUS);
+            break;
+
+        case WM_SIZING:
+            _resizing = true;
+            return TRUE;
+
+        case WM_SIZE:
+            _visibility = true;
+            switch (wParam) {
+                case SIZE_RESTORED:
+                    if (_resizing) {
+                        callStateFunc(GERIUM_APPLICATION_STATE_RESIZE);
+                    } else {
+                        callStateFunc(GERIUM_APPLICATION_STATE_NORMAL);
+                    }
+                    break;
+                case SIZE_MINIMIZED:
+                    callStateFunc(GERIUM_APPLICATION_STATE_MINIMIZE);
+                    _visibility = false;
+                    break;
+                case SIZE_MAXIMIZED:
+                    callStateFunc(GERIUM_APPLICATION_STATE_MAXIMIZE);
+                    break;
+            }
+            if (_visibility != prevVisibility) {
+                callStateFunc(_visibility ? GERIUM_APPLICATION_STATE_VISIBLE : GERIUM_APPLICATION_STATE_INVISIBLE);
+            }
+            _resizing = false;
+            break;
+
+        case WM_DESTROY:
+            callStateFunc(GERIUM_APPLICATION_STATE_UNINITIALIZE);
+            callStateFunc(GERIUM_APPLICATION_STATE_DESTROY);
+            PostQuitMessage(0);
+            _hWnd    = nullptr;
+            _running = false;
+            break;
+
         default:
             return DefWindowProc(_hWnd, message, wParam, lParam);
     }
@@ -133,18 +184,7 @@ std::wstring Win32Application::wideString(gerium_utf8_t utf8) {
 
 LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     auto application = (Win32Application*) GetWindowLongPtr(hWnd, GWLP_USERDATA);
-    switch (message) {
-        case WM_DESTROY:
-            application->_hWnd = nullptr;
-            application->_running = false;
-            PostQuitMessage(0);
-            break;
-
-        default:
-            return application ? application->wndProc(message, wParam, lParam)
-                               : DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    return 0;
+    return application ? application->wndProc(message, wParam, lParam) : DefWindowProc(hWnd, message, wParam, lParam);
 }
 
 } // namespace gerium::windows

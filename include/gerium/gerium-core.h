@@ -41,15 +41,34 @@ typedef enum
    GERIUM_RUNTIME_PLATFORM_MAX_ENUM = 0x7FFFFFFF
 } gerium_runtime_platform_t;
 
-// typedef enum
-// {
-//    GERIUM_APPLICATION_MODE_NONE_BIT       = 0,
-//    GERIUM_APPLICATION_MODE_FULLSCREEN_BIT = 1,
-//    GERIUM_APPLICATION_MODE_RESIZABLE_BIT  = 2,
-//    GERIUM_APPLICATION_MODE_TOPMOST        = 4,
-//    GERIUM_APPLICATION_MODE_MAX_ENUM       = 0x7FFFFFFF
-// } gerium_application_mode_flags_t;
-// GERIUM_FLAGS(gerium_application_mode_flags_t)
+typedef enum
+{
+   GERIUM_APPLICATION_STATE_UNKNOWN      = 0,
+   GERIUM_APPLICATION_STATE_CREATE       = 1,
+   GERIUM_APPLICATION_STATE_DESTROY      = 2,
+   GERIUM_APPLICATION_STATE_INITIALIZE   = 3,
+   GERIUM_APPLICATION_STATE_UNINITIALIZE = 4,
+   GERIUM_APPLICATION_STATE_GOT_FOCUS    = 5,
+   GERIUM_APPLICATION_STATE_LOST_FOCUS   = 6,
+   GERIUM_APPLICATION_STATE_VISIBLE      = 7,
+   GERIUM_APPLICATION_STATE_INVISIBLE    = 8,
+   GERIUM_APPLICATION_STATE_NORMAL       = 9,
+   GERIUM_APPLICATION_STATE_MINIMIZE     = 10,
+   GERIUM_APPLICATION_STATE_MAXIMIZE     = 11,
+   GERIUM_APPLICATION_STATE_FULLSCREEN   = 12,
+   GERIUM_APPLICATION_STATE_RESIZE       = 13,
+   GERIUM_APPLICATION_STATE_MAX_ENUM     = 0x7FFFFFFF
+} gerium_application_state_t;
+
+typedef gerium_bool_t
+(*gerium_application_frame_func_t)(gerium_application_t application,
+                                   gerium_data_t data,
+                                   gerium_float32_t elapsed);
+
+typedef gerium_bool_t
+(*gerium_application_state_func_t)(gerium_application_t application,
+                                   gerium_data_t data,
+                                   gerium_application_state_t state);
 
 gerium_public gerium_uint32_t
 gerium_version(void);
@@ -68,6 +87,24 @@ gerium_application_destroy(gerium_application_t application);
 
 gerium_public gerium_runtime_platform_t
 gerium_application_get_platform(gerium_application_t application);
+
+gerium_public gerium_application_frame_func_t
+gerium_application_get_frame_func(gerium_application_t application,
+                                  gerium_data_t* data);
+
+gerium_public void
+gerium_application_set_frame_func(gerium_application_t application,
+                                  gerium_application_frame_func_t callback,
+                                  gerium_data_t data);
+                                  
+gerium_public gerium_application_state_func_t
+gerium_application_get_state_func(gerium_application_t application,
+                                  gerium_data_t* data);
+
+gerium_public void
+gerium_application_set_state_func(gerium_application_t application,
+                                  gerium_application_state_func_t callback,
+                                  gerium_data_t data);
 
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);
