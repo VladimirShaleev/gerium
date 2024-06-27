@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdlib>
 #include <functional>
+#include <map>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>

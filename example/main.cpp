@@ -62,6 +62,10 @@ int main() {
     try {
         check(gerium_windows_application_create("test", 800, 600, nullptr, &application));
 
+        gerium_display_info_t displays[10];
+        gerium_uint32_t displayCount = 10;
+        check(gerium_application_get_display_info(application, &displayCount, displays));
+
         gerium_application_set_frame_func(application, frame, nullptr);
         gerium_application_set_state_func(application, state, nullptr);
         check(gerium_application_run(application));

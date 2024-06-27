@@ -60,6 +60,22 @@ typedef enum
    GERIUM_APPLICATION_STATE_MAX_ENUM     = 0x7FFFFFFF
 } gerium_application_state_t;
 
+typedef struct
+{
+   gerium_uint16_t width;
+   gerium_uint16_t height;
+   gerium_uint16_t refresh_rate;
+} gerium_display_mode_t;
+
+typedef struct
+{
+   gerium_utf8_t                name;
+   gerium_utf8_t                gpu_name;
+   gerium_utf8_t                device_name;
+   gerium_uint32_t              mode_count;
+   const gerium_display_mode_t* modes;
+} gerium_display_info_t;
+
 typedef gerium_bool_t
 (*gerium_application_frame_func_t)(gerium_application_t application,
                                    gerium_data_t data,
@@ -105,6 +121,11 @@ gerium_public void
 gerium_application_set_state_func(gerium_application_t application,
                                   gerium_application_state_func_t callback,
                                   gerium_data_t data);
+
+gerium_public gerium_result_t
+gerium_application_get_display_info(gerium_application_t application,
+                                    gerium_uint32_t* display_count,
+                                    gerium_display_info_t* displays);
 
 gerium_public gerium_bool_t
 gerium_application_get_fullscreen(gerium_application_t application);

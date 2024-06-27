@@ -37,6 +37,13 @@ void Application::setStateFunc(gerium_application_state_func_t callback, gerium_
     _stateData = data;
 }
 
+gerium_result_t Application::getDisplayInfo(gerium_uint32_t& displayCount,
+                                            gerium_display_info_t* displays) const noexcept {
+    return invoke<Application>([&displayCount, &displays](auto obj) {
+        obj->onGetDisplayInfo(displayCount, displays);
+    });
+}
+
 bool Application::getFullscreen() const noexcept {
     return onGetFullscreen();
 }
@@ -108,6 +115,13 @@ void gerium_application_set_state_func(gerium_application_t application,
                                        gerium_data_t data) {
     assert(application);
     alias_cast<Application*>(application)->setStateFunc(callback, data);
+}
+
+gerium_result_t gerium_application_get_display_info(gerium_application_t application,
+                                                    gerium_uint32_t* display_count,
+                                                    gerium_display_info_t* displays) {
+    assert(application);
+    return alias_cast<Application*>(application)->getDisplayInfo(*display_count, displays);
 }
 
 gerium_bool_t gerium_application_get_fullscreen(gerium_application_t application) {

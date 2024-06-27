@@ -69,6 +69,110 @@ gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
     return GERIUM_RUNTIME_PLATFORM_WINDOWS;
 }
 
+void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const {
+    if (displays) {
+        _monitors.clear();
+        _modes.clear();
+        _gpuNames.clear();
+        _displayNames.clear();
+
+        std::vector<DISPLAYCONFIG_PATH_INFO> paths;
+        std::vector<DISPLAYCONFIG_MODE_INFO> modes;
+        UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE;
+        LONG result  = ERROR_SUCCESS;
+        UINT32 pathCount;
+        UINT32 modeCount;
+
+        do {
+            result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
+
+            if (result != ERROR_SUCCESS) {
+                throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+            }
+            paths.resize(pathCount);
+            modes.resize(modeCount);
+
+            result = QueryDisplayConfig(flags, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
+            paths.resize(pathCount);
+            modes.resize(modeCount);
+
+        } while (result == ERROR_INSUFFICIENT_BUFFER);
+
+        if (result != ERROR_SUCCESS) {
+            throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+        }
+
+        for (auto& path : paths) {
+            DISPLAYCONFIG_TARGET_DEVICE_NAME targetName{};
+            targetName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+            targetName.header.size      = sizeof(DISPLAYCONFIG_TARGET_DEVICE_NAME);
+            targetName.header.adapterId = path.targetInfo.adapterId;
+            targetName.header.id        = path.targetInfo.id;
+
+            if (DisplayConfigGetDeviceInfo(&targetName.header) != ERROR_SUCCESS) {
+                throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+            }
+
+            DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName{};
+            sourceName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+            sourceName.header.size      = sizeof(DISPLAYCONFIG_SOURCE_DEVICE_NAME);
+            sourceName.header.adapterId = path.sourceInfo.adapterId;
+            sourceName.header.id        = path.sourceInfo.id;
+
+            if (DisplayConfigGetDeviceInfo(&sourceName.header) != ERROR_SUCCESS) {
+                throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+            }
+
+            _monitors[sourceName.viewGdiDeviceName] =
+                utf8String(targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName : L"Unknown");
+        }
+    }
+
+    gerium_uint32_t displayIndex = 0;
+
+    DISPLAY_DEVICEW display{ sizeof(DISPLAY_DEVICEW) };
+    for (DWORD i = 0; EnumDisplayDevicesW(nullptr, i, &display, 0); ++i) {
+        if (display.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) {
+            if (displays) {
+                if (displayIndex == displayCount) {
+                    break;
+                }
+                gerium_display_info_t& info = displays[displayIndex++];
+
+                if (auto it = _monitors.find(display.DeviceName); it != _monitors.end()) {
+                    info.device_name = it->second.data();
+                } else {
+                    info.device_name = "Unknown";
+                }
+
+                _gpuNames.push_back(utf8String(display.DeviceString));
+                info.gpu_name = _gpuNames.back().data();
+
+                DISPLAY_DEVICEW displayName{ sizeof(DISPLAY_DEVICEW) };
+                EnumDisplayDevicesW(display.DeviceName, 0, &displayName, 0);
+                _displayNames.push_back(utf8String(displayName.DeviceString));
+                info.name = _displayNames.back().data();
+
+                info.mode_count = 0;
+                DEVMODEW devMode{};
+                for (DWORD m = 0; EnumDisplaySettingsW(display.DeviceName, m, &devMode); ++m) {
+                    if (devMode.dmDisplayFrequency <= 1 || devMode.dmDisplayFrequency >= 30) {
+                        ++info.mode_count;
+                        _modes.emplace_back(
+                            gerium_uint16_t(devMode.dmPelsWidth),
+                            gerium_uint16_t(devMode.dmPelsHeight),
+                            gerium_uint16_t(devMode.dmDisplayFrequency == 1 ? 0 : devMode.dmDisplayFrequency));
+                    }
+                }
+                info.modes = _modes.data() + _modes.size() - info.mode_count;
+            } else {
+                ++displayIndex;
+            }
+        }
+    }
+    displayCount = displayIndex;
+}
+
 bool Win32Application::onGetFullscreen() const noexcept {
     return _style != 0;
 }
@@ -93,7 +197,7 @@ void Win32Application::onSetFullscreen(bool fullscreen) noexcept {
             result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
 
             if (result != ERROR_SUCCESS) {
-                //return HRESULT_FROM_WIN32(result);
+                // return HRESULT_FROM_WIN32(result);
             }
 
             // Allocate the path and mode arrays
@@ -112,7 +216,7 @@ void Win32Application::onSetFullscreen(bool fullscreen) noexcept {
         } while (result == ERROR_INSUFFICIENT_BUFFER);
 
         if (result != ERROR_SUCCESS) {
-            //return HRESULT_FROM_WIN32(result);
+            // return HRESULT_FROM_WIN32(result);
         }
 
         // For each active path
@@ -126,7 +230,7 @@ void Win32Application::onSetFullscreen(bool fullscreen) noexcept {
             result                                      = DisplayConfigGetDeviceInfo(&targetName.header);
 
             if (result != ERROR_SUCCESS) {
-                //return HRESULT_FROM_WIN32(result);
+                // return HRESULT_FROM_WIN32(result);
             }
 
             // Find the adapter device name
@@ -138,29 +242,29 @@ void Win32Application::onSetFullscreen(bool fullscreen) noexcept {
             result = DisplayConfigGetDeviceInfo(&adapterName.header);
 
             if (result != ERROR_SUCCESS) {
-                //return HRESULT_FROM_WIN32(result);
+                // return HRESULT_FROM_WIN32(result);
             }
 
             DISPLAYCONFIG_SOURCE_DEVICE_NAME soruceName = {};
-            soruceName.header.adapterId           = path.sourceInfo.adapterId;
+            soruceName.header.adapterId                 = path.sourceInfo.adapterId;
             soruceName.header.id                        = path.sourceInfo.id;
-            soruceName.header.type                = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-            soruceName.header.size                = sizeof(soruceName);
+            soruceName.header.type                      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+            soruceName.header.size                      = sizeof(soruceName);
 
             result = DisplayConfigGetDeviceInfo(&soruceName.header);
 
             if (result != ERROR_SUCCESS) {
-                //return HRESULT_FROM_WIN32(result);
+                // return HRESULT_FROM_WIN32(result);
             }
 
-std::wostringstream ss;
+            std::wostringstream ss;
             ss << L"Monitor with name "
-                  << (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName : L"Unknown")
-                  << L" is connected to adapter " << adapterName.adapterDevicePath << L" on target "
-                  << path.targetInfo.id << L"\n";
+               << (targetName.flags.friendlyNameFromEdid ? targetName.monitorFriendlyDeviceName : L"Unknown")
+               << L" is connected to adapter " << adapterName.adapterDevicePath << L" on target " << path.targetInfo.id
+               << L"\n";
 
-                  auto a = ss.str();
-                  auto b = a;
+            auto a = ss.str();
+            auto b = a;
         }
 
         DISPLAY_DEVICEW display{ sizeof(DISPLAY_DEVICEW) };
@@ -326,6 +430,14 @@ std::wstring Win32Application::wideString(gerium_utf8_t utf8) {
     std::wstring result;
     result.resize(byteCount * 4 + 1);
     MultiByteToWideChar(CP_UTF8, 0, (LPCCH) utf8, byteCount, result.data(), (int) result.size());
+    return result;
+}
+
+std::string Win32Application::utf8String(const std::wstring& wstr) {
+    std::string result;
+    result.resize(wstr.length() * 2);
+    WideCharToMultiByte(
+        CP_UTF8, 0, (LPCWCH) wstr.data(), wstr.length(), result.data(), (int) result.size(), nullptr, nullptr);
     return result;
 }
 

@@ -19,6 +19,8 @@ public:
     void setFrameFunc(gerium_application_frame_func_t callback, gerium_data_t data) noexcept;
     void setStateFunc(gerium_application_state_func_t callback, gerium_data_t data) noexcept;
 
+    gerium_result_t getDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const noexcept;
+
     bool getFullscreen() const noexcept;
     void setFullscreen(bool fullscreen) noexcept;
 
@@ -31,6 +33,8 @@ protected:
 
 private:
     virtual gerium_runtime_platform_t onGetPlatform() const noexcept = 0;
+
+    virtual void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const = 0;
 
     virtual bool onGetFullscreen() const noexcept          = 0;
     virtual void onSetFullscreen(bool fullscreen) noexcept = 0;

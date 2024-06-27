@@ -16,6 +16,8 @@ public:
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
+    void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const override;
+
     bool onGetFullscreen() const noexcept override;
     void onSetFullscreen(bool fullscreen) noexcept override;
 
@@ -29,6 +31,7 @@ private:
 
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);
+    static std::string utf8String(const std::wstring& wstr);
     static LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
     static constexpr wchar_t _kClassName[] = L"Gerium";
@@ -41,6 +44,10 @@ private:
     WINDOWPLACEMENT _windowPlacement;
     LONG _style;
     LONG _styleEx;
+    mutable std::map<std::wstring, std::string> _monitors;
+    mutable std::vector<gerium_display_mode_t> _modes;
+    mutable std::vector<std::string> _gpuNames;
+    mutable std::vector<std::string> _displayNames;
 };
 
 } // namespace gerium::windows

@@ -18,7 +18,7 @@ public:
 
 protected:
     template <typename D>
-    gerium_result_t invoke(std::function<void(D*)>&& func) noexcept;
+    gerium_result_t invoke(std::function<void(D*)>&& func) const noexcept;
 
 private:
     gerium_sint32_t _refCount;
@@ -38,7 +38,7 @@ gerium_inline gerium_result_t Object::create(T*& obj, Args&&... args) noexcept {
 }
 
 template <typename D>
-inline gerium_result_t Object::invoke(std::function<void(D*)>&& func) noexcept {
+inline gerium_result_t Object::invoke(std::function<void(D*)>&& func) const noexcept {
     static_assert(std::is_base_of_v<Object, D>, "D must inheritance from T");
     try {
         func(alias_cast<D*>(this));
