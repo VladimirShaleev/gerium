@@ -52,6 +52,9 @@ gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium
         case GERIUM_APPLICATION_STATE_RESIZE:
             std::cout << "GERIUM_APPLICATION_STATE_RESIZE" << std::endl;
             break;
+        case GERIUM_APPLICATION_STATE_RESIZED:
+            std::cout << "GERIUM_APPLICATION_STATE_RESIZED" << std::endl;
+            break;
     }
     return 1;
 }

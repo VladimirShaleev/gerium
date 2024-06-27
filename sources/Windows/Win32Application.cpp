@@ -275,6 +275,12 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             _resizing = false;
             break;
 
+        case WM_EXITSIZEMOVE:
+            if (_prevState == GERIUM_APPLICATION_STATE_RESIZE) {
+                changeState(GERIUM_APPLICATION_STATE_RESIZED);
+            }
+            break;
+
         case WM_DESTROY:
             changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
             changeState(GERIUM_APPLICATION_STATE_DESTROY);
