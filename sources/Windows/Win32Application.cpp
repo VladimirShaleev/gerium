@@ -5,7 +5,7 @@ namespace gerium::windows {
 Win32Application::Win32Application(gerium_utf8_t title,
                                    gerium_uint32_t width,
                                    gerium_uint32_t height,
-                                   gerium_application_mode_flags_t mode,
+                                   // gerium_application_mode_flags_t mode,
                                    HINSTANCE instance) :
     _hInstance(instance ? instance : GetModuleHandleW(nullptr)),
     _hWnd(nullptr),
@@ -148,12 +148,12 @@ LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 } // namespace gerium::windows
 
 gerium_result_t gerium_windows_application_create(gerium_utf8_t title,
-                                                 gerium_uint32_t width,
-                                                 gerium_uint32_t height,
-                                                 gerium_application_mode_flags_t mode,
-                                                 HINSTANCE instance,
-                                                 gerium_application_t* application) {
+                                                  gerium_uint32_t width,
+                                                  gerium_uint32_t height,
+                                                  // gerium_application_mode_flags_t mode,
+                                                  HINSTANCE instance,
+                                                  gerium_application_t* application) {
     using namespace gerium;
     using namespace gerium::windows;
-    return Object::create<Win32Application>(*application, title, width, height, mode, instance);
+    return Object::create<Win32Application>(*application, title, width, height, /* mode, */ instance);
 }

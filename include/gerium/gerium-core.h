@@ -41,15 +41,15 @@ typedef enum
    GERIUM_RUNTIME_PLATFORM_MAX_ENUM = 0x7FFFFFFF
 } gerium_runtime_platform_t;
 
-typedef enum
-{
-   GERIUM_APPLICATION_MODE_NONE_BIT       = 0,
-   GERIUM_APPLICATION_MODE_FULLSCREEN_BIT = 1,
-   GERIUM_APPLICATION_MODE_RESIZABLE_BIT  = 2,
-   GERIUM_APPLICATION_MODE_TOPMOST        = 4,
-   GERIUM_APPLICATION_MODE_MAX_ENUM       = 0x7FFFFFFF
-} gerium_application_mode_flags_t;
-GERIUM_FLAGS(gerium_application_mode_flags_t)
+// typedef enum
+// {
+//    GERIUM_APPLICATION_MODE_NONE_BIT       = 0,
+//    GERIUM_APPLICATION_MODE_FULLSCREEN_BIT = 1,
+//    GERIUM_APPLICATION_MODE_RESIZABLE_BIT  = 2,
+//    GERIUM_APPLICATION_MODE_TOPMOST        = 4,
+//    GERIUM_APPLICATION_MODE_MAX_ENUM       = 0x7FFFFFFF
+// } gerium_application_mode_flags_t;
+// GERIUM_FLAGS(gerium_application_mode_flags_t)
 
 gerium_public gerium_uint32_t
 gerium_version(void);

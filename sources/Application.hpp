@@ -11,7 +11,7 @@ class Application : public _gerium_application {
 public:
     gerium_runtime_platform_t getPlatform() const noexcept;
 
-    void run();
+    gerium_result_t run() noexcept;
     void exit() noexcept;
 
 protected:

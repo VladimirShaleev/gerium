@@ -10,7 +10,7 @@ public:
     Win32Application(gerium_utf8_t title,
                      gerium_uint32_t width,
                      gerium_uint32_t height,
-                     gerium_application_mode_flags_t mode,
+                     // gerium_application_mode_flags_t mode,
                      HINSTANCE instance);
 
 private:
