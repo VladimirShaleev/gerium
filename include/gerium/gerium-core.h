@@ -106,6 +106,13 @@ gerium_application_set_state_func(gerium_application_t application,
                                   gerium_application_state_func_t callback,
                                   gerium_data_t data);
 
+gerium_public gerium_bool_t
+gerium_application_get_fullscreen(gerium_application_t application);
+
+gerium_public void
+gerium_application_set_fullscreen(gerium_application_t application,
+                                  gerium_bool_t fullscreen);
+
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);
 

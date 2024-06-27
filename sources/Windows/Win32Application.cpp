@@ -11,7 +11,10 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _hWnd(nullptr),
     _running(false),
     _resizing(false),
-    _visibility(false) {
+    _visibility(false),
+    _windowPlacement({}),
+    _style(0),
+    _styleEx(0) {
     SetProcessDPIAware();
 
     WNDCLASSEXW wndClassEx;
@@ -66,6 +69,21 @@ gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
     return GERIUM_RUNTIME_PLATFORM_WINDOWS;
 }
 
+bool Win32Application::onGetFullscreen() const noexcept {
+    return _style != 0;
+}
+
+void Win32Application::onSetFullscreen(bool fullscreen) noexcept {
+    if (fullscreen) {
+        saveWindowPlacement();
+        SetWindowLong(_hWnd, GWL_STYLE, WS_POPUP);
+        SetWindowLong(_hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
+        ShowWindow(_hWnd, SW_SHOWMAXIMIZED);
+    } else {
+        restoreWindowPlacement();
+    }
+}
+
 void Win32Application::onRun() {
     if (!_hWnd) {
         throw Exception(GERIUM_RESULT_APPLICATION_TERMINATED, "The application is already completed");
@@ -93,6 +111,7 @@ void Win32Application::onRun() {
                 break;
             }
 
+            TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
     }
@@ -109,6 +128,15 @@ void Win32Application::onExit() noexcept {
 LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
     auto prevVisibility = _visibility;
     switch (message) {
+        case WM_SYSKEYUP:
+            if (wParam == VK_RETURN) {
+                gerium_application_set_fullscreen(this, !gerium_application_get_fullscreen(this));
+            }
+            break;
+
+        case WM_KEYUP:
+            break;
+
         case WM_CLOSE:
             callStateFunc(GERIUM_APPLICATION_STATE_INVISIBLE);
             exit();
@@ -137,7 +165,8 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
                     _visibility = false;
                     break;
                 case SIZE_MAXIMIZED:
-                    callStateFunc(GERIUM_APPLICATION_STATE_MAXIMIZE);
+                    callStateFunc(onGetFullscreen() ? GERIUM_APPLICATION_STATE_FULLSCREEN
+                                                    : GERIUM_APPLICATION_STATE_MAXIMIZE);
                     break;
             }
             if (_visibility != prevVisibility) {
@@ -158,6 +187,21 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             return DefWindowProc(_hWnd, message, wParam, lParam);
     }
     return 0;
+}
+
+void Win32Application::saveWindowPlacement() {
+    GetWindowPlacement(_hWnd, &_windowPlacement);
+    _style   = GetWindowLong(_hWnd, GWL_STYLE);
+    _styleEx = GetWindowLong(_hWnd, GWL_EXSTYLE);
+}
+
+void Win32Application::restoreWindowPlacement() {
+    SetWindowLong(_hWnd, GWL_STYLE, _style);
+    SetWindowLong(_hWnd, GWL_EXSTYLE, _styleEx);
+    ShowWindow(_hWnd, SW_SHOWNORMAL);
+    SetWindowPlacement(_hWnd, &_windowPlacement);
+    _style   = 0;
+    _styleEx = 0;
 }
 
 bool Win32Application::waitInBackground(LPMSG pMsg) {

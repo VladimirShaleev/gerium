@@ -15,10 +15,17 @@ public:
 
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
+
+    bool onGetFullscreen() const noexcept override;
+    void onSetFullscreen(bool fullscreen) noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
     LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam);
+
+    void saveWindowPlacement();
+    void restoreWindowPlacement();
 
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);
@@ -31,6 +38,9 @@ private:
     bool _running;
     bool _resizing;
     bool _visibility;
+    WINDOWPLACEMENT _windowPlacement;
+    LONG _style;
+    LONG _styleEx;
 };
 
 } // namespace gerium::windows
