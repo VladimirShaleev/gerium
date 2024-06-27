@@ -228,13 +228,16 @@ void Win32Application::onExit() noexcept {
 LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
     auto prevVisibility = _visibility;
     switch (message) {
-        case WM_SYSKEYUP:
+        case WM_SYSKEYUP: // TODO: Need it for development and testing. Remove later
             if (wParam == VK_RETURN) {
                 gerium_application_fullscreen(this, !gerium_application_is_fullscreen(this), nullptr);
             }
             break;
 
-        case WM_KEYUP:
+        case WM_KEYUP: // TODO: Need it for development and testing. Remove later
+            if (wParam == VK_ESCAPE) {
+                gerium_application_exit(this);
+            }
             break;
 
         case WM_CLOSE:
