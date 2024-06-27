@@ -24,6 +24,9 @@ public:
     bool isFullscreen() const noexcept;
     gerium_result_t fullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept;
 
+    gerium_application_style_flags_t getStyle() const noexcept;
+    void setStyle(gerium_application_style_flags_t style) noexcept;
+
     gerium_result_t run() noexcept;
     void exit() noexcept;
 
@@ -38,6 +41,9 @@ private:
 
     virtual bool onIsFullscreen() const noexcept                                  = 0;
     virtual void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) = 0;
+
+    virtual gerium_application_style_flags_t onGetStyle() const noexcept     = 0;
+    virtual void onSetStyle(gerium_application_style_flags_t style) noexcept = 0;
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;

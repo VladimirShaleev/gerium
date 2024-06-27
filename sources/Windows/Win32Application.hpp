@@ -7,11 +7,7 @@ namespace gerium::windows {
 
 class Win32Application final : public Application {
 public:
-    Win32Application(gerium_utf8_t title,
-                     gerium_uint32_t width,
-                     gerium_uint32_t height,
-                     // gerium_application_mode_flags_t mode,
-                     HINSTANCE instance);
+    Win32Application(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height, HINSTANCE instance);
 
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
@@ -21,6 +17,9 @@ private:
     bool onIsFullscreen() const noexcept override;
     void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) override;
 
+    gerium_application_style_flags_t onGetStyle() const noexcept override;
+    void onSetStyle(gerium_application_style_flags_t style) noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
@@ -29,6 +28,7 @@ private:
     void saveWindowPlacement();
     void restoreWindowPlacement();
     bool changeState(gerium_application_state_t newState) noexcept;
+    LONG getStyle() const noexcept;
     void enumDisplays(gerium_uint32_t displayCount,
                       gerium_uint32_t& displayIndex,
                       bool primary,
@@ -47,8 +47,8 @@ private:
     bool _resizing;
     bool _visibility;
     WINDOWPLACEMENT _windowPlacement;
-    LONG _style;
     LONG _styleEx;
+    gerium_application_style_flags_t _styleFlags;
     gerium_application_state_t _prevState;
     mutable std::map<std::wstring, std::string> _monitors;
     mutable std::vector<gerium_display_mode_t> _modes;

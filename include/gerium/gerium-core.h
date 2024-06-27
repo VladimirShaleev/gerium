@@ -44,23 +44,34 @@ typedef enum
 
 typedef enum
 {
-   GERIUM_APPLICATION_STATE_UNKNOWN      = 0,
-   GERIUM_APPLICATION_STATE_CREATE       = 1,
-   GERIUM_APPLICATION_STATE_DESTROY      = 2,
-   GERIUM_APPLICATION_STATE_INITIALIZE   = 3,
-   GERIUM_APPLICATION_STATE_UNINITIALIZE = 4,
-   GERIUM_APPLICATION_STATE_GOT_FOCUS    = 5,
-   GERIUM_APPLICATION_STATE_LOST_FOCUS   = 6,
-   GERIUM_APPLICATION_STATE_VISIBLE      = 7,
-   GERIUM_APPLICATION_STATE_INVISIBLE    = 8,
-   GERIUM_APPLICATION_STATE_NORMAL       = 9,
-   GERIUM_APPLICATION_STATE_MINIMIZE     = 10,
-   GERIUM_APPLICATION_STATE_MAXIMIZE     = 11,
-   GERIUM_APPLICATION_STATE_FULLSCREEN   = 12,
-   GERIUM_APPLICATION_STATE_RESIZE       = 13,
-   GERIUM_APPLICATION_STATE_RESIZED      = 14,
-   GERIUM_APPLICATION_STATE_MAX_ENUM     = 0x7FFFFFFF
+   GERIUM_APPLICATION_STATE_UNKNOWN       = 0,
+   GERIUM_APPLICATION_STATE_CREATE        = 1,
+   GERIUM_APPLICATION_STATE_DESTROY       = 2,
+   GERIUM_APPLICATION_STATE_INITIALIZE    = 3,
+   GERIUM_APPLICATION_STATE_UNINITIALIZE  = 4,
+   GERIUM_APPLICATION_STATE_GOT_FOCUS     = 5,
+   GERIUM_APPLICATION_STATE_LOST_FOCUS    = 6,
+   GERIUM_APPLICATION_STATE_VISIBLE       = 7,
+   GERIUM_APPLICATION_STATE_INVISIBLE     = 8,
+   GERIUM_APPLICATION_STATE_NORMAL        = 9,
+   GERIUM_APPLICATION_STATE_MINIMIZE      = 10,
+   GERIUM_APPLICATION_STATE_MAXIMIZE      = 11,
+   GERIUM_APPLICATION_STATE_FULLSCREEN    = 12,
+   GERIUM_APPLICATION_STATE_RESIZE        = 13,
+   GERIUM_APPLICATION_STATE_RESIZED       = 14,
+   GERIUM_APPLICATION_STATE_STYLE_CHANGED = 15,
+   GERIUM_APPLICATION_STATE_MAX_ENUM      = 0x7FFFFFFF
 } gerium_application_state_t;
+
+typedef enum
+{
+   GERIUM_APPLICATION_STYLE_NONE_BIT        = 0,
+   GERIUM_APPLICATION_STYLE_RESIZABLE_BIT   = 1,
+   GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT = 2,
+   GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT = 4,
+   GERIUM_APPLICATION_STYLE_MAX_ENUM        = 0x7FFFFFFF
+} gerium_application_style_flags_t;
+GERIUM_FLAGS(gerium_application_style_flags_t)
 
 typedef struct
 {
@@ -136,6 +147,13 @@ gerium_public gerium_result_t
 gerium_application_fullscreen(gerium_application_t application,
                               gerium_bool_t fullscreen,
                               const gerium_display_mode_t* mode);
+
+gerium_public gerium_application_style_flags_t
+gerium_application_get_style(gerium_application_t application);
+
+gerium_public void
+gerium_application_set_style(gerium_application_t application,
+                             gerium_application_style_flags_t style);
 
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);

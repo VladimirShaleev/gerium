@@ -56,6 +56,14 @@ gerium_result_t Application::fullscreen(bool fullscreen, const gerium_display_mo
     });
 }
 
+gerium_application_style_flags_t Application::getStyle() const noexcept {
+    return onGetStyle();
+}
+
+void Application::setStyle(gerium_application_style_flags_t style) noexcept {
+    onSetStyle(style);
+}
+
 gerium_result_t Application::run() noexcept {
     return invoke<Application>([](auto obj) {
         obj->onRun();
@@ -138,6 +146,16 @@ gerium_result_t gerium_application_fullscreen(gerium_application_t application,
                                               const gerium_display_mode_t* mode) {
     assert(application);
     return alias_cast<Application*>(application)->fullscreen(fullscreen, mode);
+}
+
+gerium_application_style_flags_t gerium_application_get_style(gerium_application_t application) {
+    assert(application);
+    return alias_cast<Application*>(application)->getStyle();
+}
+
+void gerium_application_set_style(gerium_application_t application, gerium_application_style_flags_t style) {
+    assert(application);
+    alias_cast<Application*>(application)->setStyle(style);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

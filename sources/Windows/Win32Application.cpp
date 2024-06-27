@@ -5,7 +5,6 @@ namespace gerium::windows {
 Win32Application::Win32Application(gerium_utf8_t title,
                                    gerium_uint32_t width,
                                    gerium_uint32_t height,
-                                   // gerium_application_mode_flags_t mode,
                                    HINSTANCE instance) :
     _hInstance(instance ? instance : GetModuleHandleW(nullptr)),
     _hWnd(nullptr),
@@ -13,8 +12,9 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _resizing(false),
     _visibility(false),
     _windowPlacement({}),
-    _style(0),
     _styleEx(0),
+    _styleFlags(GERIUM_APPLICATION_STYLE_RESIZABLE_BIT | GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT |
+                GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT),
     _prevState(GERIUM_APPLICATION_STATE_UNKNOWN) {
     SetProcessDPIAware();
 
@@ -36,19 +36,21 @@ Win32Application::Win32Application(gerium_utf8_t title,
         throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Failed to register window");
     }
 
+    const auto style = getStyle();
+
     RECT rect;
     rect.left   = 0;
     rect.right  = (LONG) width;
     rect.top    = 0;
     rect.bottom = (LONG) height;
-    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+    AdjustWindowRect(&rect, style, FALSE);
 
     auto wTitle = wideString(title);
 
     _hWnd = CreateWindowExW(0,
                             _kClassName,
                             wTitle.c_str(),
-                            WS_OVERLAPPEDWINDOW,
+                            style,
                             CW_USEDEFAULT,
                             CW_USEDEFAULT,
                             rect.right - rect.left,
@@ -144,7 +146,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
 }
 
 bool Win32Application::onIsFullscreen() const noexcept {
-    return _style != 0;
+    return _styleEx != 0;
 }
 
 void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) {
@@ -181,6 +183,18 @@ void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t
     } else {
         ChangeDisplaySettings(nullptr, 0);
         restoreWindowPlacement();
+    }
+}
+
+gerium_application_style_flags_t Win32Application::onGetStyle() const noexcept {
+    return _styleFlags;
+}
+
+void Win32Application::onSetStyle(gerium_application_style_flags_t style) noexcept {
+    _styleFlags = style;
+    if (!onIsFullscreen()) {
+        SetWindowLong(_hWnd, GWL_STYLE, getStyle());
+        ShowWindow(_hWnd, SW_SHOWNORMAL);
     }
 }
 
@@ -284,6 +298,12 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             }
             break;
 
+        case WM_STYLECHANGED:
+            if (wParam == GWL_STYLE && !onIsFullscreen()) {
+                changeState(GERIUM_APPLICATION_STATE_STYLE_CHANGED);
+            }
+            break;
+
         case WM_DESTROY:
             changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
             changeState(GERIUM_APPLICATION_STATE_DESTROY);
@@ -300,18 +320,16 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
 
 void Win32Application::saveWindowPlacement() {
     GetWindowPlacement(_hWnd, &_windowPlacement);
-    _style   = GetWindowLong(_hWnd, GWL_STYLE);
     _styleEx = GetWindowLong(_hWnd, GWL_EXSTYLE);
 }
 
 void Win32Application::restoreWindowPlacement() {
-    SetWindowLong(_hWnd, GWL_STYLE, _style);
+    SetWindowLong(_hWnd, GWL_STYLE, getStyle());
     SetWindowLong(_hWnd, GWL_EXSTYLE, _styleEx);
     if (_running) {
         ShowWindow(_hWnd, SW_SHOWNORMAL);
     }
     SetWindowPlacement(_hWnd, &_windowPlacement);
-    _style   = 0;
     _styleEx = 0;
 }
 
@@ -321,6 +339,20 @@ bool Win32Application::changeState(gerium_application_state_t newState) noexcept
         return callStateFunc(newState);
     }
     return true;
+}
+
+LONG Win32Application::getStyle() const noexcept {
+    LONG result = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    if (_styleFlags & GERIUM_APPLICATION_STYLE_RESIZABLE_BIT) {
+        result |= WS_THICKFRAME;
+    }
+    if (_styleFlags & GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT) {
+        result |= WS_MINIMIZEBOX;
+    }
+    if (_styleFlags & GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT) {
+        result |= WS_MAXIMIZEBOX;
+    }
+    return result;
 }
 
 void Win32Application::enumDisplays(gerium_uint32_t displayCount,
@@ -411,10 +443,9 @@ LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 gerium_result_t gerium_windows_application_create(gerium_utf8_t title,
                                                   gerium_uint32_t width,
                                                   gerium_uint32_t height,
-                                                  // gerium_application_mode_flags_t mode,
                                                   HINSTANCE instance,
                                                   gerium_application_t* application) {
     using namespace gerium;
     using namespace gerium::windows;
-    return Object::create<Win32Application>(*application, title, width, height, /* mode, */ instance);
+    return Object::create<Win32Application>(*application, title, width, height, instance);
 }
