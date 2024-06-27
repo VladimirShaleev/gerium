@@ -135,6 +135,8 @@ LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
     auto application = (Win32Application*) GetWindowLongPtr(hWnd, GWLP_USERDATA);
     switch (message) {
         case WM_DESTROY:
+            application->_hWnd = nullptr;
+            application->_running = false;
             PostQuitMessage(0);
             break;
 

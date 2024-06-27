@@ -28,6 +28,15 @@ gerium_utf8_t gerium_result_to_string(gerium_result_t result) {
         case GERIUM_RESULT_INVALID_ARGUMENT:
             return "invalid argument passed";
 
+        case GERIUM_RESULT_NO_DISPLAY:
+            return "no display";
+
+        case GERIUM_RESULT_APPLICATION_RUNNING:
+            return "application running";
+
+        case GERIUM_RESULT_APPLICATION_TERMINATED:
+            return "application terminated";
+
         default:
             return "<unknown result>";
     }
