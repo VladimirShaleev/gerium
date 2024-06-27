@@ -22,7 +22,7 @@ public:
     gerium_result_t getDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const noexcept;
 
     bool isFullscreen() const noexcept;
-    void fullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept;
+    gerium_result_t fullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept;
 
     gerium_result_t run() noexcept;
     void exit() noexcept;
@@ -36,8 +36,8 @@ private:
 
     virtual void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const = 0;
 
-    virtual bool onIsFullscreen() const noexcept                                           = 0;
-    virtual void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept = 0;
+    virtual bool onIsFullscreen() const noexcept                                  = 0;
+    virtual void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) = 0;
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;

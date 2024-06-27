@@ -14,7 +14,8 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _visibility(false),
     _windowPlacement({}),
     _style(0),
-    _styleEx(0) {
+    _styleEx(0),
+    _prevState(GERIUM_APPLICATION_STATE_UNKNOWN) {
     SetProcessDPIAware();
 
     WNDCLASSEXW wndClassEx;
@@ -32,7 +33,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
     wndClassEx.hIconSm       = nullptr;
 
     if (!RegisterClassExW(&wndClassEx)) {
-        throw Exception(GERIUM_RESULT_NO_DISPLAY, "Failed to register window");
+        throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Failed to register window");
     }
 
     RECT rect;
@@ -59,7 +60,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
 
     if (!_hWnd) {
         UnregisterClassW(_kClassName, _hInstance);
-        throw Exception(GERIUM_RESULT_NO_DISPLAY, "Failed to create window");
+        throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Failed to create window");
     }
 
     SetWindowLongPtr(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
@@ -86,7 +87,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
             result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
 
             if (result != ERROR_SUCCESS) {
-                throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+                throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
             }
             paths.resize(pathCount);
             modes.resize(modeCount);
@@ -98,7 +99,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
         } while (result == ERROR_INSUFFICIENT_BUFFER);
 
         if (result != ERROR_SUCCESS) {
-            throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+            throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
         }
 
         for (auto& path : paths) {
@@ -109,7 +110,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
             targetName.header.id        = path.targetInfo.id;
 
             if (DisplayConfigGetDeviceInfo(&targetName.header) != ERROR_SUCCESS) {
-                throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+                throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
             }
 
             DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName{};
@@ -119,7 +120,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
             sourceName.header.id        = path.sourceInfo.id;
 
             if (DisplayConfigGetDeviceInfo(&sourceName.header) != ERROR_SUCCESS) {
-                throw Exception(GERIUM_RESULT_NO_DISPLAY, "Get display config failed");
+                throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
             }
 
             _monitors[sourceName.viewGdiDeviceName] =
@@ -146,13 +147,13 @@ bool Win32Application::onIsFullscreen() const noexcept {
     return _style != 0;
 }
 
-void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept {
+void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) {
     if (fullscreen) {
         saveWindowPlacement();
 
         DEVMODE currentMode{};
         if (!EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &currentMode)) {
-            return;
+            throw Exception(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE, "Error change display mode");
         }
 
         auto newMode = currentMode;
@@ -167,12 +168,16 @@ void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t
         }
 
         if (ChangeDisplaySettings(&newMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
-            ChangeDisplaySettings(&currentMode, CDS_FULLSCREEN);
+            if (ChangeDisplaySettings(&currentMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+                throw Exception(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE, "Error change display mode");
+            }
         }
 
         SetWindowLong(_hWnd, GWL_STYLE, WS_POPUP);
         SetWindowLong(_hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
-        ShowWindow(_hWnd, SW_SHOWMAXIMIZED);
+        if (_running) {
+            ShowWindow(_hWnd, SW_SHOWMAXIMIZED);
+        }
     } else {
         ChangeDisplaySettings(nullptr, 0);
         restoreWindowPlacement();
@@ -181,18 +186,18 @@ void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t
 
 void Win32Application::onRun() {
     if (!_hWnd) {
-        throw Exception(GERIUM_RESULT_APPLICATION_TERMINATED, "The application is already completed");
+        throw Exception(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED, "The application is already completed");
     }
     if (_running) {
-        throw Exception(GERIUM_RESULT_APPLICATION_RUNNING, "The application is already running");
+        throw Exception(GERIUM_RESULT_ERROR_APPLICATION_RUNNING, "The application is already running");
     }
     _running = true;
 
-    if (!callStateFunc(GERIUM_APPLICATION_STATE_CREATE) || !callStateFunc(GERIUM_APPLICATION_STATE_INITIALIZE)) {
-        throw Exception(GERIUM_RESULT_APPLICATION_TERMINATED, "The callback requested application termination");
+    if (!changeState(GERIUM_APPLICATION_STATE_CREATE) || !changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
+        throw Exception(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED, "The callback requested application termination");
     }
 
-    ShowWindow(_hWnd, SW_SHOWNORMAL);
+    ShowWindow(_hWnd, onIsFullscreen() ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
     UpdateWindow(_hWnd);
 
     MSG msg{};
@@ -233,12 +238,12 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             break;
 
         case WM_CLOSE:
-            callStateFunc(GERIUM_APPLICATION_STATE_INVISIBLE);
+            changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
             exit();
             break;
 
         case WM_ACTIVATEAPP:
-            callStateFunc(wParam ? GERIUM_APPLICATION_STATE_GOT_FOCUS : GERIUM_APPLICATION_STATE_LOST_FOCUS);
+            changeState(wParam ? GERIUM_APPLICATION_STATE_GOT_FOCUS : GERIUM_APPLICATION_STATE_LOST_FOCUS);
             break;
 
         case WM_SIZING:
@@ -250,29 +255,29 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             switch (wParam) {
                 case SIZE_RESTORED:
                     if (_resizing) {
-                        callStateFunc(GERIUM_APPLICATION_STATE_RESIZE);
+                        changeState(GERIUM_APPLICATION_STATE_RESIZE);
                     } else {
-                        callStateFunc(GERIUM_APPLICATION_STATE_NORMAL);
+                        changeState(GERIUM_APPLICATION_STATE_NORMAL);
                     }
                     break;
                 case SIZE_MINIMIZED:
-                    callStateFunc(GERIUM_APPLICATION_STATE_MINIMIZE);
+                    changeState(GERIUM_APPLICATION_STATE_MINIMIZE);
                     _visibility = false;
                     break;
                 case SIZE_MAXIMIZED:
-                    callStateFunc(onIsFullscreen() ? GERIUM_APPLICATION_STATE_FULLSCREEN
-                                                   : GERIUM_APPLICATION_STATE_MAXIMIZE);
+                    changeState(onIsFullscreen() ? GERIUM_APPLICATION_STATE_FULLSCREEN
+                                                 : GERIUM_APPLICATION_STATE_MAXIMIZE);
                     break;
             }
             if (_visibility != prevVisibility) {
-                callStateFunc(_visibility ? GERIUM_APPLICATION_STATE_VISIBLE : GERIUM_APPLICATION_STATE_INVISIBLE);
+                changeState(_visibility ? GERIUM_APPLICATION_STATE_VISIBLE : GERIUM_APPLICATION_STATE_INVISIBLE);
             }
             _resizing = false;
             break;
 
         case WM_DESTROY:
-            callStateFunc(GERIUM_APPLICATION_STATE_UNINITIALIZE);
-            callStateFunc(GERIUM_APPLICATION_STATE_DESTROY);
+            changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
+            changeState(GERIUM_APPLICATION_STATE_DESTROY);
             PostQuitMessage(0);
             _hWnd    = nullptr;
             _running = false;
@@ -293,10 +298,20 @@ void Win32Application::saveWindowPlacement() {
 void Win32Application::restoreWindowPlacement() {
     SetWindowLong(_hWnd, GWL_STYLE, _style);
     SetWindowLong(_hWnd, GWL_EXSTYLE, _styleEx);
-    ShowWindow(_hWnd, SW_SHOWNORMAL);
+    if (_running) {
+        ShowWindow(_hWnd, SW_SHOWNORMAL);
+    }
     SetWindowPlacement(_hWnd, &_windowPlacement);
     _style   = 0;
     _styleEx = 0;
+}
+
+bool Win32Application::changeState(gerium_application_state_t newState) noexcept {
+    if (_prevState != newState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
+        _prevState = newState;
+        return callStateFunc(newState);
+    }
+    return true;
 }
 
 void Win32Application::enumDisplays(gerium_uint32_t displayCount,

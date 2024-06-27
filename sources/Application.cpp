@@ -48,10 +48,12 @@ bool Application::isFullscreen() const noexcept {
     return onIsFullscreen();
 }
 
-void Application::fullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept {
-    if (fullscreen != isFullscreen()) {
-        onFullscreen(fullscreen, mode);
-    }
+gerium_result_t Application::fullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept {
+    return invoke<Application>([fullscreen, mode](auto obj) {
+        if (fullscreen != obj->isFullscreen()) {
+            obj->onFullscreen(fullscreen, mode);
+        }
+    });
 }
 
 gerium_result_t Application::run() noexcept {
@@ -131,11 +133,11 @@ gerium_bool_t gerium_application_is_fullscreen(gerium_application_t application)
     return alias_cast<Application*>(application)->isFullscreen() ? 1 : 0;
 }
 
-void gerium_application_fullscreen(gerium_application_t application,
-                                   gerium_bool_t fullscreen,
-                                   const gerium_display_mode_t* mode) {
+gerium_result_t gerium_application_fullscreen(gerium_application_t application,
+                                              gerium_bool_t fullscreen,
+                                              const gerium_display_mode_t* mode) {
     assert(application);
-    alias_cast<Application*>(application)->fullscreen(fullscreen, mode);
+    return alias_cast<Application*>(application)->fullscreen(fullscreen, mode);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

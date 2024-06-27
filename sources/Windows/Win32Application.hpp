@@ -19,7 +19,7 @@ private:
     void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const override;
 
     bool onIsFullscreen() const noexcept override;
-    void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept override;
+    void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) override;
 
     void onRun() override;
     void onExit() noexcept override;
@@ -28,6 +28,7 @@ private:
 
     void saveWindowPlacement();
     void restoreWindowPlacement();
+    bool changeState(gerium_application_state_t newState) noexcept;
     void enumDisplays(gerium_uint32_t displayCount,
                       gerium_uint32_t& displayIndex,
                       bool primary,
@@ -48,6 +49,7 @@ private:
     WINDOWPLACEMENT _windowPlacement;
     LONG _style;
     LONG _styleEx;
+    gerium_application_state_t _prevState;
     mutable std::map<std::wstring, std::string> _monitors;
     mutable std::vector<gerium_display_mode_t> _modes;
     mutable std::vector<std::string> _displayNames;

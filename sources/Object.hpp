@@ -29,11 +29,11 @@ gerium_inline gerium_result_t Object::create(T*& obj, Args&&... args) noexcept {
     static_assert(std::is_base_of_v<T, D>, "D must inheritance from T");
     try {
         obj = new (std::nothrow) D(args...);
-        return obj ? GERIUM_RESULT_SUCCESS : GERIUM_RESULT_OUT_OF_MEMORY;
+        return obj ? GERIUM_RESULT_SUCCESS : GERIUM_RESULT_ERROR_OUT_OF_MEMORY;
     } catch (const Exception& exc) {
         return exc.result();
     } catch (...) {
-        return GERIUM_RESULT_UNKNOWN_ERROR;
+        return GERIUM_RESULT_ERROR_UNKNOWN;
     }
 }
 
@@ -46,7 +46,7 @@ inline gerium_result_t Object::invoke(std::function<void(D*)>&& func) const noex
     } catch (const Exception& exc) {
         return exc.result();
     } catch (...) {
-        return GERIUM_RESULT_UNKNOWN_ERROR;
+        return GERIUM_RESULT_ERROR_UNKNOWN;
     }
 }
 

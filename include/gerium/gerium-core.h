@@ -17,16 +17,17 @@ typedef struct _gerium_application* gerium_application_t;
 
 typedef enum
 {
-   GERIUM_RESULT_SUCCESS                = 0,
-   GERIUM_RESULT_UNKNOWN_ERROR          = 1,
-   GERIUM_RESULT_OUT_OF_MEMORY          = 2,
-   GERIUM_RESULT_NOT_IMPLEMENTED        = 3,
-   GERIUM_RESULT_FEATURE_NOT_SUPPORTED  = 4,
-   GERIUM_RESULT_INVALID_ARGUMENT       = 5,
-   GERIUM_RESULT_NO_DISPLAY             = 6,
-   GERIUM_RESULT_APPLICATION_RUNNING    = 7,
-   GERIUM_RESULT_APPLICATION_TERMINATED = 8,
-   GERIUM_RESULT_MAX_ENUM               = 0x7FFFFFFF
+   GERIUM_RESULT_SUCCESS                      = 0,
+   GERIUM_RESULT_ERROR_UNKNOWN                = 1,
+   GERIUM_RESULT_ERROR_OUT_OF_MEMORY          = 2,
+   GERIUM_RESULT_ERROR_NOT_IMPLEMENTED        = 3,
+   GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED  = 4,
+   GERIUM_RESULT_ERROR_INVALID_ARGUMENT       = 5,
+   GERIUM_RESULT_ERROR_NO_DISPLAY             = 6,
+   GERIUM_RESULT_ERROR_APPLICATION_RUNNING    = 7,
+   GERIUM_RESULT_ERROR_APPLICATION_TERMINATED = 8,
+   GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE    = 9,
+   GERIUM_RESULT_MAX_ENUM                     = 0x7FFFFFFF
 } gerium_result_t;
 
 typedef enum
@@ -130,7 +131,7 @@ gerium_application_get_display_info(gerium_application_t application,
 gerium_public gerium_bool_t
 gerium_application_is_fullscreen(gerium_application_t application);
 
-gerium_public void
+gerium_public gerium_result_t
 gerium_application_fullscreen(gerium_application_t application,
                               gerium_bool_t fullscreen,
                               const gerium_display_mode_t* mode);
