@@ -9,6 +9,9 @@ namespace gerium::vulkan::windows {
 class Win32VkRenderer final : public VkRenderer {
 public:
     explicit Win32VkRenderer(gerium::windows::Win32Application* application);
+
+protected:
+    void onInitialize() override;
 };
 
 } // namespace gerium::vulkan::windows

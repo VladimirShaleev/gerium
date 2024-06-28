@@ -8,6 +8,9 @@ namespace gerium::vulkan {
 class VkRenderer : public Renderer {
 public:
     VkRenderer();
+
+protected:
+    void onInitialize() override;
 };
 
 } // namespace gerium::vulkan
