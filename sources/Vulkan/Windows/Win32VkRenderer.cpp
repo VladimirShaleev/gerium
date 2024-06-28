@@ -2,7 +2,7 @@
 
 namespace gerium::vulkan::windows {
 
-Win32VkRenderer::Win32VkRenderer(gerium::windows::Win32Application* application) : _application(nullptr) {
+Win32VkRenderer::Win32VkRenderer(gerium::windows::Win32Application* application) {
     if (!application->isRunning()) {
         error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
     }
