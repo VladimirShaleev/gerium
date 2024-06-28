@@ -1,10 +1,30 @@
 #include <gerium/gerium.h>
 #include <iostream>
 
+static gerium_renderer_t renderer = nullptr;
+
 void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS) {
         throw std::runtime_error(gerium_result_to_string(result));
     }
+}
+
+bool initialize(gerium_application_t application) {
+    try {
+        check(gerium_renderer_create(application, &renderer));
+
+    } catch (const std::runtime_error& exc) {
+        std::cerr << "Error: " << exc.what() << std::endl;
+        return false;
+    } catch (...) {
+        std::cerr << "Error: unknown error" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void unitialize(gerium_application_t application) {
+    gerium_renderer_destroy(renderer);
 }
 
 gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
@@ -21,9 +41,10 @@ gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium
             break;
         case GERIUM_APPLICATION_STATE_INITIALIZE:
             std::cout << "GERIUM_APPLICATION_STATE_INITIALIZE" << std::endl;
-            break;
+            return initialize(application) ? 1 : 0;
         case GERIUM_APPLICATION_STATE_UNINITIALIZE:
             std::cout << "GERIUM_APPLICATION_STATE_UNINITIALIZE" << std::endl;
+            unitialize(application);
             break;
         case GERIUM_APPLICATION_STATE_GOT_FOCUS:
             std::cout << "GERIUM_APPLICATION_STATE_GOT_FOCUS" << std::endl;
