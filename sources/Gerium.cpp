@@ -31,8 +31,11 @@ gerium_utf8_t gerium_result_to_string(gerium_result_t result) {
         case GERIUM_RESULT_ERROR_NO_DISPLAY:
             return "no display";
 
-        case GERIUM_RESULT_ERROR_APPLICATION_RUNNING:
-            return "application running";
+        case GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING:
+            return "application already running";
+
+        case GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING:
+            return "application not running";
 
         case GERIUM_RESULT_ERROR_APPLICATION_TERMINATED:
             return "application terminated";

@@ -15,4 +15,8 @@ void Object::destroy() noexcept {
     }
 }
 
+void Object::error(gerium_result_t result) const {
+    throw Exception(result);
+}
+
 } // namespace gerium

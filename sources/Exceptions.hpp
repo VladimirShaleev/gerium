@@ -7,10 +7,7 @@ namespace gerium {
 
 class Exception : public std::runtime_error {
 public:
-    Exception(gerium_result_t result, const char* message) : std::runtime_error(message), _result(result) {
-    }
-
-    Exception(gerium_result_t result, const std::string& message) : std::runtime_error(message), _result(result) {
+    Exception(gerium_result_t result) : std::runtime_error(""), _result(result) {
     }
 
     gerium_result_t result() const noexcept {

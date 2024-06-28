@@ -39,7 +39,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
     wndClassEx.hIconSm       = nullptr;
 
     if (!RegisterClassExW(&wndClassEx)) {
-        throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Failed to register window");
+        error(GERIUM_RESULT_ERROR_NO_DISPLAY);
     }
 
     const auto [winWidth, winHeight] = clientSizeToWindowSize(width, height);
@@ -61,10 +61,14 @@ Win32Application::Win32Application(gerium_utf8_t title,
 
     if (!_hWnd) {
         UnregisterClassW(_kClassName, _hInstance);
-        throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Failed to create window");
+        error(GERIUM_RESULT_ERROR_NO_DISPLAY);
     }
 
     SetWindowLongPtr(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
+}
+
+bool Win32Application::isRunning() const noexcept {
+    return _running;
 }
 
 gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
@@ -88,7 +92,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
             result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
 
             if (result != ERROR_SUCCESS) {
-                throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
+                error(GERIUM_RESULT_ERROR_NO_DISPLAY);
             }
             paths.resize(pathCount);
             modes.resize(modeCount);
@@ -100,7 +104,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
         } while (result == ERROR_INSUFFICIENT_BUFFER);
 
         if (result != ERROR_SUCCESS) {
-            throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
+            error(GERIUM_RESULT_ERROR_NO_DISPLAY);
         }
 
         for (auto& path : paths) {
@@ -111,7 +115,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
             targetName.header.id        = path.targetInfo.id;
 
             if (DisplayConfigGetDeviceInfo(&targetName.header) != ERROR_SUCCESS) {
-                throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
+                error(GERIUM_RESULT_ERROR_NO_DISPLAY);
             }
 
             DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName{};
@@ -121,7 +125,7 @@ void Win32Application::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
             sourceName.header.id        = path.sourceInfo.id;
 
             if (DisplayConfigGetDeviceInfo(&sourceName.header) != ERROR_SUCCESS) {
-                throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Get display config failed");
+                error(GERIUM_RESULT_ERROR_NO_DISPLAY);
             }
 
             _monitors[sourceName.viewGdiDeviceName] =
@@ -154,7 +158,7 @@ void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t
 
         DEVMODE currentMode{};
         if (!EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &currentMode)) {
-            throw Exception(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE, "Error change display mode");
+            error(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE);
         }
 
         auto newMode = currentMode;
@@ -170,7 +174,7 @@ void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t
 
         if (ChangeDisplaySettings(&newMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
             if (ChangeDisplaySettings(&currentMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
-                throw Exception(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE, "Error change display mode");
+                error(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE);
             }
         }
 
@@ -282,15 +286,15 @@ void Win32Application::onSetTitle(gerium_utf8_t title) noexcept {
 
 void Win32Application::onRun() {
     if (!_hWnd) {
-        throw Exception(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED, "The application is already completed");
+        error(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED);
     }
     if (_running) {
-        throw Exception(GERIUM_RESULT_ERROR_APPLICATION_RUNNING, "The application is already running");
+        error(GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING);
     }
     _running = true;
 
     if (!changeState(GERIUM_APPLICATION_STATE_CREATE) || !changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
-        throw Exception(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED, "The callback requested application termination");
+        error(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED);
     }
 
     ShowWindow(_hWnd, onIsFullscreen() ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);

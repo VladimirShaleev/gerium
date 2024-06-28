@@ -9,6 +9,8 @@ class Win32Application final : public Application {
 public:
     Win32Application(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height, HINSTANCE instance);
 
+    bool isRunning() const noexcept;
+
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
