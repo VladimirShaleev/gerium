@@ -19,7 +19,9 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _minWidth(0),
     _minHeight(0),
     _maxWidth(0),
-    _maxHeight(0) {
+    _maxHeight(0),
+    _newWidth(std::numeric_limits<gerium_uint16_t>::max()),
+    _newHeight(std::numeric_limits<gerium_uint16_t>::max()) {
     SetProcessDPIAware();
 
     WNDCLASSEXW wndClassEx;
@@ -180,6 +182,7 @@ void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t
     } else {
         ChangeDisplaySettings(nullptr, 0);
         restoreWindowPlacement();
+        onSetSize(_newWidth, _newHeight);
     }
 }
 
@@ -222,6 +225,17 @@ void Win32Application::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t heigh
 }
 
 void Win32Application::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    constexpr auto maxValue = std::numeric_limits<gerium_uint16_t>::max();
+
+    _newWidth  = width;
+    _newHeight = height;
+
+    if (!onIsFullscreen() && _newWidth != maxValue && _newHeight != maxValue) {
+        const auto [winWidth, winHeight] = clientSizeToWindowSize(_newWidth, _newHeight);
+        SetWindowPos(_hWnd, nullptr, 0, 0, winWidth, winHeight, SWP_NOMOVE);
+        _newWidth  = maxValue;
+        _newHeight = maxValue;
+    }
 }
 
 void Win32Application::onRun() {

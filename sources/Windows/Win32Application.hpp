@@ -61,6 +61,8 @@ private:
     gerium_uint16_t _minHeight;
     gerium_uint16_t _maxWidth;
     gerium_uint16_t _maxHeight;
+    gerium_uint16_t _newWidth;
+    gerium_uint16_t _newHeight;
     mutable std::map<std::wstring, std::string> _monitors;
     mutable std::vector<gerium_display_mode_t> _modes;
     mutable std::vector<std::string> _displayNames;
