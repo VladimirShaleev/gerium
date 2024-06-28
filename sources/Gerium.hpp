@@ -1,6 +1,10 @@
 #ifndef GERIUM_GERIUM_HPP
 #define GERIUM_GERIUM_HPP
 
+#define NOMINMAX
+#define UNICODE
+#define _UNICODE
+
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>

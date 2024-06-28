@@ -34,6 +34,8 @@ gerium_inline gerium_result_t Object::create(T*& obj, Args&&... args) noexcept {
         return obj ? GERIUM_RESULT_SUCCESS : GERIUM_RESULT_ERROR_OUT_OF_MEMORY;
     } catch (const Exception& exc) {
         return exc.result();
+    } catch (const std::bad_alloc&) {
+        return GERIUM_RESULT_ERROR_OUT_OF_MEMORY;
     } catch (...) {
         return GERIUM_RESULT_ERROR_UNKNOWN;
     }
@@ -47,6 +49,8 @@ inline gerium_result_t Object::invoke(std::function<void(D*)>&& func) const noex
         return GERIUM_RESULT_SUCCESS;
     } catch (const Exception& exc) {
         return exc.result();
+    } catch (const std::bad_alloc&) {
+        return GERIUM_RESULT_ERROR_OUT_OF_MEMORY;
     } catch (...) {
         return GERIUM_RESULT_ERROR_UNKNOWN;
     }

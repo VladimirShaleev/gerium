@@ -91,8 +91,6 @@ endif()
 
 if(MSVC)
     target_compile_options(gerium PUBLIC /GR-)
-    target_compile_definitions(gerium PRIVATE -DNOMINMAX)
-    target_compile_definitions(gerium PRIVATE UNICODE _UNICODE)
     if(GERIUM_MSVC_DYNAMIC_RUNTIME)
         set_target_properties(gerium PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")

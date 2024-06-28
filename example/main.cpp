@@ -1,6 +1,7 @@
 #include <gerium/gerium.h>
 #include <iostream>
 
+static gerium_logger_t logger = nullptr;
 static gerium_renderer_t renderer = nullptr;
 
 void check(gerium_result_t result) {
@@ -84,6 +85,7 @@ int main() {
     gerium_application_t application = nullptr;
 
     try {
+        check(gerium_logger_create("app", &logger));
         check(gerium_application_create("test", 800, 600, &application));
         gerium_application_set_background_wait(application, 1);
 
@@ -91,9 +93,11 @@ int main() {
         gerium_uint32_t displayCount = 10;
         check(gerium_application_get_display_info(application, &displayCount, displays));
 
-        std::cout << "Avaiable monitors:" << std::endl;
+        gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, "Avaiable monitors:");
         for (gerium_uint32_t i = 0; i < displayCount; ++i) {
-            std::cout << '\t' << displays[i].device_name << std::endl;
+            std::string log = "\t";
+            log += displays[i].device_name;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, log.c_str());
         }
 
         gerium_application_set_frame_func(application, frame, nullptr);
@@ -106,5 +110,6 @@ int main() {
         std::cerr << "Error: unknown error" << std::endl;
     }
     gerium_application_destroy(application);
+    gerium_logger_destroy(logger);
     return 0;
 }

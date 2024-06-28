@@ -13,6 +13,8 @@
 
 GERIUM_BEGIN
 
+typedef struct _gerium_logger* gerium_logger_t;
+
 typedef struct _gerium_application* gerium_application_t;
 
 typedef struct _gerium_renderer* gerium_renderer_t;
@@ -32,6 +34,16 @@ typedef enum
    GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE         = 10,
    GERIUM_RESULT_MAX_ENUM                          = 0x7FFFFFFF
 } gerium_result_t;
+
+typedef enum {
+   GERIUM_LOGGER_LEVEL_VERBOSE  = 0,
+   GERIUM_LOGGER_LEVEL_DEBUG    = 1,
+   GERIUM_LOGGER_LEVEL_INFO     = 2,
+   GERIUM_LOGGER_LEVEL_WARNING  = 3,
+   GERIUM_LOGGER_LEVEL_ERROR    = 4,
+   GERIUM_LOGGER_LEVEL_FATAL    = 5,
+   GERIUM_LOGGER_LEVEL_MAX_ENUM = 0x7FFFFFFF
+} gerium_logger_level_t;
 
 typedef enum
 {
@@ -109,6 +121,28 @@ gerium_version_string(void);
 
 gerium_public gerium_utf8_t
 gerium_result_to_string(gerium_result_t result);
+
+gerium_public gerium_result_t
+gerium_logger_create(gerium_utf8_t tag,
+                     gerium_logger_t* logger);
+
+gerium_public gerium_logger_t
+gerium_logger_reference(gerium_logger_t logger);
+
+gerium_public void
+gerium_logger_destroy(gerium_logger_t logger);
+
+gerium_public gerium_logger_level_t
+gerium_logger_get_level(gerium_logger_t logger);
+
+gerium_public void
+gerium_logger_set_level(gerium_logger_t logger,
+                        gerium_logger_level_t level);
+
+gerium_public void
+gerium_logger_print(gerium_logger_t logger,
+                    gerium_logger_level_t level,
+                    gerium_utf8_t message);
 
 gerium_public gerium_result_t
 gerium_application_create(gerium_utf8_t title,
