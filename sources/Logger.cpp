@@ -30,6 +30,7 @@ void Logger::onSetLevel(gerium_logger_level_t level) noexcept {
 }
 
 std::string_view Logger::levelToString(gerium_logger_level_t level) noexcept {
+    assert(level >= GERIUM_LOGGER_LEVEL_VERBOSE && level <= GERIUM_LOGGER_LEVEL_FATAL);
     constexpr std::string_view levels[] = { "VERBOSE", "DEBUG", "INFO", "WARNING", "ERROR", "FATAL" };
     return levels[(int) level];
 }

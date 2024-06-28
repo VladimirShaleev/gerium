@@ -1,7 +1,7 @@
 #include <gerium/gerium.h>
 #include <iostream>
 
-static gerium_logger_t logger = nullptr;
+static gerium_logger_t logger     = nullptr;
 static gerium_renderer_t renderer = nullptr;
 
 void check(gerium_result_t result) {
@@ -35,47 +35,47 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
 gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium_application_state_t state) {
     switch (state) {
         case GERIUM_APPLICATION_STATE_CREATE:
-            std::cout << "GERIUM_APPLICATION_STATE_CREATE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_CREATE");
             break;
         case GERIUM_APPLICATION_STATE_DESTROY:
-            std::cout << "GERIUM_APPLICATION_STATE_DESTROY" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_DESTROY");
             break;
         case GERIUM_APPLICATION_STATE_INITIALIZE:
-            std::cout << "GERIUM_APPLICATION_STATE_INITIALIZE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_INITIALIZE");
             return initialize(application) ? 1 : 0;
         case GERIUM_APPLICATION_STATE_UNINITIALIZE:
-            std::cout << "GERIUM_APPLICATION_STATE_UNINITIALIZE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_UNINITIALIZE");
             unitialize(application);
             break;
         case GERIUM_APPLICATION_STATE_GOT_FOCUS:
-            std::cout << "GERIUM_APPLICATION_STATE_GOT_FOCUS" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_GOT_FOCUS");
             break;
         case GERIUM_APPLICATION_STATE_LOST_FOCUS:
-            std::cout << "GERIUM_APPLICATION_STATE_LOST_FOCUS" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_LOST_FOCUS");
             break;
         case GERIUM_APPLICATION_STATE_VISIBLE:
-            std::cout << "GERIUM_APPLICATION_STATE_VISIBLE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_VISIBLE");
             break;
         case GERIUM_APPLICATION_STATE_INVISIBLE:
-            std::cout << "GERIUM_APPLICATION_STATE_INVISIBLE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_INVISIBLE");
             break;
         case GERIUM_APPLICATION_STATE_NORMAL:
-            std::cout << "GERIUM_APPLICATION_STATE_NORMAL" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_NORMAL");
             break;
         case GERIUM_APPLICATION_STATE_MINIMIZE:
-            std::cout << "GERIUM_APPLICATION_STATE_MINIMIZE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_MINIMIZE");
             break;
         case GERIUM_APPLICATION_STATE_MAXIMIZE:
-            std::cout << "GERIUM_APPLICATION_STATE_MAXIMIZE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_MAXIMIZE");
             break;
         case GERIUM_APPLICATION_STATE_FULLSCREEN:
-            std::cout << "GERIUM_APPLICATION_STATE_FULLSCREEN" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_FULLSCREEN");
             break;
         case GERIUM_APPLICATION_STATE_RESIZE:
-            std::cout << "GERIUM_APPLICATION_STATE_RESIZE" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_RESIZE");
             break;
         case GERIUM_APPLICATION_STATE_RESIZED:
-            std::cout << "GERIUM_APPLICATION_STATE_RESIZED" << std::endl;
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_RESIZED");
             break;
     }
     return 1;
