@@ -197,6 +197,9 @@ gerium_public void
 gerium_application_set_title(gerium_application_t application,
                              gerium_utf8_t title);
 
+gerium_public gerium_bool_t
+gerium_application_get_background_wait(gerium_application_t application);
+
 gerium_public void
 gerium_application_set_background_wait(gerium_application_t application,
                                        gerium_bool_t enable);

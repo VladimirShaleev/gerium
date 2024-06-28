@@ -243,6 +243,11 @@ void gerium_application_set_title(gerium_application_t application, gerium_utf8_
     alias_cast<Application*>(application)->setTitle(title);
 }
 
+gerium_bool_t gerium_application_get_background_wait(gerium_application_t application) {
+    assert(application);
+    return alias_cast<Application*>(application)->getBackgroundWait();
+}
+
 void gerium_application_set_background_wait(gerium_application_t application, gerium_bool_t enable) {
     assert(application);
     alias_cast<Application*>(application)->setBackgroundWait(enable);
