@@ -1,7 +1,7 @@
 #ifndef GERIUM_APPLICATION_HPP
 #define GERIUM_APPLICATION_HPP
 
-#include "Object.hpp"
+#include "ObjectPtr.hpp"
 
 struct _gerium_application : public gerium::Object {};
 

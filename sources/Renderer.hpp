@@ -1,7 +1,7 @@
 #ifndef GERIUM_RENDERER_HPP
 #define GERIUM_RENDERER_HPP
 
-#include "Object.hpp"
+#include "ObjectPtr.hpp"
 
 struct _gerium_renderer : public gerium::Object {};
 
