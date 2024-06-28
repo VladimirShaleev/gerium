@@ -31,12 +31,14 @@ cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
 file(GLOB_RECURSE GERIUM_INCLUDE "include/*.h")
-file(GLOB GERIUM_SOURCES "sources/*.hpp" "sources/*.cpp")
+file(GLOB GERIUM_SOURCES "sources/*.hpp" "sources/*.cpp" "sources/Vulkan/*.hpp" "sources/Vulkan/*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_INCLUDE})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES})
 
 if(WIN32)
-    file(GLOB GERIUM_WINDOWS_SOURCES "sources/Windows/*.hpp" "sources/Windows/*.cpp")
+    file(GLOB GERIUM_WINDOWS_SOURCES 
+        "sources/Windows/*.hpp" "sources/Windows/*.cpp" 
+        "sources/Vulkan/Windows/*.hpp" "sources/Vulkan/Windows/*.cpp")
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_WINDOWS_SOURCES})
     list(APPEND GERIUM_SOURCES ${GERIUM_WINDOWS_SOURCES})
 endif()
