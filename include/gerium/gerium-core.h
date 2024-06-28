@@ -15,6 +15,8 @@ GERIUM_BEGIN
 
 typedef struct _gerium_application* gerium_application_t;
 
+typedef struct _gerium_renderer* gerium_renderer_t;
+
 typedef enum
 {
    GERIUM_RESULT_SUCCESS                      = 0,
@@ -209,6 +211,16 @@ gerium_application_run(gerium_application_t application);
 
 gerium_public void
 gerium_application_exit(gerium_application_t application);
+
+gerium_public gerium_result_t
+gerium_renderer_create(gerium_application_t application,
+                       gerium_renderer_t* renderer);
+
+gerium_public gerium_renderer_t
+gerium_renderer_reference(gerium_renderer_t renderer);
+
+gerium_public void
+gerium_renderer_destroy(gerium_renderer_t renderer);
 
 GERIUM_END
 
