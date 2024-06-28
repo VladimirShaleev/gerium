@@ -11,6 +11,33 @@
 #include <string>
 #include <type_traits>
 
+// Vulkan API
+#if defined(_WIN32)
+# define VK_USE_PLATFORM_WIN32_KHR
+#elif defined(__APPLE__)
+# include <TargetConditionals.h>
+# include <unistd.h>
+# if TARGET_OS_IPHONE
+#  error unsupported platform
+# elif TARGET_IPHONE_SIMULATOR
+#  error unsupported platform
+# elif TARGET_OS_MAC
+#  define VK_USE_PLATFORM_MACOS_MVK
+# else
+#  error unsupported platform
+# endif
+#else
+# error unsupported platform
+#endif
+#ifndef __APPLE__
+# define VK_NO_PROTOTYPES
+# define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 1
+#endif
+#include <vulkan/vulkan.hpp>
+
+// VMA
+#include <vk_mem_alloc.h>
+
 #ifndef GERIUM_STATIC_BUILD
 # ifdef _MSC_VER
 #  define gerium_public __declspec(dllexport)

@@ -22,6 +22,9 @@ endif()
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
+find_package(VulkanHeaders CONFIG REQUIRED)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+
 include(CMakeDependentOption)
 include(CTest)
 
@@ -45,6 +48,9 @@ endif()
 
 add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
+
+target_link_libraries(gerium PRIVATE Vulkan::Headers)
+target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
