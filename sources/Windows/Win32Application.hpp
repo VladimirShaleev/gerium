@@ -24,6 +24,9 @@ private:
     void onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
     void onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
 
+    gerium_utf8_t onGetTitle() const noexcept override;
+    void onSetTitle(gerium_utf8_t title) noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
@@ -50,6 +53,7 @@ private:
 
     HINSTANCE _hInstance;
     HWND _hWnd;
+    mutable std::string _title;
     bool _running;
     bool _resizing;
     bool _visibility;

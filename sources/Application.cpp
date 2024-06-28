@@ -76,6 +76,14 @@ void Application::setSize(gerium_uint16_t width, gerium_uint16_t height) noexcep
     onSetSize(width, height);
 }
 
+gerium_utf8_t Application::getTitle() const noexcept {
+    return onGetTitle();
+}
+
+void Application::setTitle(gerium_utf8_t title) noexcept {
+    onSetTitle(title);
+}
+
 gerium_result_t Application::run() noexcept {
     return invoke<Application>([](auto obj) {
         obj->onRun();
@@ -183,6 +191,16 @@ void gerium_application_set_max_size(gerium_application_t application, gerium_ui
 void gerium_application_set_size(gerium_application_t application, gerium_uint16_t width, gerium_uint16_t height) {
     assert(application);
     alias_cast<Application*>(application)->setSize(width, height);
+}
+
+gerium_utf8_t gerium_application_get_title(gerium_application_t application) {
+    assert(application);
+    return alias_cast<Application*>(application)->getTitle();
+}
+
+void gerium_application_set_title(gerium_application_t application, gerium_utf8_t title) {
+    assert(application);
+    alias_cast<Application*>(application)->setTitle(title);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

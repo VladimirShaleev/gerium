@@ -11,8 +11,6 @@
 #include <string>
 #include <type_traits>
 
-#include <utf8h/utf8.h>
-
 #ifndef GERIUM_STATIC_BUILD
 # ifdef _MSC_VER
 #  define gerium_public __declspec(dllexport)

@@ -22,8 +22,6 @@ endif()
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
-find_path(UTF8H_INCLUDE_DIRS "utf8h/utf8.h")
-
 include(CMakeDependentOption)
 include(CTest)
 
@@ -45,8 +43,6 @@ endif()
 
 add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
-
-target_include_directories(gerium PRIVATE ${UTF8H_INCLUDE_DIRS})
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

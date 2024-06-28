@@ -169,6 +169,15 @@ gerium_application_set_size(gerium_application_t application,
                             gerium_uint16_t width,
                             gerium_uint16_t height);
 
+gerium_public gerium_utf8_t
+gerium_application_get_title(gerium_application_t application);
+
+gerium_public void
+gerium_application_set_title(gerium_application_t application,
+                             gerium_utf8_t title);
+
+// wait in background
+
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);
 

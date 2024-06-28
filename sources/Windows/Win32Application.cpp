@@ -238,6 +238,20 @@ void Win32Application::onSetSize(gerium_uint16_t width, gerium_uint16_t height) 
     }
 }
 
+gerium_utf8_t Win32Application::onGetTitle() const noexcept {
+    const auto len = GetWindowTextLengthW(_hWnd);
+    std::wstring title;
+    title.resize(len + 1);
+    GetWindowTextW(_hWnd, title.data(), len + 1);
+    _title = utf8String(title);
+    return _title.data();
+}
+
+void Win32Application::onSetTitle(gerium_utf8_t title) noexcept {
+    const auto newTitle = wideString(title);
+    SetWindowTextW(_hWnd, newTitle.data());
+}
+
 void Win32Application::onRun() {
     if (!_hWnd) {
         throw Exception(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED, "The application is already completed");
@@ -491,7 +505,7 @@ bool Win32Application::waitInBackground(LPMSG pMsg) {
 }
 
 std::wstring Win32Application::wideString(gerium_utf8_t utf8) {
-    auto byteCount = (int) utf8len(utf8);
+    auto byteCount = (int) std::strlen(utf8);
     std::wstring result;
     result.resize(byteCount * 4 + 1);
     MultiByteToWideChar(CP_UTF8, 0, (LPCCH) utf8, byteCount, result.data(), (int) result.size());
