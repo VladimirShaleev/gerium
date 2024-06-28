@@ -44,7 +44,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
 
     const auto [winWidth, winHeight] = clientSizeToWindowSize(width, height);
 
-    const auto wTitle = wideString(title);
+    const auto wTitle = wideString(title ? title : "");
 
     _hWnd = CreateWindowExW(0,
                             _kClassName,
@@ -195,6 +195,34 @@ void Win32Application::onSetStyle(gerium_application_style_flags_t style) noexce
     if (!onIsFullscreen()) {
         SetWindowLong(_hWnd, GWL_STYLE, getStyle());
         ShowWindow(_hWnd, SW_SHOWNORMAL);
+    }
+}
+
+void Win32Application::onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    if (width) {
+        *width = _minWidth;
+    }
+    if (height) {
+        *height = _minHeight;
+    }
+}
+
+void Win32Application::onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    if (width) {
+        *width = _maxWidth;
+    }
+    if (height) {
+        *height = _maxHeight;
+    }
+}
+
+void Win32Application::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    const auto [w, h] = clientSize();
+    if (width) {
+        *width = w;
+    }
+    if (height) {
+        *height = h;
     }
 }
 
@@ -526,6 +554,13 @@ LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 }
 
 } // namespace gerium::windows
+
+gerium_result_t gerium_application_create(gerium_utf8_t title,
+                                          gerium_uint32_t width,
+                                          gerium_uint32_t height,
+                                          gerium_application_t* application) {
+    return gerium_windows_application_create(title, width, height, nullptr, application);
+}
 
 gerium_result_t gerium_windows_application_create(gerium_utf8_t title,
                                                   gerium_uint32_t width,

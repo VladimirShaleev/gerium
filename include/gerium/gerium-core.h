@@ -107,6 +107,12 @@ gerium_version_string(void);
 gerium_public gerium_utf8_t
 gerium_result_to_string(gerium_result_t result);
 
+gerium_public gerium_result_t
+gerium_application_create(gerium_utf8_t title,
+                          gerium_uint32_t width,
+                          gerium_uint32_t height,
+                          gerium_application_t* application);
+
 gerium_public gerium_application_t
 gerium_application_reference(gerium_application_t application);
 
@@ -155,14 +161,29 @@ gerium_application_set_style(gerium_application_t application,
                              gerium_application_style_flags_t style);
 
 gerium_public void
+gerium_application_get_min_size(gerium_application_t application,
+                                gerium_uint16_t* width,
+                                gerium_uint16_t* height);
+
+gerium_public void
 gerium_application_set_min_size(gerium_application_t application,
                                 gerium_uint16_t width,
                                 gerium_uint16_t height);
 
 gerium_public void
+gerium_application_get_max_size(gerium_application_t application,
+                                gerium_uint16_t* width,
+                                gerium_uint16_t* height);
+
+gerium_public void
 gerium_application_set_max_size(gerium_application_t application,
                                 gerium_uint16_t width,
                                 gerium_uint16_t height);
+
+gerium_public void
+gerium_application_get_size(gerium_application_t application,
+                            gerium_uint16_t* width,
+                            gerium_uint16_t* height);
 
 gerium_public void
 gerium_application_set_size(gerium_application_t application,

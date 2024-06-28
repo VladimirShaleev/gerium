@@ -64,6 +64,18 @@ void Application::setStyle(gerium_application_style_flags_t style) noexcept {
     onSetStyle(style);
 }
 
+void Application::getMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    onGetMinSize(width, height);
+}
+
+void Application::getMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    onGetMaxSize(width, height);
+}
+
+void Application::getSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    onGetSize(width, height);
+}
+
 void Application::setMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
     onSetMinSize(width, height);
 }
@@ -81,7 +93,7 @@ gerium_utf8_t Application::getTitle() const noexcept {
 }
 
 void Application::setTitle(gerium_utf8_t title) noexcept {
-    onSetTitle(title);
+    onSetTitle(title ? title : "");
 }
 
 gerium_result_t Application::run() noexcept {
@@ -178,14 +190,33 @@ void gerium_application_set_style(gerium_application_t application, gerium_appli
     alias_cast<Application*>(application)->setStyle(style);
 }
 
+void gerium_application_get_min_size(gerium_application_t application,
+                                     gerium_uint16_t* width,
+                                     gerium_uint16_t* height) {
+    assert(application);
+    alias_cast<Application*>(application)->getMinSize(width, height);
+}
+
 void gerium_application_set_min_size(gerium_application_t application, gerium_uint16_t width, gerium_uint16_t height) {
     assert(application);
     alias_cast<Application*>(application)->setMinSize(width, height);
 }
 
+void gerium_application_get_max_size(gerium_application_t application,
+                                     gerium_uint16_t* width,
+                                     gerium_uint16_t* height) {
+    assert(application);
+    alias_cast<Application*>(application)->getMaxSize(width, height);
+}
+
 void gerium_application_set_max_size(gerium_application_t application, gerium_uint16_t width, gerium_uint16_t height) {
     assert(application);
     alias_cast<Application*>(application)->setMaxSize(width, height);
+}
+
+void gerium_application_get_size(gerium_application_t application, gerium_uint16_t* width, gerium_uint16_t* height) {
+    assert(application);
+    alias_cast<Application*>(application)->getSize(width, height);
 }
 
 void gerium_application_set_size(gerium_application_t application, gerium_uint16_t width, gerium_uint16_t height) {

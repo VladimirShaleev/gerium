@@ -27,6 +27,9 @@ public:
     gerium_application_style_flags_t getStyle() const noexcept;
     void setStyle(gerium_application_style_flags_t style) noexcept;
 
+    void getMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept;
+    void getMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept;
+    void getSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept;
     void setMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept;
     void setMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept;
     void setSize(gerium_uint16_t width, gerium_uint16_t height) noexcept;
@@ -52,6 +55,9 @@ private:
     virtual gerium_application_style_flags_t onGetStyle() const noexcept     = 0;
     virtual void onSetStyle(gerium_application_style_flags_t style) noexcept = 0;
 
+    virtual void onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept = 0;
+    virtual void onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept = 0;
+    virtual void onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept = 0;
     virtual void onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept = 0;
     virtual void onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept = 0;
     virtual void onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept    = 0;

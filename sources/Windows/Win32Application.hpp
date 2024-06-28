@@ -20,6 +20,9 @@ private:
     gerium_application_style_flags_t onGetStyle() const noexcept override;
     void onSetStyle(gerium_application_style_flags_t style) noexcept override;
 
+    void onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept;
+    void onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept;
+    void onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept;
     void onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
     void onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
     void onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
