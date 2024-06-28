@@ -64,6 +64,18 @@ void Application::setStyle(gerium_application_style_flags_t style) noexcept {
     onSetStyle(style);
 }
 
+void Application::setMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    onSetMinSize(width, height);
+}
+
+void Application::setMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    onSetMaxSize(width, height);
+}
+
+void Application::setSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    onSetSize(width, height);
+}
+
 gerium_result_t Application::run() noexcept {
     return invoke<Application>([](auto obj) {
         obj->onRun();
@@ -156,6 +168,21 @@ gerium_application_style_flags_t gerium_application_get_style(gerium_application
 void gerium_application_set_style(gerium_application_t application, gerium_application_style_flags_t style) {
     assert(application);
     alias_cast<Application*>(application)->setStyle(style);
+}
+
+void gerium_application_set_min_size(gerium_application_t application, gerium_uint16_t width, gerium_uint16_t height) {
+    assert(application);
+    alias_cast<Application*>(application)->setMinSize(width, height);
+}
+
+void gerium_application_set_max_size(gerium_application_t application, gerium_uint16_t width, gerium_uint16_t height) {
+    assert(application);
+    alias_cast<Application*>(application)->setMaxSize(width, height);
+}
+
+void gerium_application_set_size(gerium_application_t application, gerium_uint16_t width, gerium_uint16_t height) {
+    assert(application);
+    alias_cast<Application*>(application)->setSize(width, height);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

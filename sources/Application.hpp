@@ -27,6 +27,10 @@ public:
     gerium_application_style_flags_t getStyle() const noexcept;
     void setStyle(gerium_application_style_flags_t style) noexcept;
 
+    void setMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept;
+    void setMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept;
+    void setSize(gerium_uint16_t width, gerium_uint16_t height) noexcept;
+
     gerium_result_t run() noexcept;
     void exit() noexcept;
 
@@ -44,6 +48,10 @@ private:
 
     virtual gerium_application_style_flags_t onGetStyle() const noexcept     = 0;
     virtual void onSetStyle(gerium_application_style_flags_t style) noexcept = 0;
+
+    virtual void onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept = 0;
+    virtual void onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept = 0;
+    virtual void onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept    = 0;
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;

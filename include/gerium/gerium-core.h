@@ -59,7 +59,6 @@ typedef enum
    GERIUM_APPLICATION_STATE_FULLSCREEN    = 12,
    GERIUM_APPLICATION_STATE_RESIZE        = 13,
    GERIUM_APPLICATION_STATE_RESIZED       = 14,
-   GERIUM_APPLICATION_STATE_STYLE_CHANGED = 15,
    GERIUM_APPLICATION_STATE_MAX_ENUM      = 0x7FFFFFFF
 } gerium_application_state_t;
 
@@ -125,7 +124,7 @@ gerium_public void
 gerium_application_set_frame_func(gerium_application_t application,
                                   gerium_application_frame_func_t callback,
                                   gerium_data_t data);
-                                  
+
 gerium_public gerium_application_state_func_t
 gerium_application_get_state_func(gerium_application_t application,
                                   gerium_data_t* data);
@@ -154,6 +153,21 @@ gerium_application_get_style(gerium_application_t application);
 gerium_public void
 gerium_application_set_style(gerium_application_t application,
                              gerium_application_style_flags_t style);
+
+gerium_public void
+gerium_application_set_min_size(gerium_application_t application,
+                                gerium_uint16_t width,
+                                gerium_uint16_t height);
+
+gerium_public void
+gerium_application_set_max_size(gerium_application_t application,
+                                gerium_uint16_t width,
+                                gerium_uint16_t height);
+
+gerium_public void
+gerium_application_set_size(gerium_application_t application,
+                            gerium_uint16_t width,
+                            gerium_uint16_t height);
 
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);

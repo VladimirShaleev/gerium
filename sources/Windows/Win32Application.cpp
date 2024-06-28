@@ -15,7 +15,11 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _styleEx(0),
     _styleFlags(GERIUM_APPLICATION_STYLE_RESIZABLE_BIT | GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT |
                 GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT),
-    _prevState(GERIUM_APPLICATION_STATE_UNKNOWN) {
+    _prevState(GERIUM_APPLICATION_STATE_UNKNOWN),
+    _minWidth(0),
+    _minHeight(0),
+    _maxWidth(0),
+    _maxHeight(0) {
     SetProcessDPIAware();
 
     WNDCLASSEXW wndClassEx;
@@ -36,25 +40,18 @@ Win32Application::Win32Application(gerium_utf8_t title,
         throw Exception(GERIUM_RESULT_ERROR_NO_DISPLAY, "Failed to register window");
     }
 
-    const auto style = getStyle();
+    const auto [winWidth, winHeight] = clientSizeToWindowSize(width, height);
 
-    RECT rect;
-    rect.left   = 0;
-    rect.right  = (LONG) width;
-    rect.top    = 0;
-    rect.bottom = (LONG) height;
-    AdjustWindowRect(&rect, style, FALSE);
-
-    auto wTitle = wideString(title);
+    const auto wTitle = wideString(title);
 
     _hWnd = CreateWindowExW(0,
                             _kClassName,
                             wTitle.c_str(),
-                            style,
+                            getStyle(),
                             CW_USEDEFAULT,
                             CW_USEDEFAULT,
-                            rect.right - rect.left,
-                            rect.bottom - rect.top,
+                            winWidth,
+                            winHeight,
                             nullptr,
                             nullptr,
                             _hInstance,
@@ -198,6 +195,35 @@ void Win32Application::onSetStyle(gerium_application_style_flags_t style) noexce
     }
 }
 
+void Win32Application::onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    _minWidth  = width;
+    _minHeight = height;
+
+    if (!onIsFullscreen()) {
+        const auto [currentWidth, currentHeight] = clientSize();
+        if (currentWidth < _minWidth || currentHeight < _minHeight) {
+            const auto [winWidth, winHeight] = clientSizeToWindowSize(_minWidth, _minHeight);
+            SetWindowPos(_hWnd, nullptr, 0, 0, winWidth, winHeight, SWP_NOMOVE);
+        }
+    }
+}
+
+void Win32Application::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    _maxWidth  = width;
+    _maxHeight = height;
+
+    if (!onIsFullscreen()) {
+        const auto [currentWidth, currentHeight] = clientSize();
+        if (currentWidth > _maxWidth || currentHeight > _maxHeight) {
+            const auto [winWidth, winHeight] = clientSizeToWindowSize(_maxWidth, _maxHeight);
+            SetWindowPos(_hWnd, nullptr, 0, 0, winWidth, winHeight, SWP_NOMOVE);
+        }
+    }
+}
+
+void Win32Application::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+}
+
 void Win32Application::onRun() {
     if (!_hWnd) {
         throw Exception(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED, "The application is already completed");
@@ -298,9 +324,17 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             }
             break;
 
-        case WM_STYLECHANGED:
-            if (wParam == GWL_STYLE && !onIsFullscreen()) {
-                changeState(GERIUM_APPLICATION_STATE_STYLE_CHANGED);
+        case WM_GETMINMAXINFO:
+            if (!onIsFullscreen()) {
+                auto minMaxInfo = (LPMINMAXINFO) lParam;
+
+                const auto [minWinWidth, minWinHeight] = clientSizeToWindowSize(_minWidth, _minHeight);
+                const auto [maxWinWidth, maxWinHeight] = clientSizeToWindowSize(_maxWidth, _maxHeight);
+
+                minMaxInfo->ptMinTrackSize.x = minWinWidth;
+                minMaxInfo->ptMinTrackSize.y = minWinHeight;
+                minMaxInfo->ptMaxTrackSize.x = _maxWidth ? maxWinWidth : minMaxInfo->ptMaxSize.x;
+                minMaxInfo->ptMaxTrackSize.y = _maxHeight ? maxWinHeight : minMaxInfo->ptMaxSize.y;
             }
             break;
 
@@ -353,6 +387,31 @@ LONG Win32Application::getStyle() const noexcept {
         result |= WS_MAXIMIZEBOX;
     }
     return result;
+}
+
+std::pair<gerium_uint16_t, gerium_uint16_t> Win32Application::clientSize() const noexcept {
+    RECT rect;
+    GetClientRect(_hWnd, &rect);
+
+    auto currentWidth  = gerium_uint16_t(rect.right - rect.left);
+    auto currentHeight = gerium_uint16_t(rect.bottom - rect.top);
+    return { currentWidth, currentHeight };
+}
+
+std::pair<gerium_uint16_t, gerium_uint16_t> Win32Application::clientSizeToWindowSize(
+    gerium_uint16_t width, gerium_uint16_t height) const noexcept {
+    const auto style = getStyle();
+
+    RECT rect;
+    rect.left   = 0;
+    rect.right  = (LONG) width;
+    rect.top    = 0;
+    rect.bottom = (LONG) height;
+    AdjustWindowRect(&rect, style, FALSE);
+
+    auto winWidth  = gerium_uint16_t(rect.right - rect.left);
+    auto winHeight = gerium_uint16_t(rect.bottom - rect.top);
+    return { winWidth, winHeight };
 }
 
 void Win32Application::enumDisplays(gerium_uint32_t displayCount,

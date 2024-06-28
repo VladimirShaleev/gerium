@@ -20,6 +20,10 @@ private:
     gerium_application_style_flags_t onGetStyle() const noexcept override;
     void onSetStyle(gerium_application_style_flags_t style) noexcept override;
 
+    void onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
+    void onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
+    void onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
@@ -29,6 +33,9 @@ private:
     void restoreWindowPlacement();
     bool changeState(gerium_application_state_t newState) noexcept;
     LONG getStyle() const noexcept;
+    std::pair<gerium_uint16_t, gerium_uint16_t> clientSize() const noexcept;
+    std::pair<gerium_uint16_t, gerium_uint16_t> clientSizeToWindowSize(gerium_uint16_t width,
+                                                                       gerium_uint16_t height) const noexcept;
     void enumDisplays(gerium_uint32_t displayCount,
                       gerium_uint32_t& displayIndex,
                       bool primary,
@@ -50,6 +57,10 @@ private:
     LONG _styleEx;
     gerium_application_style_flags_t _styleFlags;
     gerium_application_state_t _prevState;
+    gerium_uint16_t _minWidth;
+    gerium_uint16_t _minHeight;
+    gerium_uint16_t _maxWidth;
+    gerium_uint16_t _maxHeight;
     mutable std::map<std::wstring, std::string> _monitors;
     mutable std::vector<gerium_display_mode_t> _modes;
     mutable std::vector<std::string> _displayNames;
