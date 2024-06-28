@@ -37,6 +37,9 @@ public:
     gerium_utf8_t getTitle() const noexcept;
     void setTitle(gerium_utf8_t title) noexcept;
 
+    bool getBackgroundWait() const noexcept;
+    void setBackgroundWait(bool enable) noexcept;
+
     gerium_result_t run() noexcept;
     void exit() noexcept;
 
@@ -72,6 +75,7 @@ private:
     gerium_application_state_func_t _stateFunc;
     gerium_data_t _frameData;
     gerium_data_t _stateData;
+    gerium_bool_t _backgroundWait;
 };
 
 } // namespace gerium

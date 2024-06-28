@@ -6,7 +6,8 @@ Application::Application() noexcept :
     _frameFunc(nullptr),
     _stateFunc(nullptr),
     _frameData(nullptr),
-    _stateData(nullptr) {
+    _stateData(nullptr),
+    _backgroundWait(false) {
 }
 
 gerium_runtime_platform_t Application::getPlatform() const noexcept {
@@ -94,6 +95,14 @@ gerium_utf8_t Application::getTitle() const noexcept {
 
 void Application::setTitle(gerium_utf8_t title) noexcept {
     onSetTitle(title ? title : "");
+}
+
+bool Application::getBackgroundWait() const noexcept {
+    return _backgroundWait;
+}
+
+void Application::setBackgroundWait(bool enable) noexcept {
+    _backgroundWait = enable;
 }
 
 gerium_result_t Application::run() noexcept {
@@ -232,6 +241,11 @@ gerium_utf8_t gerium_application_get_title(gerium_application_t application) {
 void gerium_application_set_title(gerium_application_t application, gerium_utf8_t title) {
     assert(application);
     alias_cast<Application*>(application)->setTitle(title);
+}
+
+void gerium_application_set_background_wait(gerium_application_t application, gerium_bool_t enable) {
+    assert(application);
+    alias_cast<Application*>(application)->setBackgroundWait(enable);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

@@ -64,6 +64,7 @@ int main() {
 
     try {
         check(gerium_application_create("test", 800, 600, &application));
+        gerium_application_set_background_wait(application, 1);
 
         gerium_display_info_t displays[10];
         gerium_uint32_t displayCount = 10;

@@ -303,7 +303,7 @@ void Win32Application::onRun() {
                 break;
             }
 
-            if (!waitInBackground(&msg)) {
+            if (getBackgroundWait() && !waitInBackground(&msg)) {
                 break;
             }
 
