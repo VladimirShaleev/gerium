@@ -11,7 +11,9 @@
 @implementation WindowViewController
 
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
-
+    if (!application->changeState(GERIUM_APPLICATION_STATE_RESIZE)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
@@ -22,61 +24,67 @@
     if (!application->changeState(GERIUM_APPLICATION_STATE_CREATE)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
+    
+    if (!application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+    
+    if (!application->changeState(GERIUM_APPLICATION_STATE_DESTROY)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+}
+
+- (void)applicationDidBecomeActive:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+}
+
+- (void)applicationDidResignActive:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
     return YES;
 }
 
+- (void)windowDidEndLiveResize:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_RESIZED)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+}
+
 @end
-
-/*@interface GeriumViewController : NSViewController
-
-@end
-
-@implementation GeriumViewController {
-    CVDisplayLinkRef _displayLink;
-    BOOL _useDisplayLink;
-}
-
-- (void)viewWillAppear {
-    [super viewWillAppear];
-
-    self.view.wantsLayer = YES;
-    _useDisplayLink = YES;
-}
-
-- (void)viewDidAppear {
-    [super viewDidAppear];
-}
-
-@end*/
-
-
 
 namespace gerium::macos {
 
 MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) {
     @try {
         NSRect frame = NSMakeRect(0, 0, width, height);
-        NSWindow* window = [[NSWindow alloc]
-                            initWithContentRect:frame
-                            styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable)
-                            backing:NSBackingStoreBuffered
-                            defer:NO
-        ];
-        window.title = [NSString stringWithUTF8String:title];
         
         WindowViewController* viewController = [WindowViewController new];
         viewController->application = this;
         
         MTKView* view = [[MTKView alloc] initWithFrame:frame];
         view.delegate = viewController;
-        window.delegate = viewController;
         view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        
+        NSWindow* window = [[NSWindow alloc]
+                            initWithContentRect:frame
+                            styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable)
+                            backing:NSBackingStoreBuffered
+                            defer:NO
+        ];
+        window.delegate = viewController;
+        window.title = [NSString stringWithUTF8String:title];
         
         [window.contentView addSubview:view];
         [window center];
@@ -91,7 +99,7 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
 }
 
 bool MacOSApplication::changeState(gerium_application_state_t newState) {
-    if (newState != _prevState) {
+    if (newState != _prevState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
         _prevState = newState;
         return callStateFunc(newState);
     }

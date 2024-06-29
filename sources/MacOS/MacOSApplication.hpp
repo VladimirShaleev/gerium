@@ -55,8 +55,4 @@ private:
 
 } // namespace gerium::macos
 
-// @interface GeriumAppDelegate : NSObject <NSApplicationDelegate>
-
-// @end
-
 #endif
