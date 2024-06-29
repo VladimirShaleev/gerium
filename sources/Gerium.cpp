@@ -14,13 +14,16 @@ gerium_utf8_t gerium_result_to_string(gerium_result_t result) {
             return "no error has occurred";
 
         case GERIUM_RESULT_ERROR_UNKNOWN:
-            return "out of memory";
+            return "unknown error";
 
         case GERIUM_RESULT_ERROR_OUT_OF_MEMORY:
-            return "unknown error";
+            return "out of memory";
 
         case GERIUM_RESULT_ERROR_NOT_IMPLEMENTED:
             return "not implemented";
+            
+        case GERIUM_RESULT_ERROR_FROM_CALLBACK:
+            return "error from callback";
 
         case GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED:
             return "feature not supported";

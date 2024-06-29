@@ -3,12 +3,27 @@
 
 #include "../Application.hpp"
 
+#import <Cocoa/Cocoa.h>
+
 namespace gerium::macos {
 
 class MacOSApplication final : public Application {
 public:
     MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height);
 
+    ~MacOSApplication() {
+        if (_view) {
+            CFRelease(_view);
+        }
+        if (_viewController) {
+            CFRelease(_viewController);
+        }
+    }
+    
+    bool changeState(gerium_application_state_t newState);
+    
+    [[noreturn]] void error(gerium_result_t result) const;
+    
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
@@ -32,8 +47,16 @@ private:
 
     void onRun() override;
     void onExit() noexcept override;
+    
+    const void* _viewController = nullptr;
+    const void* _view = nullptr;
+    gerium_application_state_t _prevState = GERIUM_APPLICATION_STATE_UNKNOWN;
 };
 
 } // namespace gerium::macos
+
+// @interface GeriumAppDelegate : NSObject <NSApplicationDelegate>
+
+// @end
 
 #endif
