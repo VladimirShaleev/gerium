@@ -11,6 +11,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _running(false),
     _resizing(false),
     _visibility(false),
+    _callbackError(false),
     _windowPlacement({}),
     _styleEx(0),
     _styleFlags(GERIUM_APPLICATION_STYLE_RESIZABLE_BIT | GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT |
@@ -294,7 +295,7 @@ void Win32Application::onRun() {
     _running = true;
 
     if (!changeState(GERIUM_APPLICATION_STATE_CREATE) || !changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
-        error(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED);
+        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
 
     ShowWindow(_hWnd, onIsFullscreen() ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
@@ -302,6 +303,10 @@ void Win32Application::onRun() {
 
     MSG msg{};
     while (true) {
+        if (_callbackError) {
+            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+
         if (PeekMessage(&msg, nullptr, 0, 0, PM_NOREMOVE)) {
             if (!GetMessage(&msg, nullptr, 0, 0)) {
                 break;
@@ -430,7 +435,12 @@ void Win32Application::restoreWindowPlacement() {
 bool Win32Application::changeState(gerium_application_state_t newState) noexcept {
     if (_prevState != newState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
         _prevState = newState;
-        return callStateFunc(newState);
+        if (callStateFunc(newState)) {
+            return true;
+        } else {
+            _callbackError = true;
+            return false;
+        }
     }
     return true;
 }

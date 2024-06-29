@@ -62,6 +62,7 @@ private:
     bool _running;
     bool _resizing;
     bool _visibility;
+    bool _callbackError;
     WINDOWPLACEMENT _windowPlacement;
     LONG _styleEx;
     gerium_application_style_flags_t _styleFlags;
