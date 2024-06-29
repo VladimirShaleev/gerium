@@ -29,6 +29,9 @@
     if (!application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
+    if (application->isStartedFullscreen()) {
+        application->fullscreen(true);
+    }
     if (!application->isFullscreen()) {
         if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
             application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
@@ -134,7 +137,7 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
         
         NSWindow* window = [[NSWindow alloc]
                             initWithContentRect:frame
-                            styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable)
+                            styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView)
                             backing:NSBackingStoreBuffered
                             defer:NO
         ];
@@ -162,8 +165,16 @@ bool MacOSApplication::changeState(gerium_application_state_t newState) {
     return true;
 }
 
+bool MacOSApplication::isStartedFullscreen() const noexcept {
+    return _startFullscreen;
+}
+
 bool MacOSApplication::isFullscreen() const noexcept {
     return onIsFullscreen();
+}
+
+void MacOSApplication::fullscreen(bool fullscreen) noexcept {
+    onFullscreen(fullscreen, nullptr);
 }
 
 void MacOSApplication::error(gerium_result_t result) const {
@@ -179,15 +190,23 @@ void MacOSApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
 }
 
 bool MacOSApplication::onIsFullscreen() const noexcept {
-    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-    return [controller.window styleMask] & NSWindowStyleMaskFullScreen;
+    if (_running) {
+        WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+        return [controller.window styleMask] & NSWindowStyleMaskFullScreen;
+    } else {
+        return _startFullscreen;
+    }
 }
 
 void MacOSApplication::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) {
-    _startFullscreen = true;
-    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-
-    [controller.window toggleFullScreen:controller];
+    if (_running) {
+        if (fullscreen != onIsFullscreen()) {
+            WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+            [controller.window toggleFullScreen:controller];
+        }
+    } else {
+        _startFullscreen = fullscreen;
+    }
 }
 
 gerium_application_style_flags_t MacOSApplication::onGetStyle() const noexcept {
@@ -224,6 +243,7 @@ void MacOSApplication::onSetTitle(gerium_utf8_t title) noexcept {
 
 void MacOSApplication::onRun() {
     @try {
+        _running = true;
         NSApplication* application = [NSApplication sharedApplication];
         [application setDelegate:((__bridge WindowViewController*) _viewController)];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];

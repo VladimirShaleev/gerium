@@ -22,7 +22,10 @@ public:
     
     bool changeState(gerium_application_state_t newState);
     
+    bool isStartedFullscreen() const noexcept;
     bool isFullscreen() const noexcept;
+    
+    void fullscreen(bool fullscreen) noexcept;
     
     [[noreturn]] void error(gerium_result_t result) const;
     
@@ -52,6 +55,7 @@ private:
     
     const void* _viewController = nullptr;
     const void* _view = nullptr;
+    bool _running = false;
     bool _startFullscreen = false;
     gerium_application_state_t _prevState = GERIUM_APPLICATION_STATE_UNKNOWN;
 };
