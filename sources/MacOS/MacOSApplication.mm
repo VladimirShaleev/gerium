@@ -6,6 +6,8 @@
     @public gerium::macos::MacOSApplication* application;
 }
 
+@property (strong, nonatomic) NSWindow *window;
+
 @end
 
 @implementation WindowViewController
@@ -24,9 +26,13 @@
     if (!application->changeState(GERIUM_APPLICATION_STATE_CREATE)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
-    
     if (!application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+    if (!application->isFullscreen()) {
+        if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
+            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
     }
 }
 
@@ -139,6 +145,7 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
         [window center];
         [window orderFrontRegardless];
         
+        viewController.window = window;
         _viewController = CFRetain((__bridge void*) viewController);
         _view = CFRetain((__bridge void*) view);
         
@@ -155,6 +162,10 @@ bool MacOSApplication::changeState(gerium_application_state_t newState) {
     return true;
 }
 
+bool MacOSApplication::isFullscreen() const noexcept {
+    return onIsFullscreen();
+}
+
 void MacOSApplication::error(gerium_result_t result) const {
     Application::error(result);
 }
@@ -168,10 +179,15 @@ void MacOSApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
 }
 
 bool MacOSApplication::onIsFullscreen() const noexcept {
-    return false;
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    return [controller.window styleMask] & NSWindowStyleMaskFullScreen;
 }
 
 void MacOSApplication::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) {
+    _startFullscreen = true;
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+
+    [controller.window toggleFullScreen:controller];
 }
 
 gerium_application_style_flags_t MacOSApplication::onGetStyle() const noexcept {
