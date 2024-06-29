@@ -31,6 +31,11 @@
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
+    if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
+        if (!application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE)) {
+            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+    }
     if (!application->changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
@@ -52,12 +57,56 @@
     }
 }
 
+- (void)applicationDidChangeOcclusionState:(NSNotification *)notification {
+    if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
+        if (!application->changeState(GERIUM_APPLICATION_STATE_VISIBLE)) {
+            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+    } else {
+        if (!application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE)) {
+            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+    }
+}
+
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
     return YES;
 }
 
 - (void)windowDidEndLiveResize:(NSNotification *)notification {
     if (!application->changeState(GERIUM_APPLICATION_STATE_RESIZED)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+}
+
+- (void)windowDidMiniaturize:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_MINIMIZE)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+    if (!application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+}
+
+- (void)windowDidDeminiaturize:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+    if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
+        if (!application->changeState(GERIUM_APPLICATION_STATE_VISIBLE)) {
+            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+    }
+}
+
+- (void)windowDidEnterFullScreen:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_FULLSCREEN)) {
+        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+}
+
+- (void)windowDidExitFullScreen:(NSNotification *)notification {
+    if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
 }
