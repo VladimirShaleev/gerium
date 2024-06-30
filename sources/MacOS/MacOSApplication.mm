@@ -235,10 +235,13 @@ void MacOSApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) 
 }
 
 gerium_utf8_t MacOSApplication::onGetTitle() const noexcept {
-    return "";
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    return [controller.window.title UTF8String];
 }
 
 void MacOSApplication::onSetTitle(gerium_utf8_t title) noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    controller.window.title = [NSString stringWithUTF8String:title];
 }
 
 void MacOSApplication::onRun() {
@@ -255,6 +258,10 @@ void MacOSApplication::onRun() {
 }
 
 void MacOSApplication::onExit() noexcept {
+    if (_running) {
+        WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+        [controller.window close];
+    }
 }
 
 } // namespace gerium::macos
