@@ -252,6 +252,7 @@ gerium_application_exit(gerium_application_t application);
 
 gerium_public gerium_result_t
 gerium_renderer_create(gerium_application_t application,
+                       gerium_uint32_t version,
                        gerium_renderer_t* renderer);
 
 gerium_public gerium_renderer_t

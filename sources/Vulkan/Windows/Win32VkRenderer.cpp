@@ -8,13 +8,15 @@ Win32VkRenderer::Win32VkRenderer(gerium::windows::Win32Application* application)
     }
 }
 
-void Win32VkRenderer::onInitialize() {
-    VkRenderer::onInitialize();
+void Win32VkRenderer::onInitialize(gerium_uint32_t version) {
+    VkRenderer::onInitialize(version);
 }
 
 } // namespace gerium::vulkan::windows
 
-gerium_result_t gerium_renderer_create(gerium_application_t application, gerium_renderer_t* renderer) {
+gerium_result_t gerium_renderer_create(gerium_application_t application,
+                                       gerium_uint32_t version,
+                                       gerium_renderer_t* renderer) {
     using namespace gerium;
     using namespace gerium::windows;
     using namespace gerium::vulkan::windows;
@@ -23,5 +25,5 @@ gerium_result_t gerium_renderer_create(gerium_application_t application, gerium_
     if (result != GERIUM_RESULT_SUCCESS) {
         return result;
     }
-    return alias_cast<Win32VkRenderer*>(*renderer)->initialize();
+    return alias_cast<Win32VkRenderer*>(*renderer)->initialize(version);
 }

@@ -11,10 +11,10 @@ class Renderer : public _gerium_renderer {
 public:
     Renderer() noexcept;
 
-    gerium_result_t initialize() noexcept;
+    gerium_result_t initialize(gerium_uint32_t version) noexcept;
 
 protected:
-    virtual void onInitialize() = 0;
+    virtual void onInitialize(gerium_uint32_t version) = 0;
 };
 
 } // namespace gerium

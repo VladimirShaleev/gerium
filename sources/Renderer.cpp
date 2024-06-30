@@ -5,9 +5,9 @@ namespace gerium {
 Renderer::Renderer() noexcept {
 }
 
-gerium_result_t Renderer::initialize() noexcept {
-    return invoke<Renderer>([](auto obj) {
-        obj->onInitialize();
+gerium_result_t Renderer::initialize(gerium_uint32_t version) noexcept {
+    return invoke<Renderer>([version](auto obj) {
+        obj->onInitialize(version);
     });
 }
 

@@ -90,4 +90,39 @@ void check(VkResult result) {
     }
 }
 
+static void* VKAPI_PTR allocation(void* pUserData,
+                                  size_t size,
+                                  size_t alignment,
+                                  VkSystemAllocationScope allocationScope) {
+    return mi_realloc_aligned(nullptr, size, alignment);
+}
+
+static void* VKAPI_PTR
+reallocation(void* pUserData, void* pOriginal, size_t size, size_t alignment, VkSystemAllocationScope allocationScope) {
+    return mi_realloc_aligned(pOriginal, size, alignment);
+}
+
+static void VKAPI_PTR free(void* pUserData, void* pMemory) {
+    mi_free(pMemory);
+}
+
+static void VKAPI_PTR internalAllocationNotification(void* pUserData,
+                                                     size_t size,
+                                                     VkInternalAllocationType allocationType,
+                                                     VkSystemAllocationScope allocationScope) {
+}
+
+static void VKAPI_PTR internalFreeNotification(void* pUserData,
+                                               size_t size,
+                                               VkInternalAllocationType allocationType,
+                                               VkSystemAllocationScope allocationScope) {
+}
+
+const VkAllocationCallbacks* getAllocCalls() noexcept {
+    static constexpr VkAllocationCallbacks callbacks{
+        nullptr, allocation, reallocation, free, internalAllocationNotification, internalFreeNotification
+    };
+    return &callbacks;
+}
+
 } // namespace gerium::vulkan

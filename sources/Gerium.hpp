@@ -5,6 +5,8 @@
 #define UNICODE
 #define _UNICODE
 
+#include <mimalloc.h>
+
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>

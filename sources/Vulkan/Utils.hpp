@@ -7,6 +7,8 @@ namespace gerium::vulkan {
 
 void check(VkResult result);
 
+const VkAllocationCallbacks* getAllocCalls() noexcept;
+
 } // namespace gerium::vulkan
 
 #endif
