@@ -116,7 +116,7 @@
     if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
-    application->setSize();
+    application->restoreWindow();
 }
 
 @end
@@ -177,7 +177,7 @@ bool MacOSApplication::isStartedFullscreen() const noexcept {
 bool MacOSApplication::isFullscreen() const noexcept {
     return onIsFullscreen();
 }
-void MacOSApplication::setSize() noexcept {
+void MacOSApplication::restoreWindow() noexcept {
     constexpr auto val = std::numeric_limits<gerium_uint16_t>::max();
     
     if (_newMinWidth != val) {
@@ -195,6 +195,8 @@ void MacOSApplication::setSize() noexcept {
         _newWidth = val;
         _newHeight = val;
     }
+    
+    onSetStyle(_styles);
 }
 
 void MacOSApplication::fullscreen(bool fullscreen) noexcept {
@@ -242,6 +244,7 @@ void MacOSApplication::onFullscreen(bool fullscreen, const gerium_display_mode_t
             if (fullscreen) {
                 controller.window.minSize = NSMakeSize(0, 0);
                 controller.window.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
+                controller.window.styleMask |= NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
             }
             [controller.window toggleFullScreen:controller];
         }
@@ -251,10 +254,30 @@ void MacOSApplication::onFullscreen(bool fullscreen, const gerium_display_mode_t
 }
 
 gerium_application_style_flags_t MacOSApplication::onGetStyle() const noexcept {
-    return {};
+    return _styles;
 }
 
 void MacOSApplication::onSetStyle(gerium_application_style_flags_t style) noexcept {
+    _styles = style;
+    
+    if (!isFullscreen()) {
+        WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+        NSWindowStyleMask mask = controller.window.styleMask;
+        
+        if (style & GERIUM_APPLICATION_STYLE_RESIZABLE_BIT) {
+            mask |= NSWindowStyleMaskResizable;
+        } else {
+            mask ^= NSWindowStyleMaskResizable;
+        }
+        
+        if (style & GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT) {
+            mask |= NSWindowStyleMaskMiniaturizable;
+        } else {
+            mask ^= NSWindowStyleMaskMiniaturizable;
+        }
+        
+        controller.window.styleMask = mask;
+    }
 }
 
 void MacOSApplication::onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {

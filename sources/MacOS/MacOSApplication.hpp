@@ -25,7 +25,7 @@ public:
     bool isStartedFullscreen() const noexcept;
     bool isFullscreen() const noexcept;
     
-    void setSize() noexcept;
+    void restoreWindow() noexcept;
     void fullscreen(bool fullscreen) noexcept;
     
     gerium_uint16_t getPixelSize(gerium_uint16_t x) const noexcept;
@@ -73,6 +73,7 @@ private:
     gerium_uint16_t _newWidth = std::numeric_limits<gerium_uint16_t>::max();
     gerium_uint16_t _newHeight = std::numeric_limits<gerium_uint16_t>::max();
     gerium_application_state_t _prevState = GERIUM_APPLICATION_STATE_UNKNOWN;
+    gerium_application_style_flags_t _styles = GERIUM_APPLICATION_STYLE_RESIZABLE_BIT | GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT | GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT;
 };
 
 } // namespace gerium::macos
