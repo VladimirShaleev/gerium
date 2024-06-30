@@ -97,6 +97,7 @@ typedef struct
 
 typedef struct
 {
+   gerium_uint32_t              id;
    gerium_utf8_t                name;
    gerium_utf8_t                gpu_name;
    gerium_utf8_t                device_name;
@@ -189,6 +190,7 @@ gerium_application_is_fullscreen(gerium_application_t application);
 gerium_public gerium_result_t
 gerium_application_fullscreen(gerium_application_t application,
                               gerium_bool_t fullscreen,
+                              gerium_uint32_t display_id,
                               const gerium_display_mode_t* mode);
 
 gerium_public gerium_application_style_flags_t

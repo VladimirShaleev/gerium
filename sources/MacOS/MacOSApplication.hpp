@@ -19,24 +19,24 @@ public:
             CFRelease(_viewController);
         }
     }
-    
+
     bool changeState(gerium_application_state_t newState);
-    
+
     bool isStartedFullscreen() const noexcept;
     bool isFullscreen() const noexcept;
-    
+
     void restoreWindow() noexcept;
     void fullscreen(bool fullscreen) noexcept;
-    
+
     gerium_uint16_t getPixelSize(gerium_uint16_t x) const noexcept;
     float getDeviceSize(gerium_uint16_t x) const noexcept;
-    
+
     float titlebarHeight() const noexcept;
-    
+
     [[noreturn]] void error(gerium_result_t result) const;
-    
+
     const void* getView() const noexcept;
-    
+
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
@@ -60,24 +60,26 @@ private:
 
     void onRun() override;
     void onExit() noexcept override;
-    
-    const void* _viewController = nullptr;
-    const void* _view = nullptr;
-    bool _running = false;
-    bool _exited = false;
-    bool _startFullscreen = false;
-    float _scale = 1.0f;
-    float _invScale = 1.0f;
-    gerium_uint16_t _newMinWidth = std::numeric_limits<gerium_uint16_t>::max();
-    gerium_uint16_t _newMinHeight = std::numeric_limits<gerium_uint16_t>::max();
-    gerium_uint16_t _newMaxWidth = std::numeric_limits<gerium_uint16_t>::max();
-    gerium_uint16_t _newMaxHeight = std::numeric_limits<gerium_uint16_t>::max();
-    gerium_uint16_t _newWidth = std::numeric_limits<gerium_uint16_t>::max();
-    gerium_uint16_t _newHeight = std::numeric_limits<gerium_uint16_t>::max();
-    gerium_application_state_t _prevState = GERIUM_APPLICATION_STATE_UNKNOWN;
-    gerium_application_style_flags_t _styles = GERIUM_APPLICATION_STYLE_RESIZABLE_BIT | GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT | GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT;
+
+    const void* _viewController              = nullptr;
+    const void* _view                        = nullptr;
+    bool _running                            = false;
+    bool _exited                             = false;
+    bool _startFullscreen                    = false;
+    float _scale                             = 1.0f;
+    float _invScale                          = 1.0f;
+    gerium_uint16_t _newMinWidth             = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newMinHeight            = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newMaxWidth             = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newMaxHeight            = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newWidth                = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newHeight               = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_application_state_t _prevState    = GERIUM_APPLICATION_STATE_UNKNOWN;
+    gerium_application_style_flags_t _styles = GERIUM_APPLICATION_STYLE_RESIZABLE_BIT |
+                                               GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT |
+                                               GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT;
     mutable std::vector<gerium_display_mode_t> _modes = {};
-    mutable std::vector<std::string> _displayNames = {};
+    mutable std::vector<std::string> _displayNames    = {};
 };
 
 } // namespace gerium::macos

@@ -153,7 +153,7 @@ bool Win32Application::onIsFullscreen() const noexcept {
     return _styleEx != 0;
 }
 
-void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) {
+void Win32Application::onFullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) {
     if (fullscreen) {
         saveWindowPlacement();
 
@@ -163,7 +163,34 @@ void Win32Application::onFullscreen(bool fullscreen, const gerium_display_mode_t
         }
 
         auto newMode = currentMode;
-        if (mode) {
+        if (displayId != std::numeric_limits<gerium_uint32_t>::max()) {
+            DISPLAY_DEVICEW display{ sizeof(DISPLAY_DEVICEW) };
+            if (EnumDisplayDevicesW(nullptr, displayId, &display, 0)) {
+                if (display.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) {
+                    DEVMODEW devMode{};
+                    for (DWORD m = 0; EnumDisplaySettingsW(display.DeviceName, m, &devMode); ++m) {
+                        if (devMode.dmDisplayFrequency <= 1 || devMode.dmDisplayFrequency >= 30) {
+                            if (mode) {
+                                auto width  = gerium_uint16_t(devMode.dmPelsWidth);
+                                auto height = gerium_uint16_t(devMode.dmPelsHeight);
+                                auto refreshRate =
+                                    gerium_uint16_t(devMode.dmDisplayFrequency == 1 ? 0 : devMode.dmDisplayFrequency);
+
+                                if (width == mode->width && height == mode->height &&
+                                    mode->refresh_rate == refreshRate) {
+                                    newMode          = devMode;
+                                    newMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+                                    break;
+                                }
+                            } else {
+                                newMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (mode) {
             newMode.dmPelsWidth  = mode->width;
             newMode.dmPelsHeight = mode->height;
             newMode.dmFields     = DM_PELSWIDTH | DM_PELSHEIGHT;
@@ -238,8 +265,9 @@ void Win32Application::onSetMinSize(gerium_uint16_t width, gerium_uint16_t heigh
     if (!onIsFullscreen()) {
         const auto [currentWidth, currentHeight] = clientSize();
         if (currentWidth < _minWidth || currentHeight < _minHeight) {
-            _minWidth = currentWidth < _minWidth ? _minWidth : currentWidth;
+            _minWidth  = currentWidth < _minWidth ? _minWidth : currentWidth;
             _minHeight = currentHeight < _minHeight ? _minHeight : currentHeight;
+
             const auto [winWidth, winHeight] = clientSizeToWindowSize(_minWidth, _minHeight);
             SetWindowPos(_hWnd, nullptr, 0, 0, winWidth, winHeight, SWP_NOMOVE);
         }
@@ -253,8 +281,9 @@ void Win32Application::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t heigh
     if (!onIsFullscreen()) {
         const auto [currentWidth, currentHeight] = clientSize();
         if (currentWidth > _maxWidth || currentHeight > _maxHeight) {
-            _maxWidth = currentWidth > _maxWidth ? _maxWidth : currentWidth;
+            _maxWidth  = currentWidth > _maxWidth ? _maxWidth : currentWidth;
             _maxHeight = currentHeight > _maxHeight ? _maxHeight : currentHeight;
+
             const auto [winWidth, winHeight] = clientSizeToWindowSize(_maxWidth, _maxHeight);
             SetWindowPos(_hWnd, nullptr, 0, 0, winWidth, winHeight, SWP_NOMOVE);
         }
@@ -339,7 +368,10 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_SYSKEYUP: // TODO: Need it for development and testing. Remove later
             if (wParam == VK_RETURN) {
-                gerium_application_fullscreen(this, !gerium_application_is_fullscreen(this), nullptr);
+                gerium_application_fullscreen(this,
+                                              !gerium_application_is_fullscreen(this),
+                                              std::numeric_limits<gerium_uint32_t>::max(),
+                                              nullptr);
             }
             break;
 
@@ -505,7 +537,9 @@ void Win32Application::enumDisplays(gerium_uint32_t displayCount,
                 }
 
                 gerium_display_info_t& info = displays[displayIndex++];
-                info.mode_count             = 0;
+
+                info.id         = i;
+                info.mode_count = 0;
 
                 if (auto it = _monitors.find(display.DeviceName); it != _monitors.end()) {
                     info.device_name = it->second.data();

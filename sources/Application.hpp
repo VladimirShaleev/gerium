@@ -22,7 +22,7 @@ public:
     gerium_result_t getDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const noexcept;
 
     bool isFullscreen() const noexcept;
-    gerium_result_t fullscreen(bool fullscreen, const gerium_display_mode_t* mode) noexcept;
+    gerium_result_t fullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) noexcept;
 
     gerium_application_style_flags_t getStyle() const noexcept;
     void setStyle(gerium_application_style_flags_t style) noexcept;
@@ -52,18 +52,18 @@ private:
 
     virtual void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const = 0;
 
-    virtual bool onIsFullscreen() const noexcept                                  = 0;
-    virtual void onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) = 0;
+    virtual bool onIsFullscreen() const noexcept                                                             = 0;
+    virtual void onFullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) = 0;
 
     virtual gerium_application_style_flags_t onGetStyle() const noexcept     = 0;
     virtual void onSetStyle(gerium_application_style_flags_t style) noexcept = 0;
 
     virtual void onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept = 0;
     virtual void onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept = 0;
-    virtual void onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept = 0;
-    virtual void onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept = 0;
-    virtual void onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept = 0;
-    virtual void onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept    = 0;
+    virtual void onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept    = 0;
+    virtual void onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept         = 0;
+    virtual void onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept         = 0;
+    virtual void onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept            = 0;
 
     virtual gerium_utf8_t onGetTitle() const noexcept     = 0;
     virtual void onSetTitle(gerium_utf8_t title) noexcept = 0;
