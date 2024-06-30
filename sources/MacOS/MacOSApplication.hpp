@@ -25,6 +25,7 @@ public:
     bool isStartedFullscreen() const noexcept;
     bool isFullscreen() const noexcept;
     
+    void setSize() noexcept;
     void fullscreen(bool fullscreen) noexcept;
     
     [[noreturn]] void error(gerium_result_t result) const;
@@ -58,6 +59,12 @@ private:
     bool _running = false;
     bool _exited = false;
     bool _startFullscreen = false;
+    gerium_uint16_t _newMinWidth = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newMinHeight = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newMaxWidth = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newMaxHeight = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newWidth = std::numeric_limits<gerium_uint16_t>::max();
+    gerium_uint16_t _newHeight = std::numeric_limits<gerium_uint16_t>::max();
     gerium_application_state_t _prevState = GERIUM_APPLICATION_STATE_UNKNOWN;
 };
 
