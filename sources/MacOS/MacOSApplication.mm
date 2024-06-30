@@ -1,6 +1,8 @@
 #include "MacOSApplication.hpp"
 
 #import <MetalKit/MetalKit.h>
+#import <QuartzCore/QuartzCore.h>
+#import <IOKit/graphics/IOGraphicsLib.h>
 
 @interface WindowViewController : NSViewController <NSApplicationDelegate, NSWindowDelegate, MTKViewDelegate> {
     @public gerium::macos::MacOSApplication* application;
@@ -237,7 +239,54 @@ gerium_runtime_platform_t MacOSApplication::onGetPlatform() const noexcept {
 }
 
 void MacOSApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const {
-    displayCount = 0;
+    std::vector<CGDirectDisplayID> activeDisplays;
+    activeDisplays.resize(32);
+    CGGetActiveDisplayList(32, activeDisplays.data(), &displayCount);
+    if (displays) {
+        _modes.clear();
+        _displayNames.clear();
+        
+        for (uint32_t i = 0; i < displayCount; ++i) {
+        #pragma clang diagnostic push
+        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+            NSDictionary *deviceInfo = CFBridgingRelease(IODisplayCreateInfoDictionary(CGDisplayIOServicePort(activeDisplays[i]), kIODisplayOnlyPreferredName));
+        #pragma clang diagnostic pop
+            
+            NSDictionary *localizedNames = deviceInfo[@(kDisplayProductName)];
+              
+            if (localizedNames.count > 0) {
+                _displayNames.push_back([localizedNames.allValues[0] UTF8String]);
+            } else {
+                _displayNames.push_back("Unknown");
+            }
+            
+            _displayNames.push_back("Unknown");
+            _displayNames.push_back(std::to_string(CGDisplayUnitNumber(activeDisplays[i])));
+
+            CFArrayRef modes = CGDisplayCopyAllDisplayModes(activeDisplays[i], nil);
+            long modeCount = CFArrayGetCount(modes);
+            _modes.resize(modeCount);
+            for (long m = 0; m < modeCount; ++m) {
+                CGDisplayModeRef mode = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
+                size_t width = CGDisplayModeGetWidth(mode);
+                size_t height = CGDisplayModeGetHeight(mode);
+                double refreshRate = CGDisplayModeGetRefreshRate(mode);
+                
+                auto& result = _modes[m];
+                result.width = gerium_uint16_t(width);
+                result.height = gerium_uint16_t(height);
+            }
+            displays[i].mode_count = gerium_uint32_t(modeCount);
+        }
+        
+        for (gerium_uint32_t i = 0, offset = 0; i < displayCount; ++i) {
+            displays[i].device_name = _displayNames[i * 3].data();
+            displays[i].gpu_name    = _displayNames[i * 3 + 1].data();
+            displays[i].name        = _displayNames[i * 3 + 2].data();
+            displays[i].modes       = _modes.data() + offset;
+            offset += displays[i].mode_count;
+        }
+    }
 }
 
 bool MacOSApplication::onIsFullscreen() const noexcept {
@@ -257,6 +306,34 @@ void MacOSApplication::onFullscreen(bool fullscreen, const gerium_display_mode_t
                 controller.window.minSize = NSMakeSize(0, 0);
                 controller.window.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
                 controller.window.styleMask |= NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
+                
+                
+                CFArrayRef modes = CGDisplayCopyAllDisplayModes(kCGDirectMainDisplay, nil);
+                long modeCount = CFArrayGetCount(modes);
+              
+                for (long m = 0; m < modeCount; ++m) {
+                    CGDisplayModeRef ref = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
+                    size_t width = CGDisplayModeGetWidth(ref);
+                    size_t height = CGDisplayModeGetHeight(ref);
+                    double refreshRate = CGDisplayModeGetRefreshRate(ref);
+                    
+                    if (width == mode->width && height == mode->height && int(refreshRate) == mode->refresh_rate) {
+                        
+                        
+                        CGDisplayCapture(kCGDirectMainDisplay);
+                        
+                        CGDisplayConfigRef config;
+                        CGBeginDisplayConfiguration(&config);
+                        CGConfigureDisplayWithDisplayMode(config, kCGDirectMainDisplay, ref, nil);
+                        CGCompleteDisplayConfiguration(config, kCGConfigureForAppOnly);
+                        
+                        
+                        break;
+                    }
+                }
+                
+                
+                
             }
             [controller.window toggleFullScreen:controller];
         }
