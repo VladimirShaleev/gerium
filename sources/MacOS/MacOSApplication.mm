@@ -19,7 +19,6 @@
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
-
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
@@ -48,7 +47,6 @@
     if (!application->changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
-    
     if (!application->changeState(GERIUM_APPLICATION_STATE_DESTROY)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
@@ -217,21 +215,70 @@ void MacOSApplication::onSetStyle(gerium_application_style_flags_t style) noexce
 }
 
 void MacOSApplication::onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    if (width) {
+        *width = controller.window.minSize.width;
+    }
+    if (height) {
+        *height = controller.window.minSize.height;
+    }
 }
 
 void MacOSApplication::onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    if (width) {
+        *width = controller.window.maxSize.width;
+    }
+    if (height) {
+        *height = controller.window.maxSize.height;
+    }
 }
 
 void MacOSApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    NSRect frame = [controller.window frame];
+    if (width) {
+        *width = frame.size.width;
+    }
+    if (height) {
+        *height = frame.size.height;
+    }
 }
 
 void MacOSApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    controller.window.minSize = NSMakeSize(width, height);
+    
+    gerium_uint16_t currentWidth;
+    gerium_uint16_t currentHeight;
+    onGetSize(&currentWidth, &currentHeight);
+    if (currentWidth < width || currentHeight < height) {
+        width = currentWidth < width ? width : currentWidth;
+        height = currentHeight < height ? height : currentHeight;
+        onSetSize(width, height);
+    }
 }
 
 void MacOSApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    controller.window.maxSize = NSMakeSize(width, height);
+    
+    gerium_uint16_t currentWidth;
+    gerium_uint16_t currentHeight;
+    onGetSize(&currentWidth, &currentHeight);
+    if (currentWidth > width || currentHeight > height) {
+        width = currentWidth > width ? width : currentWidth;
+        height = currentHeight > height ? height : currentHeight;
+        onSetSize(width, height);
+    }
 }
 
 void MacOSApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    NSRect frame = [controller.window frame];
+    frame.size.width = width;
+    frame.size.height = height;
+    [controller.window setFrame:frame display:YES];
 }
 
 gerium_utf8_t MacOSApplication::onGetTitle() const noexcept {
