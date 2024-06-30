@@ -238,6 +238,8 @@ void Win32Application::onSetMinSize(gerium_uint16_t width, gerium_uint16_t heigh
     if (!onIsFullscreen()) {
         const auto [currentWidth, currentHeight] = clientSize();
         if (currentWidth < _minWidth || currentHeight < _minHeight) {
+            _minWidth = currentWidth < _minWidth ? _minWidth : currentWidth;
+            _minHeight = currentHeight < _minHeight ? _minHeight : currentHeight;
             const auto [winWidth, winHeight] = clientSizeToWindowSize(_minWidth, _minHeight);
             SetWindowPos(_hWnd, nullptr, 0, 0, winWidth, winHeight, SWP_NOMOVE);
         }
@@ -251,6 +253,8 @@ void Win32Application::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t heigh
     if (!onIsFullscreen()) {
         const auto [currentWidth, currentHeight] = clientSize();
         if (currentWidth > _maxWidth || currentHeight > _maxHeight) {
+            _maxWidth = currentWidth > _maxWidth ? _maxWidth : currentWidth;
+            _maxHeight = currentHeight > _maxHeight ? _maxHeight : currentHeight;
             const auto [winWidth, winHeight] = clientSizeToWindowSize(_maxWidth, _maxHeight);
             SetWindowPos(_hWnd, nullptr, 0, 0, winWidth, winHeight, SWP_NOMOVE);
         }
