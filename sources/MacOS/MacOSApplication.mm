@@ -245,6 +245,12 @@ void MacOSApplication::onSetTitle(gerium_utf8_t title) noexcept {
 }
 
 void MacOSApplication::onRun() {
+    if (_exited) {
+        error(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED);
+    }
+    if (_running) {
+        error(GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING);
+    }
     @try {
         _running = true;
         NSApplication* application = [NSApplication sharedApplication];
@@ -262,6 +268,7 @@ void MacOSApplication::onExit() noexcept {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
         [controller.window close];
     }
+    _exited = true;
 }
 
 } // namespace gerium::macos

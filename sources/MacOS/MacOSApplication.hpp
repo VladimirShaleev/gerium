@@ -56,6 +56,7 @@ private:
     const void* _viewController = nullptr;
     const void* _view = nullptr;
     bool _running = false;
+    bool _exited = false;
     bool _startFullscreen = false;
     gerium_application_state_t _prevState = GERIUM_APPLICATION_STATE_UNKNOWN;
 };
