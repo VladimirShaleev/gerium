@@ -12,9 +12,6 @@ public:
 
 protected:
     void onInitialize() override;
-
-private:
-    ObjectPtr<gerium::windows::Win32Application> _application;
 };
 
 } // namespace gerium::vulkan::windows
