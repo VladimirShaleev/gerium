@@ -289,11 +289,9 @@ void MacOSApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height
 }
 
 void MacOSApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
-    width = getDeviceSize(width);
-    height = getDeviceSize(height) + titlebarHeight();
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-        controller.window.minSize = NSMakeSize(width, height);
+        controller.window.minSize = NSMakeSize(getDeviceSize(width), getDeviceSize(height) + titlebarHeight());
         
         gerium_uint16_t currentWidth;
         gerium_uint16_t currentHeight;
@@ -309,11 +307,9 @@ void MacOSApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t heigh
 }
 
 void MacOSApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
-    width = getDeviceSize(width);
-    height = getDeviceSize(height) + titlebarHeight();
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-        controller.window.maxSize = NSMakeSize(width, height);
+        controller.window.maxSize = NSMakeSize(getDeviceSize(width), getDeviceSize(height) + titlebarHeight());
         
         gerium_uint16_t currentWidth;
         gerium_uint16_t currentHeight;
@@ -329,13 +325,11 @@ void MacOSApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t heigh
 }
 
 void MacOSApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
-    width = getDeviceSize(width);
-    height = getDeviceSize(height) + titlebarHeight();
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
         NSRect frame = [controller.window frame];
-        frame.size.width = width;
-        frame.size.height = height;
+        frame.size.width = getDeviceSize(width);
+        frame.size.height = getDeviceSize(height) + titlebarHeight();
         [controller.window setFrame:frame display:YES animate:YES];
     }
     _newWidth = width;
