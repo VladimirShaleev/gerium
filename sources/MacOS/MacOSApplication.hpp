@@ -35,6 +35,8 @@ public:
     
     [[noreturn]] void error(gerium_result_t result) const;
     
+    const void* getView() const noexcept;
+    
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 

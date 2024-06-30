@@ -56,11 +56,19 @@
     if (!application->changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
+    
+    MTKView* view = ((__bridge MTKView*) application->getView());
+    view.paused = NO;
 }
 
 - (void)applicationDidResignActive:(NSNotification *)notification {
     if (!application->changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS)) {
         application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
+    
+    if (application->getBackgroundWait()) {
+        MTKView* view = ((__bridge MTKView*) application->getView());
+        view.paused = YES;
     }
 }
 
@@ -218,6 +226,10 @@ float MacOSApplication::titlebarHeight() const noexcept {
 
 void MacOSApplication::error(gerium_result_t result) const {
     Application::error(result);
+}
+
+const void* MacOSApplication::getView() const noexcept {
+    return _view;
 }
 
 gerium_runtime_platform_t MacOSApplication::onGetPlatform() const noexcept {
