@@ -28,6 +28,11 @@ public:
     void setSize() noexcept;
     void fullscreen(bool fullscreen) noexcept;
     
+    gerium_uint16_t getPixelSize(gerium_uint16_t x) const noexcept;
+    float getDeviceSize(gerium_uint16_t x) const noexcept;
+    
+    float titlebarHeight() const noexcept;
+    
     [[noreturn]] void error(gerium_result_t result) const;
     
 private:
@@ -59,6 +64,8 @@ private:
     bool _running = false;
     bool _exited = false;
     bool _startFullscreen = false;
+    float _scale = 1.0f;
+    float _invScale = 1.0f;
     gerium_uint16_t _newMinWidth = std::numeric_limits<gerium_uint16_t>::max();
     gerium_uint16_t _newMinHeight = std::numeric_limits<gerium_uint16_t>::max();
     gerium_uint16_t _newMaxWidth = std::numeric_limits<gerium_uint16_t>::max();

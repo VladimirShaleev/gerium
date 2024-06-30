@@ -125,6 +125,10 @@ namespace gerium::macos {
 
 MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) {
     @try {
+        float scale = [NSScreen mainScreen].backingScaleFactor;
+        width /= scale;
+        height /= scale;
+        
         NSRect frame = NSMakeRect(0, 0, width, height);
         
         WindowViewController* viewController = [WindowViewController new];
@@ -136,7 +140,7 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
         
         NSWindow* window = [[NSWindow alloc]
                             initWithContentRect:frame
-                            styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView)
+                            styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable)
                             backing:NSBackingStoreBuffered
                             defer:NO
         ];
@@ -148,6 +152,8 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
         [window orderFrontRegardless];
         
         viewController.window = window;
+        _scale = window.backingScaleFactor;
+        _invScale = 1.0f / _scale;
         _viewController = CFRetain((__bridge void*) viewController);
         _view = CFRetain((__bridge void*) view);
         
@@ -171,11 +177,6 @@ bool MacOSApplication::isStartedFullscreen() const noexcept {
 bool MacOSApplication::isFullscreen() const noexcept {
     return onIsFullscreen();
 }
-
-void MacOSApplication::fullscreen(bool fullscreen) noexcept {
-    onFullscreen(fullscreen, nullptr);
-}
-
 void MacOSApplication::setSize() noexcept {
     constexpr auto val = std::numeric_limits<gerium_uint16_t>::max();
     
@@ -194,6 +195,23 @@ void MacOSApplication::setSize() noexcept {
         _newWidth = val;
         _newHeight = val;
     }
+}
+
+void MacOSApplication::fullscreen(bool fullscreen) noexcept {
+    onFullscreen(fullscreen, nullptr);
+}
+gerium_uint16_t MacOSApplication::getPixelSize(gerium_uint16_t x) const noexcept {
+    return gerium_uint16_t(x * _scale);
+}
+
+float MacOSApplication::getDeviceSize(gerium_uint16_t x) const noexcept {
+    return x * _invScale;
+}
+
+float MacOSApplication::titlebarHeight() const noexcept {
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
+    NSRect frame = controller.window.frame;
+    return frame.size.height - [controller.window contentRectForFrameRect:frame].size.height;
 }
 
 void MacOSApplication::error(gerium_result_t result) const {
@@ -242,20 +260,20 @@ void MacOSApplication::onSetStyle(gerium_application_style_flags_t style) noexce
 void MacOSApplication::onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
     if (width) {
-        *width = controller.window.minSize.width;
+        *width = getPixelSize(controller.window.minSize.width);
     }
     if (height) {
-        *height = controller.window.minSize.height;
+        *height = getPixelSize(controller.window.minSize.height - titlebarHeight());
     }
 }
 
 void MacOSApplication::onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
     if (width) {
-        *width = controller.window.maxSize.width;
+        *width = getPixelSize(controller.window.maxSize.width);
     }
     if (height) {
-        *height = controller.window.maxSize.height;
+        *height = getPixelSize(controller.window.maxSize.height - titlebarHeight());
     }
 }
 
@@ -263,14 +281,16 @@ void MacOSApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
     NSRect frame = [controller.window frame];
     if (width) {
-        *width = frame.size.width;
+        *width = getPixelSize(frame.size.width);
     }
     if (height) {
-        *height = frame.size.height;
+        *height = getPixelSize(frame.size.height - titlebarHeight());
     }
 }
 
 void MacOSApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    width = getDeviceSize(width);
+    height = getDeviceSize(height) + titlebarHeight();
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
         controller.window.minSize = NSMakeSize(width, height);
@@ -289,6 +309,8 @@ void MacOSApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t heigh
 }
 
 void MacOSApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    width = getDeviceSize(width);
+    height = getDeviceSize(height) + titlebarHeight();
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
         controller.window.maxSize = NSMakeSize(width, height);
@@ -307,6 +329,8 @@ void MacOSApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t heigh
 }
 
 void MacOSApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+    width = getDeviceSize(width);
+    height = getDeviceSize(height) + titlebarHeight();
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
         NSRect frame = [controller.window frame];
