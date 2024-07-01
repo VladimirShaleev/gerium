@@ -101,6 +101,20 @@ void Device::createSurface(Application* application) {
 
 void Device::createPhysicalDevice() {
     printPhysicalDevices();
+    _physicalDevice = selectPhysicalDevice();
+    _queueFamilies  = getQueueFamilies(_physicalDevice);
+
+    _vkTable.vkGetPhysicalDeviceProperties(_physicalDevice, &_deviceProperties);
+    _vkTable.vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_deviceMemProperties);
+    _uboAlignment  = _deviceProperties.limits.minUniformBufferOffsetAlignment;
+    _ssboAlignment = _deviceProperties.limits.minStorageBufferOffsetAlignment;
+
+    _profilerSupported =
+        _deviceProperties.limits.timestampPeriod != 0 && _deviceProperties.limits.timestampComputeAndGraphics;
+    if (_profilerSupported) {
+        _profilerSupported = _queueFamilies.graphic.value().timestampValidBits != 0 &&
+                             _queueFamilies.compute.value().timestampValidBits != 0;
+    }
 }
 
 void Device::printValidationLayers() {
@@ -187,6 +201,96 @@ void Device::printPhysicalDevices() {
     }
 }
 
+int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
+    VkPhysicalDeviceProperties props;
+    _vkTable.vkGetPhysicalDeviceProperties(device, &props);
+
+    VkPhysicalDeviceFeatures features;
+    _vkTable.vkGetPhysicalDeviceFeatures(device, &features);
+
+    int score = 0;
+
+    if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+        score += 1;
+    }
+
+    if (!getQueueFamilies(device).isComplete()) {
+        return 0;
+    }
+
+    if (!checkPhysicalDeviceExtensions(device, selectDeviceExtensions())) {
+        return 0;
+    }
+
+    uint32_t countFormats  = 0;
+    uint32_t countPresents = 0;
+    check(_vkTable.vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &countFormats, nullptr));
+    check(_vkTable.vkGetPhysicalDeviceSurfacePresentModesKHR(device, _surface, &countPresents, nullptr));
+
+    if (!countFormats || !countPresents) {
+        return 0;
+    }
+
+    return score + 1;
+}
+
+Device::QueueFamilies Device::getQueueFamilies(VkPhysicalDevice device) {
+    QueueFamilies result;
+
+    int index                 = 0;
+    VkBool32 surfaceSupported = VK_FALSE;
+
+    uint32_t count = 0;
+    _vkTable.vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
+
+    std::vector<VkQueueFamilyProperties> families;
+    families.resize(count);
+    _vkTable.vkGetPhysicalDeviceQueueFamilyProperties(device, &count, families.data());
+
+    constexpr auto graphic  = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+    constexpr auto transfer = VK_QUEUE_TRANSFER_BIT;
+
+    for (const auto& family : families) {
+        if (family.queueCount == 0) {
+            continue;
+        }
+
+        if (!result.graphic.has_value() && (family.queueFlags & graphic) == graphic) {
+            result.graphic = { index, 0, family.timestampValidBits };
+            if (family.queueCount > 1) {
+                result.compute = { index, 1, family.timestampValidBits };
+            }
+        }
+
+        if (!result.compute.has_value() && (family.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+            result.compute = { index, 0, family.timestampValidBits };
+        }
+
+        if (!result.transfer.has_value() && (family.queueFlags & VK_QUEUE_COMPUTE_BIT) == 0 &&
+            (family.queueFlags & transfer) == transfer) {
+            result.transfer = { index, 0, family.timestampValidBits };
+        }
+
+        check(_vkTable.vkGetPhysicalDeviceSurfaceSupportKHR(device, index, _surface, &surfaceSupported));
+
+        if (!result.present.has_value() && surfaceSupported) {
+            result.present = { index, 0, family.timestampValidBits };
+        }
+
+        if (result.isComplete()) {
+            break;
+        }
+
+        ++index;
+    }
+
+    if (!result.transfer.has_value()) {
+        result.transfer = result.graphic;
+    }
+
+    return result;
+}
+
 std::vector<const char*> Device::selectValidationLayers() {
     return checkValidationLayers({ "VK_LAYER_KHRONOS_validation", "MoltenVK" });
 }
@@ -199,6 +303,44 @@ std::vector<const char*> Device::selectExtensions() {
     }
 
     return checkExtensions(extensions);
+}
+
+std::vector<const char*> Device::selectDeviceExtensions() {
+    return {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+#ifdef VK_USE_PLATFORM_MACOS_MVK
+        "VK_KHR_portability_subset",
+#endif
+    };
+}
+
+VkPhysicalDevice Device::selectPhysicalDevice() {
+    uint32_t count = 0;
+    check(_vkTable.vkEnumeratePhysicalDevices(_instance, &count, nullptr));
+
+    if (!count) {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "failed to find GPUs with Vulkan API support");
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    std::vector<VkPhysicalDevice> physicalDevices;
+    physicalDevices.resize(count);
+    check(_vkTable.vkEnumeratePhysicalDevices(_instance, &count, physicalDevices.data()));
+
+    std::multimap<int, VkPhysicalDevice> devices;
+
+    for (const auto& device : physicalDevices) {
+        const auto score = getPhysicalDeviceScore(device);
+        devices.insert(std::make_pair(score, device));
+    }
+
+    if (devices.rbegin()->first > 0) {
+        return devices.rbegin()->second;
+    }
+
+    _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "failed to find a suitable GPU");
+    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
 }
 
 std::vector<const char*> Device::checkValidationLayers(const std::vector<const char*>& layers) {
@@ -259,6 +401,31 @@ std::vector<const char*> Device::checkExtensions(const std::vector<const char*>&
     return results;
 }
 
+bool Device::checkPhysicalDeviceExtensions(VkPhysicalDevice device, const std::vector<const char*>& extensions) {
+    uint32_t count = 0;
+    check(_vkTable.vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr));
+
+    std::vector<VkExtensionProperties> avaiableExtensions;
+    avaiableExtensions.resize(count);
+    check(_vkTable.vkEnumerateDeviceExtensionProperties(device, nullptr, &count, avaiableExtensions.data()));
+
+    for (const auto& extension : extensions) {
+        bool found = false;
+        for (const auto& avaiable : avaiableExtensions) {
+            if (strncmp(avaiable.extensionName, extension, 255) == 0) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void Device::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                            VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) {
@@ -287,6 +454,10 @@ Device::debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messa
     auto device = (Device*) pUserData;
     device->debugCallback(messageSeverity, messageTypes, pCallbackData);
     return VK_FALSE;
+}
+
+void Device::error(gerium_result_t result) {
+    throw Exception(result);
 }
 
 } // namespace gerium::vulkan

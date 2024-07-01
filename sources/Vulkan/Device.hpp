@@ -24,6 +24,29 @@ protected:
     }
 
 private:
+    struct QueueFamily {
+        uint8_t index;
+        uint8_t queue;
+        uint8_t timestampValidBits;
+
+        QueueFamily(int i, int q, uint32_t t) noexcept :
+            index(uint8_t(i)),
+            queue(uint8_t(q)),
+            timestampValidBits(uint8_t(t)) {
+        }
+    };
+
+    struct QueueFamilies {
+        std::optional<QueueFamily> graphic;
+        std::optional<QueueFamily> compute;
+        std::optional<QueueFamily> present;
+        std::optional<QueueFamily> transfer;
+
+        bool isComplete() const noexcept {
+            return graphic.has_value() && compute.has_value() && present.has_value() && transfer.has_value();
+        }
+    };
+
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface(Application* application);
     void createPhysicalDevice();
@@ -32,11 +55,17 @@ private:
     void printExtensions();
     void printPhysicalDevices();
 
+    int getPhysicalDeviceScore(VkPhysicalDevice device);
+    QueueFamilies getQueueFamilies(VkPhysicalDevice device);
+
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
+    std::vector<const char*> selectDeviceExtensions();
+    VkPhysicalDevice selectPhysicalDevice();
 
     std::vector<const char*> checkValidationLayers(const std::vector<const char*>& layers);
     std::vector<const char*> checkExtensions(const std::vector<const char*>& extensions);
+    bool checkPhysicalDeviceExtensions(VkPhysicalDevice device, const std::vector<const char*>& extensions);
 
     void debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                        VkDebugUtilsMessageTypeFlagsEXT messageTypes,
@@ -48,6 +77,8 @@ private:
                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                 void* pUserData);
 
+    [[noreturn]] static void error(gerium_result_t result);
+
     virtual const char* onGetSurfaceExtension() const noexcept           = 0;
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
@@ -57,6 +88,14 @@ private:
     vk::DispatchLoaderDynamic _vkTable;
     VkInstance _instance{};
     VkSurfaceKHR _surface{};
+    VkPhysicalDevice _physicalDevice{};
+
+    QueueFamilies _queueFamilies{};
+    VkPhysicalDeviceProperties _deviceProperties{};
+    VkPhysicalDeviceMemoryProperties _deviceMemProperties{};
+    uint32_t _uboAlignment{};
+    uint32_t _ssboAlignment{};
+    bool _profilerSupported{};
 };
 
 } // namespace gerium::vulkan
