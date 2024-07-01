@@ -1,9 +1,9 @@
 #ifndef GERIUM_WINDOWS_VULKAN_DEVICE_HPP
 #define GERIUM_WINDOWS_VULKAN_DEVICE_HPP
 
+#include "../Application.hpp"
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
-#include "../Application.hpp"
 #include "Utils.hpp"
 
 namespace gerium::vulkan {
@@ -26,9 +26,11 @@ protected:
 private:
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface(Application* application);
+    void createPhysicalDevice();
 
     void printValidationLayers();
     void printExtensions();
+    void printPhysicalDevices();
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
@@ -46,7 +48,7 @@ private:
                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                 void* pUserData);
 
-    virtual const char* onGetSurfaceExtension() const noexcept = 0;
+    virtual const char* onGetSurfaceExtension() const noexcept           = 0;
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
     bool _enableValidations{};

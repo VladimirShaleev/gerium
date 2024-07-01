@@ -6,7 +6,7 @@ namespace gerium::vulkan {
 
 Device::~Device() {
     if (_surface) {
-        _vkTable.vkDestroySurfaceKHR(_instance, _surface, nullptr);
+        _vkTable.vkDestroySurfaceKHR(_instance, _surface, getAllocCalls());
     }
 
     if (_instance) {
@@ -24,6 +24,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     createInstance(application->getTitle(), version);
     createSurface(application);
+    createPhysicalDevice();
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
@@ -98,6 +99,10 @@ void Device::createSurface(Application* application) {
     _surface = onCreateSurface(application);
 }
 
+void Device::createPhysicalDevice() {
+    printPhysicalDevices();
+}
+
 void Device::printValidationLayers() {
     if (_enableValidations) {
         uint32_t count = 0;
@@ -133,6 +138,49 @@ void Device::printExtensions() {
         for (const auto& extension : extensions) {
             _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, [&extension](auto& stream) {
                 stream << "    "sv << extension.extensionName << " (ver "sv << extension.specVersion << ')';
+            });
+        }
+        _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "");
+    }
+}
+
+void Device::printPhysicalDevices() {
+    if (_enableValidations) {
+        uint32_t count = 0;
+        check(_vkTable.vkEnumeratePhysicalDevices(_instance, &count, nullptr));
+
+        std::vector<VkPhysicalDevice> devices;
+        devices.resize(count);
+        check(_vkTable.vkEnumeratePhysicalDevices(_instance, &count, devices.data()));
+
+        _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "GPU Devices:");
+        VkPhysicalDeviceProperties props;
+        for (const auto& device : devices) {
+            _vkTable.vkGetPhysicalDeviceProperties(device, &props);
+            const char* deviceType = "unknown";
+            switch (props.deviceType) {
+                case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                    deviceType = "integrated GPU";
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                    deviceType = "discrete GPU";
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                    deviceType = "virtual GPU";
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                    deviceType = "CPU";
+                    break;
+            }
+
+            _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, [&props, deviceType](auto& stream) {
+                stream << "    "sv << props.deviceName << " (type '"sv << deviceType << "', id '"sv << props.deviceID
+                       << "', vendor id '"sv << props.vendorID << "', api ver '"sv
+                       << VK_API_VERSION_VARIANT(props.apiVersion) << '.' << VK_API_VERSION_MAJOR(props.apiVersion)
+                       << '.' << VK_API_VERSION_MINOR(props.apiVersion) << '.' << VK_API_VERSION_PATCH(props.apiVersion)
+                       << "', driver ver '"sv << VK_API_VERSION_VARIANT(props.driverVersion) << '.'
+                       << VK_API_VERSION_MAJOR(props.driverVersion) << '.' << VK_API_VERSION_MINOR(props.driverVersion)
+                       << '.' << VK_API_VERSION_PATCH(props.driverVersion) << '\'';
             });
         }
         _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "");
