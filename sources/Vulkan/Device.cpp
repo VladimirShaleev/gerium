@@ -11,16 +11,14 @@ Device::~Device() {
 }
 
 void Device::create(gerium_utf8_t appName, gerium_uint32_t version, bool enableValidations) {
-    gerium_logger_t logger = nullptr;
-    if (auto result = gerium_logger_create("gerium:renderer:vulkan", &logger); result != GERIUM_RESULT_SUCCESS) {
-        throw Exception(result);
-    }
-    _logger = ObjectPtr(alias_cast<Logger*>(logger), false);
+    _enableValidations = enableValidations;
+    _logger            = Logger::create("gerium:renderer:vulkan");
+    _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
 
-    createInstance(appName, version, enableValidations);
+    createInstance(appName, version);
 }
 
-void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version, bool enableValidations) {
+void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
 #ifndef __APPLE__
     _vkTable.init();
 #else
@@ -31,8 +29,6 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version, bool
     auto minor      = (version >> 8) & 0xFF;
     auto micro      = (version >> 0) & 0xFF;
     auto appVersion = VK_MAKE_API_VERSION(0, major, minor, micro);
-
-    _enableValidations = enableValidations;
 
     printValidationLayers();
     printExtensions();
@@ -99,17 +95,16 @@ void Device::printValidationLayers() {
         layers.resize(count);
         check(_vkTable.vkEnumerateInstanceLayerProperties(&count, layers.data()));
 
-        logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, "Supported validation layers:");
+        _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "Supported validation layers:");
         for (const auto& layer : layers) {
-            std::ostringstream ss;
-            ss << "    "sv << layer.layerName << "(ver "sv << VK_API_VERSION_VARIANT(layer.specVersion) << '.'
-               << VK_API_VERSION_MAJOR(layer.specVersion) << '.' << VK_API_VERSION_MINOR(layer.specVersion) << '.'
-               << VK_API_VERSION_PATCH(layer.specVersion) << ", impl ver "sv << layer.implementationVersion << ") -- "sv
-               << layer.description;
-            const auto str = ss.str();
-            logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, str.c_str());
+            _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, [&layer](auto& stream) {
+                stream << "    "sv << layer.layerName << "(ver "sv << VK_API_VERSION_VARIANT(layer.specVersion) << '.'
+                       << VK_API_VERSION_MAJOR(layer.specVersion) << '.' << VK_API_VERSION_MINOR(layer.specVersion)
+                       << '.' << VK_API_VERSION_PATCH(layer.specVersion) << ", impl ver "sv
+                       << layer.implementationVersion << ") -- "sv << layer.description;
+            });
         }
-        logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, "");
+        _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "");
     }
 }
 
@@ -122,14 +117,13 @@ void Device::printExtensions() {
         extensions.resize(count);
         check(_vkTable.vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data()));
 
-        logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, "Supported extensions:");
+        _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "Supported extensions:");
         for (const auto& extension : extensions) {
-            std::ostringstream ss;
-            ss << "    "sv << extension.extensionName << " (ver "sv << extension.specVersion << ')';
-            const auto str = ss.str();
-            logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, str.c_str());
+            _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, [&extension](auto& stream) {
+                stream << "    "sv << extension.extensionName << " (ver "sv << extension.specVersion << ')';
+            });
         }
-        logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, "");
+        _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "");
     }
 }
 
@@ -179,7 +173,7 @@ std::vector<const char*> Device::checkValidationLayers(const std::vector<const c
             std::ostringstream ss;
             ss << "Layer "sv << layer << ' ' << (found ? "found"sv : "not found"sv);
             const auto str = ss.str();
-            logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, str.c_str());
+            // logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, str.c_str());
         }
     }
     return results;
@@ -217,25 +211,21 @@ std::vector<const char*> Device::checkExtensions(const std::vector<const char*>&
 void Device::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                            VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) {
-    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        gerium_logger_level_t level = GERIUM_LOGGER_LEVEL_VERBOSE;
-        if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-            level = GERIUM_LOGGER_LEVEL_ERROR;
-        } else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-            level = GERIUM_LOGGER_LEVEL_WARNING;
-        } else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
-            level = GERIUM_LOGGER_LEVEL_INFO;
-        } else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-            level = GERIUM_LOGGER_LEVEL_VERBOSE;
-        }
-
-        std::ostringstream ss;
-        ss << " mess id name '"sv << (pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "<none>")
-           << "', mess id num '"sv << pCallbackData->messageIdNumber << "', mess '"sv << pCallbackData->pMessage
-           << '\'';
-        const auto str = ss.str();
-        logger()->print(level, str.c_str());
+    gerium_logger_level_t level = GERIUM_LOGGER_LEVEL_VERBOSE;
+    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        level = GERIUM_LOGGER_LEVEL_ERROR;
+    } else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        level = GERIUM_LOGGER_LEVEL_WARNING;
+    } else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+        level = GERIUM_LOGGER_LEVEL_INFO;
+    } else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+        level = GERIUM_LOGGER_LEVEL_VERBOSE;
     }
+
+    _logger->print(level, [data = pCallbackData](auto& stream) {
+        stream << " mess id name '"sv << (data->pMessageIdName ? data->pMessageIdName : "<none>")
+               << "', mess id num '"sv << data->messageIdNumber << "', mess '"sv << data->pMessage << '\'';
+    });
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL
@@ -246,10 +236,6 @@ Device::debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messa
     auto device = (Device*) pUserData;
     device->debugCallback(messageSeverity, messageTypes, pCallbackData);
     return VK_FALSE;
-}
-
-Logger* Device::logger() noexcept {
-    return _logger.get();
 }
 
 } // namespace gerium::vulkan

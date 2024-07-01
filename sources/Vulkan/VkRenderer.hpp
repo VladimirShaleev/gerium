@@ -13,7 +13,7 @@ public:
     VkRenderer(Application* application) noexcept;
 
 protected:
-    void onInitialize(gerium_uint32_t version) override;
+    void onInitialize(gerium_uint32_t version, bool debug) override;
 
     Application* application() noexcept;
 

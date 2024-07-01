@@ -12,7 +12,14 @@ void check(gerium_result_t result) {
 
 bool initialize(gerium_application_t application) {
     try {
-        check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), &renderer));
+        constexpr auto debug =
+#ifdef NDEBUG
+            false;
+#else
+            true;
+#endif
+
+        check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &renderer));
 
     } catch (const std::runtime_error& exc) {
         std::cerr << "Error: " << exc.what() << std::endl;

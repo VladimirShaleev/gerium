@@ -58,15 +58,28 @@ void Logger::setLevel(gerium_utf8_t tag, gerium_logger_level_t level) noexcept {
 }
 
 void Logger::print(gerium_logger_level_t level, gerium_utf8_t message) noexcept {
-    if (level == GERIUM_LOGGER_LEVEL_OFF) {
-        return;
-    }
-
-    if (level >= getLevelWithParent()) {
+    if (level != GERIUM_LOGGER_LEVEL_OFF && level >= getLevelWithParent()) {
         invoke<Logger>([this, level, message](auto obj) {
             obj->onPrint(_tag, level, message);
         });
     }
+}
+
+void Logger::print(gerium_logger_level_t level, std::function<void(std::ostream&)>&& func) {
+    if (level != GERIUM_LOGGER_LEVEL_OFF && level >= getLevelWithParent()) {
+        std::ostringstream ss;
+        func(ss);
+        const auto message = ss.str();
+        print(level, message.c_str());
+    }
+}
+
+ObjectPtr<Logger> Logger::create(gerium_utf8_t tag) {
+    gerium_logger_t logger = nullptr;
+    if (auto result = gerium_logger_create(tag, &logger); result != GERIUM_RESULT_SUCCESS) {
+        error(result);
+    }
+    return ObjectPtr(alias_cast<Logger*>(logger), false);
 }
 
 std::string_view Logger::levelToString(gerium_logger_level_t level) noexcept {

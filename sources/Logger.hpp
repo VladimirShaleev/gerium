@@ -21,6 +21,10 @@ public:
 
     void print(gerium_logger_level_t level, gerium_utf8_t message) noexcept;
 
+    void print(gerium_logger_level_t level, std::function<void(std::ostream&)> &&func);
+
+    static ObjectPtr<Logger> create(gerium_utf8_t tag);
+
 protected:
     virtual void onPrint(const std::string& tag, gerium_logger_level_t level, gerium_utf8_t message) = 0;
 

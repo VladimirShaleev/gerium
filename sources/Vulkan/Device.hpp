@@ -10,11 +10,11 @@ namespace gerium::vulkan {
 class Device final {
 public:
     ~Device();
-    
+
     void create(gerium_utf8_t appName, gerium_uint32_t version, bool enableValidations);
 
 private:
-    void createInstance(gerium_utf8_t appName, gerium_uint32_t version, bool enableValidations);
+    void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
 
     void printValidationLayers();
     void printExtensions();
@@ -35,13 +35,11 @@ private:
                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                 void* pUserData);
 
-    Logger* logger() noexcept;
+    bool _enableValidations{};
+    ObjectPtr<Logger> _logger;
 
     vk::DispatchLoaderDynamic _vkTable;
     VkInstance _instance{};
-
-    bool _enableValidations;
-    ObjectPtr<Logger> _logger;
 };
 
 } // namespace gerium::vulkan

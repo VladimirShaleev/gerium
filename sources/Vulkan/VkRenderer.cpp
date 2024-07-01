@@ -10,15 +10,8 @@ VkRenderer::VkRenderer(Application* application) noexcept : _application(applica
     _logger = ObjectPtr(alias_cast<Logger*>(logger), false);
 }
 
-void VkRenderer::onInitialize(gerium_uint32_t version) {
-    constexpr auto enableValidations =
-#ifdef NDEBUG
-        false;
-#else
-        true;
-#endif
-
-    _device.create(application()->getTitle(), version, enableValidations);
+void VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
+    _device.create(application()->getTitle(), version, debug);
 }
 
 Application* VkRenderer::application() noexcept {
