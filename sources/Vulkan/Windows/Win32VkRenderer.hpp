@@ -3,6 +3,7 @@
 
 #include "../../Windows/Win32Application.hpp"
 #include "../VkRenderer.hpp"
+#include "Win32Device.hpp"
 
 namespace gerium::vulkan::windows {
 

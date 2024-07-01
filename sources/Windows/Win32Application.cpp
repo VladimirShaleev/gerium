@@ -72,6 +72,14 @@ bool Win32Application::isRunning() const noexcept {
     return _running;
 }
 
+HINSTANCE Win32Application::hInstance() const noexcept {
+    return _hInstance;
+}
+
+HWND Win32Application::hWnd() const noexcept {
+    return _hWnd;
+}
+
 gerium_runtime_platform_t Win32Application::onGetPlatform() const noexcept {
     return GERIUM_RUNTIME_PLATFORM_WINDOWS;
 }

@@ -5,17 +5,25 @@ using namespace std::string_view_literals;
 namespace gerium::vulkan {
 
 Device::~Device() {
+    if (_surface) {
+        _vkTable.vkDestroySurfaceKHR(_instance, _surface, nullptr);
+    }
+
     if (_instance) {
         _vkTable.vkDestroyInstance(_instance, getAllocCalls());
     }
 }
 
-void Device::create(gerium_utf8_t appName, gerium_uint32_t version, bool enableValidations) {
+void Device::create(Application* application, gerium_uint32_t version, bool enableValidations) {
     _enableValidations = enableValidations;
     _logger            = Logger::create("gerium:renderer:vulkan");
-    _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
 
-    createInstance(appName, version);
+    if (_logger->getLevel() == GERIUM_LOGGER_LEVEL_VERBOSE) {
+        _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
+    }
+
+    createInstance(application->getTitle(), version);
+    createSurface(application);
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
@@ -86,6 +94,10 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     _vkTable.init(_instance, _vkTable.vkGetInstanceProcAddr);
 }
 
+void Device::createSurface(Application* application) {
+    _surface = onCreateSurface(application);
+}
+
 void Device::printValidationLayers() {
     if (_enableValidations) {
         uint32_t count = 0;
@@ -132,14 +144,7 @@ std::vector<const char*> Device::selectValidationLayers() {
 }
 
 std::vector<const char*> Device::selectExtensions() {
-    std::vector extensions = {
-        VK_KHR_SURFACE_EXTENSION_NAME,
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-        VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
-#elif defined(VK_USE_PLATFORM_MACOS_MVK)
-        VK_MVK_MACOS_SURFACE_EXTENSION_NAME,
-#endif
-    };
+    std::vector extensions = { VK_KHR_SURFACE_EXTENSION_NAME, onGetSurfaceExtension() };
 
     if (_enableValidations) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -168,12 +173,10 @@ std::vector<const char*> Device::checkValidationLayers(const std::vector<const c
         }
 
         for (const auto& layer : layers) {
-            const auto found = std::find(results.cbegin(), results.cend(), layer) != results.cend();
-
-            std::ostringstream ss;
-            ss << "Layer "sv << layer << ' ' << (found ? "found"sv : "not found"sv);
-            const auto str = ss.str();
-            // logger()->print(GERIUM_LOGGER_LEVEL_VERBOSE, str.c_str());
+            _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, [&results, layer](auto& stream) {
+                const auto found = std::find(results.cbegin(), results.cend(), layer) != results.cend();
+                stream << "Layer "sv << layer << ' ' << (found ? "found"sv : "not found"sv);
+            });
         }
     }
     return results;

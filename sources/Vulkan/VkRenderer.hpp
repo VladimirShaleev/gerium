@@ -10,19 +10,16 @@ namespace gerium::vulkan {
 
 class VkRenderer : public Renderer {
 public:
-    VkRenderer(Application* application) noexcept;
+    VkRenderer(Application* application, std::unique_ptr<Device>&& device) noexcept;
 
 protected:
     void onInitialize(gerium_uint32_t version, bool debug) override;
 
     Application* application() noexcept;
 
-    Logger* logger() noexcept;
-
 private:
     ObjectPtr<Application> _application;
-    ObjectPtr<Logger> _logger;
-    Device _device;
+    std::unique_ptr<Device> _device;
 };
 
 } // namespace gerium::vulkan

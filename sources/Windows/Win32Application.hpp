@@ -11,6 +11,9 @@ public:
 
     bool isRunning() const noexcept;
 
+    HINSTANCE hInstance() const noexcept;
+    HWND hWnd() const noexcept;
+
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 

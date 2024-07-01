@@ -3,18 +3,29 @@
 
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
+#include "../Application.hpp"
 #include "Utils.hpp"
 
 namespace gerium::vulkan {
 
-class Device final {
+class Device {
 public:
-    ~Device();
+    virtual ~Device();
 
-    void create(gerium_utf8_t appName, gerium_uint32_t version, bool enableValidations);
+    void create(Application* application, gerium_uint32_t version, bool enableValidations);
+
+protected:
+    VkInstance instance() const noexcept {
+        return _instance;
+    }
+
+    const vk::DispatchLoaderDynamic& vkTable() const noexcept {
+        return _vkTable;
+    }
 
 private:
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
+    void createSurface(Application* application);
 
     void printValidationLayers();
     void printExtensions();
@@ -35,11 +46,15 @@ private:
                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                 void* pUserData);
 
+    virtual const char* onGetSurfaceExtension() const noexcept = 0;
+    virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
+
     bool _enableValidations{};
     ObjectPtr<Logger> _logger;
 
     vk::DispatchLoaderDynamic _vkTable;
     VkInstance _instance{};
+    VkSurfaceKHR _surface{};
 };
 
 } // namespace gerium::vulkan
