@@ -6,6 +6,10 @@ namespace gerium::vulkan {
 
 Device::~Device() {
     if (_device) {
+        if (_swapchain) {
+            _vkTable.vkDestroySwapchainKHR(_device, _swapchain, getAllocCalls());
+        }
+
         _vkTable.vkDestroyDevice(_device, getAllocCalls());
     }
 
@@ -21,10 +25,7 @@ Device::~Device() {
 void Device::create(Application* application, gerium_uint32_t version, bool enableValidations) {
     _enableValidations = enableValidations;
     _logger            = Logger::create("gerium:renderer:vulkan");
-
-    if (_logger->getLevel() == GERIUM_LOGGER_LEVEL_VERBOSE) {
-        _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
-    }
+    _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
 
     createInstance(application->getTitle(), version);
     createSurface(application);
@@ -182,6 +183,38 @@ void Device::createSwapchain(Application* application) {
     const auto format      = selectSwapchainFormat(swapchain.formats);
     const auto presentMode = selectSwapchainPresentMode(swapchain.presentModes);
     const auto extent      = selectSwapchainExtent(swapchain.capabilities, application);
+
+    const auto imageCount = std::clamp(3U, swapchain.capabilities.minImageCount, swapchain.capabilities.maxImageCount);
+
+    std::set<uint32_t> families = { _queueFamilies.graphic.value().index, _queueFamilies.present.value().index };
+    if (families.size() == 1) {
+        families.clear();
+    }
+    uint32_t indices[] = { _queueFamilies.graphic.value().index, _queueFamilies.present.value().index };
+
+    auto sharingMode = families.empty() ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT;
+
+    VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+    createInfo.surface               = _surface;
+    createInfo.minImageCount         = imageCount;
+    createInfo.imageFormat           = format.format;
+    createInfo.imageColorSpace       = format.colorSpace;
+    createInfo.imageExtent           = extent;
+    createInfo.imageArrayLayers      = 1;
+    createInfo.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    createInfo.imageSharingMode      = sharingMode;
+    createInfo.queueFamilyIndexCount = families.size();
+    createInfo.pQueueFamilyIndices   = families.empty() ? nullptr : indices;
+    createInfo.preTransform          = swapchain.capabilities.currentTransform;
+    createInfo.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode           = presentMode;
+    createInfo.clipped               = VK_TRUE;
+    createInfo.oldSwapchain          = _swapchain;
+
+    check(_vkTable.vkCreateSwapchainKHR(_device, &createInfo, getAllocCalls(), &_swapchain));
+
+    _swapchainFormat = format;
+    _swapchainExtent = extent;
 }
 
 void Device::printValidationLayers() {

@@ -106,6 +106,9 @@ private:
     VkQueue _queueCompute{};
     VkQueue _queuePresent{};
     VkQueue _queueTransfer{};
+    VkSwapchainKHR _swapchain{};
+    VkSurfaceFormatKHR _swapchainFormat{};
+    VkExtent2D _swapchainExtent{};
 
     QueueFamilies _queueFamilies{};
     VkPhysicalDeviceProperties _deviceProperties{};
