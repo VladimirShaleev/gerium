@@ -15,4 +15,8 @@ Application* VkRenderer::application() noexcept {
     return _application.get();
 }
 
+TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creation) noexcept {
+    return {};
+}
+
 } // namespace gerium::vulkan

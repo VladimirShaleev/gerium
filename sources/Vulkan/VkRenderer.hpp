@@ -18,6 +18,8 @@ protected:
     Application* application() noexcept;
 
 private:
+    TextureHandle onCreateTexture(const gerium_texture_creation_t& creation) noexcept override;
+
     ObjectPtr<Application> _application;
     std::unique_ptr<Device> _device;
 };

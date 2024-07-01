@@ -82,4 +82,9 @@ inline gerium_enum_t& operator^=(gerium_enum_t& lhr, gerium_enum_t rhs) noexcept
 # define GERIUM_FLAGS(gerium_enum_t)
 #endif
 
+#define GERIUM_HANDLE(gerium_name) \
+typedef struct {                   \
+    gerium_uint16_t unused;        \
+} gerium_name;
+
 #endif
