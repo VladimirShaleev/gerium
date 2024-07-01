@@ -43,6 +43,7 @@ typedef enum {
    GERIUM_LOGGER_LEVEL_WARNING  = 3,
    GERIUM_LOGGER_LEVEL_ERROR    = 4,
    GERIUM_LOGGER_LEVEL_FATAL    = 5,
+   GERIUM_LOGGER_LEVEL_OFF      = 6,
    GERIUM_LOGGER_LEVEL_MAX_ENUM = 0x7FFFFFFF
 } gerium_logger_level_t;
 
@@ -140,6 +141,10 @@ gerium_logger_get_level(gerium_logger_t logger);
 gerium_public void
 gerium_logger_set_level(gerium_logger_t logger,
                         gerium_logger_level_t level);
+
+gerium_public void
+gerium_logger_set_level_by_tag(gerium_utf8_t tag,
+                               gerium_logger_level_t level);
 
 gerium_public void
 gerium_logger_print(gerium_logger_t logger,
@@ -253,6 +258,7 @@ gerium_application_exit(gerium_application_t application);
 gerium_public gerium_result_t
 gerium_renderer_create(gerium_application_t application,
                        gerium_uint32_t version,
+                       gerium_bool_t debug,
                        gerium_renderer_t* renderer);
 
 gerium_public gerium_renderer_t

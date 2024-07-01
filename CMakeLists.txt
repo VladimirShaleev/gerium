@@ -23,8 +23,10 @@ endif()
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
 find_package(mimalloc CONFIG REQUIRED)
+find_package(ctre CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
 include(CTest)
@@ -57,8 +59,10 @@ add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
 
 target_link_libraries(gerium PRIVATE $<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
+target_link_libraries(gerium PRIVATE ctre::ctre)
 target_link_libraries(gerium PRIVATE Vulkan::Headers)
 target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
+target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

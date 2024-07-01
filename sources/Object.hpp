@@ -20,7 +20,7 @@ protected:
     template <typename D>
     gerium_result_t invoke(std::function<void(D*)>&& func) const noexcept;
 
-    [[noreturn]] void error(gerium_result_t result) const;
+    [[noreturn]] static void error(gerium_result_t result);
 
 private:
     gerium_sint32_t _refCount;

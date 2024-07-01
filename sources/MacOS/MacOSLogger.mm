@@ -23,6 +23,8 @@ NSString* MacOSLogger::getLogLevel(gerium_logger_level_t level) noexcept {
             return @"ERROR";
         case GERIUM_LOGGER_LEVEL_FATAL:
             return @"FATAL";
+        case GERIUM_LOGGER_LEVEL_OFF:
+            return @"OFF";
         default:
             return @"VERBOSE";
     }

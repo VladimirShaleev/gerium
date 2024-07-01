@@ -12,10 +12,15 @@
 #include <cstdlib>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+
+#define CTRE_STRING_IS_UTF8
+#include <ctre.hpp>
+#include <wyhash.h>
 
 // Vulkan API
 #if defined(_WIN32)
@@ -79,6 +84,10 @@ gerium_inline AliasedType alias_cast(Type ptr) noexcept {
     AliasedType result;
     memcpy(&result, &ptr, sizeof(AliasedType));
     return result;
+}
+
+gerium_inline gerium_uint64_t hash(std::string_view str, gerium_uint64_t seed = 0) noexcept {
+    return wyhash(str.data(), str.length(), seed, _wyp);
 }
 
 } // namespace gerium

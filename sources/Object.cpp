@@ -15,7 +15,7 @@ void Object::destroy() noexcept {
     }
 }
 
-void Object::error(gerium_result_t result) const {
+void Object::error(gerium_result_t result) {
     throw Exception(result);
 }
 
