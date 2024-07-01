@@ -50,6 +50,7 @@ private:
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface(Application* application);
     void createPhysicalDevice();
+    void createDevice();
 
     void printValidationLayers();
     void printExtensions();
@@ -89,6 +90,7 @@ private:
     VkInstance _instance{};
     VkSurfaceKHR _surface{};
     VkPhysicalDevice _physicalDevice{};
+    VkDevice _device{};
 
     QueueFamilies _queueFamilies{};
     VkPhysicalDeviceProperties _deviceProperties{};

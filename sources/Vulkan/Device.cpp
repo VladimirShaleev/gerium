@@ -5,6 +5,10 @@ using namespace std::string_view_literals;
 namespace gerium::vulkan {
 
 Device::~Device() {
+    if (_device) {
+        _vkTable.vkDestroyDevice(_device, getAllocCalls());
+    }
+
     if (_surface) {
         _vkTable.vkDestroySurfaceKHR(_instance, _surface, getAllocCalls());
     }
@@ -25,6 +29,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createInstance(application->getTitle(), version);
     createSurface(application);
     createPhysicalDevice();
+    createDevice();
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
@@ -114,6 +119,47 @@ void Device::createPhysicalDevice() {
     if (_profilerSupported) {
         _profilerSupported = _queueFamilies.graphic.value().timestampValidBits != 0 &&
                              _queueFamilies.compute.value().timestampValidBits != 0;
+    }
+}
+
+void Device::createDevice() {
+    const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    const auto layers        = selectValidationLayers();
+    const auto extensions    = selectDeviceExtensions();
+
+    size_t queueCreateInfoCount                 = 0;
+    VkDeviceQueueCreateInfo queueCreateInfos[4] = {};
+
+    const auto& graphic  = _queueFamilies.graphic.value();
+    const auto& compute  = _queueFamilies.compute.value();
+    const auto& present  = _queueFamilies.present.value();
+    const auto& transfer = _queueFamilies.transfer.value();
+
+    std::set<uint32_t> uniqueQueueIndices = {
+        graphic.index,
+        compute.index,
+        present.index,
+        transfer.index,
+    };
+
+    std::map<uint32_t, uint32_t> queueCounts{};
+    queueCounts[graphic.index]  = std::max(queueCounts[graphic.index], uint32_t(graphic.queue));
+    queueCounts[compute.index]  = std::max(queueCounts[compute.index], uint32_t(compute.queue));
+    queueCounts[present.index]  = std::max(queueCounts[present.index], uint32_t(present.queue));
+    queueCounts[transfer.index] = std::max(queueCounts[transfer.index], uint32_t(transfer.queue));
+
+    for (auto& [_, count] : queueCounts) {
+        ++count;
+    }
+
+    for (const auto& index : uniqueQueueIndices) {
+        auto& info            = queueCreateInfos[queueCreateInfoCount++];
+        info.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        info.pNext            = nullptr;
+        info.flags            = 0;
+        info.queueFamilyIndex = index;
+        info.queueCount       = queueCounts[index];
+        info.pQueuePriorities = priorities;
     }
 }
 
