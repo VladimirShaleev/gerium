@@ -161,6 +161,23 @@ void Device::createDevice() {
         info.queueCount       = queueCounts[index];
         info.pQueuePriorities = priorities;
     }
+
+    VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+    createInfo.queueCreateInfoCount    = queueCreateInfoCount;
+    createInfo.pQueueCreateInfos       = queueCreateInfos;
+    createInfo.enabledLayerCount       = layers.size();
+    createInfo.ppEnabledLayerNames     = layers.data();
+    createInfo.enabledExtensionCount   = extensions.size();
+    createInfo.ppEnabledExtensionNames = extensions.data();
+    createInfo.pEnabledFeatures        = nullptr;
+
+    check(_vkTable.vkCreateDevice(_physicalDevice, &createInfo, getAllocCalls(), &_device));
+    _vkTable.init(vk::Device(_device));
+
+    _vkTable.vkGetDeviceQueue(_device, graphic.index, graphic.queue, &_queueGraphic);
+    _vkTable.vkGetDeviceQueue(_device, compute.index, compute.queue, &_queueCompute);
+    _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
+    _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 }
 
 void Device::printValidationLayers() {

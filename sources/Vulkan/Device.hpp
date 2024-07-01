@@ -91,6 +91,10 @@ private:
     VkSurfaceKHR _surface{};
     VkPhysicalDevice _physicalDevice{};
     VkDevice _device{};
+    VkQueue _queueGraphic{};
+    VkQueue _queueCompute{};
+    VkQueue _queuePresent{};
+    VkQueue _queueTransfer{};
 
     QueueFamilies _queueFamilies{};
     VkPhysicalDeviceProperties _deviceProperties{};
