@@ -30,6 +30,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createSurface(application);
     createPhysicalDevice();
     createDevice();
+    createSwapchain(application);
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
@@ -143,14 +144,10 @@ void Device::createDevice() {
     };
 
     std::map<uint32_t, uint32_t> queueCounts{};
-    queueCounts[graphic.index]  = std::max(queueCounts[graphic.index], uint32_t(graphic.queue));
-    queueCounts[compute.index]  = std::max(queueCounts[compute.index], uint32_t(compute.queue));
-    queueCounts[present.index]  = std::max(queueCounts[present.index], uint32_t(present.queue));
-    queueCounts[transfer.index] = std::max(queueCounts[transfer.index], uint32_t(transfer.queue));
-
-    for (auto& [_, count] : queueCounts) {
-        ++count;
-    }
+    queueCounts[graphic.index]  = std::max(queueCounts[graphic.index], uint32_t(graphic.queue) + 1);
+    queueCounts[compute.index]  = std::max(queueCounts[compute.index], uint32_t(compute.queue) + 1);
+    queueCounts[present.index]  = std::max(queueCounts[present.index], uint32_t(present.queue) + 1);
+    queueCounts[transfer.index] = std::max(queueCounts[transfer.index], uint32_t(transfer.queue) + 1);
 
     for (const auto& index : uniqueQueueIndices) {
         auto& info            = queueCreateInfos[queueCreateInfoCount++];
@@ -178,6 +175,13 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, compute.index, compute.queue, &_queueCompute);
     _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
+}
+
+void Device::createSwapchain(Application* application) {
+    const auto swapchain   = getSwapchain();
+    const auto format      = selectSwapchainFormat(swapchain.formats);
+    const auto presentMode = selectSwapchainPresentMode(swapchain.presentModes);
+    const auto extent      = selectSwapchainExtent(swapchain.capabilities, application);
 }
 
 void Device::printValidationLayers() {
@@ -354,6 +358,25 @@ Device::QueueFamilies Device::getQueueFamilies(VkPhysicalDevice device) {
     return result;
 }
 
+Device::Swapchain Device::getSwapchain() {
+    Swapchain result;
+    check(_vkTable.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physicalDevice, _surface, &result.capabilities));
+
+    uint32_t countFormats  = 0;
+    uint32_t countPresents = 0;
+    check(_vkTable.vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &countFormats, nullptr));
+    check(_vkTable.vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &countPresents, nullptr));
+
+    result.formats.resize(countFormats);
+    result.presentModes.resize(countPresents);
+    check(
+        _vkTable.vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &countFormats, result.formats.data()));
+    check(_vkTable.vkGetPhysicalDeviceSurfacePresentModesKHR(
+        _physicalDevice, _surface, &countPresents, result.presentModes.data()));
+
+    return result;
+}
+
 std::vector<const char*> Device::selectValidationLayers() {
     return checkValidationLayers({ "VK_LAYER_KHRONOS_validation", "MoltenVK" });
 }
@@ -404,6 +427,42 @@ VkPhysicalDevice Device::selectPhysicalDevice() {
 
     _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "failed to find a suitable GPU");
     error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+}
+
+VkSurfaceFormatKHR Device::selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats) {
+    for (const auto& format : formats) {
+        if (format.format == VK_FORMAT_B8G8R8A8_UNORM || format.format == VK_FORMAT_R8G8B8A8_UNORM) {
+            if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                return format;
+            }
+        }
+    }
+    return formats[0];
+}
+
+VkPresentModeKHR Device::selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes) {
+    for (const auto& presentMode : presentModes) {
+        if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return presentMode;
+        }
+    }
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D Device::selectSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, Application* application) {
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        return capabilities.currentExtent;
+    } else {
+        gerium_uint16_t width, height;
+        application->getSize(&width, &height);
+
+        VkExtent2D extent = { (uint32_t) width, (uint32_t) height };
+
+        extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        extent.height =
+            std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+        return extent;
+    }
 }
 
 std::vector<const char*> Device::checkValidationLayers(const std::vector<const char*>& layers) {

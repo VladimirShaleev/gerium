@@ -47,10 +47,17 @@ private:
         }
     };
 
+    struct Swapchain {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> presentModes;
+    };
+
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface(Application* application);
     void createPhysicalDevice();
     void createDevice();
+    void createSwapchain(Application* application);
 
     void printValidationLayers();
     void printExtensions();
@@ -58,11 +65,15 @@ private:
 
     int getPhysicalDeviceScore(VkPhysicalDevice device);
     QueueFamilies getQueueFamilies(VkPhysicalDevice device);
+    Swapchain getSwapchain();
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
     std::vector<const char*> selectDeviceExtensions();
     VkPhysicalDevice selectPhysicalDevice();
+    VkSurfaceFormatKHR selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats);
+    VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
+    VkExtent2D selectSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, Application* application);
 
     std::vector<const char*> checkValidationLayers(const std::vector<const char*>& layers);
     std::vector<const char*> checkExtensions(const std::vector<const char*>& extensions);
