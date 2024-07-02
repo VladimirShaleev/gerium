@@ -20,6 +20,7 @@
 #include <type_traits>
 
 #define CTRE_STRING_IS_UTF8
+#include <absl/container/flat_hash_map.h>
 #include <ctre.hpp>
 #include <wyhash.h>
 
@@ -89,6 +90,10 @@ gerium_inline AliasedType alias_cast(Type ptr) noexcept {
 
 gerium_inline gerium_uint64_t hash(std::string_view str, gerium_uint64_t seed = 0) noexcept {
     return wyhash(str.data(), str.length(), seed, _wyp);
+}
+
+gerium_inline gerium_uint64_t hash(gerium_utf8_t str, gerium_uint64_t seed = 0) noexcept {
+    return wyhash(str, strlen(str), seed, _wyp);
 }
 
 } // namespace gerium
