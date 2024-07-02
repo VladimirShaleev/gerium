@@ -4,6 +4,8 @@
 #include "../Application.hpp"
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
+#include "../StringPool.hpp"
+#include "Resources.hpp"
 #include "Utils.hpp"
 
 namespace gerium::vulkan {
@@ -13,6 +15,10 @@ public:
     virtual ~Device();
 
     void create(Application* application, gerium_uint32_t version, bool enableValidations);
+
+    TextureHandle createTexture(const TextureCreation& creation);
+
+    void destroyTexture(TextureHandle handle);
 
 protected:
     VkInstance instance() const noexcept {
@@ -24,6 +30,18 @@ protected:
     }
 
 private:
+    enum class ResourceType {
+        Buffer,
+        Texture,
+        Sampler,
+        RenderPass,
+        Framebuffer,
+        Shader,
+        DescriptorSet,
+        DescriptorSetLayout,
+        Pipeline
+    };
+
     struct QueueFamily {
         uint8_t index;
         uint8_t queue;
@@ -53,16 +71,25 @@ private:
         std::vector<VkPresentModeKHR> presentModes;
     };
 
+    struct ResourceDeletion {
+        ResourceType type;
+        uint32_t frame;
+        Handle handle;
+    };
+
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface(Application* application);
     void createPhysicalDevice();
     void createDevice();
+    void createVmaAllocator();
     void createSwapchain(Application* application);
 
     void printValidationLayers();
     void printExtensions();
     void printPhysicalDevices();
 
+    void deleteResources(bool forceDelete = false);
+    void setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name);
     int getPhysicalDeviceScore(VkPhysicalDevice device);
     QueueFamilies getQueueFamilies(VkPhysicalDevice device);
     Swapchain getSwapchain();
@@ -106,6 +133,7 @@ private:
     VkQueue _queueCompute{};
     VkQueue _queuePresent{};
     VkQueue _queueTransfer{};
+    VmaAllocator _vmaAllocator{};
     VkSwapchainKHR _swapchain{};
     VkSurfaceFormatKHR _swapchainFormat{};
     VkExtent2D _swapchainExtent{};
@@ -116,6 +144,10 @@ private:
     uint32_t _uboAlignment{};
     uint32_t _ssboAlignment{};
     bool _profilerSupported{};
+
+    TexturePool _textures;
+
+    std::queue<ResourceDeletion> _deletionQueue{};
 };
 
 } // namespace gerium::vulkan

@@ -16,7 +16,13 @@ Application* VkRenderer::application() noexcept {
 }
 
 TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creation) noexcept {
-    return {};
+    TextureCreation tc;
+    tc.setSize(creation.width, creation.height, creation.depth)
+        .setFlags(creation.mipmaps, false, false)
+        .setFormat(creation.format, creation.type)
+        .setData((void*) creation.data)
+        .setName(creation.name);
+    return _device->createTexture(tc);
 }
 
 } // namespace gerium::vulkan

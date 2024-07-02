@@ -6,8 +6,18 @@ namespace gerium::vulkan {
 
 Device::~Device() {
     if (_device) {
+        for (auto texture : _textures) {
+            destroyTexture(texture.handle);
+        }
+
+        deleteResources(true);
+
         if (_swapchain) {
             _vkTable.vkDestroySwapchainKHR(_device, _swapchain, getAllocCalls());
+        }
+
+        if (_vmaAllocator) {
+            vmaDestroyAllocator(_vmaAllocator);
         }
 
         _vkTable.vkDestroyDevice(_device, getAllocCalls());
@@ -31,7 +41,104 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createSurface(application);
     createPhysicalDevice();
     createDevice();
+    createVmaAllocator();
     createSwapchain(application);
+}
+
+TextureHandle Device::createTexture(const TextureCreation& creation) {
+    auto [handle, texture] = _textures.obtain_and_access();
+
+    texture.vkFormat = toVkFormat(creation.format);
+    texture.width    = creation.width;
+    texture.height   = creation.height;
+    texture.depth    = creation.depth;
+    texture.mipmaps  = creation.mipmaps;
+    texture.flags    = creation.flags;
+    texture.type     = creation.type;
+    texture.name     = intern(creation.name);
+    texture.handle   = handle;
+
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+
+    if ((creation.flags & TextureFlags::Compute) == TextureFlags::Compute) {
+        usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+    }
+
+    if (hasDepthOrStencil(texture.vkFormat)) {
+        usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    } else {
+        const auto renderTarget = (creation.flags & TextureFlags::RenderTarget) == TextureFlags::RenderTarget;
+        usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        usage |= renderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0;
+    }
+
+    VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    imageInfo.imageType             = toVkImageType(creation.type);
+    imageInfo.format                = texture.vkFormat;
+    imageInfo.extent.width          = creation.width;
+    imageInfo.extent.height         = creation.height;
+    imageInfo.extent.depth          = creation.depth;
+    imageInfo.mipLevels             = creation.mipmaps;
+    imageInfo.arrayLayers           = 1;
+    imageInfo.samples               = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.tiling                = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage                 = usage;
+    imageInfo.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.queueFamilyIndexCount = 0;
+    imageInfo.pQueueFamilyIndices   = nullptr;
+    imageInfo.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VmaAllocationCreateInfo memoryInfo{};
+    memoryInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+    if (creation.alias == Undefined) {
+        check(
+            vmaCreateImage(_vmaAllocator, &imageInfo, &memoryInfo, &texture.vkImage, &texture.vmaAllocation, nullptr));
+
+        if (_enableValidations && texture.name) {
+            vmaSetAllocationName(_vmaAllocator, texture.vmaAllocation, texture.name);
+        }
+    } else {
+        auto& aliasTexture = _textures.access(creation.alias);
+        check(vmaCreateAliasingImage(_vmaAllocator, aliasTexture.vmaAllocation, &imageInfo, &texture.vkImage));
+    }
+
+    setObjectName(VK_OBJECT_TYPE_IMAGE, (uint64_t) texture.vkImage, texture.name);
+
+    VkImageAspectFlags aspectMask;
+    if (hasDepthOrStencil(texture.vkFormat)) {
+        aspectMask = hasDepth(texture.vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
+    } else {
+        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
+    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    viewInfo.image      = texture.vkImage;
+    viewInfo.viewType   = toVkImageViewType(creation.type);
+    viewInfo.format     = texture.vkFormat;
+    viewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY };
+
+    viewInfo.subresourceRange.aspectMask     = aspectMask;
+    viewInfo.subresourceRange.baseMipLevel   = 0;
+    viewInfo.subresourceRange.levelCount     = creation.mipmaps;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount     = 1;
+
+    check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &texture.vkImageView));
+    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture.vkImageView, texture.name);
+
+    if (creation.initialData) {
+        // uploadTextureData(texture, creation.initialData);
+    }
+
+    return handle;
+}
+
+void Device::destroyTexture(TextureHandle handle) {
+    _deletionQueue.push({ ResourceType::Texture, 0 /* _currentFrame */, handle });
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
@@ -178,6 +285,21 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 }
 
+void Device::createVmaAllocator() {
+    VmaVulkanFunctions functions{};
+    functions.vkGetInstanceProcAddr = _vkTable.vkGetInstanceProcAddr;
+    functions.vkGetDeviceProcAddr   = _vkTable.vkGetDeviceProcAddr;
+
+    VmaAllocatorCreateInfo createInfo{};
+    createInfo.physicalDevice       = _physicalDevice;
+    createInfo.device               = _device;
+    createInfo.instance             = _instance;
+    createInfo.pAllocationCallbacks = getAllocCalls();
+    createInfo.pVulkanFunctions     = &functions;
+
+    check(vmaCreateAllocator(&createInfo, &_vmaAllocator));
+}
+
 void Device::createSwapchain(Application* application) {
     const auto swapchain   = getSwapchain();
     const auto format      = selectSwapchainFormat(swapchain.formats);
@@ -298,6 +420,54 @@ void Device::printPhysicalDevices() {
             });
         }
         _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "");
+    }
+}
+
+void Device::deleteResources(bool forceDelete) {
+    while (!_deletionQueue.empty()) {
+        const auto& resource = _deletionQueue.front();
+        if (resource.frame == 0 /* _currentFrame */ || forceDelete) {
+            switch (resource.type) {
+                case ResourceType::Buffer:
+                    break;
+                case ResourceType::Texture: {
+                    auto& texture = _textures.access(resource.handle);
+                    if (texture.vkImageView) {
+                        _vkTable.vkDestroyImageView(_device, texture.vkImageView, getAllocCalls());
+                    }
+                    if (texture.vkImage && texture.vmaAllocation) {
+                        vmaDestroyImage(_vmaAllocator, texture.vkImage, texture.vmaAllocation);
+                    }
+                    _textures.release(resource.handle);
+                    break;
+                }
+                case ResourceType::Sampler:
+                    break;
+                case ResourceType::RenderPass:
+                    break;
+                case ResourceType::Framebuffer:
+                    break;
+                case ResourceType::Shader:
+                    break;
+                case ResourceType::DescriptorSet:
+                    break;
+                case ResourceType::DescriptorSetLayout:
+                    break;
+                case ResourceType::Pipeline:
+                    break;
+            }
+            _deletionQueue.pop();
+        }
+    }
+}
+
+void Device::setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name) {
+    if (_enableValidations && name) {
+        VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+        info.objectType   = type;
+        info.objectHandle = handle;
+        info.pObjectName  = name;
+        check(_vkTable.vkSetDebugUtilsObjectNameEXT(_device, &info));
     }
 }
 

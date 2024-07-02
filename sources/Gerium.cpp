@@ -1,5 +1,8 @@
 #include "Gerium.hpp"
 
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 gerium_uint32_t gerium_version(void) {
     return GERIUM_VERSION;
 }
@@ -21,7 +24,7 @@ gerium_utf8_t gerium_result_to_string(gerium_result_t result) {
 
         case GERIUM_RESULT_ERROR_NOT_IMPLEMENTED:
             return "not implemented";
-            
+
         case GERIUM_RESULT_ERROR_FROM_CALLBACK:
             return "error from callback";
 

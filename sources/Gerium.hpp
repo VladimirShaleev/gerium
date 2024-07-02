@@ -11,8 +11,10 @@
 #include <cstddef>
 #include <cstdlib>
 #include <functional>
+#include <list>
 #include <map>
 #include <mutex>
+#include <queue>
 #include <set>
 #include <sstream>
 #include <stdexcept>
