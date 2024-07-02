@@ -20,6 +20,18 @@ if(GERIUM_USE_VCPKG)
     endif()
 endif()
 
+if(APPLE)
+    include(FetchContent)
+    FetchContent_Declare(
+        moltenVK
+        URL https://github.com/KhronosGroup/MoltenVK/releases/download/v1.2.9/MoltenVK-all.tar
+        URL_HASH MD5=1219a051a60c0cf71021983a91b82c0a
+        GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(moltenVK)
+    set(MOLTEN_VK_SRC "${moltenvk_SOURCE_DIR}/MoltenVK" CACHE STRING "MoltenVK dir")
+endif()
+
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
 find_package(mimalloc CONFIG REQUIRED)
@@ -51,7 +63,8 @@ if(WIN32)
 elseif(IOS)
 elseif(APPLE)
     file(GLOB GERIUM_MACOS_SOURCES 
-        "sources/MacOS/*.hpp" "sources/MacOS/*.cpp" "sources/MacOS/*.mm")
+        "sources/MacOS/*.hpp" "sources/MacOS/*.cpp" "sources/MacOS/*.mm"
+        "sources/Vulkan/MacOS/*.hpp" "sources/Vulkan/MacOS/*.cpp" "sources/Vulkan/MacOS/*.mm")
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_MACOS_SOURCES})
     list(APPEND GERIUM_SOURCES ${GERIUM_MACOS_SOURCES})
 endif()
@@ -118,7 +131,8 @@ elseif(APPLE)
     # source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES_OBJC})
     # target_sources(gerium PRIVATE ${GERIUM_SOURCES_OBJC})
     # target_link_libraries(gerium PRIVATE "${MOLTEN_VK_SRC}/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
-    target_link_libraries(gerium PRIVATE "-framework Foundation" "-framework AppKit" "-framework IOKit" "-framework MetalKit")
+    target_link_libraries(gerium PRIVATE "${MOLTEN_VK_SRC}/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
+    target_link_libraries(gerium PRIVATE "-framework Foundation" "-framework QuartzCore" "-framework AppKit" "-framework IOKit" "-framework MetalKit" "-framework Metal" "-framework IOSurface")
 elseif(NOT APPLE)
     target_compile_options(gerium PUBLIC -fno-rtti)
 endif()

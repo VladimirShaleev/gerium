@@ -38,6 +38,7 @@
 #  error unsupported platform
 # elif TARGET_OS_MAC
 #  define VK_USE_PLATFORM_MACOS_MVK
+#  define VK_USE_PLATFORM_METAL_EXT
 # else
 #  error unsupported platform
 # endif

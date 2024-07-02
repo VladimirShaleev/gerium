@@ -11,5 +11,8 @@
     "vulkan-headers",
     "vulkan-memory-allocator",
     "gtest"
+  ],
+  "overrides": [
+    { "name": "wyhash", "version": "2023-01-25" }
   ]
 }

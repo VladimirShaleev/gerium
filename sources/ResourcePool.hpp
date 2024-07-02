@@ -45,7 +45,7 @@ struct BaseType {
     using type = BaseTypeFromSize<sizeof(H)>::type;
 };
 
-constexpr Handle Undefined = Handle{ static_cast<Handle>(-1) };
+constexpr Handle Undefined = Handle{ Handle{static_cast<uint16_t>(-1) } };
 
 template <typename T, typename BaseH, typename Resource>
 class ResourcePoolIterator {

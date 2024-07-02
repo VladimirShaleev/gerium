@@ -172,6 +172,15 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
     }
 }
 
+bool MacOSApplication::isRunning() const noexcept {
+    return _running;
+}
+
+const CAMetalLayer* MacOSApplication::layer() const noexcept {
+    MTKView* view = ((__bridge MTKView*) _view);
+    return (CAMetalLayer*) view.layer;
+}
+
 bool MacOSApplication::changeState(gerium_application_state_t newState) {
     if (newState != _prevState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
         _prevState = newState;
@@ -210,7 +219,7 @@ void MacOSApplication::restoreWindow() noexcept {
 }
 
 void MacOSApplication::fullscreen(bool fullscreen) noexcept {
-    onFullscreen(fullscreen, nullptr);
+    onFullscreen(fullscreen, std::numeric_limits<gerium_uint32_t>::max(), nullptr);
 }
 gerium_uint16_t MacOSApplication::getPixelSize(gerium_uint16_t x) const noexcept {
     return gerium_uint16_t(x * _scale);
@@ -298,7 +307,7 @@ bool MacOSApplication::onIsFullscreen() const noexcept {
     }
 }
 
-void MacOSApplication::onFullscreen(bool fullscreen, const gerium_display_mode_t* mode) {
+void MacOSApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) {
     if (_running) {
         if (fullscreen != onIsFullscreen()) {
             WindowViewController* controller = ((__bridge WindowViewController*) _viewController);

@@ -195,9 +195,9 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     createInfo.pNext                   = _enableValidations ? &features : nullptr;
     createInfo.flags                   = 0;
     createInfo.pApplicationInfo        = &appInfo;
-    createInfo.enabledLayerCount       = layers.size();
+    createInfo.enabledLayerCount       = (uint32_t) layers.size();
     createInfo.ppEnabledLayerNames     = layers.data();
-    createInfo.enabledExtensionCount   = extensions.size();
+    createInfo.enabledExtensionCount   = (uint32_t) extensions.size();
     createInfo.ppEnabledExtensionNames = extensions.data();
 
 #ifdef VK_USE_PLATFORM_MACOS_MVK
@@ -220,8 +220,8 @@ void Device::createPhysicalDevice() {
 
     _vkTable.vkGetPhysicalDeviceProperties(_physicalDevice, &_deviceProperties);
     _vkTable.vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_deviceMemProperties);
-    _uboAlignment  = _deviceProperties.limits.minUniformBufferOffsetAlignment;
-    _ssboAlignment = _deviceProperties.limits.minStorageBufferOffsetAlignment;
+    _uboAlignment  = (uint32_t) _deviceProperties.limits.minUniformBufferOffsetAlignment;
+    _ssboAlignment = (uint32_t) _deviceProperties.limits.minStorageBufferOffsetAlignment;
 
     _profilerSupported =
         _deviceProperties.limits.timestampPeriod != 0 && _deviceProperties.limits.timestampComputeAndGraphics;
@@ -268,11 +268,11 @@ void Device::createDevice() {
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-    createInfo.queueCreateInfoCount    = queueCreateInfoCount;
+    createInfo.queueCreateInfoCount    = (uint32_t) queueCreateInfoCount;
     createInfo.pQueueCreateInfos       = queueCreateInfos;
-    createInfo.enabledLayerCount       = layers.size();
+    createInfo.enabledLayerCount       = (uint32_t) layers.size();
     createInfo.ppEnabledLayerNames     = layers.data();
-    createInfo.enabledExtensionCount   = extensions.size();
+    createInfo.enabledExtensionCount   = (uint32_t) extensions.size();
     createInfo.ppEnabledExtensionNames = extensions.data();
     createInfo.pEnabledFeatures        = nullptr;
 
@@ -325,7 +325,7 @@ void Device::createSwapchain(Application* application) {
     createInfo.imageArrayLayers      = 1;
     createInfo.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     createInfo.imageSharingMode      = sharingMode;
-    createInfo.queueFamilyIndexCount = families.size();
+    createInfo.queueFamilyIndexCount = (uint32_t) families.size();
     createInfo.pQueueFamilyIndices   = families.empty() ? nullptr : indices;
     createInfo.preTransform          = swapchain.capabilities.currentTransform;
     createInfo.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -406,6 +406,9 @@ void Device::printPhysicalDevices() {
                     break;
                 case VK_PHYSICAL_DEVICE_TYPE_CPU:
                     deviceType = "CPU";
+                    break;
+                default:
+                    assert(!"unreachable code");
                     break;
             }
 
