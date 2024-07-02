@@ -5,6 +5,7 @@
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
 #include "../StringPool.hpp"
+#include "CommandBuffer.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
 
@@ -17,16 +18,26 @@ public:
     void create(Application* application, gerium_uint32_t version, bool enableValidations);
 
     TextureHandle createTexture(const TextureCreation& creation);
+    RenderPassHandle createRenderPass(const RenderPassCreation& creation);
 
     void destroyTexture(TextureHandle handle);
+    void destroyRenderPass(RenderPassHandle handle);
+
+    CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
+
+    const vk::DispatchLoaderDynamic& vkTable() const noexcept {
+        return _vkTable;
+    }
+
+    VkDevice vkDevice() noexcept {
+        return _device;
+    }
+
+    static constexpr gerium_uint32_t MaxFrames = 2;
 
 protected:
     VkInstance instance() const noexcept {
         return _instance;
-    }
-
-    const vk::DispatchLoaderDynamic& vkTable() const noexcept {
-        return _vkTable;
     }
 
 private:
@@ -88,6 +99,7 @@ private:
     void printExtensions();
     void printPhysicalDevices();
 
+    VkRenderPass vkCreateRenderPass(const RenderPassOutput& output, const char* name);
     void deleteResources(bool forceDelete = false);
     void setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name);
     int getPhysicalDeviceScore(VkPhysicalDevice device);
@@ -137,6 +149,14 @@ private:
     VkSwapchainKHR _swapchain{};
     VkSurfaceFormatKHR _swapchainFormat{};
     VkExtent2D _swapchainExtent{};
+    RenderPassHandle _swapchainRenderPass{ Undefined };
+
+    TexturePool _textures;
+    RenderPassPool _renderPasses;
+
+    CommandBufferManager _commandBufferManager{};
+    std::queue<ResourceDeletion> _deletionQueue{};
+    std::map<uint64_t, RenderPassHandle> _renderPassCache{};
 
     QueueFamilies _queueFamilies{};
     VkPhysicalDeviceProperties _deviceProperties{};
@@ -144,10 +164,7 @@ private:
     uint32_t _uboAlignment{};
     uint32_t _ssboAlignment{};
     bool _profilerSupported{};
-
-    TexturePool _textures;
-
-    std::queue<ResourceDeletion> _deletionQueue{};
+    bool _profilerEnabled{};
 };
 
 } // namespace gerium::vulkan

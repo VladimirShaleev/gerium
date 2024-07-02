@@ -99,6 +99,11 @@ gerium_inline gerium_uint64_t hash(gerium_utf8_t str, gerium_uint64_t seed = 0) 
     return wyhash(str, strlen(str), seed, _wyp);
 }
 
+template <typename T>
+gerium_inline gerium_uint64_t hash(const T& data, gerium_uint64_t seed = 0) noexcept {
+    return wyhash(&data, sizeof(T), seed, _wyp);
+}
+
 } // namespace gerium
 
 #endif

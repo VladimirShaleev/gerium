@@ -9,7 +9,12 @@ namespace gerium::vulkan {
 
 // clang-format off
 
-using TexturePool = ResourcePool<struct Texture, TextureHandle>;
+constexpr uint8_t kMaxImageOutputs = 8;
+
+struct RenderPassHandle : Handle {};
+
+using TexturePool    = ResourcePool<struct Texture, TextureHandle>;
+using RenderPassPool = ResourcePool<struct RenderPass, RenderPassHandle>;
 
 struct TextureCreation {
     uint16_t              width        = 1;
@@ -59,6 +64,64 @@ struct TextureCreation {
     }
 };
 
+struct RenderPassOutput {
+    uint32_t            numColorFormats;
+    VkFormat            colorFormats[kMaxImageOutputs];
+    VkImageLayout       colorFinalLayouts[kMaxImageOutputs];
+    RenderPassOperation colorOperations[kMaxImageOutputs];
+
+    VkFormat            depthStencilFormat;
+    VkImageLayout       depthStencilFinalLayout;
+    RenderPassOperation depthOperation;
+    RenderPassOperation stencilOperation;
+
+    RenderPassOutput& color(VkFormat format, VkImageLayout layout, RenderPassOperation loadOp) {
+        assert(numColorFormats < kMaxImageOutputs);
+        colorFormats[numColorFormats]      = format;
+        colorFinalLayouts[numColorFormats] = layout;
+        colorOperations[numColorFormats]   = loadOp;
+        ++numColorFormats;
+        return *this;
+    }
+
+    RenderPassOutput& depth(VkFormat format, VkImageLayout layout) {
+        depthStencilFormat      = format;
+        depthStencilFinalLayout = layout;
+        return *this;
+    }
+
+    RenderPassOutput& setDepthStencilOperations(RenderPassOperation depth, RenderPassOperation stencil) {
+        depthOperation   = depth;
+        stencilOperation = stencil;
+        return *this;
+    }
+};
+
+struct RenderPassCreation {
+    RenderPassOutput output = {};
+    const char*      name   = nullptr;
+
+    RenderPassCreation& setName(const char* name) {
+        this->name = name;
+        return *this;
+    }
+};
+
+template <typename H>
+struct Resource {
+    H               handle;
+    gerium_uint16_t references;
+
+    gerium_uint16_t addReference() noexcept {
+        return ++references;
+    }
+
+    gerium_uint16_t removeReference() {
+        assert(references != 0);
+        return --references;
+    }
+};
+
 struct Texture {
     VkImage               vkImage;
     VkImageView           vkImageView;
@@ -75,6 +138,12 @@ struct Texture {
 
     //SamplerHandle sampler;
     TextureHandle handle;
+};
+
+struct RenderPass : Resource<RenderPassHandle> {
+    VkRenderPass     vkRenderPass;
+    RenderPassOutput output;
+    gerium_utf8_t    name;
 };
 
 // clang-format on

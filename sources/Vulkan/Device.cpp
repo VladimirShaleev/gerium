@@ -6,6 +6,12 @@ namespace gerium::vulkan {
 
 Device::~Device() {
     if (_device) {
+        _vkTable.vkDeviceWaitIdle(_device);
+
+        for (auto renderPass : _renderPasses) {
+            destroyRenderPass(renderPass.handle);
+        }
+        
         for (auto texture : _textures) {
             destroyTexture(texture.handle);
         }
@@ -19,6 +25,8 @@ Device::~Device() {
         if (_vmaAllocator) {
             vmaDestroyAllocator(_vmaAllocator);
         }
+
+        _commandBufferManager.destroy();
 
         _vkTable.vkDestroyDevice(_device, getAllocCalls());
     }
@@ -137,8 +145,39 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     return handle;
 }
 
+RenderPassHandle Device::createRenderPass(const RenderPassCreation& creation) {
+    const auto key = hash(creation.output);
+    if (auto it = _renderPassCache.find(key); it != _renderPassCache.end()) {
+        _renderPasses.access(it->second).addReference();
+        return it->second;
+    }
+
+    auto [handle, renderPass] = _renderPasses.obtain_and_access();
+
+    renderPass.handle       = handle;
+    renderPass.references   = 1;
+    renderPass.output       = creation.output;
+    renderPass.name         = intern(creation.name);
+    renderPass.vkRenderPass = vkCreateRenderPass(renderPass.output, renderPass.name);
+
+    _renderPassCache[key] = handle;
+    return handle;
+}
+
 void Device::destroyTexture(TextureHandle handle) {
     _deletionQueue.push({ ResourceType::Texture, 0 /* _currentFrame */, handle });
+}
+
+void Device::destroyRenderPass(RenderPassHandle handle) {
+    _deletionQueue.push({ ResourceType::RenderPass, 0 /* _currentFrame */, handle });
+}
+
+CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
+    auto commandBuffer = _commandBufferManager.getCommandBuffer(0 /* _currentFrame */, thread);
+    if (_profilerEnabled) {
+        // TODO:
+    }
+    return commandBuffer;
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
@@ -229,6 +268,9 @@ void Device::createPhysicalDevice() {
         _profilerSupported = _queueFamilies.graphic.value().timestampValidBits != 0 &&
                              _queueFamilies.compute.value().timestampValidBits != 0;
     }
+    if (_profilerSupported) {
+        _profilerEnabled = _enableValidations;
+    }
 }
 
 void Device::createDevice() {
@@ -283,6 +325,8 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, compute.index, compute.queue, &_queueCompute);
     _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
+
+    _commandBufferManager.create(*this, 4, graphic.index);
 }
 
 void Device::createVmaAllocator() {
@@ -337,6 +381,15 @@ void Device::createSwapchain(Application* application) {
 
     _swapchainFormat = format;
     _swapchainExtent = extent;
+
+    if (_swapchainRenderPass == Undefined) {
+        RenderPassCreation rc{};
+        rc.setName("SwapchainRenderPass");
+        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, RenderPassOperation::Clear);
+        rc.output.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        rc.output.setDepthStencilOperations(RenderPassOperation::Clear, RenderPassOperation::Clear);
+        _swapchainRenderPass = createRenderPass(rc);
+    }
 }
 
 void Device::printValidationLayers() {
@@ -426,6 +479,139 @@ void Device::printPhysicalDevices() {
     }
 }
 
+VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const char* name) {
+    VkAttachmentDescription attachmets[kMaxImageOutputs + 1]{};
+    VkAttachmentReference colorAttachmentsRef[kMaxImageOutputs]{};
+    VkAttachmentReference depthAttachmentRef{};
+
+    VkAttachmentLoadOp depthOp;
+    VkAttachmentLoadOp stencilOp;
+    VkImageLayout depthInitial;
+
+    switch (output.depthOperation) {
+        case RenderPassOperation::DontCare:
+            depthOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
+            break;
+        case RenderPassOperation::Load:
+            depthOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
+            depthInitial = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            break;
+        case RenderPassOperation::Clear:
+            depthOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
+            break;
+        default:
+            assert(!"unreachable code");
+            break;
+    }
+
+    switch (output.stencilOperation) {
+        case RenderPassOperation::DontCare:
+            stencilOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            break;
+        case RenderPassOperation::Load:
+            stencilOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+            break;
+        case RenderPassOperation::Clear:
+            stencilOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            break;
+        default:
+            assert(!"unreachable code");
+            break;
+    }
+
+    uint32_t attachmentCount = 0;
+    for (; attachmentCount < output.numColorFormats; ++attachmentCount) {
+        VkAttachmentLoadOp colorOp;
+        VkImageLayout colorInitial;
+        switch (output.colorOperations[attachmentCount]) {
+            case RenderPassOperation::DontCare:
+                colorOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
+                break;
+            case RenderPassOperation::Load:
+                colorOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
+                colorInitial = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                break;
+            case RenderPassOperation::Clear:
+                colorOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
+                break;
+            default:
+                assert(!"unreachable code");
+                break;
+        }
+
+        auto& colorAttachment          = attachmets[attachmentCount];
+        colorAttachment.format         = output.colorFormats[attachmentCount];
+        colorAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.loadOp         = colorOp;
+        colorAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.stencilLoadOp  = stencilOp;
+        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.initialLayout  = colorInitial;
+        colorAttachment.finalLayout    = output.colorFinalLayouts[attachmentCount];
+
+        VkAttachmentReference& colorAttachmentRef = colorAttachmentsRef[attachmentCount];
+        colorAttachmentRef.attachment             = attachmentCount;
+        colorAttachmentRef.layout                 = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+
+    if (output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
+        auto& depthAttachment          = attachmets[attachmentCount];
+        depthAttachment.format         = output.depthStencilFormat;
+        depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.loadOp         = depthOp;
+        depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.stencilLoadOp  = stencilOp;
+        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout  = depthInitial;
+        depthAttachment.finalLayout    = output.depthStencilFinalLayout;
+
+        depthAttachmentRef.attachment = attachmentCount++;
+        depthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    }
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.inputAttachmentCount    = 0;
+    subpass.pInputAttachments       = nullptr;
+    subpass.colorAttachmentCount    = output.numColorFormats;
+    subpass.pColorAttachments       = colorAttachmentsRef;
+    subpass.pResolveAttachments     = nullptr;
+    subpass.pDepthStencilAttachment = output.depthStencilFormat != VK_FORMAT_UNDEFINED ? &depthAttachmentRef : nullptr;
+    subpass.preserveAttachmentCount = 0;
+    subpass.pPreserveAttachments    = nullptr;
+
+    VkSubpassDependency dependencies[kMaxImageOutputs + 1];
+    uint32_t dependencyCount = 0;
+    for (; dependencyCount < output.numColorFormats; ++dependencyCount) {
+        auto& dependency      = dependencies[dependencyCount];
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+    }
+
+    if (output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
+        auto& dependency      = dependencies[dependencyCount++];
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+    }
+
+    VkRenderPassCreateInfo createInfo{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+    createInfo.attachmentCount = attachmentCount;
+    createInfo.pAttachments    = attachmets;
+    createInfo.subpassCount    = 1;
+    createInfo.pSubpasses      = &subpass;
+
+    VkRenderPass renderPass;
+    check(_vkTable.vkCreateRenderPass(_device, &createInfo, getAllocCalls(), &renderPass));
+
+    setObjectName(VK_OBJECT_TYPE_RENDER_PASS, (uint64_t) renderPass, name);
+
+    return renderPass;
+}
+
 void Device::deleteResources(bool forceDelete) {
     while (!_deletionQueue.empty()) {
         const auto& resource = _deletionQueue.front();
@@ -446,8 +632,14 @@ void Device::deleteResources(bool forceDelete) {
                 }
                 case ResourceType::Sampler:
                     break;
-                case ResourceType::RenderPass:
+                case ResourceType::RenderPass: {
+                    auto& renderPass = _renderPasses.access(resource.handle);
+                    if (renderPass.removeReference() == 0) {
+                        _vkTable.vkDestroyRenderPass(_device, renderPass.vkRenderPass, getAllocCalls());
+                        _renderPasses.release(resource.handle);
+                    }
                     break;
+                }
                 case ResourceType::Framebuffer:
                     break;
                 case ResourceType::Shader:
