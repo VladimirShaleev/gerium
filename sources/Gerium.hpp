@@ -8,6 +8,7 @@
 #include <mimalloc.h>
 
 #include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <cstdlib>
 #include <functional>
@@ -19,7 +20,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <chrono>
 #include <type_traits>
 
 #define CTRE_STRING_IS_UTF8
