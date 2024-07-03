@@ -15,58 +15,41 @@
 @implementation WindowViewController
 
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_RESIZE)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_RESIZE);
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
+    application->frame();
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_CREATE)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
-    if (!application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_CREATE);
+    application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
     if (application->isStartedFullscreen()) {
         application->fullscreen(true);
     }
     if (!application->isFullscreen()) {
-        if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
-            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-        }
+        application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
     }
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
     if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
-        if (!application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE)) {
-            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-        }
+        application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
     }
-    if (!application->changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
-    if (!application->changeState(GERIUM_APPLICATION_STATE_DESTROY)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
+    application->changeState(GERIUM_APPLICATION_STATE_DESTROY);
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
     
     MTKView* view = ((__bridge MTKView*) application->getView());
     view.paused = NO;
 }
 
 - (void)applicationDidResignActive:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS);
     
     if (application->getBackgroundWait()) {
         MTKView* view = ((__bridge MTKView*) application->getView());
@@ -76,13 +59,9 @@
 
 - (void)applicationDidChangeOcclusionState:(NSNotification *)notification {
     if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
-        if (!application->changeState(GERIUM_APPLICATION_STATE_VISIBLE)) {
-            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-        }
+        application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
     } else {
-        if (!application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE)) {
-            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-        }
+        application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
     }
 }
 
@@ -91,42 +70,27 @@
 }
 
 - (void)windowDidEndLiveResize:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_RESIZED)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_RESIZED);
 }
 
 - (void)windowDidMiniaturize:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_MINIMIZE)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
-    if (!application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_MINIMIZE);
+    application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
 }
 
 - (void)windowDidDeminiaturize:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
     if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
-        if (!application->changeState(GERIUM_APPLICATION_STATE_VISIBLE)) {
-            application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-        }
+        application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
     }
 }
 
 - (void)windowDidEnterFullScreen:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_FULLSCREEN)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    application->changeState(GERIUM_APPLICATION_STATE_FULLSCREEN);
 }
 
 - (void)windowDidExitFullScreen:(NSNotification *)notification {
-    if (!application->changeState(GERIUM_APPLICATION_STATE_NORMAL)) {
-        application->error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
-    application->restoreWindow();
+    application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
 }
 
 @end
@@ -181,12 +145,19 @@ const CAMetalLayer* MacOSApplication::layer() const noexcept {
     return (CAMetalLayer*) view.layer;
 }
 
-bool MacOSApplication::changeState(gerium_application_state_t newState) {
+void MacOSApplication::changeState(gerium_application_state_t newState) {
     if (newState != _prevState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
         _prevState = newState;
-        return callStateFunc(newState);
+        if (!callStateFunc(newState)) {
+            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
     }
-    return true;
+}
+
+void MacOSApplication::frame() {
+    if (!callFrameFunc(0)) {
+        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+    }
 }
 
 bool MacOSApplication::isStartedFullscreen() const noexcept {

@@ -24,7 +24,8 @@ public:
     
     const CAMetalLayer* layer() const noexcept;
 
-    bool changeState(gerium_application_state_t newState);
+    void changeState(gerium_application_state_t newState);
+    void frame();
 
     bool isStartedFullscreen() const noexcept;
     bool isFullscreen() const noexcept;
