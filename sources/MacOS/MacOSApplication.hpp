@@ -66,6 +66,8 @@ private:
     void onRun() override;
     void onExit() noexcept override;
 
+    std::chrono::high_resolution_clock::time_point getCurrentTime() const noexcept;
+    
     const void* _viewController              = nullptr;
     const void* _view                        = nullptr;
     bool _running                            = false;
@@ -85,6 +87,7 @@ private:
                                                GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT;
     mutable std::vector<gerium_display_mode_t> _modes = {};
     mutable std::vector<std::string> _displayNames    = {};
+    std::chrono::high_resolution_clock::time_point _prevTime = {};
 };
 
 } // namespace gerium::macos

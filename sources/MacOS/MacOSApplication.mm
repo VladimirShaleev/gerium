@@ -155,7 +155,17 @@ void MacOSApplication::changeState(gerium_application_state_t newState) {
 }
 
 void MacOSApplication::frame() {
-    if (!callFrameFunc(0)) {
+    auto currentTime = getCurrentTime();
+    
+    const std::chrono::duration<float, std::milli> delta = currentTime - _prevTime;
+    const auto ellapsed = delta.count();
+    
+    if (ellapsed == 0.0f) {
+        return;
+    }
+    _prevTime = currentTime;
+    
+    if (!callFrameFunc(ellapsed)) {
         error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
 }
@@ -447,6 +457,7 @@ void MacOSApplication::onRun() {
     }
     @try {
         _running = true;
+        _prevTime = getCurrentTime();
         NSApplication* application = [NSApplication sharedApplication];
         [application setDelegate:((__bridge WindowViewController*) _viewController)];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -463,6 +474,10 @@ void MacOSApplication::onExit() noexcept {
         [controller.window close];
     }
     _exited = true;
+}
+
+std::chrono::high_resolution_clock::time_point MacOSApplication::getCurrentTime() const noexcept {
+    return std::chrono::high_resolution_clock::now();
 }
 
 } // namespace gerium::macos
