@@ -27,27 +27,9 @@ struct Handle {
     }
 };
 
-template <int Size>
-struct BaseTypeFromSize;
+constexpr Handle Undefined = Handle{ Handle{ static_cast<uint16_t>(-1) } };
 
-template <>
-struct BaseTypeFromSize<2> {
-    using type = gerium_uint16_t;
-};
-
-template <>
-struct BaseTypeFromSize<4> {
-    using type = gerium_uint32_t;
-};
-
-template <typename H>
-struct BaseType {
-    using type = BaseTypeFromSize<sizeof(H)>::type;
-};
-
-constexpr Handle Undefined = Handle{ Handle{static_cast<uint16_t>(-1) } };
-
-template <typename T, typename BaseH, typename Resource>
+template <typename T, typename Resource>
 class ResourcePoolIterator {
 public:
     using iterator_category = std::random_access_iterator_tag;
@@ -60,26 +42,26 @@ public:
 
     ResourcePoolIterator() noexcept = default;
 
-    explicit ResourcePoolIterator(Resource* resources, BaseH* handles, BaseH offset) :
-        _resources(resources),
-        _handles(handles),
-        _offset(offset) {
+    explicit ResourcePoolIterator(Resource* start, Resource* end, Resource* resources) :
+        _start(start),
+        _end(end),
+        _resources(resources) {
     }
 
     reference operator*() noexcept {
-        return _resources[_handles[_offset]];
+        return _resources->obj;
     }
 
     const_reference operator*() const noexcept {
-        return _resources[_handles[_offset]];
+        return _resources->obj;
     }
 
     pointer operator->() noexcept {
-        return &_resources[_handles[_offset]];
+        return &_resources->obj;
     }
 
     const_pointer operator->() const noexcept {
-        return &_resources[_handles[_offset]];
+        return &_resources->obj;
     }
 
     reference operator[](difference_type n) noexcept {
@@ -91,7 +73,7 @@ public:
     }
 
     ResourcePoolIterator& operator++() noexcept {
-        ++_offset;
+        moveOffset(1);
         return *this;
     }
 
@@ -102,7 +84,7 @@ public:
     }
 
     ResourcePoolIterator& operator--() noexcept {
-        --_offset;
+        moveOffset(-1);
         return *this;
     }
 
@@ -113,12 +95,12 @@ public:
     }
 
     ResourcePoolIterator& operator+=(difference_type n) noexcept {
-        _offset += (BaseH) n;
+        moveOffset(n);
         return *this;
     }
 
     ResourcePoolIterator& operator-=(difference_type n) noexcept {
-        _offset -= (BaseH) n;
+        moveOffset(-n);
         return *this;
     }
 
@@ -141,11 +123,20 @@ public:
     }
 
     difference_type operator-(const ResourcePoolIterator& other) const noexcept {
-        return difference_type(_offset - other._offset);
+        if (!_resources) {
+            return 0;
+        }
+        auto it               = other;
+        auto end              = *this;
+        difference_type count = 0;
+        while (it++ != end) {
+            ++count;
+        }
+        return count;
     }
 
     bool operator==(const ResourcePoolIterator& other) const noexcept {
-        return _offset == other._offset;
+        return _resources == other._resources;
     }
 
     bool operator!=(const ResourcePoolIterator& other) const noexcept {
@@ -153,7 +144,7 @@ public:
     }
 
     bool operator<(const ResourcePoolIterator& other) const noexcept {
-        return _offset < other._offset;
+        return _resources < other._resources;
     }
 
     bool operator<=(const ResourcePoolIterator& other) const noexcept {
@@ -169,15 +160,41 @@ public:
     }
 
 private:
+    void moveOffset(difference_type n) noexcept {
+        if (n > 0) {
+            for (difference_type i = 0; i < n; ++i) {
+                ++_resources;
+                while (_resources->references == 0 && _resources < _end) {
+                    ++_resources;
+                }
+            }
+        } else if (n < 0) {
+            n = -n;
+            for (difference_type i = 0; i < n; ++i) {
+                --_resources;
+                while (_resources->references == 0 && _resources > _start) {
+                    --_resources;
+                }
+            }
+        }
+    }
+
+    Resource* _start{};
+    Resource* _end{};
     Resource* _resources{};
-    BaseH* _handles{};
-    BaseH _offset{};
 };
 
 template <typename T, typename H, bool Resizable = true>
 class ResourcePool final {
+private:
+    struct Resource {
+        gerium_uint16_t handle;
+        gerium_uint16_t references;
+        T obj;
+    };
+
 public:
-    using base_type = BaseType<H>::type;
+    using base_handle_type = gerium_uint16_t;
 
     using value_type      = T;
     using size_type       = size_t;
@@ -187,8 +204,8 @@ public:
     using reference       = value_type&;
     using const_reference = const value_type&;
 
-    using iterator       = ResourcePoolIterator<value_type, base_type, T>;
-    using const_iterator = ResourcePoolIterator<value_type, base_type, T>;
+    using iterator       = ResourcePoolIterator<value_type, Resource>;
+    using const_iterator = ResourcePoolIterator<value_type, Resource>;
 
     using reverse_iterator       = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
@@ -246,20 +263,21 @@ public:
     void reserve(size_type newPoolSize) {
         assert(newPoolSize > _poolSize);
 
-        auto handles = reinterpret_cast<base_type*>(mi_reallocn(_handles, newPoolSize, sizeof(base_type)));
+        auto handles =
+            reinterpret_cast<base_handle_type*>(mi_reallocn(_handles, newPoolSize, sizeof(base_handle_type)));
         if (!handles) {
             throw std::bad_alloc();
         }
 
-        T* data =
-            reinterpret_cast<T*>(std::is_trivial_v<T> ? mi_recalloc_aligned(_data, newPoolSize, sizeof(T), alignof(T))
-                                                      : mi_realloc_aligned(_data, newPoolSize * sizeof(T), alignof(T)));
+        Resource* data =
+            reinterpret_cast<Resource*>(mi_recalloc_aligned(_data, newPoolSize, sizeof(Resource), alignof(Resource)));
+
         if (!data) {
             mi_free(handles);
             throw std::bad_alloc();
         }
 
-        for (base_type i = _poolSize; i < newPoolSize; ++i) {
+        for (base_handle_type i = _poolSize; i < newPoolSize; ++i) {
             handles[i] = i;
         }
 
@@ -270,7 +288,7 @@ public:
 
     void clear() noexcept {
         if constexpr (!std::is_trivially_destructible_v<T>) {
-            for (base_type i = 0; i < _head; ++i) {
+            for (base_handle_type i = 0; i < _head; ++i) {
                 access(H{ i }).~T();
             }
         }
@@ -279,7 +297,7 @@ public:
         _poolSize = 0;
 
         if (_data) {
-            mi_free_aligned(_data, alignof(T));
+            mi_free_aligned(_data, alignof(Resource));
             _data = nullptr;
         }
 
@@ -291,7 +309,7 @@ public:
 
     H obtain() {
         checkInit();
-        assert(_head < std::numeric_limits<base_type>::max());
+        assert(_head < std::numeric_limits<gerium_uint16_t>::max());
 
         if (_head >= _poolSize) {
             if constexpr (!Resizable) {
@@ -306,56 +324,65 @@ public:
             new (&access(H{ index })) T();
         }
 
+        _data[index].handle     = index;
+        _data[index].references = 1;
+
         return { index };
     }
 
-    void release(H handle) noexcept {
+    bool release(H handle) noexcept {
         checkInit();
         checkHandle(handle);
 
-        if constexpr (!std::is_trivially_destructible_v<T>) {
-            access(handle).~T();
-        }
+        if (--_data[handle.index].references == 0) {
+            if constexpr (!std::is_trivially_destructible_v<T>) {
+                access(handle).~T();
+            }
 
-        if constexpr (std::is_trivial_v<T>) {
-            std::memset(&_data[handle.index], 0, sizeof(T));
-        }
+            std::memset(&_data[handle.index], 0, sizeof(Resource));
 
-        //_handles[handle.index] = _handles[--_head];
-        //_handles[_head]        = handle.index;
-        _handles[--_head] = handle.index;
+            _handles[--_head] = handle.index;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     void releaseAll() noexcept {
         checkInit();
 
         if constexpr (!std::is_trivially_destructible_v<T>) {
-            for (base_type i = 0; i < _head; ++i) {
+            for (gerium_uint16_t i = 0; i < _head; ++i) {
                 access(H{ i }).~T();
             }
         }
 
-        if constexpr (std::is_trivial_v<T>) {
-            std::memset(_data, 0, _head * sizeof(T));
-        }
+        std::memset(_data, 0, _head * sizeof(Resource));
 
         _head = 0;
 
-        for (base_type i = 0; i < _poolSize; ++i) {
+        for (gerium_uint16_t i = 0; i < _poolSize; ++i) {
             _handles[i] = i;
         }
+    }
+
+    T& addReference(H handle) noexcept {
+        checkInit();
+        checkHandle(handle);
+        ++_data[handle.index].references;
+        return _data[handle.index].obj;
     }
 
     T& access(H handle) noexcept {
         checkInit();
         checkHandle(handle);
-        return _data[handle.index];
+        return _data[handle.index].obj;
     }
 
     const T& access(H handle) const noexcept {
         checkInit();
         checkHandle(handle);
-        return _data[handle.index];
+        return _data[handle.index].obj;
     }
 
     std::pair<H, T&> obtain_and_access() {
@@ -363,12 +390,22 @@ public:
         return { handle, access(handle) };
     }
 
+    Handle handle(const T& resource) const noexcept {
+        constexpr auto offset = offsetof(Resource, obj);
+        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) &resource - offset);
+        return { owner.handle };
+    }
+
     iterator begin() noexcept {
-        return iterator(_data, _handles, 0);
+        auto start = findFirst();
+        auto end   = findEnd(start);
+        return iterator(start, end, start);
     }
 
     iterator end() noexcept {
-        return iterator(_data, _handles, _head);
+        auto start = findFirst();
+        auto end   = findEnd(start);
+        return iterator(start, end, end);
     }
 
     reverse_iterator rbegin() noexcept {
@@ -437,10 +474,38 @@ private:
         assert(handle.index < _poolSize && "invalid handle");
     }
 
-    base_type _poolSize;
-    base_type _head;
-    base_type* _handles;
-    T* _data;
+    Resource* findFirst() noexcept {
+        if (empty()) {
+            return nullptr;
+        }
+        auto item = _data;
+        while (item->references == 0) {
+            ++item;
+        }
+        return item;
+    }
+
+    Resource* findEnd(Resource* first) noexcept {
+        if (empty()) {
+            return nullptr;
+        }
+        if (size() == 1) {
+            return first + 1;
+        }
+        auto item = first;
+        for (base_handle_type i = 1; i < _head; ++i) {
+            ++item;
+            while (item->references == 0) {
+                ++item;
+            }
+        }
+        return item + 1;
+    }
+
+    base_handle_type _poolSize;
+    base_handle_type _head;
+    base_handle_type* _handles;
+    Resource* _data;
 };
 
 } // namespace gerium
