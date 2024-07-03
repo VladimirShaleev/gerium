@@ -1,5 +1,6 @@
 #include "Device.hpp"
 
+using namespace std::string_literals;
 using namespace std::string_view_literals;
 
 namespace gerium::vulkan {
@@ -8,14 +9,19 @@ Device::~Device() {
     if (_device) {
         _vkTable.vkDeviceWaitIdle(_device);
 
+        for (auto framebuffer : _framebuffers) {
+            destroyFramebuffer(framebuffer.handle);
+        }
+        deleteResources(true);
+
         for (auto renderPass : _renderPasses) {
             destroyRenderPass(renderPass.handle);
         }
-        
+        deleteResources(true);
+
         for (auto texture : _textures) {
             destroyTexture(texture.handle);
         }
-
         deleteResources(true);
 
         if (_swapchain) {
@@ -56,15 +62,16 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 TextureHandle Device::createTexture(const TextureCreation& creation) {
     auto [handle, texture] = _textures.obtain_and_access();
 
-    texture.vkFormat = toVkFormat(creation.format);
-    texture.width    = creation.width;
-    texture.height   = creation.height;
-    texture.depth    = creation.depth;
-    texture.mipmaps  = creation.mipmaps;
-    texture.flags    = creation.flags;
-    texture.type     = creation.type;
-    texture.name     = intern(creation.name);
-    texture.handle   = handle;
+    texture.references = 1;
+    texture.handle     = handle;
+    texture.vkFormat   = toVkFormat(creation.format);
+    texture.width      = creation.width;
+    texture.height     = creation.height;
+    texture.depth      = creation.depth;
+    texture.mipmaps    = creation.mipmaps;
+    texture.flags      = creation.flags;
+    texture.type       = creation.type;
+    texture.name       = intern(creation.name);
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -164,12 +171,70 @@ RenderPassHandle Device::createRenderPass(const RenderPassCreation& creation) {
     return handle;
 }
 
+FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation) {
+    auto [handle, framebuffer] = _framebuffers.obtain_and_access();
+
+    _renderPasses.access(creation.renderPass).addReference();
+
+    framebuffer.handle                 = handle;
+    framebuffer.references             = 1;
+    framebuffer.renderPass             = creation.renderPass;
+    framebuffer.width                  = creation.width;
+    framebuffer.height                 = creation.height;
+    framebuffer.scaleX                 = creation.scaleX;
+    framebuffer.scaleY                 = creation.scaleY;
+    framebuffer.depthStencilAttachment = creation.depthStencilTexture;
+    framebuffer.resize                 = creation.resize;
+    framebuffer.name                   = intern(creation.name);
+
+    framebuffer.numColorAttachments = creation.numRenderTargets;
+    for (gerium_uint32_t i = 0; i < creation.numRenderTargets; ++i) {
+        framebuffer.colorAttachments[i] = creation.outputTextures[i];
+    }
+
+    VkImageView framebufferAttachments[kMaxImageOutputs + 1]{};
+    uint32_t activeAttachments = 0;
+
+    for (; activeAttachments < framebuffer.numColorAttachments; ++activeAttachments) {
+        auto& texture = _textures.access(framebuffer.colorAttachments[activeAttachments]);
+        texture.addReference();
+
+        framebufferAttachments[activeAttachments] = texture.vkImageView;
+    }
+
+    if (framebuffer.depthStencilAttachment != Undefined) {
+        auto& texture = _textures.access(framebuffer.depthStencilAttachment);
+        texture.addReference();
+
+        framebufferAttachments[activeAttachments++] = texture.vkImageView;
+    }
+
+    auto& renderPass = _renderPasses.access(framebuffer.renderPass);
+
+    VkFramebufferCreateInfo createInfo{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+    createInfo.renderPass      = renderPass.vkRenderPass;
+    createInfo.attachmentCount = activeAttachments;
+    createInfo.pAttachments    = framebufferAttachments;
+    createInfo.width           = framebuffer.width;
+    createInfo.height          = framebuffer.height;
+    createInfo.layers          = 1;
+    check(_vkTable.vkCreateFramebuffer(_device, &createInfo, getAllocCalls(), &framebuffer.vkFramebuffer));
+
+    setObjectName(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t) framebuffer.vkFramebuffer, framebuffer.name);
+
+    return handle;
+}
+
 void Device::destroyTexture(TextureHandle handle) {
     _deletionQueue.push({ ResourceType::Texture, 0 /* _currentFrame */, handle });
 }
 
 void Device::destroyRenderPass(RenderPassHandle handle) {
     _deletionQueue.push({ ResourceType::RenderPass, 0 /* _currentFrame */, handle });
+}
+
+void Device::destroyFramebuffer(FramebufferHandle handle) {
+    _deletionQueue.push({ ResourceType::Framebuffer, 0 /* _currentFrame */, handle });
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
@@ -390,6 +455,70 @@ void Device::createSwapchain(Application* application) {
         rc.output.setDepthStencilOperations(RenderPassOperation::Clear, RenderPassOperation::Clear);
         _swapchainRenderPass = createRenderPass(rc);
     }
+
+    uint32_t swapchainImages = 0;
+    check(_vkTable.vkGetSwapchainImagesKHR(_device, _swapchain, &swapchainImages, nullptr));
+
+    std::vector<VkImage> images;
+    images.resize(swapchainImages);
+    check(_vkTable.vkGetSwapchainImagesKHR(_device, _swapchain, &swapchainImages, images.data()));
+
+    for (auto& handle : _swapchainFramebuffers) {
+        destroyFramebuffer(handle);
+    }
+    _swapchainFramebuffers.resize(swapchainImages);
+
+    auto commandBuffer = getCommandBuffer(0);
+
+    for (uint32_t i = 0; i < swapchainImages; ++i) {
+        auto [colorHandle, color] = _textures.obtain_and_access();
+
+        color.references = 1;
+        color.handle     = colorHandle;
+        color.vkImage    = images[i];
+
+        VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+        viewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format                      = createInfo.imageFormat;
+        viewInfo.image                       = images[i];
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.layerCount = 1;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.components.r                = VK_COMPONENT_SWIZZLE_R;
+        viewInfo.components.g                = VK_COMPONENT_SWIZZLE_G;
+        viewInfo.components.b                = VK_COMPONENT_SWIZZLE_B;
+        viewInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
+        check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &color.vkImageView));
+
+        TextureCreation depthCreation{};
+        depthCreation.setName("SwapchainDepthStencilTexture");
+        depthCreation.setSize(_swapchainExtent.width, _swapchainExtent.height, 1);
+        depthCreation.setFlags(1, false, false);
+        depthCreation.setFormat(GERIUM_FORMAT_D32_SFLOAT, GERIUM_TEXTURE_TYPE_2D);
+
+        auto depthHandle = createTexture(depthCreation);
+        auto& depth      = _textures.access(depthHandle);
+
+        auto name = "SwapchainFramebuffer"s + std::to_string(i);
+
+        FramebufferCreation fc;
+        fc.setName(name.c_str());
+        fc.setScaling(1.0f, 1.0f, 0);
+        fc.addRenderTexture(colorHandle);
+        fc.setDepthStencilTexture(depthHandle);
+        fc.width      = _swapchainExtent.width;
+        fc.height     = _swapchainExtent.height;
+        fc.renderPass = _swapchainRenderPass;
+
+        _swapchainFramebuffers[i] = createFramebuffer(fc);
+
+        color.removeReference();
+        depth.removeReference();
+
+        commandBuffer->addImageBarrier(colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1, false);
+    }
+
+    commandBuffer->submit(QueueType::Graphics);
 }
 
 void Device::printValidationLayers() {
@@ -621,13 +750,15 @@ void Device::deleteResources(bool forceDelete) {
                     break;
                 case ResourceType::Texture: {
                     auto& texture = _textures.access(resource.handle);
-                    if (texture.vkImageView) {
-                        _vkTable.vkDestroyImageView(_device, texture.vkImageView, getAllocCalls());
+                    if (texture.removeReference() == 0) {
+                        if (texture.vkImageView) {
+                            _vkTable.vkDestroyImageView(_device, texture.vkImageView, getAllocCalls());
+                        }
+                        if (texture.vkImage && texture.vmaAllocation) {
+                            vmaDestroyImage(_vmaAllocator, texture.vkImage, texture.vmaAllocation);
+                        }
+                        _textures.release(resource.handle);
                     }
-                    if (texture.vkImage && texture.vmaAllocation) {
-                        vmaDestroyImage(_vmaAllocator, texture.vkImage, texture.vmaAllocation);
-                    }
-                    _textures.release(resource.handle);
                     break;
                 }
                 case ResourceType::Sampler:
@@ -640,8 +771,23 @@ void Device::deleteResources(bool forceDelete) {
                     }
                     break;
                 }
-                case ResourceType::Framebuffer:
+                case ResourceType::Framebuffer: {
+                    auto& framebuffer = _framebuffers.access(resource.handle);
+                    if (framebuffer.removeReference() == 0) {
+                        for (gerium_uint32_t i = 0; i < framebuffer.numColorAttachments; ++i) {
+                            destroyTexture(framebuffer.colorAttachments[i]);
+                        }
+                        if (framebuffer.depthStencilAttachment != Undefined) {
+                            destroyTexture(framebuffer.depthStencilAttachment);
+                        }
+                        if (framebuffer.renderPass != Undefined) {
+                            destroyRenderPass(framebuffer.renderPass);
+                        }
+                        _vkTable.vkDestroyFramebuffer(_device, framebuffer.vkFramebuffer, getAllocCalls());
+                        _framebuffers.release(resource.handle);
+                    }
                     break;
+                }
                 case ResourceType::Shader:
                     break;
                 case ResourceType::DescriptorSet:

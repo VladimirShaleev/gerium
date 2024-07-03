@@ -19,9 +19,11 @@ public:
 
     TextureHandle createTexture(const TextureCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
+    FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
 
     void destroyTexture(TextureHandle handle);
     void destroyRenderPass(RenderPassHandle handle);
+    void destroyFramebuffer(FramebufferHandle handle);
 
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
 
@@ -41,6 +43,8 @@ protected:
     }
 
 private:
+    friend CommandBuffer;
+
     enum class ResourceType {
         Buffer,
         Texture,
@@ -150,9 +154,11 @@ private:
     VkSurfaceFormatKHR _swapchainFormat{};
     VkExtent2D _swapchainExtent{};
     RenderPassHandle _swapchainRenderPass{ Undefined };
+    std::vector<FramebufferHandle> _swapchainFramebuffers{};
 
     TexturePool _textures;
     RenderPassPool _renderPasses;
+    FramebufferPool _framebuffers;
 
     CommandBufferManager _commandBufferManager{};
     std::queue<ResourceDeletion> _deletionQueue{};

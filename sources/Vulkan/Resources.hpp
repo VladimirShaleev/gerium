@@ -13,8 +13,9 @@ constexpr uint8_t kMaxImageOutputs = 8;
 
 struct RenderPassHandle : Handle {};
 
-using TexturePool    = ResourcePool<struct Texture, TextureHandle>;
-using RenderPassPool = ResourcePool<struct RenderPass, RenderPassHandle>;
+using TexturePool     = ResourcePool<struct Texture, TextureHandle>;
+using RenderPassPool  = ResourcePool<struct RenderPass, RenderPassHandle>;
+using FramebufferPool = ResourcePool<struct Framebuffer, FramebufferHandle>;
 
 struct TextureCreation {
     uint16_t              width        = 1;
@@ -107,6 +108,44 @@ struct RenderPassCreation {
     }
 };
 
+struct FramebufferCreation {
+    RenderPassHandle renderPass;
+
+    uint16_t      numRenderTargets                 = 0;
+    TextureHandle outputTextures[kMaxImageOutputs] = {};
+    TextureHandle depthStencilTexture              = Undefined;
+
+    uint16_t width  = 0;
+    uint16_t height = 0;
+    float    scaleX = 1.0f;
+    float    scaleY = 1.0f;
+    uint8_t  resize = 1;
+
+    const char* name = nullptr;
+
+    FramebufferCreation& addRenderTexture(TextureHandle texture) {
+        outputTextures[numRenderTargets++] = texture;
+        return *this;
+    }
+
+    FramebufferCreation& setDepthStencilTexture(TextureHandle texture) {
+        depthStencilTexture = texture;
+        return *this;
+    }
+
+    FramebufferCreation& setScaling(float scaleX, float scaleY, uint8_t resize) {
+        this->scaleX = scaleX;
+        this->scaleY = scaleY;
+        this->resize = resize;
+        return *this;
+    }
+
+    FramebufferCreation& setName(const char* name) {
+        this->name = name;
+        return *this;
+    }
+};
+
 template <typename H>
 struct Resource {
     H               handle;
@@ -122,7 +161,7 @@ struct Resource {
     }
 };
 
-struct Texture {
+struct Texture : Resource<TextureHandle> {
     VkImage               vkImage;
     VkImageView           vkImageView;
     VkFormat              vkFormat;
@@ -137,13 +176,29 @@ struct Texture {
     gerium_utf8_t         name;
 
     //SamplerHandle sampler;
-    TextureHandle handle;
 };
 
 struct RenderPass : Resource<RenderPassHandle> {
     VkRenderPass     vkRenderPass;
     RenderPassOutput output;
     gerium_utf8_t    name;
+};
+
+struct Framebuffer : Resource<FramebufferHandle> {
+    VkFramebuffer    vkFramebuffer;
+    RenderPassHandle renderPass;
+    uint16_t         width;
+    uint16_t         height;
+    float            scaleX;
+    float            scaleY;
+
+    gerium_uint32_t numColorAttachments;
+    TextureHandle   colorAttachments[kMaxImageOutputs];
+    TextureHandle   depthStencilAttachment;
+
+    uint8_t resize;
+
+    gerium_utf8_t name;
 };
 
 // clang-format on

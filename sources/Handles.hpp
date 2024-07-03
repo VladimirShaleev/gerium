@@ -8,6 +8,8 @@ namespace gerium {
 
 struct TextureHandle : Handle {};
 
+struct FramebufferHandle : Handle {};
+
 } // namespace gerium
 
 #endif

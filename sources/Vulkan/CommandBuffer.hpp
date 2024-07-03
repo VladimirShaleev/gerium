@@ -3,6 +3,7 @@
 
 #include "../Gerium.hpp"
 #include "Utils.hpp"
+#include "Resources.hpp"
 
 namespace gerium::vulkan {
 
@@ -11,17 +12,26 @@ class CommandBufferManager;
 
 class CommandBuffer final {
 public:
-    CommandBuffer(Device& device, VkCommandBuffer commandBUffer);
+    CommandBuffer(Device& device, VkCommandBuffer commandBuffer);
     ~CommandBuffer();
+
+    void addImageBarrier(TextureHandle handle,
+                         ResourceState oldState,
+                         ResourceState newState,
+                         gerium_uint32_t mipLevel,
+                         gerium_uint32_t mipCount,
+                         bool isDepth);
+    void submit(QueueType queue);   
 
 private:
     friend CommandBufferManager;
 
     void reset();
     void begin();
+    void end();
 
     Device* _device;
-    VkCommandBuffer _commandBUffer;
+    VkCommandBuffer _commandBuffer;
 };
 
 class CommandBufferManager final {
