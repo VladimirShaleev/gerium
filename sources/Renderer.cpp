@@ -17,6 +17,10 @@ gerium_result_t Renderer::createTexture(const gerium_texture_creation_t& creatio
     });
 }
 
+void Renderer::destroyTexture(gerium_texture_h handle) noexcept {
+    onDestroyTexture({ handle.unused });
+}
+
 gerium_result_t Renderer::newFrame() noexcept {
     return invoke<Renderer>([](auto obj) {
         obj->onNewFrame();
@@ -51,6 +55,11 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
     assert(renderer);
     assert(creation);
     return alias_cast<Renderer*>(renderer)->createTexture(*creation, *handle);
+}
+
+void gerium_renderer_destroy_texture(gerium_renderer_t renderer, gerium_texture_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->destroyTexture(handle);
 }
 
 gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {

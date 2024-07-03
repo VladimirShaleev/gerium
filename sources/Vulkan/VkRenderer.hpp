@@ -18,7 +18,9 @@ protected:
     Application* application() noexcept;
 
 private:
-    TextureHandle onCreateTexture(const gerium_texture_creation_t& creation) noexcept override;
+    TextureHandle onCreateTexture(const gerium_texture_creation_t& creation) override;
+
+    void onDestroyTexture(TextureHandle handle) noexcept override;
 
     void onNewFrame() override;
     void onPresent() override;

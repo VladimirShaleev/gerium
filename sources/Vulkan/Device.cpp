@@ -171,7 +171,7 @@ void Device::present() {
     }
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR /*|| _resized */) {
-        //resizeSwapchain();
+        // resizeSwapchain();
         frameCountersAdvance();
         return;
     }
@@ -880,61 +880,62 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
 void Device::deleteResources(bool forceDelete) {
     while (!_deletionQueue.empty()) {
         const auto& resource = _deletionQueue.front();
-        if (resource.frame == _currentFrame || forceDelete) {
-            switch (resource.type) {
-                case ResourceType::Buffer:
-                    break;
-                case ResourceType::Texture: {
-                    auto& texture = _textures.access(resource.handle);
-                    if (texture.removeReference() == 0) {
-                        if (texture.vkImageView) {
-                            _vkTable.vkDestroyImageView(_device, texture.vkImageView, getAllocCalls());
-                        }
-                        if (texture.vkImage && texture.vmaAllocation) {
-                            vmaDestroyImage(_vmaAllocator, texture.vkImage, texture.vmaAllocation);
-                        }
-                        _textures.release(resource.handle);
-                    }
-                    break;
-                }
-                case ResourceType::Sampler:
-                    break;
-                case ResourceType::RenderPass: {
-                    auto& renderPass = _renderPasses.access(resource.handle);
-                    if (renderPass.removeReference() == 0) {
-                        _vkTable.vkDestroyRenderPass(_device, renderPass.vkRenderPass, getAllocCalls());
-                        _renderPasses.release(resource.handle);
-                    }
-                    break;
-                }
-                case ResourceType::Framebuffer: {
-                    auto& framebuffer = _framebuffers.access(resource.handle);
-                    if (framebuffer.removeReference() == 0) {
-                        for (gerium_uint32_t i = 0; i < framebuffer.numColorAttachments; ++i) {
-                            destroyTexture(framebuffer.colorAttachments[i]);
-                        }
-                        if (framebuffer.depthStencilAttachment != Undefined) {
-                            destroyTexture(framebuffer.depthStencilAttachment);
-                        }
-                        if (framebuffer.renderPass != Undefined) {
-                            destroyRenderPass(framebuffer.renderPass);
-                        }
-                        _vkTable.vkDestroyFramebuffer(_device, framebuffer.vkFramebuffer, getAllocCalls());
-                        _framebuffers.release(resource.handle);
-                    }
-                    break;
-                }
-                case ResourceType::Shader:
-                    break;
-                case ResourceType::DescriptorSet:
-                    break;
-                case ResourceType::DescriptorSetLayout:
-                    break;
-                case ResourceType::Pipeline:
-                    break;
-            }
-            _deletionQueue.pop();
+        if (resource.frame != _currentFrame && !forceDelete) {
+            break;
         }
+        switch (resource.type) {
+            case ResourceType::Buffer:
+                break;
+            case ResourceType::Texture: {
+                auto& texture = _textures.access(resource.handle);
+                if (texture.removeReference() == 0) {
+                    if (texture.vkImageView) {
+                        _vkTable.vkDestroyImageView(_device, texture.vkImageView, getAllocCalls());
+                    }
+                    if (texture.vkImage && texture.vmaAllocation) {
+                        vmaDestroyImage(_vmaAllocator, texture.vkImage, texture.vmaAllocation);
+                    }
+                    _textures.release(resource.handle);
+                }
+                break;
+            }
+            case ResourceType::Sampler:
+                break;
+            case ResourceType::RenderPass: {
+                auto& renderPass = _renderPasses.access(resource.handle);
+                if (renderPass.removeReference() == 0) {
+                    _vkTable.vkDestroyRenderPass(_device, renderPass.vkRenderPass, getAllocCalls());
+                    _renderPasses.release(resource.handle);
+                }
+                break;
+            }
+            case ResourceType::Framebuffer: {
+                auto& framebuffer = _framebuffers.access(resource.handle);
+                if (framebuffer.removeReference() == 0) {
+                    for (gerium_uint32_t i = 0; i < framebuffer.numColorAttachments; ++i) {
+                        destroyTexture(framebuffer.colorAttachments[i]);
+                    }
+                    if (framebuffer.depthStencilAttachment != Undefined) {
+                        destroyTexture(framebuffer.depthStencilAttachment);
+                    }
+                    if (framebuffer.renderPass != Undefined) {
+                        destroyRenderPass(framebuffer.renderPass);
+                    }
+                    _vkTable.vkDestroyFramebuffer(_device, framebuffer.vkFramebuffer, getAllocCalls());
+                    _framebuffers.release(resource.handle);
+                }
+                break;
+            }
+            case ResourceType::Shader:
+                break;
+            case ResourceType::DescriptorSet:
+                break;
+            case ResourceType::DescriptorSetLayout:
+                break;
+            case ResourceType::Pipeline:
+                break;
+        }
+        _deletionQueue.pop();
     }
 }
 

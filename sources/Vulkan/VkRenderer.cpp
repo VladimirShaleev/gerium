@@ -15,7 +15,7 @@ Application* VkRenderer::application() noexcept {
     return _application.get();
 }
 
-TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creation) noexcept {
+TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creation) {
     TextureCreation tc;
     tc.setSize(creation.width, creation.height, creation.depth)
         .setFlags(creation.mipmaps, false, false)
@@ -23,6 +23,10 @@ TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creat
         .setData((void*) creation.data)
         .setName(creation.name);
     return _device->createTexture(tc);
+}
+
+void VkRenderer::onDestroyTexture(TextureHandle handle) noexcept {
+    _device->destroyTexture(handle);
 }
 
 void VkRenderer::onNewFrame() {
