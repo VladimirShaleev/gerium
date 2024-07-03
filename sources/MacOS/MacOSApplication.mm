@@ -200,7 +200,7 @@ void MacOSApplication::restoreWindow() noexcept {
 }
 
 void MacOSApplication::fullscreen(bool fullscreen) noexcept {
-    onFullscreen(fullscreen, std::numeric_limits<gerium_uint32_t>::max(), nullptr);
+    onFullscreen(fullscreen, _display, _mode.has_value() ? &_mode.value() : nullptr);
 }
 gerium_uint16_t MacOSApplication::getPixelSize(gerium_uint16_t x) const noexcept {
     return gerium_uint16_t(x * _scale);
@@ -236,38 +236,9 @@ void MacOSApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
         _modes.clear();
         _displayNames.clear();
         
-        for (uint32_t i = 0; i < displayCount; ++i) {
-        #pragma clang diagnostic push
-        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            NSDictionary *deviceInfo = CFBridgingRelease(IODisplayCreateInfoDictionary(CGDisplayIOServicePort(activeDisplays[i]), kIODisplayOnlyPreferredName));
-        #pragma clang diagnostic pop
-            
-            NSDictionary *localizedNames = deviceInfo[@(kDisplayProductName)];
-              
-            if (localizedNames.count > 0) {
-                _displayNames.push_back([localizedNames.allValues[0] UTF8String]);
-            } else {
-                _displayNames.push_back("Unknown");
-            }
-            
-            _displayNames.push_back("Unknown");
-            _displayNames.push_back(std::to_string(CGDisplayUnitNumber(activeDisplays[i])));
-
-            CFArrayRef modes = CGDisplayCopyAllDisplayModes(activeDisplays[i], nil);
-            long modeCount = CFArrayGetCount(modes);
-            _modes.resize(modeCount);
-            for (long m = 0; m < modeCount; ++m) {
-                CGDisplayModeRef mode = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
-                size_t width = CGDisplayModeGetWidth(mode);
-                size_t height = CGDisplayModeGetHeight(mode);
-                double refreshRate = CGDisplayModeGetRefreshRate(mode);
-                
-                auto& result = _modes[m];
-                result.width = gerium_uint16_t(width);
-                result.height = gerium_uint16_t(height);
-            }
-            displays[i].mode_count = gerium_uint32_t(modeCount);
-        }
+        gerium_uint32_t index = 0;
+        enumDisplays(activeDisplays, displayCount, true, index, displays);
+        enumDisplays(activeDisplays, displayCount, false, index, displays);
         
         for (gerium_uint32_t i = 0, offset = 0; i < displayCount; ++i) {
             displays[i].device_name = _displayNames[i * 3].data();
@@ -297,38 +268,38 @@ void MacOSApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
                 controller.window.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
                 controller.window.styleMask |= NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
                 
+                CGDirectDisplayID display = std::numeric_limits<gerium_uint32_t>::max() == displayId ? kCGDirectMainDisplay : displayId;
                 
-                CFArrayRef modes = CGDisplayCopyAllDisplayModes(kCGDirectMainDisplay, nil);
-                long modeCount = CFArrayGetCount(modes);
-              
-                for (long m = 0; m < modeCount; ++m) {
-                    CGDisplayModeRef ref = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
-                    size_t width = CGDisplayModeGetWidth(ref);
-                    size_t height = CGDisplayModeGetHeight(ref);
-                    double refreshRate = CGDisplayModeGetRefreshRate(ref);
+                if (mode) {
+                    CFArrayRef modes = CGDisplayCopyAllDisplayModes(display, nil);
+                    long modeCount = CFArrayGetCount(modes);
                     
-                    if (width == mode->width && height == mode->height && int(refreshRate) == mode->refresh_rate) {
+                    for (long m = 0; m < modeCount; ++m) {
+                        CGDisplayModeRef ref = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
+                        size_t width = CGDisplayModeGetWidth(ref);
+                        size_t height = CGDisplayModeGetHeight(ref);
+                        double refreshRate = CGDisplayModeGetRefreshRate(ref);
                         
-                        
-                        CGDisplayCapture(kCGDirectMainDisplay);
-                        
-                        CGDisplayConfigRef config;
-                        CGBeginDisplayConfiguration(&config);
-                        CGConfigureDisplayWithDisplayMode(config, kCGDirectMainDisplay, ref, nil);
-                        CGCompleteDisplayConfiguration(config, kCGConfigureForAppOnly);
-                        
-                        
-                        break;
+                        if (width == mode->width && height == mode->height && int(refreshRate) == mode->refresh_rate) {
+                            
+                            // CGDisplayCapture(kCGDirectMainDisplay);
+                            CGDisplayConfigRef config;
+                            CGBeginDisplayConfiguration(&config);
+                            CGConfigureDisplayWithDisplayMode(config, display, ref, nil);
+                            CGCompleteDisplayConfiguration(config, kCGConfigureForAppOnly);
+                            break;
+                        }
                     }
                 }
-                
-                
-                
             }
             [controller.window toggleFullScreen:controller];
         }
     } else {
         _startFullscreen = fullscreen;
+        _display = displayId;
+        if (mode) {
+            _mode = *mode;
+        }
     }
 }
 
@@ -474,6 +445,51 @@ void MacOSApplication::onExit() noexcept {
         [controller.window close];
     }
     _exited = true;
+}
+
+void MacOSApplication::enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays, gerium_uint32_t displayCount, bool isMain, gerium_uint32_t& index, gerium_display_info_t* displays) const {
+    for (uint32_t i = 0; i < displayCount; ++i) {
+        if (CGDisplayIsMain(activeDisplays[i]) != isMain) {
+            continue;
+        }
+        
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        NSDictionary *deviceInfo = CFBridgingRelease(IODisplayCreateInfoDictionary(CGDisplayIOServicePort(activeDisplays[i]), kIODisplayOnlyPreferredName));
+    #pragma clang diagnostic pop
+        
+        NSDictionary *localizedNames = deviceInfo[@(kDisplayProductName)];
+          
+        if (localizedNames.count > 0) {
+            _displayNames.push_back([localizedNames.allValues[0] UTF8String]);
+        } else {
+            _displayNames.push_back("Unknown");
+        }
+        
+        _displayNames.push_back("Unknown");
+        _displayNames.push_back(std::to_string(CGDisplayUnitNumber(activeDisplays[i])));
+
+        CFArrayRef modes = CGDisplayCopyAllDisplayModes(activeDisplays[i], nil);
+        long modeCount = CFArrayGetCount(modes);
+        _modes.resize(modeCount);
+        for (long m = 0; m < modeCount; ++m) {
+            CGDisplayModeRef mode = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
+            size_t width = CGDisplayModeGetWidth(mode);
+            size_t height = CGDisplayModeGetHeight(mode);
+            double refreshRate = CGDisplayModeGetRefreshRate(mode);
+            
+            auto& result = _modes[m];
+            result.width = gerium_uint16_t(width);
+            result.height = gerium_uint16_t(height);
+        }
+        displays[index].id = activeDisplays[i];
+        displays[index].mode_count = gerium_uint32_t(modeCount);
+        ++index;
+        
+        if (CGDisplayIsMain(activeDisplays[i]) == isMain) {
+            break;
+        }
+    }
 }
 
 std::chrono::high_resolution_clock::time_point MacOSApplication::getCurrentTime() const noexcept {

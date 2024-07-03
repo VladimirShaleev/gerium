@@ -65,6 +65,8 @@ private:
 
     void onRun() override;
     void onExit() noexcept override;
+    
+    void enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays, gerium_uint32_t displayCount, bool isMain, gerium_uint32_t& index, gerium_display_info_t* displays) const;
 
     std::chrono::high_resolution_clock::time_point getCurrentTime() const noexcept;
 
@@ -73,6 +75,8 @@ private:
     bool _running                            = false;
     bool _exited                             = false;
     bool _startFullscreen                    = false;
+    gerium_uint32_t _display                 = std::numeric_limits<gerium_uint32_t>::max();
+    std::optional<gerium_display_mode_t> _mode = {};
     float _scale                             = 1.0f;
     float _invScale                          = 1.0f;
     gerium_uint16_t _newMinWidth             = std::numeric_limits<gerium_uint16_t>::max();
