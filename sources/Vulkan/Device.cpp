@@ -8,6 +8,7 @@ namespace gerium::vulkan {
 Device::~Device() {
     if (_device) {
         _vkTable.vkDeviceWaitIdle(_device);
+        deleteResources(true);
 
         for (auto framebuffer : _framebuffers) {
             destroyFramebuffer(framebuffer.handle);
@@ -54,8 +55,10 @@ Device::~Device() {
 
 void Device::create(Application* application, gerium_uint32_t version, bool enableValidations) {
     _enableValidations = enableValidations;
+    _application       = application;
     _logger            = Logger::create("gerium:renderer:vulkan");
     _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
+    _application->getSize(&_appWidth, &_appHeight);
 
     createInstance(application->getTitle(), version);
     createSurface(application);
@@ -64,9 +67,6 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createVmaAllocator();
     createSynchronizations();
     createSwapchain(application);
-}
-
-void Device::resize() {
 }
 
 void Device::newFrame() {
@@ -83,7 +83,7 @@ void Device::newFrame() {
                                                        &_swapchainImageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        // resizeSwapchain();
+        resizeSwapchain();
     } else {
         check(result);
     }
@@ -170,8 +170,14 @@ void Device::present() {
         // _profilerReset = false;
     }
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR /*|| _resized */) {
-        // resizeSwapchain();
+    gerium_uint16_t appWidth, appHeight;
+    _application->getSize(&appWidth, &appHeight);
+    const auto resized = _appWidth != appWidth || _appHeight != appHeight;
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resized) {
+        _appWidth = appWidth;
+        _appHeight = appHeight;
+        resizeSwapchain();
         frameCountersAdvance();
         return;
     }
@@ -655,6 +661,21 @@ void Device::createSwapchain(Application* application) {
     }
 
     commandBuffer->submit(QueueType::Graphics);
+}
+
+void Device::resizeSwapchain() {
+    _vkTable.vkDeviceWaitIdle(_device);
+
+    auto oldSwapchain = _swapchain;
+    createSwapchain(_application);
+
+    if (oldSwapchain) {
+        _vkTable.vkDestroySwapchainKHR(_device, oldSwapchain, getAllocCalls());
+    }
+
+    if (_profilerEnabled) {
+        // _profilerReset = true;
+    }
 }
 
 void Device::printValidationLayers() {

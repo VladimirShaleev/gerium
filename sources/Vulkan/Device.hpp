@@ -17,7 +17,6 @@ public:
 
     void create(Application* application, gerium_uint32_t version, bool enableValidations);
 
-    void resize();
     void newFrame();
     void submit(CommandBuffer* commandBuffer);
     void present();
@@ -104,6 +103,7 @@ private:
     void createVmaAllocator();
     void createSynchronizations();
     void createSwapchain(Application* application);
+    void resizeSwapchain();
 
     void printValidationLayers();
     void printExtensions();
@@ -145,6 +145,9 @@ private:
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
     bool _enableValidations{};
+    Application* _application{};
+    gerium_uint16_t _appWidth{};
+    gerium_uint16_t _appHeight{};
     ObjectPtr<Logger> _logger;
 
     vk::DispatchLoaderDynamic _vkTable;
