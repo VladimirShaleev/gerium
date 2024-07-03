@@ -17,6 +17,11 @@ public:
 
     void create(Application* application, gerium_uint32_t version, bool enableValidations);
 
+    void resize();
+    void newFrame();
+    void submit(CommandBuffer* commandBuffer);
+    void present();
+
     TextureHandle createTexture(const TextureCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
@@ -97,6 +102,7 @@ private:
     void createPhysicalDevice();
     void createDevice();
     void createVmaAllocator();
+    void createSynchronizations();
     void createSwapchain(Application* application);
 
     void printValidationLayers();
@@ -109,6 +115,7 @@ private:
     int getPhysicalDeviceScore(VkPhysicalDevice device);
     QueueFamilies getQueueFamilies(VkPhysicalDevice device);
     Swapchain getSwapchain();
+    void frameCountersAdvance() noexcept;
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
@@ -145,16 +152,24 @@ private:
     VkSurfaceKHR _surface{};
     VkPhysicalDevice _physicalDevice{};
     VkDevice _device{};
+    QueueFamilies _queueFamilies{};
     VkQueue _queueGraphic{};
     VkQueue _queueCompute{};
     VkQueue _queuePresent{};
     VkQueue _queueTransfer{};
     VmaAllocator _vmaAllocator{};
+    VkSemaphore _imageAvailableSemaphores[MaxFrames]{};
+    VkSemaphore _renderFinishedSemaphores[MaxFrames]{};
+    VkFence _inFlightFences[MaxFrames]{};
     VkSwapchainKHR _swapchain{};
     VkSurfaceFormatKHR _swapchainFormat{};
     VkExtent2D _swapchainExtent{};
     RenderPassHandle _swapchainRenderPass{ Undefined };
     std::vector<FramebufferHandle> _swapchainFramebuffers{};
+    gerium_uint32_t _swapchainImageIndex{};
+    gerium_uint32_t _currentFrame{};
+    gerium_uint32_t _previousFrame{ MaxFrames - 1 };
+    gerium_uint32_t _absoluteFrame{};
 
     TexturePool _textures;
     RenderPassPool _renderPasses;
@@ -162,9 +177,10 @@ private:
 
     CommandBufferManager _commandBufferManager{};
     std::queue<ResourceDeletion> _deletionQueue{};
-    std::map<uint64_t, RenderPassHandle> _renderPassCache{};
+    std::map<gerium_uint64_t, RenderPassHandle> _renderPassCache{};
+    CommandBuffer* _queuedCommandBuffers[16]{};
+    gerium_uint32_t _numQueuedCommandBuffers{};
 
-    QueueFamilies _queueFamilies{};
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};
     uint32_t _uboAlignment{};

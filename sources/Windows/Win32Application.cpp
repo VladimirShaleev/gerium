@@ -342,8 +342,15 @@ void Win32Application::onRun() {
     ShowWindow(_hWnd, onIsFullscreen() ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
     UpdateWindow(_hWnd);
 
+    LARGE_INTEGER prevTime;
+    LARGE_INTEGER currentTime;
+    LARGE_INTEGER microseconds;
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&prevTime);
+
     MSG msg{};
-    while (true) {
+    while (msg.message != WM_QUIT) {
         if (_callbackError) {
             error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
         }
@@ -359,6 +366,23 @@ void Win32Application::onRun() {
 
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+
+        QueryPerformanceCounter(&currentTime);
+        microseconds.QuadPart = currentTime.QuadPart - prevTime.QuadPart;
+
+        microseconds.QuadPart *= 1'000'000;
+        microseconds.QuadPart /= frequency.QuadPart;
+
+        auto elapsedMs = float(microseconds.QuadPart * 0.001);
+
+        if (elapsedMs == 0.0f) {
+            continue;
+        }
+        prevTime = currentTime;
+
+        if (_running && !callFrameFunc(elapsedMs)) {
+            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
         }
     }
 
@@ -487,6 +511,10 @@ bool Win32Application::changeState(gerium_application_state_t newState) noexcept
         }
     }
     return true;
+}
+
+gerium_uint64_t Win32Application::getCurrentTime() noexcept {
+    return gerium_uint64_t();
 }
 
 LONG Win32Application::getStyle() const noexcept {

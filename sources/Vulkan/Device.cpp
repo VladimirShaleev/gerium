@@ -28,6 +28,12 @@ Device::~Device() {
             _vkTable.vkDestroySwapchainKHR(_device, _swapchain, getAllocCalls());
         }
 
+        for (uint32_t i = 0; i < MaxFrames; ++i) {
+            _vkTable.vkDestroySemaphore(_device, _imageAvailableSemaphores[i], getAllocCalls());
+            _vkTable.vkDestroySemaphore(_device, _renderFinishedSemaphores[i], getAllocCalls());
+            _vkTable.vkDestroyFence(_device, _inFlightFences[i], getAllocCalls());
+        }
+
         if (_vmaAllocator) {
             vmaDestroyAllocator(_vmaAllocator);
         }
@@ -56,7 +62,124 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createPhysicalDevice();
     createDevice();
     createVmaAllocator();
+    createSynchronizations();
     createSwapchain(application);
+}
+
+void Device::resize() {
+}
+
+void Device::newFrame() {
+    constexpr auto max = std::numeric_limits<uint64_t>::max();
+
+    check(_vkTable.vkWaitForFences(_device, 1, &_inFlightFences[_currentFrame], VK_TRUE, max));
+    check(_vkTable.vkResetFences(_device, 1, &_inFlightFences[_currentFrame]));
+
+    const auto result = _vkTable.vkAcquireNextImageKHR(_device,
+                                                       _swapchain,
+                                                       std::numeric_limits<uint64_t>::max(),
+                                                       _imageAvailableSemaphores[_currentFrame],
+                                                       nullptr,
+                                                       &_swapchainImageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        // resizeSwapchain();
+    } else {
+        check(result);
+    }
+
+    //_dynamicAllocatedSize = _dynamicBufferSize * _currentFrame;
+    _commandBufferManager.newFrame();
+
+    if (_profilerEnabled) {
+        // _timestampManager.reset();
+    }
+}
+
+void Device::submit(CommandBuffer* commandBuffer) {
+    assert(_numQueuedCommandBuffers < sizeof(_queuedCommandBuffers) / sizeof(_queuedCommandBuffers[0]));
+    _queuedCommandBuffers[_numQueuedCommandBuffers++] = commandBuffer;
+}
+
+void Device::present() {
+    VkCommandBuffer enqueuedCommandBuffers[16];
+    for (uint32_t i = 0; i < _numQueuedCommandBuffers; ++i) {
+        auto commandBuffer = _queuedCommandBuffers[i];
+        commandBuffer->end();
+
+        enqueuedCommandBuffers[i] = commandBuffer->_commandBuffer;
+    }
+
+    VkSemaphore waitSemaphores[]      = { _imageAvailableSemaphores[_currentFrame] };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    VkSemaphore signalSemaphores[]    = { _renderFinishedSemaphores[_currentFrame] };
+
+    VkSubmitInfo submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+    submitInfo.waitSemaphoreCount   = 1;
+    submitInfo.pWaitSemaphores      = waitSemaphores;
+    submitInfo.pWaitDstStageMask    = waitStages;
+    submitInfo.commandBufferCount   = _numQueuedCommandBuffers;
+    submitInfo.pCommandBuffers      = enqueuedCommandBuffers;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores    = signalSemaphores;
+    check(_vkTable.vkQueueSubmit(_queueGraphic, 1, &submitInfo, _inFlightFences[_currentFrame]));
+
+    VkPresentInfoKHR presentInfo{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores    = signalSemaphores;
+    presentInfo.swapchainCount     = 1;
+    presentInfo.pSwapchains        = &_swapchain;
+    presentInfo.pImageIndices      = &_swapchainImageIndex;
+    presentInfo.pResults           = nullptr;
+
+    const auto result = _vkTable.vkQueuePresentKHR(_queuePresent, &presentInfo);
+
+    _numQueuedCommandBuffers = 0;
+
+    if (_profilerEnabled) {
+        // if (_timestampManager.hasQueries()) {
+        //     const auto queryOffset = _currentFrame * _timestampManager.getQueriesPerFrame() * 2;
+        //     const auto queryCount  = _timestampManager.getCurrentQuery() * 2;
+
+        //     check(_vkTable.vkGetQueryPoolResults(_device,
+        //                                          _queryPool,
+        //                                          queryOffset,
+        //                                          queryCount,
+        //                                          sizeof(uint64_t) * queryCount * 2,
+        //                                          _timestampManager.getTimestampData(queryOffset),
+        //                                          sizeof(uint64_t),
+        //                                          VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
+
+        //     for (uint32_t i = 0; i < _timestampManager.getCurrentQuery(); ++i) {
+        //         auto index = _currentFrame * _timestampManager.getQueriesPerFrame() + i;
+
+        //         auto& timestamp = _timestampManager.getTimestamp(index);
+
+        //         double start       = (double) *_timestampManager.getTimestampData(index * 2);
+        //         double end         = (double) *_timestampManager.getTimestampData(index * 2 + 1);
+        //         double range       = end - start;
+        //         double elapsedTime = range * _gpuFrequency;
+
+        //         timestamp.elapsedMs  = elapsedTime;
+        //         timestamp.frameIndex = _absoluteFrame;
+        //     }
+        // }
+
+        // _profilerReset = true;
+    } else {
+        // _profilerReset = false;
+    }
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR /*|| _resized */) {
+        //resizeSwapchain();
+        frameCountersAdvance();
+        return;
+    }
+
+    check(result);
+
+    frameCountersAdvance();
+    deleteResources();
 }
 
 TextureHandle Device::createTexture(const TextureCreation& creation) {
@@ -226,19 +349,19 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 }
 
 void Device::destroyTexture(TextureHandle handle) {
-    _deletionQueue.push({ ResourceType::Texture, 0 /* _currentFrame */, handle });
+    _deletionQueue.push({ ResourceType::Texture, _currentFrame, handle });
 }
 
 void Device::destroyRenderPass(RenderPassHandle handle) {
-    _deletionQueue.push({ ResourceType::RenderPass, 0 /* _currentFrame */, handle });
+    _deletionQueue.push({ ResourceType::RenderPass, _currentFrame, handle });
 }
 
 void Device::destroyFramebuffer(FramebufferHandle handle) {
-    _deletionQueue.push({ ResourceType::Framebuffer, 0 /* _currentFrame */, handle });
+    _deletionQueue.push({ ResourceType::Framebuffer, _currentFrame, handle });
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
-    auto commandBuffer = _commandBufferManager.getCommandBuffer(0 /* _currentFrame */, thread);
+    auto commandBuffer = _commandBufferManager.getCommandBuffer(_currentFrame, thread);
     if (_profilerEnabled) {
         // TODO:
     }
@@ -407,6 +530,19 @@ void Device::createVmaAllocator() {
     createInfo.pVulkanFunctions     = &functions;
 
     check(vmaCreateAllocator(&createInfo, &_vmaAllocator));
+}
+
+void Device::createSynchronizations() {
+    VkSemaphoreCreateInfo semaphoreInfo{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+    VkFenceCreateInfo fenceInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for (uint32_t i = 0; i < MaxFrames; ++i) {
+        check(_vkTable.vkCreateSemaphore(_device, &semaphoreInfo, getAllocCalls(), &_imageAvailableSemaphores[i]));
+        check(_vkTable.vkCreateSemaphore(_device, &semaphoreInfo, getAllocCalls(), &_renderFinishedSemaphores[i]));
+        check(_vkTable.vkCreateFence(_device, &fenceInfo, getAllocCalls(), &_inFlightFences[i]));
+    }
 }
 
 void Device::createSwapchain(Application* application) {
@@ -744,7 +880,7 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
 void Device::deleteResources(bool forceDelete) {
     while (!_deletionQueue.empty()) {
         const auto& resource = _deletionQueue.front();
-        if (resource.frame == 0 /* _currentFrame */ || forceDelete) {
+        if (resource.frame == _currentFrame || forceDelete) {
             switch (resource.type) {
                 case ResourceType::Buffer:
                     break;
@@ -919,6 +1055,12 @@ Device::Swapchain Device::getSwapchain() {
         _physicalDevice, _surface, &countPresents, result.presentModes.data()));
 
     return result;
+}
+
+void Device::frameCountersAdvance() noexcept {
+    _previousFrame = _currentFrame;
+    _currentFrame  = (_currentFrame + 1) % MaxFrames;
+    ++_absoluteFrame;
 }
 
 std::vector<const char*> Device::selectValidationLayers() {

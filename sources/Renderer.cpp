@@ -17,6 +17,18 @@ gerium_result_t Renderer::createTexture(const gerium_texture_creation_t& creatio
     });
 }
 
+gerium_result_t Renderer::newFrame() noexcept {
+    return invoke<Renderer>([](auto obj) {
+        obj->onNewFrame();
+    });
+}
+
+gerium_result_t Renderer::present() noexcept {
+    return invoke<Renderer>([](auto obj) {
+        obj->onPresent();
+    });
+}
+
 } // namespace gerium
 
 using namespace gerium;
@@ -39,4 +51,14 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
     assert(renderer);
     assert(creation);
     return alias_cast<Renderer*>(renderer)->createTexture(*creation, *handle);
+}
+
+gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->newFrame();
+}
+
+gerium_result_t gerium_renderer_present(gerium_renderer_t renderer) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->present();
 }

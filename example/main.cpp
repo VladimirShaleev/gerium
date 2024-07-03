@@ -21,18 +21,18 @@ bool initialize(gerium_application_t application) {
 
         check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &renderer));
 
-        gerium_texture_creation_t creation;
-        creation.width   = 128;
-        creation.height  = 128;
-        creation.depth   = 1;
-        creation.mipmaps = 1;
-        creation.format  = GERIUM_FORMAT_R8G8B8A8_UINT;
-        creation.type    = GERIUM_TEXTURE_TYPE_2D;
-        creation.data    = nullptr;
-        creation.name    = "texture";
+        // gerium_texture_creation_t creation;
+        // creation.width   = 128;
+        // creation.height  = 128;
+        // creation.depth   = 1;
+        // creation.mipmaps = 1;
+        // creation.format  = GERIUM_FORMAT_R8G8B8A8_UINT;
+        // creation.type    = GERIUM_TEXTURE_TYPE_2D;
+        // creation.data    = nullptr;
+        // creation.name    = "texture";
 
-        gerium_texture_h texture;
-        check(gerium_renderer_create_texture(renderer, &creation, &texture));
+        // gerium_texture_h texture;
+        // check(gerium_renderer_create_texture(renderer, &creation, &texture));
 
         int i = 0;
 
@@ -51,6 +51,8 @@ void unitialize(gerium_application_t application) {
 }
 
 gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
+    gerium_renderer_new_frame(renderer);
+    gerium_renderer_present(renderer);
     return 1;
 }
 

@@ -24,6 +24,7 @@ public:
     void submit(QueueType queue);   
 
 private:
+    friend Device;
     friend CommandBufferManager;
 
     void reset();

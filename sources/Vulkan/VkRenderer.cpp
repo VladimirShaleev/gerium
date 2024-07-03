@@ -25,4 +25,12 @@ TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creat
     return _device->createTexture(tc);
 }
 
+void VkRenderer::onNewFrame() {
+    _device->newFrame();
+}
+
+void VkRenderer::onPresent() {
+    _device->present();
+}
+
 } // namespace gerium::vulkan

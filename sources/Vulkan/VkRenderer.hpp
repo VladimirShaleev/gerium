@@ -20,6 +20,9 @@ protected:
 private:
     TextureHandle onCreateTexture(const gerium_texture_creation_t& creation) noexcept override;
 
+    void onNewFrame() override;
+    void onPresent() override;
+
     ObjectPtr<Application> _application;
     std::unique_ptr<Device> _device;
 };

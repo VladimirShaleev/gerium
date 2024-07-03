@@ -356,6 +356,12 @@ gerium_renderer_create_texture(gerium_renderer_t renderer,
                                const gerium_texture_creation_t* creation,
                                gerium_texture_h* handle);
 
+gerium_public gerium_result_t
+gerium_renderer_new_frame(gerium_renderer_t renderer);
+
+gerium_public gerium_result_t
+gerium_renderer_present(gerium_renderer_t renderer);
+
 GERIUM_END
 
 #endif
