@@ -321,8 +321,9 @@ public:
             std::memset(&_data[handle.index], 0, sizeof(T));
         }
 
-        _handles[handle.index] = _handles[--_head];
-        _handles[_head]        = handle.index;
+        //_handles[handle.index] = _handles[--_head];
+        //_handles[_head]        = handle.index;
+        _handles[--_head] = handle.index;
     }
 
     void releaseAll() noexcept {
