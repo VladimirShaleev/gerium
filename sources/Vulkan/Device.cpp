@@ -10,17 +10,17 @@ Device::~Device() {
         _vkTable.vkDeviceWaitIdle(_device);
         deleteResources(true);
 
-        for (auto& framebuffer : _framebuffers) {
-            destroyFramebuffer(framebuffer.handle);
+        for (auto framebuffer : _framebuffers) {
+            destroyFramebuffer(_framebuffers.handle(framebuffer));
         }
         deleteResources(true);
 
-        for (auto& renderPass : _renderPasses) {
+        for (auto renderPass : _renderPasses) {
             destroyRenderPass(_renderPasses.handle(renderPass));
         }
         deleteResources(true);
 
-        for (auto& texture : _textures) {
+        for (auto texture : _textures) {
             destroyTexture(_textures.handle(texture));
         }
         deleteResources(true);
@@ -191,14 +191,14 @@ void Device::present() {
 TextureHandle Device::createTexture(const TextureCreation& creation) {
     auto [handle, texture] = _textures.obtain_and_access();
 
-    texture.vkFormat = toVkFormat(creation.format);
-    texture.width    = creation.width;
-    texture.height   = creation.height;
-    texture.depth    = creation.depth;
-    texture.mipmaps  = creation.mipmaps;
-    texture.flags    = creation.flags;
-    texture.type     = creation.type;
-    texture.name     = intern(creation.name);
+    texture->vkFormat = toVkFormat(creation.format);
+    texture->width    = creation.width;
+    texture->height   = creation.height;
+    texture->depth    = creation.depth;
+    texture->mipmaps  = creation.mipmaps;
+    texture->flags    = creation.flags;
+    texture->type     = creation.type;
+    texture->name     = intern(creation.name);
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -206,7 +206,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
         usage |= VK_IMAGE_USAGE_STORAGE_BIT;
     }
 
-    if (hasDepthOrStencil(texture.vkFormat)) {
+    if (hasDepthOrStencil(texture->vkFormat)) {
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     } else {
         const auto renderTarget = (creation.flags & TextureFlags::RenderTarget) == TextureFlags::RenderTarget;
@@ -216,7 +216,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     imageInfo.imageType             = toVkImageType(creation.type);
-    imageInfo.format                = texture.vkFormat;
+    imageInfo.format                = texture->vkFormat;
     imageInfo.extent.width          = creation.width;
     imageInfo.extent.height         = creation.height;
     imageInfo.extent.depth          = creation.depth;
@@ -234,30 +234,30 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     memoryInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
     if (creation.alias == Undefined) {
-        check(
-            vmaCreateImage(_vmaAllocator, &imageInfo, &memoryInfo, &texture.vkImage, &texture.vmaAllocation, nullptr));
+        check(vmaCreateImage(
+            _vmaAllocator, &imageInfo, &memoryInfo, &texture->vkImage, &texture->vmaAllocation, nullptr));
 
-        if (_enableValidations && texture.name) {
-            vmaSetAllocationName(_vmaAllocator, texture.vmaAllocation, texture.name);
+        if (_enableValidations && texture->name) {
+            vmaSetAllocationName(_vmaAllocator, texture->vmaAllocation, texture->name);
         }
     } else {
-        auto& aliasTexture = _textures.access(creation.alias);
-        check(vmaCreateAliasingImage(_vmaAllocator, aliasTexture.vmaAllocation, &imageInfo, &texture.vkImage));
+        auto aliasTexture = _textures.access(creation.alias);
+        check(vmaCreateAliasingImage(_vmaAllocator, aliasTexture->vmaAllocation, &imageInfo, &texture->vkImage));
     }
 
-    setObjectName(VK_OBJECT_TYPE_IMAGE, (uint64_t) texture.vkImage, texture.name);
+    setObjectName(VK_OBJECT_TYPE_IMAGE, (uint64_t) texture->vkImage, texture->name);
 
     VkImageAspectFlags aspectMask;
-    if (hasDepthOrStencil(texture.vkFormat)) {
-        aspectMask = hasDepth(texture.vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
+    if (hasDepthOrStencil(texture->vkFormat)) {
+        aspectMask = hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
     } else {
         aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
     VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    viewInfo.image      = texture.vkImage;
+    viewInfo.image      = texture->vkImage;
     viewInfo.viewType   = toVkImageViewType(creation.type);
-    viewInfo.format     = texture.vkFormat;
+    viewInfo.format     = texture->vkFormat;
     viewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
                             VK_COMPONENT_SWIZZLE_IDENTITY,
                             VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -269,8 +269,8 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount     = 1;
 
-    check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &texture.vkImageView));
-    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture.vkImageView, texture.name);
+    check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &texture->vkImageView));
+    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture->vkImageView, texture->name);
 
     if (creation.initialData) {
         // uploadTextureData(texture, creation.initialData);
@@ -288,9 +288,9 @@ RenderPassHandle Device::createRenderPass(const RenderPassCreation& creation) {
 
     auto [handle, renderPass] = _renderPasses.obtain_and_access();
 
-    renderPass.output       = creation.output;
-    renderPass.name         = intern(creation.name);
-    renderPass.vkRenderPass = vkCreateRenderPass(renderPass.output, renderPass.name);
+    renderPass->output       = creation.output;
+    renderPass->name         = intern(creation.name);
+    renderPass->vkRenderPass = vkCreateRenderPass(renderPass->output, renderPass->name);
 
     _renderPassCache[key] = handle;
     return handle;
@@ -301,51 +301,49 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 
     _renderPasses.addReference(creation.renderPass);
 
-    framebuffer.handle                 = handle;
-    framebuffer.references             = 1;
-    framebuffer.renderPass             = creation.renderPass;
-    framebuffer.width                  = creation.width;
-    framebuffer.height                 = creation.height;
-    framebuffer.scaleX                 = creation.scaleX;
-    framebuffer.scaleY                 = creation.scaleY;
-    framebuffer.depthStencilAttachment = creation.depthStencilTexture;
-    framebuffer.resize                 = creation.resize;
-    framebuffer.name                   = intern(creation.name);
+    framebuffer->renderPass             = creation.renderPass;
+    framebuffer->width                  = creation.width;
+    framebuffer->height                 = creation.height;
+    framebuffer->scaleX                 = creation.scaleX;
+    framebuffer->scaleY                 = creation.scaleY;
+    framebuffer->depthStencilAttachment = creation.depthStencilTexture;
+    framebuffer->resize                 = creation.resize;
+    framebuffer->name                   = intern(creation.name);
 
-    framebuffer.numColorAttachments = creation.numRenderTargets;
+    framebuffer->numColorAttachments = creation.numRenderTargets;
     for (gerium_uint32_t i = 0; i < creation.numRenderTargets; ++i) {
-        framebuffer.colorAttachments[i] = creation.outputTextures[i];
+        framebuffer->colorAttachments[i] = creation.outputTextures[i];
     }
 
     VkImageView framebufferAttachments[kMaxImageOutputs + 1]{};
     uint32_t activeAttachments = 0;
 
-    for (; activeAttachments < framebuffer.numColorAttachments; ++activeAttachments) {
-        auto& texture = _textures.access(framebuffer.colorAttachments[activeAttachments]);
+    for (; activeAttachments < framebuffer->numColorAttachments; ++activeAttachments) {
+        auto texture = _textures.access(framebuffer->colorAttachments[activeAttachments]);
         _textures.addReference(texture);
 
-        framebufferAttachments[activeAttachments] = texture.vkImageView;
+        framebufferAttachments[activeAttachments] = texture->vkImageView;
     }
 
-    if (framebuffer.depthStencilAttachment != Undefined) {
-        auto& texture = _textures.access(framebuffer.depthStencilAttachment);
+    if (framebuffer->depthStencilAttachment != Undefined) {
+        auto texture = _textures.access(framebuffer->depthStencilAttachment);
         _textures.addReference(texture);
 
-        framebufferAttachments[activeAttachments++] = texture.vkImageView;
+        framebufferAttachments[activeAttachments++] = texture->vkImageView;
     }
 
-    auto& renderPass = _renderPasses.access(framebuffer.renderPass);
+    auto renderPass = _renderPasses.access(framebuffer->renderPass);
 
     VkFramebufferCreateInfo createInfo{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-    createInfo.renderPass      = renderPass.vkRenderPass;
+    createInfo.renderPass      = renderPass->vkRenderPass;
     createInfo.attachmentCount = activeAttachments;
     createInfo.pAttachments    = framebufferAttachments;
-    createInfo.width           = framebuffer.width;
-    createInfo.height          = framebuffer.height;
+    createInfo.width           = framebuffer->width;
+    createInfo.height          = framebuffer->height;
     createInfo.layers          = 1;
-    check(_vkTable.vkCreateFramebuffer(_device, &createInfo, getAllocCalls(), &framebuffer.vkFramebuffer));
+    check(_vkTable.vkCreateFramebuffer(_device, &createInfo, getAllocCalls(), &framebuffer->vkFramebuffer));
 
-    setObjectName(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t) framebuffer.vkFramebuffer, framebuffer.name);
+    setObjectName(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t) framebuffer->vkFramebuffer, framebuffer->name);
 
     return handle;
 }
@@ -360,14 +358,14 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
     auto [handle, program] = _programs.obtain_and_access();
 
     // VkPipelineShaderStageCreateInfo shaderStageInfo[kMaxShaderStages];
-    program.name             = intern(creation.name);
-    program.graphicsPipeline = true;
+    program->name             = intern(creation.name);
+    program->graphicsPipeline = true;
 
-    for (; program.activeShaders < creation.stagesCount; ++program.activeShaders) {
-        const auto& stage = creation.stages[program.activeShaders];
+    for (; program->activeShaders < creation.stagesCount; ++program->activeShaders) {
+        const auto& stage = creation.stages[program->activeShaders];
 
         if (stage.type == VK_SHADER_STAGE_COMPUTE_BIT) {
-            program.graphicsPipeline = false;
+            program->graphicsPipeline = false;
         }
 
         VkShaderModuleCreateInfo shaderInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
@@ -382,17 +380,17 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
             shaderInfo.pCode    = code.data();
         }
 
-        VkPipelineShaderStageCreateInfo& shaderStageInfo = program.shaderStageInfo[program.activeShaders];
+        VkPipelineShaderStageCreateInfo& shaderStageInfo = program->shaderStageInfo[program->activeShaders];
         shaderStageInfo.sType                            = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStageInfo.pName                            = "main";
         shaderStageInfo.stage                            = stage.type;
         check(_vkTable.vkCreateShaderModule(
-            _device, &shaderInfo, getAllocCalls(), &program.shaderStageInfo[program.activeShaders].module));
+            _device, &shaderInfo, getAllocCalls(), &program->shaderStageInfo[program->activeShaders].module));
 
         // spirv::parseBinary(shaderInfo.pCode, shaderInfo.codeSize, shader.parseResult);
 
         setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
-                      (uint64_t) program.shaderStageInfo[program.activeShaders].module,
+                      (uint64_t) program->shaderStageInfo[program->activeShaders].module,
                       creation.name);
     }
 
@@ -666,7 +664,7 @@ void Device::createSwapchain(Application* application) {
     for (uint32_t i = 0; i < swapchainImages; ++i) {
         auto [colorHandle, color] = _textures.obtain_and_access();
 
-        color.vkImage = images[i];
+        color->vkImage = images[i];
 
         VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         viewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
@@ -679,7 +677,7 @@ void Device::createSwapchain(Application* application) {
         viewInfo.components.g                = VK_COMPONENT_SWIZZLE_G;
         viewInfo.components.b                = VK_COMPONENT_SWIZZLE_B;
         viewInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
-        check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &color.vkImageView));
+        check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &color->vkImageView));
 
         TextureCreation depthCreation{};
         depthCreation.setName("SwapchainDepthStencilTexture");
@@ -688,7 +686,7 @@ void Device::createSwapchain(Application* application) {
         depthCreation.setFormat(GERIUM_FORMAT_D32_SFLOAT, GERIUM_TEXTURE_TYPE_2D);
 
         auto depthHandle = createTexture(depthCreation);
-        auto& depth      = _textures.access(depthHandle);
+        auto depth       = _textures.access(depthHandle);
 
         auto name = "SwapchainFramebuffer"s + std::to_string(i);
 
@@ -997,12 +995,12 @@ void Device::deleteResources(bool forceDelete) {
                 break;
             case ResourceType::Texture: {
                 if (_textures.references(TextureHandle{ resource.handle }) == 1) {
-                    auto& texture = _textures.access(resource.handle);
-                    if (texture.vkImageView) {
-                        _vkTable.vkDestroyImageView(_device, texture.vkImageView, getAllocCalls());
+                    auto texture = _textures.access(resource.handle);
+                    if (texture->vkImageView) {
+                        _vkTable.vkDestroyImageView(_device, texture->vkImageView, getAllocCalls());
                     }
-                    if (texture.vkImage && texture.vmaAllocation) {
-                        vmaDestroyImage(_vmaAllocator, texture.vkImage, texture.vmaAllocation);
+                    if (texture->vkImage && texture->vmaAllocation) {
+                        vmaDestroyImage(_vmaAllocator, texture->vkImage, texture->vmaAllocation);
                     }
                 }
                 _textures.release(resource.handle);
@@ -1012,28 +1010,28 @@ void Device::deleteResources(bool forceDelete) {
                 break;
             case ResourceType::RenderPass: {
                 if (_renderPasses.references(RenderPassHandle{ resource.handle }) == 1) {
-                    auto& renderPass = _renderPasses.access(resource.handle);
-                    _renderPassCache.erase(hash(renderPass.output));
-                    _vkTable.vkDestroyRenderPass(_device, renderPass.vkRenderPass, getAllocCalls());
+                    auto renderPass = _renderPasses.access(resource.handle);
+                    _renderPassCache.erase(hash(renderPass->output));
+                    _vkTable.vkDestroyRenderPass(_device, renderPass->vkRenderPass, getAllocCalls());
                 }
                 _renderPasses.release(resource.handle);
                 break;
             }
             case ResourceType::Framebuffer: {
-                auto& framebuffer = _framebuffers.access(resource.handle);
-                if (framebuffer.removeReference() == 0) {
-                    for (gerium_uint32_t i = 0; i < framebuffer.numColorAttachments; ++i) {
-                        destroyTexture(framebuffer.colorAttachments[i]);
+                if (_framebuffers.references(FramebufferHandle{ resource.handle }) == 1) {
+                    auto framebuffer = _framebuffers.access(resource.handle);
+                    for (gerium_uint32_t i = 0; i < framebuffer->numColorAttachments; ++i) {
+                        destroyTexture(framebuffer->colorAttachments[i]);
                     }
-                    if (framebuffer.depthStencilAttachment != Undefined) {
-                        destroyTexture(framebuffer.depthStencilAttachment);
+                    if (framebuffer->depthStencilAttachment != Undefined) {
+                        destroyTexture(framebuffer->depthStencilAttachment);
                     }
-                    if (framebuffer.renderPass != Undefined) {
-                        destroyRenderPass(framebuffer.renderPass);
+                    if (framebuffer->renderPass != Undefined) {
+                        destroyRenderPass(framebuffer->renderPass);
                     }
-                    _vkTable.vkDestroyFramebuffer(_device, framebuffer.vkFramebuffer, getAllocCalls());
-                    _framebuffers.release(resource.handle);
+                    _vkTable.vkDestroyFramebuffer(_device, framebuffer->vkFramebuffer, getAllocCalls());
                 }
+                _framebuffers.release(resource.handle);
                 break;
             }
             case ResourceType::Shader:

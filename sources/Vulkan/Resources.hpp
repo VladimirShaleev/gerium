@@ -427,21 +427,6 @@ struct DescriptorBinding {
     const char* name;
 };
 
-template <typename H>
-struct Resource {
-    H               handle;
-    gerium_uint16_t references;
-
-    gerium_uint16_t addReference() noexcept {
-        return ++references;
-    }
-
-    gerium_uint16_t removeReference() {
-        assert(references != 0);
-        return --references;
-    }
-};
-
 struct Texture {
     VkImage               vkImage;
     VkImageView           vkImageView;
@@ -507,7 +492,7 @@ struct Pipeline {
     bool           graphicsPipeline;
 };
 
-struct Framebuffer : Resource<FramebufferHandle> {
+struct Framebuffer {
     VkFramebuffer    vkFramebuffer;
     RenderPassHandle renderPass;
     uint16_t         width;

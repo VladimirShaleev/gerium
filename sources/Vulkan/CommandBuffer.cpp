@@ -17,7 +17,7 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
                                     gerium_uint32_t mipLevel,
                                     gerium_uint32_t mipCount,
                                     bool isDepth) {
-    auto& texture = _device->_textures.access(handle);
+    auto texture = _device->_textures.access(handle);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
     barrier.srcAccessMask                   = toVkAccessFlags(oldState);
@@ -26,7 +26,7 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     barrier.newLayout                       = toVkImageLayout(newState);
     barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                           = texture.vkImage;
+    barrier.image                           = texture->vkImage;
     barrier.subresourceRange.aspectMask     = isDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel   = mipLevel;
     barrier.subresourceRange.levelCount     = mipCount;

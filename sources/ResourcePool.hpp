@@ -36,9 +36,9 @@ public:
     using value_type        = T;
     using difference_type   = ptrdiff_t;
     using pointer           = value_type*;
-    using reference         = value_type&;
+    using reference         = value_type*;
     using const_pointer     = const value_type*;
-    using const_reference   = const value_type&;
+    using const_reference   = const value_type*;
 
     ResourcePoolIterator() noexcept = default;
 
@@ -49,11 +49,11 @@ public:
     }
 
     reference operator*() noexcept {
-        return _resources->obj;
+        return &_resources->obj;
     }
 
     const_reference operator*() const noexcept {
-        return _resources->obj;
+        return &_resources->obj;
     }
 
     pointer operator->() noexcept {
@@ -321,7 +321,7 @@ public:
         const auto index = _handles[_head++];
 
         if constexpr (!std::is_trivially_default_constructible_v<T>) {
-            new (&access(H{ index })) T();
+            new (access(H{ index })) T();
         }
 
         _data[index].handle     = index;
@@ -336,7 +336,7 @@ public:
 
         if (--_data[handle.index].references == 0) {
             if constexpr (!std::is_trivially_destructible_v<T>) {
-                access(handle).~T();
+                access(handle)->~T();
             }
 
             std::memset(&_data[handle.index], 0, sizeof(Resource));
@@ -366,19 +366,19 @@ public:
         }
     }
 
-    T& addReference(H handle) noexcept {
+    T* addReference(H handle) noexcept {
         checkInit();
         checkHandle(handle);
         ++_data[handle.index].references;
-        return _data[handle.index].obj;
+        return &_data[handle.index].obj;
     }
 
-    T& addReference(T& resource) noexcept {
+    T* addReference(T* resource) noexcept {
         checkInit();
         constexpr auto offset = offsetof(Resource, obj);
-        auto& owner           = *reinterpret_cast<Resource*>((char*) &resource - offset);
+        auto& owner           = *reinterpret_cast<Resource*>((char*) resource - offset);
         ++owner.references;
-        return owner.obj;
+        return &owner.obj;
     }
 
     gerium_uint16_t references(H handle) const noexcept {
@@ -387,33 +387,33 @@ public:
         return _data[handle.index].references;
     }
 
-    gerium_uint16_t references(const T& resource) const noexcept {
+    gerium_uint16_t references(const T* resource) const noexcept {
         checkInit();
         constexpr auto offset = offsetof(Resource, obj);
-        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) &resource - offset);
+        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) resource - offset);
         return owner.references;
     }
 
-    T& access(H handle) noexcept {
+    T* access(H handle) noexcept {
         checkInit();
         checkHandle(handle);
-        return _data[handle.index].obj;
+        return &_data[handle.index].obj;
     }
 
-    const T& access(H handle) const noexcept {
+    const T* access(H handle) const noexcept {
         checkInit();
         checkHandle(handle);
-        return _data[handle.index].obj;
+        return &_data[handle.index].obj;
     }
 
-    std::pair<H, T&> obtain_and_access() {
+    std::pair<H, T*> obtain_and_access() {
         const auto handle = obtain();
         return { handle, access(handle) };
     }
 
-    Handle handle(const T& resource) const noexcept {
+    Handle handle(const T* resource) const noexcept {
         constexpr auto offset = offsetof(Resource, obj);
-        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) &resource - offset);
+        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) resource - offset);
         return { owner.handle };
     }
 
