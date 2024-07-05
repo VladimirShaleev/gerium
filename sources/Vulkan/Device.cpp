@@ -67,6 +67,33 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createVmaAllocator();
     createSynchronizations();
     createSwapchain(application);
+
+    const char vs[] = "#version 450\n"
+                      "\n"
+                      "vec2 positions[3] = vec2[](\n"
+                      "    vec2(0.0, -0.5),\n"
+                      "    vec2(0.5, 0.5),\n"
+                      "    vec2(-0.5, 0.5)\n"
+                      ");\n"
+                      "\n"
+                      "void main() {\n"
+                      "    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);"
+                      "}\n";
+
+    const auto vsSize = sizeof(vs) - 1;
+
+    const char fs[] = "#version 450\n"
+                      "\n"
+                      "layout(location = 0) out vec4 outColor;\n"
+                      "\n"
+                      "void main() {\n"
+                      "    outColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+                      "}\n";
+
+    const auto fsSize = sizeof(fs) - 1;
+
+    auto shaderVs = compileGLSL(vs, vsSize, VK_SHADER_STAGE_VERTEX_BIT, "shader.vs.glsl");
+    auto shaderFs = compileGLSL(fs, fsSize, VK_SHADER_STAGE_FRAGMENT_BIT, "shader.fs.glsl");
 }
 
 void Device::newFrame() {
@@ -840,11 +867,19 @@ std::vector<uint32_t> Device::compileGLSL(const char* code,
 
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
     options.SetWarningsAsErrors();
+    options.SetPreserveBindings(true);
+    options.SetAutoMapLocations(true);
+    options.SetAutoBindUniforms(true);
+    options.SetAutoSampledTextures(true);
 
     auto result = compiler.CompileGlslToSpv(code, size, kind, name, "main", options);
 
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, result.GetErrorMessage().c_str());
+        std::stringstream ss(result.GetErrorMessage());
+        std::string message;
+        while (std::getline(ss, message, '\n')) {
+            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, message.c_str());
+        }
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add error type;
     }
 
