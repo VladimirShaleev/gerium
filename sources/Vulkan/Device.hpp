@@ -31,6 +31,8 @@ public:
     void destroyTexture(TextureHandle handle);
     void destroyRenderPass(RenderPassHandle handle);
     void destroyFramebuffer(FramebufferHandle handle);
+    void destroyProgram(ProgramHandle handle);
+    void destroyPipeline(PipelineHandle handle);
 
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
 
@@ -58,7 +60,7 @@ private:
         Sampler,
         RenderPass,
         Framebuffer,
-        Shader,
+        Program,
         DescriptorSet,
         DescriptorSetLayout,
         Pipeline

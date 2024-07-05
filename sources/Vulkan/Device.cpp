@@ -15,6 +15,16 @@ Device::~Device() {
         }
         deleteResources(true);
 
+        for (auto pipeline : _pipelines) {
+            destroyPipeline(_pipelines.handle(pipeline));
+        }
+        deleteResources(true);
+
+        for (auto program : _programs) {
+            destroyProgram(_programs.handle(program));
+        }
+        deleteResources(true);
+
         for (auto renderPass : _renderPasses) {
             destroyRenderPass(_renderPasses.handle(renderPass));
         }
@@ -425,7 +435,257 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
 }
 
 PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
-    auto [handle, pipelines] = _pipelines.obtain_and_access();
+    auto [handle, pipeline] = _pipelines.obtain_and_access();
+
+    VkPipelineCacheCreateInfo cacheInfo{ VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
+
+    auto cacheExists = false;
+
+    if (cacheExists) {
+        // auto binary = foundation::fileRead(cachePath);
+
+        // VkPipelineCacheHeaderVersionOne* header = (VkPipelineCacheHeaderVersionOne*) binary.data();
+
+        // if (binary.size() >= sizeof(VkPipelineCacheHeaderVersionOne) &&
+        //     header->deviceID == _deviceProperties.deviceID && header->vendorID == _deviceProperties.vendorID &&
+        //     memcmp(header->pipelineCacheUUID, _deviceProperties.pipelineCacheUUID, VK_UUID_SIZE) == 0) {
+        //     cacheInfo.initialDataSize = binary.size();
+        //     cacheInfo.pInitialData    = binary.data();
+        // } else {
+        //     cacheExists = false;
+        // }
+    }
+
+    VkPipelineCache pipelineCache;
+    check(_vkTable.vkCreatePipelineCache(_device, &cacheInfo, getAllocCalls(), &pipelineCache));
+
+    auto programHandle = createProgram(creation.program);
+    auto program       = _programs.access(programHandle);
+
+    pipeline->program = programHandle;
+
+    VkDescriptorSetLayout vkLayouts[kMaxDescriptorSetLayouts];
+    uint32_t numActiveLayouts = 0; // shader.parseResult->setCount;
+
+    // for (uint32_t l = 0; l < numActiveLayouts; ++l) {
+    //     if (shader.parseResult->sets[l].setIndex == 1 &&
+    //         shader.parseResult->sets[l].bindings[0].index == k_bindless_texture_binding) { // for BINDLESS
+    //         DescriptorSetLayout& s = _descriptorSetLayouts.access(_bindlessDescriptorSetLayout);
+    //         // Avoid deletion of this set as it is global and will be freed after.
+    //         pipeline.descriptorSetLayoutHandles[l] = DescriptorSetLayoutPool::Undefined;
+    //         vkLayouts[l]                           = s.vkDescriptorSetLayout;
+    //         continue;
+    //     } else {
+    //         pipeline.descriptorSetLayoutHandles[l] = createDescriptorSetLayout(shader.parseResult->sets[l]);
+    //     }
+
+    //     auto descriptorSetLayout = _descriptorSetLayouts.access(pipeline.descriptorSetLayoutHandles[l]);
+    //     vkLayouts[l]             = descriptorSetLayout.vkDescriptorSetLayout;
+    // }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    pipelineLayoutInfo.pSetLayouts    = vkLayouts;
+    pipelineLayoutInfo.setLayoutCount = numActiveLayouts;
+
+    VkPipelineLayout pipelineLayout;
+    check(_vkTable.vkCreatePipelineLayout(_device, &pipelineLayoutInfo, getAllocCalls(), &pipelineLayout));
+
+    pipeline->vkPipelineLayout = pipelineLayout;
+    pipeline->numActiveLayouts = numActiveLayouts;
+
+    // Create full pipeline
+    if (program->graphicsPipeline) {
+        VkPipelineVertexInputStateCreateInfo vertexInput{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+        VkVertexInputAttributeDescription vertexAttributes[kMaxVertexAttributes];
+        VkVertexInputBindingDescription vertexBindings[kMaxVertexStreams];
+
+        if (creation.vertexInput.numVertexAttributes) {
+            for (uint32_t i = 0; i < creation.vertexInput.numVertexAttributes; ++i) {
+                const auto& vertexAttribute = creation.vertexInput.vertexAttributes[i];
+
+                vertexAttributes[i] = { vertexAttribute.location,
+                                        vertexAttribute.binding,
+                                        toVkVertexFormat(vertexAttribute.format),
+                                        vertexAttribute.offset };
+            }
+            vertexInput.vertexAttributeDescriptionCount = creation.vertexInput.numVertexAttributes;
+            vertexInput.pVertexAttributeDescriptions    = vertexAttributes;
+        } else {
+            vertexInput.vertexAttributeDescriptionCount = 0;
+            vertexInput.pVertexAttributeDescriptions    = nullptr;
+        }
+
+        if (creation.vertexInput.numVertexStreams) {
+            vertexInput.vertexBindingDescriptionCount = creation.vertexInput.numVertexStreams;
+
+            for (uint32_t i = 0; i < creation.vertexInput.numVertexStreams; ++i) {
+                const auto& vertex_stream = creation.vertexInput.vertexStreams[i];
+
+                VkVertexInputRate vertex_rate = vertex_stream.inputRate == VertexInputRate::PerVertex
+                                                    ? VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX
+                                                    : VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE;
+
+                vertexBindings[i] = { vertex_stream.binding, vertex_stream.stride, vertex_rate };
+            }
+            vertexInput.pVertexBindingDescriptions = vertexBindings;
+        } else {
+            vertexInput.vertexBindingDescriptionCount = 0;
+            vertexInput.pVertexBindingDescriptions    = nullptr;
+        }
+
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly{
+            VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+        };
+        inputAssembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+        VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+        rasterizer.depthClampEnable        = VK_FALSE;
+        rasterizer.rasterizerDiscardEnable = VK_FALSE;
+        rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
+        rasterizer.lineWidth               = 1.0f;
+        rasterizer.cullMode                = creation.rasterization.cullMode;
+        rasterizer.frontFace               = creation.rasterization.front;
+        rasterizer.depthBiasEnable         = VK_FALSE;
+        rasterizer.depthBiasConstantFactor = 0.0f;
+        rasterizer.depthBiasClamp          = 0.0f;
+        rasterizer.depthBiasSlopeFactor    = 0.0f;
+
+        VkPipelineMultisampleStateCreateInfo multisampling{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+        multisampling.sampleShadingEnable   = VK_FALSE;
+        multisampling.rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT;
+        multisampling.minSampleShading      = 1.0f;
+        multisampling.pSampleMask           = nullptr;
+        multisampling.alphaToCoverageEnable = VK_FALSE;
+        multisampling.alphaToOneEnable      = VK_FALSE;
+
+        VkPipelineDepthStencilStateCreateInfo depthStencil{
+            VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
+        };
+        depthStencil.depthWriteEnable  = creation.depthStencil.depthWriteEnable ? VK_TRUE : VK_FALSE;
+        depthStencil.stencilTestEnable = creation.depthStencil.stencilEnable ? VK_TRUE : VK_FALSE;
+        depthStencil.depthTestEnable   = creation.depthStencil.depthEnable ? VK_TRUE : VK_FALSE;
+        depthStencil.depthCompareOp    = creation.depthStencil.depthComparison;
+        if (creation.depthStencil.stencilEnable) {
+            // TODO: add stencil
+            assert(false);
+        }
+
+        VkPipelineColorBlendAttachmentState colorBlendAttachment[kMaxImageOutputs];
+        if (creation.blendState.activeStates) {
+            assert(creation.blendState.activeStates == creation.renderPass.numColorFormats);
+            for (uint32_t i = 0; i < creation.blendState.activeStates; i++) {
+                const BlendState& blendState = creation.blendState.blendStates[i];
+
+                colorBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                                         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+                colorBlendAttachment[i].blendEnable         = blendState.blendEnabled ? VK_TRUE : VK_FALSE;
+                colorBlendAttachment[i].srcColorBlendFactor = blendState.sourceColor;
+                colorBlendAttachment[i].dstColorBlendFactor = blendState.destinationColor;
+                colorBlendAttachment[i].colorBlendOp        = blendState.colorOperation;
+
+                if (blendState.separateBlend) {
+                    colorBlendAttachment[i].srcAlphaBlendFactor = blendState.sourceAlpha;
+                    colorBlendAttachment[i].dstAlphaBlendFactor = blendState.destinationAlpha;
+                    colorBlendAttachment[i].alphaBlendOp        = blendState.alphaOperation;
+                } else {
+                    colorBlendAttachment[i].srcAlphaBlendFactor = blendState.sourceColor;
+                    colorBlendAttachment[i].dstAlphaBlendFactor = blendState.destinationColor;
+                    colorBlendAttachment[i].alphaBlendOp        = blendState.colorOperation;
+                }
+            }
+        } else {
+            for (uint32_t i = 0; i < creation.renderPass.numColorFormats; ++i) {
+                colorBlendAttachment[i]                = {};
+                colorBlendAttachment[i].blendEnable    = VK_FALSE;
+                colorBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                                         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+            }
+        }
+
+        VkPipelineColorBlendStateCreateInfo colorBlending{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+        colorBlending.logicOpEnable = VK_FALSE;
+        colorBlending.logicOp       = VK_LOGIC_OP_COPY;
+        colorBlending.attachmentCount =
+            creation.blendState.activeStates ? creation.blendState.activeStates : creation.renderPass.numColorFormats;
+        colorBlending.pAttachments      = colorBlendAttachment;
+        colorBlending.blendConstants[0] = 0.0f;
+        colorBlending.blendConstants[1] = 0.0f;
+        colorBlending.blendConstants[2] = 0.0f;
+        colorBlending.blendConstants[3] = 0.0f;
+
+        VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+        VkPipelineDynamicStateCreateInfo dynamicState{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+        dynamicState.dynamicStateCount = sizeof(dynamicStates) / sizeof(dynamicStates[0]);
+        dynamicState.pDynamicStates    = dynamicStates;
+
+        VkGraphicsPipelineCreateInfo pipelineInfo{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+        pipelineInfo.stageCount          = program->activeShaders;
+        pipelineInfo.pStages             = program->shaderStageInfo;
+        pipelineInfo.pVertexInputState   = &vertexInput;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState      = nullptr;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState   = &multisampling;
+        pipelineInfo.pDepthStencilState  = &depthStencil;
+        pipelineInfo.pColorBlendState    = &colorBlending;
+        pipelineInfo.pDynamicState       = &dynamicState;
+        pipelineInfo.layout              = pipelineLayout;
+
+        //// Render Pass
+        //  VkPipelineRenderingCreateInfoKHR pipeline_rendering_create_info{
+        //     VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
+        //  if (dynamic_rendering_extension_present) {
+        //      pipeline_rendering_create_info.viewMask             = 0;
+        //      pipeline_rendering_create_info.colorAttachmentCount = creation.render_pass.num_color_formats;
+        //      pipeline_rendering_create_info.pColorAttachmentFormats =
+        //          creation.render_pass.num_color_formats > 0 ? creation.render_pass.color_formats : nullptr;
+        //      pipeline_rendering_create_info.depthAttachmentFormat   = creation.render_pass.depth_stencil_format;
+        //      pipeline_rendering_create_info.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+        //      pipeline_info.pNext = &pipeline_rendering_create_info;
+        //  } else {
+
+        RenderPassCreation rc{};
+        rc.output               = creation.renderPass;
+        rc.name                 = creation.name;
+        pipeline->renderPass    = createRenderPass(rc);
+        pipelineInfo.renderPass = _renderPasses.access(pipeline->renderPass)->vkRenderPass;
+        //}
+
+        check(_vkTable.vkCreateGraphicsPipelines(
+            _device, pipelineCache, 1, &pipelineInfo, getAllocCalls(), &pipeline->vkPipeline));
+
+        pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    } else {
+        VkComputePipelineCreateInfo pipelineInfo{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+        pipelineInfo.stage  = program->shaderStageInfo[0];
+        pipelineInfo.layout = pipelineLayout;
+
+        check(_vkTable.vkCreateComputePipelines(
+            _device, pipelineCache, 1, &pipelineInfo, getAllocCalls(), &pipeline->vkPipeline));
+
+        pipeline->renderPass  = Undefined;
+        pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+    }
+
+    // if (cachePath != nullptr && !cacheExists) {
+    //     size_t cacheSize = 0;
+    //     check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, nullptr));
+
+    //     std::vector<uint8_t> cacheData;
+    //     cacheData.resize(cacheSize);
+    //     check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, (void*) cacheData.data()));
+
+    //     foundation::fileWrite(cachePath, (void*) cacheData.data(), cacheData.size());
+    // }
+
+    _vkTable.vkDestroyPipelineCache(_device, pipelineCache, getAllocCalls());
+
+    // for (uint32_t i = 0; i < shader.activeShaders; ++i) {
+    //     _vkTable.vkDestroyShaderModule(_device, shader.shaderStageInfo[i].module, getAllocCalls());
+    //     shader.shaderStageInfo[i].module = VK_NULL_HANDLE;
+    // }
 
     return handle;
 }
@@ -440,6 +700,14 @@ void Device::destroyRenderPass(RenderPassHandle handle) {
 
 void Device::destroyFramebuffer(FramebufferHandle handle) {
     _deletionQueue.push({ ResourceType::Framebuffer, _currentFrame, handle });
+}
+
+void Device::destroyProgram(ProgramHandle handle) {
+    _deletionQueue.push({ ResourceType::Program, _currentFrame, handle });
+}
+
+void Device::destroyPipeline(PipelineHandle handle) {
+    _deletionQueue.push({ ResourceType::Pipeline, _currentFrame, handle });
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
@@ -1028,7 +1296,7 @@ void Device::deleteResources(bool forceDelete) {
         switch (resource.type) {
             case ResourceType::Buffer:
                 break;
-            case ResourceType::Texture: {
+            case ResourceType::Texture:
                 if (_textures.references(TextureHandle{ resource.handle }) == 1) {
                     auto texture = _textures.access(resource.handle);
                     if (texture->vkImageView) {
@@ -1040,10 +1308,9 @@ void Device::deleteResources(bool forceDelete) {
                 }
                 _textures.release(resource.handle);
                 break;
-            }
             case ResourceType::Sampler:
                 break;
-            case ResourceType::RenderPass: {
+            case ResourceType::RenderPass:
                 if (_renderPasses.references(RenderPassHandle{ resource.handle }) == 1) {
                     auto renderPass = _renderPasses.access(resource.handle);
                     _renderPassCache.erase(hash(renderPass->output));
@@ -1051,8 +1318,7 @@ void Device::deleteResources(bool forceDelete) {
                 }
                 _renderPasses.release(resource.handle);
                 break;
-            }
-            case ResourceType::Framebuffer: {
+            case ResourceType::Framebuffer:
                 if (_framebuffers.references(FramebufferHandle{ resource.handle }) == 1) {
                     auto framebuffer = _framebuffers.access(resource.handle);
                     for (gerium_uint32_t i = 0; i < framebuffer->numColorAttachments; ++i) {
@@ -1068,14 +1334,25 @@ void Device::deleteResources(bool forceDelete) {
                 }
                 _framebuffers.release(resource.handle);
                 break;
-            }
-            case ResourceType::Shader:
+            case ResourceType::Program:
+                if (_programs.references(ProgramHandle{ resource.handle }) == 1) {
+                    auto program = _programs.access(resource.handle);
+                    for (uint32_t i = 0; i < program->activeShaders; ++i) {
+                        if (program->shaderStageInfo[i].module) {
+                            _vkTable.vkDestroyShaderModule(_device, program->shaderStageInfo[i].module, getAllocCalls());
+                        }
+                    }
+                }
+                _programs.release(resource.handle);
                 break;
             case ResourceType::DescriptorSet:
                 break;
             case ResourceType::DescriptorSetLayout:
                 break;
             case ResourceType::Pipeline:
+                if (_pipelines.references(PipelineHandle{ resource.handle }) == 1) {
+                }
+                _pipelines.release(resource.handle);
                 break;
         }
         _deletionQueue.pop();
