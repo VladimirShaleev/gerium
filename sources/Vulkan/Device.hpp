@@ -199,6 +199,9 @@ private:
     uint32_t _ssboAlignment{};
     bool _profilerSupported{};
     bool _profilerEnabled{};
+
+    //// Test
+    PipelineHandle _pipeline{};
 };
 
 } // namespace gerium::vulkan

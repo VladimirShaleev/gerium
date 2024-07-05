@@ -102,8 +102,36 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     const auto fsSize = sizeof(fs) - 1;
 
-    auto shaderVs = compileGLSL(vs, vsSize, VK_SHADER_STAGE_VERTEX_BIT, "shader.vs.glsl");
-    auto shaderFs = compileGLSL(fs, fsSize, VK_SHADER_STAGE_FRAGMENT_BIT, "shader.fs.glsl");
+    /*auto shaderVs = compileGLSL(vs, vsSize, VK_SHADER_STAGE_VERTEX_BIT, "shader.vs.glsl");
+    auto shaderFs = compileGLSL(fs, fsSize, VK_SHADER_STAGE_FRAGMENT_BIT, "shader.fs.glsl");*/
+
+    ViewportState viewport{};
+
+    RenderPassOutput output{};
+    output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, RenderPassOperation::Clear);
+    output.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    output.setDepthStencilOperations(RenderPassOperation::Clear, RenderPassOperation::Clear);
+
+    PipelineCreation pc{};
+    pc.rasterization.cullMode = VK_CULL_MODE_NONE;
+    pc.rasterization.front    = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    pc.rasterization.fill     = FillMode::Solid;
+    // pc.depthStencil.front            = ;
+    // pc.depthStencil.back             = ;
+    pc.depthStencil.depthComparison  = VK_COMPARE_OP_ALWAYS;
+    pc.depthStencil.depthEnable      = 0;
+    pc.depthStencil.depthWriteEnable = 0;
+    pc.depthStencil.stencilEnable    = 0;
+    // pc.program                       = ;
+    pc.renderPass = output;
+    pc.viewport   = &viewport;
+    pc.name       = "Simple Triangle";
+
+    pc.program.addStage(vs, vsSize, VK_SHADER_STAGE_VERTEX_BIT);
+    pc.program.addStage(fs, fsSize, VK_SHADER_STAGE_FRAGMENT_BIT);
+    pc.program.setName("simple");
+
+    _pipeline = createPipeline(pc);
 }
 
 void Device::newFrame() {
@@ -1339,7 +1367,8 @@ void Device::deleteResources(bool forceDelete) {
                     auto program = _programs.access(resource.handle);
                     for (uint32_t i = 0; i < program->activeShaders; ++i) {
                         if (program->shaderStageInfo[i].module) {
-                            _vkTable.vkDestroyShaderModule(_device, program->shaderStageInfo[i].module, getAllocCalls());
+                            _vkTable.vkDestroyShaderModule(
+                                _device, program->shaderStageInfo[i].module, getAllocCalls());
                         }
                     }
                 }
@@ -1351,6 +1380,16 @@ void Device::deleteResources(bool forceDelete) {
                 break;
             case ResourceType::Pipeline:
                 if (_pipelines.references(PipelineHandle{ resource.handle }) == 1) {
+                    auto pipeline = _pipelines.access(resource.handle);
+                    _vkTable.vkDestroyPipelineLayout(_device, pipeline->vkPipelineLayout, getAllocCalls());
+                    _vkTable.vkDestroyPipeline(_device, pipeline->vkPipeline, getAllocCalls());
+                    for (uint32_t i = 0; i < pipeline->numActiveLayouts; ++i) {
+                        if (pipeline->descriptorSetLayoutHandles[i] != Undefined) {
+                            // destroyDescriptorSetLayout(pipeline->descriptorSetLayoutHandles[i]);
+                        }
+                    }
+                    destroyProgram(pipeline->program);
+                    destroyRenderPass(pipeline->renderPass);
                 }
                 _pipelines.release(resource.handle);
                 break;
