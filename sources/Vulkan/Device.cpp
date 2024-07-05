@@ -10,18 +10,18 @@ Device::~Device() {
         _vkTable.vkDeviceWaitIdle(_device);
         deleteResources(true);
 
-        for (auto framebuffer : _framebuffers) {
+        for (auto& framebuffer : _framebuffers) {
             destroyFramebuffer(framebuffer.handle);
         }
         deleteResources(true);
 
-        for (auto renderPass : _renderPasses) {
-            destroyRenderPass(renderPass.handle);
+        for (auto& renderPass : _renderPasses) {
+            destroyRenderPass(_renderPasses.handle(renderPass));
         }
         deleteResources(true);
 
-        for (auto texture : _textures) {
-            destroyTexture(texture.handle);
+        for (auto& texture : _textures) {
+            destroyTexture(_textures.handle(texture));
         }
         deleteResources(true);
 
@@ -191,16 +191,14 @@ void Device::present() {
 TextureHandle Device::createTexture(const TextureCreation& creation) {
     auto [handle, texture] = _textures.obtain_and_access();
 
-    texture.references = 1;
-    texture.handle     = handle;
-    texture.vkFormat   = toVkFormat(creation.format);
-    texture.width      = creation.width;
-    texture.height     = creation.height;
-    texture.depth      = creation.depth;
-    texture.mipmaps    = creation.mipmaps;
-    texture.flags      = creation.flags;
-    texture.type       = creation.type;
-    texture.name       = intern(creation.name);
+    texture.vkFormat = toVkFormat(creation.format);
+    texture.width    = creation.width;
+    texture.height   = creation.height;
+    texture.depth    = creation.depth;
+    texture.mipmaps  = creation.mipmaps;
+    texture.flags    = creation.flags;
+    texture.type     = creation.type;
+    texture.name     = intern(creation.name);
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -284,14 +282,12 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 RenderPassHandle Device::createRenderPass(const RenderPassCreation& creation) {
     const auto key = hash(creation.output);
     if (auto it = _renderPassCache.find(key); it != _renderPassCache.end()) {
-        _renderPasses.access(it->second).addReference();
+        _renderPasses.addReference(it->second);
         return it->second;
     }
 
     auto [handle, renderPass] = _renderPasses.obtain_and_access();
 
-    renderPass.handle       = handle;
-    renderPass.references   = 1;
     renderPass.output       = creation.output;
     renderPass.name         = intern(creation.name);
     renderPass.vkRenderPass = vkCreateRenderPass(renderPass.output, renderPass.name);
@@ -303,7 +299,7 @@ RenderPassHandle Device::createRenderPass(const RenderPassCreation& creation) {
 FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation) {
     auto [handle, framebuffer] = _framebuffers.obtain_and_access();
 
-    _renderPasses.access(creation.renderPass).addReference();
+    _renderPasses.addReference(creation.renderPass);
 
     framebuffer.handle                 = handle;
     framebuffer.references             = 1;
@@ -326,14 +322,14 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 
     for (; activeAttachments < framebuffer.numColorAttachments; ++activeAttachments) {
         auto& texture = _textures.access(framebuffer.colorAttachments[activeAttachments]);
-        texture.addReference();
+        _textures.addReference(texture);
 
         framebufferAttachments[activeAttachments] = texture.vkImageView;
     }
 
     if (framebuffer.depthStencilAttachment != Undefined) {
         auto& texture = _textures.access(framebuffer.depthStencilAttachment);
-        texture.addReference();
+        _textures.addReference(texture);
 
         framebufferAttachments[activeAttachments++] = texture.vkImageView;
     }
@@ -670,9 +666,7 @@ void Device::createSwapchain(Application* application) {
     for (uint32_t i = 0; i < swapchainImages; ++i) {
         auto [colorHandle, color] = _textures.obtain_and_access();
 
-        color.references = 1;
-        color.handle     = colorHandle;
-        color.vkImage    = images[i];
+        color.vkImage = images[i];
 
         VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         viewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
@@ -709,8 +703,8 @@ void Device::createSwapchain(Application* application) {
 
         _swapchainFramebuffers[i] = createFramebuffer(fc);
 
-        color.removeReference();
-        depth.removeReference();
+        _textures.release(colorHandle);
+        _textures.release(depthHandle);
 
         commandBuffer->addImageBarrier(colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1, false);
     }
@@ -1002,26 +996,27 @@ void Device::deleteResources(bool forceDelete) {
             case ResourceType::Buffer:
                 break;
             case ResourceType::Texture: {
-                auto& texture = _textures.access(resource.handle);
-                if (texture.removeReference() == 0) {
+                if (_textures.references(TextureHandle{ resource.handle }) == 1) {
+                    auto& texture = _textures.access(resource.handle);
                     if (texture.vkImageView) {
                         _vkTable.vkDestroyImageView(_device, texture.vkImageView, getAllocCalls());
                     }
                     if (texture.vkImage && texture.vmaAllocation) {
                         vmaDestroyImage(_vmaAllocator, texture.vkImage, texture.vmaAllocation);
                     }
-                    _textures.release(resource.handle);
                 }
+                _textures.release(resource.handle);
                 break;
             }
             case ResourceType::Sampler:
                 break;
             case ResourceType::RenderPass: {
-                auto& renderPass = _renderPasses.access(resource.handle);
-                if (renderPass.removeReference() == 0) {
+                if (_renderPasses.references(RenderPassHandle{ resource.handle }) == 1) {
+                    auto& renderPass = _renderPasses.access(resource.handle);
+                    _renderPassCache.erase(hash(renderPass.output));
                     _vkTable.vkDestroyRenderPass(_device, renderPass.vkRenderPass, getAllocCalls());
-                    _renderPasses.release(resource.handle);
                 }
+                _renderPasses.release(resource.handle);
                 break;
             }
             case ResourceType::Framebuffer: {

@@ -373,10 +373,10 @@ public:
         return _data[handle.index].obj;
     }
 
-    T& addReference(const T& resource) noexcept {
+    T& addReference(T& resource) noexcept {
         checkInit();
         constexpr auto offset = offsetof(Resource, obj);
-        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) &resource - offset);
+        auto& owner           = *reinterpret_cast<Resource*>((char*) &resource - offset);
         ++owner.references;
         return owner.obj;
     }

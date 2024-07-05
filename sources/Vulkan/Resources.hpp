@@ -442,7 +442,7 @@ struct Resource {
     }
 };
 
-struct Texture : Resource<TextureHandle> {
+struct Texture {
     VkImage               vkImage;
     VkImageView           vkImageView;
     VkFormat              vkFormat;
@@ -459,7 +459,7 @@ struct Texture : Resource<TextureHandle> {
     //SamplerHandle sampler;
 };
 
-struct RenderPass : Resource<RenderPassHandle> {
+struct RenderPass {
     VkRenderPass     vkRenderPass;
     RenderPassOutput output;
     gerium_utf8_t    name;
