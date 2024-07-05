@@ -373,6 +373,27 @@ public:
         return _data[handle.index].obj;
     }
 
+    T& addReference(const T& resource) noexcept {
+        checkInit();
+        constexpr auto offset = offsetof(Resource, obj);
+        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) &resource - offset);
+        ++owner.references;
+        return owner.obj;
+    }
+
+    gerium_uint16_t references(H handle) const noexcept {
+        checkInit();
+        checkHandle(handle);
+        return _data[handle.index].references;
+    }
+
+    gerium_uint16_t references(const T& resource) const noexcept {
+        checkInit();
+        constexpr auto offset = offsetof(Resource, obj);
+        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) &resource - offset);
+        return owner.references;
+    }
+
     T& access(H handle) noexcept {
         checkInit();
         checkHandle(handle);

@@ -24,6 +24,9 @@ public:
     TextureHandle createTexture(const TextureCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
+    DescriptorSetLayoutHandle createDescriptorSetLayout(const DescriptorSetLayoutCreation& creation);
+    ProgramHandle createProgram(const ProgramCreation& creation);
+    PipelineHandle createPipeline(const PipelineCreation& creation);
 
     void destroyTexture(TextureHandle handle);
     void destroyRenderPass(RenderPassHandle handle);
@@ -109,6 +112,7 @@ private:
     void printExtensions();
     void printPhysicalDevices();
 
+    std::vector<uint32_t> compileGLSL(const char* code, size_t size, VkShaderStageFlagBits stage, const char* name);
     VkRenderPass vkCreateRenderPass(const RenderPassOutput& output, const char* name);
     void deleteResources(bool forceDelete = false);
     void setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name);
@@ -176,6 +180,9 @@ private:
 
     TexturePool _textures;
     RenderPassPool _renderPasses;
+    DescriptorSetLayoutPool _descriptorSetLayouts;
+    ProgramPool _programs;
+    PipelinePool _pipelines;
     FramebufferPool _framebuffers;
 
     CommandBufferManager _commandBufferManager{};

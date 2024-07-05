@@ -48,6 +48,45 @@ enum class QueueType {
     CopyTransfer
 };
 
+enum class FillMode {
+    Wireframe,
+    Solid,
+    Point
+};
+
+enum class ColorWriteEnabled {
+    Red   = 0,
+    Green = 1,
+    Blue  = 2,
+    Alpha = 4,
+    All   = Red | Green | Blue | Alpha
+};
+GERIUM_FLAGS(ColorWriteEnabled)
+
+enum class VertexInputRate {
+    PerVertex,
+    PerInstance
+};
+
+enum class VertexComponentFormat {
+    Float,
+    Float2,
+    Float3,
+    Float4,
+    Mat4,
+    Byte,
+    Byte4N,
+    UByte,
+    UByte4N,
+    Short2,
+    Short2N,
+    Short4,
+    Short4N,
+    Uint,
+    Uint2,
+    Uint4
+};
+
 } // namespace gerium::vulkan
 
 #endif

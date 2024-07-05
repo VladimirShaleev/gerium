@@ -76,6 +76,9 @@
 # define gerium_inline inline __attribute__((always_inline))
 #endif
 
+// GLSL/HLSL compiler
+#include <shaderc/shaderc.hpp>
+
 #include "gerium/gerium.h"
 
 typedef ptrdiff_t gerium_sint_t;

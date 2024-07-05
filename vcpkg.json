@@ -10,6 +10,7 @@
     "abseil",
     "vulkan-headers",
     "vulkan-memory-allocator",
+    "shaderc",
     "gtest"
   ],
   "overrides": [

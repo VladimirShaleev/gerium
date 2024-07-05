@@ -175,7 +175,7 @@ void Device::present() {
     const auto resized = _appWidth != appWidth || _appHeight != appHeight;
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resized) {
-        _appWidth = appWidth;
+        _appWidth  = appWidth;
         _appHeight = appHeight;
         resizeSwapchain();
         frameCountersAdvance();
@@ -350,6 +350,61 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
     check(_vkTable.vkCreateFramebuffer(_device, &createInfo, getAllocCalls(), &framebuffer.vkFramebuffer));
 
     setObjectName(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t) framebuffer.vkFramebuffer, framebuffer.name);
+
+    return handle;
+}
+
+DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetLayoutCreation& creation) {
+    auto [handle, DescriptorSetLayout] = _descriptorSetLayouts.obtain_and_access();
+
+    return handle;
+}
+
+ProgramHandle Device::createProgram(const ProgramCreation& creation) {
+    auto [handle, program] = _programs.obtain_and_access();
+
+    // VkPipelineShaderStageCreateInfo shaderStageInfo[kMaxShaderStages];
+    program.name             = intern(creation.name);
+    program.graphicsPipeline = true;
+
+    for (; program.activeShaders < creation.stagesCount; ++program.activeShaders) {
+        const auto& stage = creation.stages[program.activeShaders];
+
+        if (stage.type == VK_SHADER_STAGE_COMPUTE_BIT) {
+            program.graphicsPipeline = false;
+        }
+
+        VkShaderModuleCreateInfo shaderInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+
+        std::vector<uint32_t> code;
+        if (creation.spvInput) {
+            shaderInfo.codeSize = stage.codeSize;
+            shaderInfo.pCode    = reinterpret_cast<const uint32_t*>(stage.code);
+        } else {
+            code                = compileGLSL(stage.code, stage.codeSize, stage.type, creation.name);
+            shaderInfo.codeSize = code.size() * 4;
+            shaderInfo.pCode    = code.data();
+        }
+
+        VkPipelineShaderStageCreateInfo& shaderStageInfo = program.shaderStageInfo[program.activeShaders];
+        shaderStageInfo.sType                            = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStageInfo.pName                            = "main";
+        shaderStageInfo.stage                            = stage.type;
+        check(_vkTable.vkCreateShaderModule(
+            _device, &shaderInfo, getAllocCalls(), &program.shaderStageInfo[program.activeShaders].module));
+
+        // spirv::parseBinary(shaderInfo.pCode, shaderInfo.codeSize, shader.parseResult);
+
+        setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
+                      (uint64_t) program.shaderStageInfo[program.activeShaders].module,
+                      creation.name);
+    }
+
+    return handle;
+}
+
+PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
+    auto [handle, pipelines] = _pipelines.obtain_and_access();
 
     return handle;
 }
@@ -763,6 +818,45 @@ void Device::printPhysicalDevices() {
         }
         _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, "");
     }
+}
+
+std::vector<uint32_t> Device::compileGLSL(const char* code,
+                                          size_t size,
+                                          VkShaderStageFlagBits stage,
+                                          const char* name) {
+    shaderc::Compiler compiler;
+    shaderc::CompileOptions options;
+
+    shaderc_shader_kind kind;
+
+    switch (stage) {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            options.AddMacroDefinition("VERTEX"s, "1"s);
+            kind = shaderc_glsl_vertex_shader;
+            break;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            options.AddMacroDefinition("FRAGMENT"s, "1"s);
+            kind = shaderc_glsl_fragment_shader;
+            break;
+        case VK_SHADER_STAGE_COMPUTE_BIT:
+            options.AddMacroDefinition("COMPUTE"s, "1"s);
+            kind = shaderc_glsl_compute_shader;
+            break;
+        default:
+            throw std::runtime_error("Not supported shader type");
+    }
+
+    options.SetOptimizationLevel(shaderc_optimization_level_performance);
+    options.SetWarningsAsErrors();
+
+    auto result = compiler.CompileGlslToSpv(code, size, kind, name, "main", options);
+
+    if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, result.GetErrorMessage().c_str());
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add error type;
+    }
+
+    return { result.cbegin(), result.cend() };
 }
 
 VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const char* name) {
