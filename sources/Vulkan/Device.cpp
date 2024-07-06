@@ -168,12 +168,12 @@ void Device::submit(CommandBuffer* commandBuffer) {
 
 void Device::present() {
     auto cb = getCommandBuffer(0);
-    cb->clearColor(1.0f, 0.0f, 1.0f, 1.0f);
+    cb->clearColor(1.0f, 0.8f, 1.0f, 1.0f);
     cb->clearDepthStencil(1.0f, 0);
     cb->bindPipeline(_pipeline, _swapchainFramebuffers[_swapchainImageIndex]);
     cb->setScissor(nullptr);
     cb->setViewport(nullptr);
-    // cb->draw(3, 1, 0, 0);
+    cb->draw(0, 3, 0, 1);
     submit(cb);
 
     VkCommandBuffer enqueuedCommandBuffers[16];
