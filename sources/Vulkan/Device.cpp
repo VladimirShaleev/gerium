@@ -167,6 +167,15 @@ void Device::submit(CommandBuffer* commandBuffer) {
 }
 
 void Device::present() {
+    auto cb = getCommandBuffer(0);
+    cb->clearColor(1.0f, 0.0f, 1.0f, 1.0f);
+    cb->clearDepthStencil(1.0f, 0);
+    cb->bindPipeline(_pipeline, _swapchainFramebuffers[_swapchainImageIndex]);
+    cb->setScissor(nullptr);
+    cb->setViewport(nullptr);
+    // cb->draw(3, 1, 0, 0);
+    submit(cb);
+
     VkCommandBuffer enqueuedCommandBuffers[16];
     for (uint32_t i = 0; i < _numQueuedCommandBuffers; ++i) {
         auto commandBuffer = _queuedCommandBuffers[i];
@@ -567,6 +576,24 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         inputAssembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
+        VkViewport viewport = {};
+        viewport.x          = 0.0f;
+        viewport.y          = 0.0f;
+        viewport.width      = (float) _swapchainExtent.width;
+        viewport.height     = (float) _swapchainExtent.height;
+        viewport.minDepth   = 0.0f;
+        viewport.maxDepth   = 1.0f;
+
+        VkRect2D scissor = {};
+        scissor.offset   = { 0, 0 };
+        scissor.extent   = { _swapchainExtent.width, _swapchainExtent.height };
+
+        VkPipelineViewportStateCreateInfo viewportState{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+        viewportState.viewportCount = 1;
+        viewportState.pViewports    = &viewport;
+        viewportState.scissorCount  = 1;
+        viewportState.pScissors     = &scissor;
+
         VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
         rasterizer.depthClampEnable        = VK_FALSE;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
@@ -653,7 +680,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         pipelineInfo.pStages             = program->shaderStageInfo;
         pipelineInfo.pVertexInputState   = &vertexInput;
         pipelineInfo.pInputAssemblyState = &inputAssembly;
-        pipelineInfo.pViewportState      = nullptr;
+        pipelineInfo.pViewportState      = &viewportState;
         pipelineInfo.pRasterizationState = &rasterizer;
         pipelineInfo.pMultisampleState   = &multisampling;
         pipelineInfo.pDepthStencilState  = &depthStencil;

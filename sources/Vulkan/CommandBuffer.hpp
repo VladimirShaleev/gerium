@@ -2,8 +2,8 @@
 #define GERIUM_WINDOWS_VULKAN_COMMAND_BUFFER_HPP
 
 #include "../Gerium.hpp"
-#include "Utils.hpp"
 #include "Resources.hpp"
+#include "Utils.hpp"
 
 namespace gerium::vulkan {
 
@@ -21,11 +21,22 @@ public:
                          gerium_uint32_t mipLevel,
                          gerium_uint32_t mipCount,
                          bool isDepth);
-    void submit(QueueType queue);   
+    void clearColor(float red, float green, float blue, float alpha);
+    void clearDepthStencil(float depth, float value);
+    void setScissor(const Rect2DInt* rect);
+    void setViewport(const Viewport* viewport);
+    void bindPipeline(PipelineHandle pipeline, FramebufferHandle framebuffer);
+    void draw(gerium_uint32_t firstVertex,
+              gerium_uint32_t vertexCount,
+              gerium_uint32_t firstInstance,
+              gerium_uint32_t instanceCount);
+    void submit(QueueType queue);
 
 private:
     friend Device;
     friend CommandBufferManager;
+
+    void endCurrentRenderPass();
 
     void reset();
     void begin();
@@ -33,6 +44,10 @@ private:
 
     Device* _device;
     VkCommandBuffer _commandBuffer;
+    RenderPassHandle _currentRenderPass;
+    FramebufferHandle _currentFramebuffer;
+    PipelineHandle _currentPipeline;
+    VkClearValue _clears[2]{};
 };
 
 class CommandBufferManager final {

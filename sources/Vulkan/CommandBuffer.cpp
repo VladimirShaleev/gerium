@@ -5,7 +5,10 @@ namespace gerium::vulkan {
 
 CommandBuffer::CommandBuffer(Device& device, VkCommandBuffer commandBuffer) :
     _device(&device),
-    _commandBuffer(commandBuffer) {
+    _commandBuffer(commandBuffer),
+    _currentRenderPass(Undefined),
+    _currentFramebuffer(Undefined),
+    _currentPipeline(Undefined) {
 }
 
 CommandBuffer::~CommandBuffer() {
@@ -40,6 +43,114 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
+void CommandBuffer::clearColor(float red, float green, float blue, float alpha) {
+    _clears[0].color = { red, green, blue, alpha };
+}
+
+void CommandBuffer::clearDepthStencil(float depth, float value) {
+    _clears[1].depthStencil.depth   = depth;
+    _clears[1].depthStencil.stencil = value;
+}
+
+void CommandBuffer::setScissor(const Rect2DInt* rect) {
+    VkRect2D vk_scissor;
+
+    if (rect) {
+        vk_scissor.offset.x      = rect->x;
+        vk_scissor.offset.y      = rect->y;
+        vk_scissor.extent.width  = rect->width;
+        vk_scissor.extent.height = rect->height;
+    } else {
+        vk_scissor.offset.x      = 0;
+        vk_scissor.offset.y      = 0;
+        vk_scissor.extent.width  = _device->_swapchainExtent.width;
+        vk_scissor.extent.height = _device->_swapchainExtent.height;
+    }
+
+    _device->vkTable().vkCmdSetScissor(_commandBuffer, 0, 1, &vk_scissor);
+}
+
+void CommandBuffer::setViewport(const Viewport* viewport) {
+    VkViewport vk_viewport{};
+
+    if (viewport) {
+        vk_viewport.x        = viewport->rect.x * 1.f;
+        vk_viewport.width    = viewport->rect.width * 1.f;
+        vk_viewport.y        = viewport->rect.height * 1.f - viewport->rect.y;
+        vk_viewport.height   = -viewport->rect.height * 1.f;
+        vk_viewport.minDepth = viewport->min_depth;
+        vk_viewport.maxDepth = viewport->max_depth;
+    } else {
+        vk_viewport.x = 0.f;
+
+        if (_currentRenderPass != Undefined && _currentFramebuffer != Undefined) {
+            auto framebuffer  = _device->_framebuffers.access(_currentFramebuffer);
+            vk_viewport.width = framebuffer->width * 1.f;
+            // Invert Y with negative height and proper offset - Vulkan has unique Clipping Y.
+            vk_viewport.y      = framebuffer->height * 1.f;
+            vk_viewport.height = -framebuffer->height * 1.f;
+        } else {
+            vk_viewport.width = _device->_swapchainExtent.width * 1.f;
+            // Invert Y with negative height and proper offset - Vulkan has unique Clipping Y.
+            vk_viewport.y      = _device->_swapchainExtent.height * 1.f;
+            vk_viewport.height = -_device->_swapchainExtent.height * 1.f;
+        }
+        vk_viewport.minDepth = 0.0f;
+        vk_viewport.maxDepth = 1.0f;
+    }
+
+    _device->vkTable().vkCmdSetViewport(_commandBuffer, 0, 1, &vk_viewport);
+}
+
+void CommandBuffer::bindPipeline(PipelineHandle pipeline, FramebufferHandle framebuffer) {
+    auto pipelineObj    = _device->_pipelines.access(pipeline);
+    auto framebufferObj = _device->_framebuffers.access(framebuffer);
+    auto renderPass     = _device->_renderPasses.access(pipelineObj->renderPass);
+
+    if (_currentRenderPass != pipelineObj->renderPass) {
+        endCurrentRenderPass();
+
+        uint32_t clearValuesCount = 0;
+        VkClearValue clearValues[kMaxImageOutputs + 1];
+
+        for (uint32_t o = 0; o < renderPass->output.numColorFormats; ++o) {
+            if (renderPass->output.colorOperations[o] == RenderPassOperation::Clear) {
+                clearValues[clearValuesCount++] = _clears[0];
+            }
+        }
+
+        if (renderPass->output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
+            if (renderPass->output.depthOperation == RenderPassOperation::Clear) {
+                clearValues[clearValuesCount++] = _clears[1];
+            }
+        }
+
+        VkRenderPassBeginInfo renderPassBegin{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+        renderPassBegin.framebuffer       = framebufferObj->vkFramebuffer;
+        renderPassBegin.renderPass        = renderPass->vkRenderPass;
+        renderPassBegin.renderArea.offset = { 0, 0 };
+        renderPassBegin.renderArea.extent = { framebufferObj->width, framebufferObj->height };
+        renderPassBegin.clearValueCount   = clearValuesCount;
+        renderPassBegin.pClearValues      = clearValues;
+        _device->vkTable().vkCmdBeginRenderPass(_commandBuffer,
+                                                &renderPassBegin,
+                                                false ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
+                                                      : VK_SUBPASS_CONTENTS_INLINE);
+        _currentRenderPass  = pipelineObj->renderPass;
+        _currentFramebuffer = framebuffer;
+    }
+
+    _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
+    _currentPipeline = pipeline;
+}
+
+void CommandBuffer::draw(gerium_uint32_t firstVertex,
+                         gerium_uint32_t vertexCount,
+                         gerium_uint32_t firstInstance,
+                         gerium_uint32_t instanceCount) {
+    _device->vkTable().vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
 void CommandBuffer::submit(QueueType queue) {
     end();
 
@@ -64,6 +175,14 @@ void CommandBuffer::submit(QueueType queue) {
     _device->vkTable().vkQueueWaitIdle(vkQueue);
 }
 
+void CommandBuffer::endCurrentRenderPass() {
+    if (_currentRenderPass != Undefined) {
+        _device->vkTable().vkCmdEndRenderPass(_commandBuffer);
+        _currentRenderPass  = Undefined;
+        _currentFramebuffer = Undefined;
+    }
+}
+
 void CommandBuffer::reset() {
     // if (_vkDescriptorPool) {
     //     _vkTable->vkResetDescriptorPool(_device, _vkDescriptorPool, 0);
@@ -77,6 +196,7 @@ void CommandBuffer::begin() {
 }
 
 void CommandBuffer::end() {
+    endCurrentRenderPass();
     _device->vkTable().vkEndCommandBuffer(_commandBuffer);
 }
 
