@@ -228,7 +228,33 @@ private:
     bool _profilerEnabled{};
 
     //// Test
+    struct UniformBufferObject {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
+    };
+
+    struct UniformBufferObject1 {
+        float f;
+    };
+
+    struct UniformBufferObject2 {
+        float f;
+    };
+
+    struct Vertex {
+        glm::vec2 position;
+        glm::vec3 color;
+        glm::vec2 texcoord;
+    };
+
     PipelineHandle _pipeline{};
+    BufferHandle _vertices{};
+    BufferHandle _ubo{};
+    BufferHandle _obj1{};
+    BufferHandle _obj2{};
+    DescriptorSetHandle _descriptorSet0{};
+    DescriptorSetHandle _descriptorSet1{};
 };
 
 } // namespace gerium::vulkan

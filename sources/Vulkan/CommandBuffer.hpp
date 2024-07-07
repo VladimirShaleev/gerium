@@ -26,6 +26,8 @@ public:
     void setScissor(const Rect2DInt* rect);
     void setViewport(const Viewport* viewport);
     void bindPipeline(PipelineHandle pipeline, FramebufferHandle framebuffer);
+    void bindVertexBuffer(BufferHandle handle, uint32_t binding, uint32_t offset);
+    void bindDescriptorSet(DescriptorSetHandle handle);
     void draw(gerium_uint32_t firstVertex,
               gerium_uint32_t vertexCount,
               gerium_uint32_t firstInstance,

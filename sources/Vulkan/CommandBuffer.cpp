@@ -144,6 +144,53 @@ void CommandBuffer::bindPipeline(PipelineHandle pipeline, FramebufferHandle fram
     _currentPipeline = pipeline;
 }
 
+void CommandBuffer::bindVertexBuffer(BufferHandle handle, uint32_t binding, uint32_t offset) {
+    auto buffer = _device->_buffers.access(handle);
+
+    VkBuffer vkBuffer     = buffer->vkBuffer;
+    VkDeviceSize vkOffset = offset;
+    if (buffer->parent != Undefined) {
+        auto parentBuffer = _device->_buffers.access(buffer->parent);
+        vkBuffer          = parentBuffer->vkBuffer;
+        vkOffset          = buffer->globalOffset;
+    }
+    _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
+}
+
+void CommandBuffer::bindDescriptorSet(DescriptorSetHandle handle) {
+    uint32_t offsetsCache[kMaxDescriptorSetLayouts];
+    uint32_t numOffsets = 0;
+
+    const auto descriptorSet       = _device->_descriptorSets.access(handle);
+    const auto descriptorSetLayout = _device->_descriptorSetLayouts.access(descriptorSet->layout);
+
+    // Search for dynamic buffers
+    for (uint32_t i = 0; i < descriptorSetLayout->data.bindings.size(); ++i) {
+        const auto& rb = descriptorSetLayout->data.bindings[i];
+
+        if (rb.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
+            rb.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
+            // Search for the actual buffer offset
+            const uint32_t resourceIndex = descriptorSet->bindings[i];
+            auto bufferHandle            = descriptorSet->resources[i];
+            auto buffer                  = _device->_buffers.access(bufferHandle);
+
+            offsetsCache[numOffsets++] = buffer->globalOffset;
+        }
+    }
+
+    auto currentPipeline = _device->_pipelines.access(_currentPipeline);
+
+    _device->vkTable().vkCmdBindDescriptorSets(_commandBuffer,
+                                               currentPipeline->vkBindPoint,
+                                               currentPipeline->vkPipelineLayout,
+                                               descriptorSetLayout->data.setNumber,
+                                               1,
+                                               &descriptorSet->vkDescriptorSet,
+                                               numOffsets,
+                                               offsetsCache);
+}
+
 void CommandBuffer::draw(gerium_uint32_t firstVertex,
                          gerium_uint32_t vertexCount,
                          gerium_uint32_t firstInstance,

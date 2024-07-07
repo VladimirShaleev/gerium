@@ -183,6 +183,55 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     pc.vertexInput.addVertexStream({ 0, sizeof(float) * 7, VertexInputRate::PerVertex });
 
     _pipeline = createPipeline(pc);
+
+    Vertex vertices[3]{};
+    vertices[0].position = glm::vec2(0.0f, -0.5f);
+    vertices[0].color = glm::vec3(1.0f, 0.0f, 0.0f);
+    vertices[0].texcoord = glm::vec2(0.0f, 0.0f);
+    
+    vertices[1].position = glm::vec2(0.5, 0.5);
+    vertices[1].color = glm::vec3(1.0f, 0.0f, 0.0f);
+    vertices[1].texcoord = glm::vec2(0.0f, 0.0f);
+
+    vertices[2].position = glm::vec2(-0.5, 0.5);
+    vertices[2].color = glm::vec3(1.0f, 0.0f, 0.0f);
+    vertices[2].texcoord = glm::vec2(0.0f, 0.0f);
+    
+    BufferCreation vc;
+    vc.reset()
+        .set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, ResourceUsageType::Immutable, sizeof(Vertex) * 3)
+        .setName("vertices")
+        .setInitialData((void*) vertices);
+    _vertices = createBuffer(vc);
+
+    BufferCreation bc;
+    bc.reset()
+        .set(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, sizeof(UniformBufferObject))
+        .setName("mesh_data");
+    _ubo = createBuffer(bc);
+
+    BufferCreation bc1;
+    bc1.reset()
+        .set(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, sizeof(UniformBufferObject1))
+        .setName("ubo1");
+    _obj1 = createBuffer(bc1);
+
+    BufferCreation bc2;
+    bc2.reset()
+        .set(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, sizeof(UniformBufferObject2))
+        .setName("ubo2");
+    _obj2 = createBuffer(bc2);
+
+    auto pipelineObj = _pipelines.access(_pipeline);
+
+    DescriptorSetCreation dsc{};
+    dsc.buffer(_ubo, 0).buffer(_obj2, 2).setLayout(pipelineObj->descriptorSetLayoutHandles[0]);
+
+    DescriptorSetCreation dsc1{};
+    dsc1.buffer(_obj1, 2).setLayout(pipelineObj->descriptorSetLayoutHandles[1]);
+
+    _descriptorSet0 = createDescriptorSet(dsc);
+    _descriptorSet1 = createDescriptorSet(dsc1);
 }
 
 void Device::newFrame() {
@@ -218,12 +267,31 @@ void Device::submit(CommandBuffer* commandBuffer) {
 }
 
 void Device::present() {
+    auto aspect = float(_swapchainExtent.width) / _swapchainExtent.height;
+
+    auto data   = (UniformBufferObject*) mapBuffer(_ubo, 0, 0);
+    data->model = glm::identity<glm::mat4>();
+    data->view  = glm::translate(glm::vec3(0.0f, 0.0f, -2.0f));
+    data->proj  = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 1000.0f);
+    unmapBuffer(_ubo);
+
+    auto data1 = (UniformBufferObject1*) mapBuffer(_obj1, 0, 0);
+    data1->f   = 1.0f;
+    unmapBuffer(_obj1);
+
+    auto data2 = (UniformBufferObject2*) mapBuffer(_obj2, 0, 0);
+    data2->f   = 0.0f;
+    unmapBuffer(_obj2);
+
     auto cb = getCommandBuffer(0);
     cb->clearColor(1.0f, 0.8f, 1.0f, 1.0f);
     cb->clearDepthStencil(1.0f, 0);
     cb->bindPipeline(_pipeline, _swapchainFramebuffers[_swapchainImageIndex]);
     cb->setScissor(nullptr);
     cb->setViewport(nullptr);
+    cb->bindDescriptorSet(_descriptorSet0);
+    cb->bindDescriptorSet(_descriptorSet1);
+    cb->bindVertexBuffer(_vertices, 0, 0);
     cb->draw(0, 3, 0, 1);
     submit(cb);
 
@@ -1523,7 +1591,7 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
         descriptorWrite[i].dstSet          = descriptorSet.vkDescriptorSet;
         descriptorWrite[i].dstBinding      = binding.binding;
         descriptorWrite[i].dstArrayElement = 0;
-        descriptorWrite[i].descriptorCount = 1;
+        descriptorWrite[i].descriptorCount = binding.descriptorCount;
 
         switch (binding.descriptorType) {
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
@@ -1560,7 +1628,8 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
                 descriptorWrite[i].pImageInfo = &imageInfo[i];
                 break;
             }
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
                 auto buffer = _buffers.access(descriptorSet.resources[r]);
 
                 descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic

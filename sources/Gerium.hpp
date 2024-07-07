@@ -82,6 +82,15 @@
 // SPIRV-Reflect
 #include <spirv-reflect/spirv_reflect.h>
 
+// GLM
+#define GLM_ENABLE_EXPERIMENTAL
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+// https://github.com/g-truc/glm/issues/1269
+#include <glm/detail/setup.hpp>
+#undef GLM_DEPRECATED
+#define GLM_DEPRECATED [[deprecated]]
+#include <glm/ext.hpp>
+
 #include "gerium/gerium.h"
 
 typedef ptrdiff_t gerium_sint_t;
