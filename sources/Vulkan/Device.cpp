@@ -20,6 +20,11 @@ Device::~Device() {
         }
         deleteResources(true);
 
+        for (auto layout : _descriptorSetLayouts) {
+            destroyDescriptorSetLayout(_descriptorSetLayouts.handle(layout));
+        }
+        deleteResources(true);
+
         for (auto program : _programs) {
             destroyProgram(_programs.handle(program));
         }
@@ -80,14 +85,23 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     const char vs[] = "#version 450\n"
                       "\n"
-                      "vec2 positions[3] = vec2[](\n"
-                      "    vec2(0.0, -0.5),\n"
-                      "    vec2(0.5, 0.5),\n"
-                      "    vec2(-0.5, 0.5)\n"
-                      ");\n"
+                      "layout(location = 0) in vec2 inPosition;\n"
+                      "layout(location = 1) in vec3 inColor;\n"
+                      "layout(location = 2) in vec2 inTexCoord;\n"
+                      "\n"
+                      "layout(location = 0) out vec3 outColor;\n"
+                      "layout(location = 1) out vec2 outTexCoord;\n"
+                      "\n"
+                      "layout(binding = 0) uniform UniformBufferObject {\n"
+                      "    mat4 model;\n"
+                      "    mat4 view;\n"
+                      "    mat4 proj;\n"
+                      "} ubo;\n"
                       "\n"
                       "void main() {\n"
-                      "    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);"
+                      "    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 0.0, 1.0);\n"
+                      "    outColor = inColor;\n"
+                      "    outTexCoord = inTexCoord;\n"
                       "}\n";
 
     const auto vsSize = sizeof(vs) - 1;
@@ -96,14 +110,19 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
                       "\n"
                       "layout(location = 0) out vec4 outColor;\n"
                       "\n"
+                      "layout(set = 1, binding = 2) uniform UniformBufferObject1 {\n"
+                      "    float f;\n"
+                      "} test;\n"
+                      "\n"
+                      "layout(set = 0, binding = 2) uniform UniformBufferObject2 {\n"
+                      "    float f;\n"
+                      "} test2;\n"
+                      "\n"
                       "void main() {\n"
-                      "    outColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+                      "    outColor = vec4(test.f, test2.f, 0.0, 1.0);\n"
                       "}\n";
 
     const auto fsSize = sizeof(fs) - 1;
-
-    /*auto shaderVs = compileGLSL(vs, vsSize, VK_SHADER_STAGE_VERTEX_BIT, "shader.vs.glsl");
-    auto shaderFs = compileGLSL(fs, fsSize, VK_SHADER_STAGE_FRAGMENT_BIT, "shader.fs.glsl");*/
 
     ViewportState viewport{};
 
@@ -423,8 +442,12 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 }
 
 DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetLayoutCreation& creation) {
-    auto [handle, DescriptorSetLayout] = _descriptorSetLayouts.obtain_and_access();
+    auto [handle, descriptorSetLayout] = _descriptorSetLayouts.obtain_and_access();
 
+    descriptorSetLayout->data = *creation.setLayout;
+
+    check(_vkTable.vkCreateDescriptorSetLayout(
+        _device, &creation.setLayout->createInfo, getAllocCalls(), &descriptorSetLayout->vkDescriptorSetLayout));
     return handle;
 }
 
@@ -434,6 +457,8 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
     // VkPipelineShaderStageCreateInfo shaderStageInfo[kMaxShaderStages];
     program->name             = intern(creation.name);
     program->graphicsPipeline = true;
+
+    std::map<uint32_t, std::set<uint32_t>> uniqueBindings;
 
     for (; program->activeShaders < creation.stagesCount; ++program->activeShaders) {
         const auto& stage = creation.stages[program->activeShaders];
@@ -461,7 +486,49 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
         check(_vkTable.vkCreateShaderModule(
             _device, &shaderInfo, getAllocCalls(), &program->shaderStageInfo[program->activeShaders].module));
 
-        // spirv::parseBinary(shaderInfo.pCode, shaderInfo.codeSize, shader.parseResult);
+        SpvReflectShaderModule module{};
+        if (spvReflectCreateShaderModule(code.size() * 4, (void*) code.data(), &module) != SPV_REFLECT_RESULT_SUCCESS) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+
+        uint32_t count = 0;
+        if (spvReflectEnumerateDescriptorSets(&module, &count, NULL) != SPV_REFLECT_RESULT_SUCCESS) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+
+        std::vector<SpvReflectDescriptorSet*> sets(count);
+        if (spvReflectEnumerateDescriptorSets(&module, &count, sets.data()) != SPV_REFLECT_RESULT_SUCCESS) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+
+        for (uint32_t set = 0; set < sets.size(); ++set) {
+            const SpvReflectDescriptorSet& reflSet = *(sets[set]);
+
+            DescriptorSetLayoutData& layout = program->descriptorSets[reflSet.set];
+            auto& uniqueBinding             = uniqueBindings[reflSet.set];
+
+            for (uint32_t binding = 0; binding < reflSet.binding_count; ++binding) {
+                const SpvReflectDescriptorBinding& reflBinding = *(reflSet.bindings[binding]);
+                layout.bindings.push_back({});
+                VkDescriptorSetLayoutBinding& layoutBinding = layout.bindings.back();
+                layoutBinding.binding                       = reflBinding.binding;
+                layoutBinding.descriptorType  = static_cast<VkDescriptorType>(reflBinding.descriptor_type);
+                layoutBinding.descriptorCount = 1;
+                for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
+                    layoutBinding.descriptorCount *= reflBinding.array.dims[iDim];
+                }
+                layoutBinding.stageFlags = static_cast<VkShaderStageFlagBits>(module.shader_stage);
+
+                if (uniqueBinding.contains(reflBinding.binding)) {
+                    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+                }
+                uniqueBinding.insert(reflBinding.binding);
+            }
+            layout.setNumber               = reflSet.set;
+            layout.createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layout.createInfo.bindingCount = layout.bindings.size();
+            layout.createInfo.pBindings    = layout.bindings.data();
+        }
 
         setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
                       (uint64_t) program->shaderStageInfo[program->activeShaders].module,
@@ -503,6 +570,16 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
 
     VkDescriptorSetLayout vkLayouts[kMaxDescriptorSetLayouts];
     uint32_t numActiveLayouts = 0; // shader.parseResult->setCount;
+
+    for (const auto& [_, set] : program->descriptorSets) {
+        DescriptorSetLayoutCreation lc;
+        lc.setName(nullptr);
+        lc.setLayout                                           = &set;
+        pipeline->descriptorSetLayoutHandles[numActiveLayouts] = createDescriptorSetLayout(lc);
+
+        auto layout = _descriptorSetLayouts.access(pipeline->descriptorSetLayoutHandles[numActiveLayouts]);
+        vkLayouts[numActiveLayouts++] = layout->vkDescriptorSetLayout;
+    }
 
     // for (uint32_t l = 0; l < numActiveLayouts; ++l) {
     //     if (shader.parseResult->sets[l].setIndex == 1 &&
@@ -755,6 +832,10 @@ void Device::destroyRenderPass(RenderPassHandle handle) {
 
 void Device::destroyFramebuffer(FramebufferHandle handle) {
     _deletionQueue.push({ ResourceType::Framebuffer, _currentFrame, handle });
+}
+
+void Device::destroyDescriptorSetLayout(DescriptorSetLayoutHandle handle) {
+    _deletionQueue.push({ ResourceType::DescriptorSetLayout, _currentFrame, handle });
 }
 
 void Device::destroyProgram(ProgramHandle handle) {
@@ -1404,6 +1485,11 @@ void Device::deleteResources(bool forceDelete) {
             case ResourceType::DescriptorSet:
                 break;
             case ResourceType::DescriptorSetLayout:
+                if (_descriptorSetLayouts.references(DescriptorSetLayoutHandle{ resource.handle }) == 1) {
+                    auto layout = _descriptorSetLayouts.access(resource.handle);
+                    _vkTable.vkDestroyDescriptorSetLayout(_device, layout->vkDescriptorSetLayout, getAllocCalls());
+                }
+                _descriptorSetLayouts.release(resource.handle);
                 break;
             case ResourceType::Pipeline:
                 if (_pipelines.references(PipelineHandle{ resource.handle }) == 1) {
@@ -1411,9 +1497,7 @@ void Device::deleteResources(bool forceDelete) {
                     _vkTable.vkDestroyPipelineLayout(_device, pipeline->vkPipelineLayout, getAllocCalls());
                     _vkTable.vkDestroyPipeline(_device, pipeline->vkPipeline, getAllocCalls());
                     for (uint32_t i = 0; i < pipeline->numActiveLayouts; ++i) {
-                        if (pipeline->descriptorSetLayoutHandles[i] != Undefined) {
-                            // destroyDescriptorSetLayout(pipeline->descriptorSetLayoutHandles[i]);
-                        }
+                        destroyDescriptorSetLayout(pipeline->descriptorSetLayoutHandles[i]);
                     }
                     destroyProgram(pipeline->program);
                     destroyRenderPass(pipeline->renderPass);

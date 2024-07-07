@@ -119,51 +119,19 @@ struct RenderPassCreation {
     }
 };
 
-struct DescriptorSetLayoutCreation {
-    struct Binding {
-        VkDescriptorType type  = VK_DESCRIPTOR_TYPE_MAX_ENUM;
-        uint16_t         index = 0;
-        uint16_t         count = 0;
-        const char*      name  = nullptr; // Comes from external memory.
-    }; // struct Binding
+struct DescriptorSetLayoutData {
+    uint32_t setNumber;
+    VkDescriptorSetLayoutCreateInfo createInfo;
+    std::vector<VkDescriptorSetLayoutBinding> bindings;
+};
 
-    Binding  bindings[kMaxDescriptorsPerSet];
-    uint32_t numBindings = 0;
-    uint32_t setIndex    = 0;
-    bool     bindless    = false;
-    bool     dynamic     = false;
+struct DescriptorSetLayoutCreation {
+    const DescriptorSetLayoutData* setLayout;
 
     const char* name = nullptr;
 
-    DescriptorSetLayoutCreation& reset() {
-        numBindings = 0;
-        setIndex    = 0;
-        return *this;
-    }
-
-    DescriptorSetLayoutCreation& addBinding(const Binding& binding) {
-        bindings[numBindings++] = binding;
-        return *this;
-    }
-
-    DescriptorSetLayoutCreation& addBinding(VkDescriptorType type, uint32_t index, uint32_t count, const char* name) {
-        bindings[numBindings++] = {type, (uint16_t) index, (uint16_t) count, name};
-        return *this;
-    }
-
-    DescriptorSetLayoutCreation& addBindingAtIndex(const Binding& binding, int index) {
-        bindings[index] = binding;
-        numBindings     = (index + 1) > numBindings ? (index + 1) : numBindings;
-        return *this;
-    }
-
     DescriptorSetLayoutCreation& setName(const char* name) {
         this->name = name;
-        return *this;
-    }
-
-    DescriptorSetLayoutCreation& setSetIndex(uint32_t index) {
-        setIndex = index;
         return *this;
     }
 };
@@ -418,14 +386,14 @@ struct FramebufferCreation {
     }
 };
 
-struct DescriptorBinding {
+/*struct DescriptorBinding {
     VkDescriptorType type;
     uint16_t         index;
     uint16_t         count;
     // uint16_t         set;
 
     const char* name;
-};
+};*/
 
 struct Texture {
     VkImage               vkImage;
@@ -453,14 +421,7 @@ struct RenderPass {
 struct DescriptorSetLayout {
     VkDescriptorSetLayout vkDescriptorSetLayout;
 
-    VkDescriptorSetLayoutBinding vkBinding[kMaxDescriptorsPerSet];
-    DescriptorBinding            bindings[kMaxDescriptorsPerSet];
-    uint8_t*                     indexToBinding;
-    uint16_t                     numBindings;
-    uint16_t                     setIndex;
-    uint8_t                      dynamic;
-
-    DescriptorSetLayoutHandle handle;
+    DescriptorSetLayoutData data;
 };
 
 struct Program {
@@ -470,6 +431,8 @@ struct Program {
 
     uint32_t activeShaders;
     bool     graphicsPipeline;
+
+    absl::flat_hash_map<uint32_t, DescriptorSetLayoutData> descriptorSets;
 };
 
 struct Pipeline {

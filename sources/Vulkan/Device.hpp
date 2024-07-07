@@ -31,6 +31,7 @@ public:
     void destroyTexture(TextureHandle handle);
     void destroyRenderPass(RenderPassHandle handle);
     void destroyFramebuffer(FramebufferHandle handle);
+    void destroyDescriptorSetLayout(DescriptorSetLayoutHandle handle);
     void destroyProgram(ProgramHandle handle);
     void destroyPipeline(PipelineHandle handle);
 

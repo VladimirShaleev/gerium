@@ -40,6 +40,7 @@ find_package(absl CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(unofficial-shaderc CONFIG REQUIRED)
+find_package(unofficial-spirv-reflect CONFIG REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
@@ -79,6 +80,7 @@ target_link_libraries(gerium PRIVATE absl::flat_hash_map)
 target_link_libraries(gerium PRIVATE Vulkan::Headers)
 target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
+target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 
 target_include_directories(gerium PUBLIC

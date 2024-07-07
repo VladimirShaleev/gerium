@@ -79,6 +79,9 @@
 // GLSL/HLSL compiler
 #include <shaderc/shaderc.hpp>
 
+// SPIRV-Reflect
+#include <spirv-reflect/spirv_reflect.h>
+
 #include "gerium/gerium.h"
 
 typedef ptrdiff_t gerium_sint_t;

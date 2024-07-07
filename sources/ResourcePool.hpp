@@ -289,7 +289,7 @@ public:
     void clear() noexcept {
         if constexpr (!std::is_trivially_destructible_v<T>) {
             for (base_handle_type i = 0; i < _head; ++i) {
-                access(H{ i }).~T();
+                access(H{ i })->~T();
             }
         }
 
@@ -353,7 +353,7 @@ public:
 
         if constexpr (!std::is_trivially_destructible_v<T>) {
             for (gerium_uint16_t i = 0; i < _head; ++i) {
-                access(H{ i }).~T();
+                access(H{ i })->~T();
             }
         }
 
