@@ -150,6 +150,11 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     pc.program.addStage(fs, fsSize, VK_SHADER_STAGE_FRAGMENT_BIT);
     pc.program.setName("simple");
 
+    pc.vertexInput.addVertexAttribute({ 0, 0, 0, VertexComponentFormat::Float2 });
+    pc.vertexInput.addVertexAttribute({ 1, 0, sizeof(float) * 2, VertexComponentFormat::Float3 });
+    pc.vertexInput.addVertexAttribute({ 2, 0, sizeof(float) * 2 + sizeof(float) * 3, VertexComponentFormat::Float2 });
+    pc.vertexInput.addVertexStream({ 0, sizeof(float) * 7, VertexInputRate::PerVertex });
+
     _pipeline = createPipeline(pc);
 }
 
@@ -514,6 +519,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
                 layoutBinding.binding                       = reflBinding.binding;
                 layoutBinding.descriptorType  = static_cast<VkDescriptorType>(reflBinding.descriptor_type);
                 layoutBinding.descriptorCount = 1;
+                if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+                    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+                }
                 for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
                     layoutBinding.descriptorCount *= reflBinding.array.dims[iDim];
                 }
@@ -571,10 +579,18 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     VkDescriptorSetLayout vkLayouts[kMaxDescriptorSetLayouts];
     uint32_t numActiveLayouts = 0; // shader.parseResult->setCount;
 
-    for (const auto& [_, set] : program->descriptorSets) {
+    std::vector<uint32_t> sets;
+    sets.reserve(program->descriptorSets.size());
+
+    for (const auto& [set, _] : program->descriptorSets) {
+        sets.push_back(set);
+    }
+    std::sort(sets.begin(), sets.end());
+
+    for (uint32_t index : sets) {
         DescriptorSetLayoutCreation lc;
         lc.setName(nullptr);
-        lc.setLayout                                           = &set;
+        lc.setLayout                                           = &program->descriptorSets[index];
         pipeline->descriptorSetLayoutHandles[numActiveLayouts] = createDescriptorSetLayout(lc);
 
         auto layout = _descriptorSetLayouts.access(pipeline->descriptorSetLayoutHandles[numActiveLayouts]);

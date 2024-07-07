@@ -331,17 +331,17 @@ struct PipelineCreation {
     ProgramCreation       program;
 
     RenderPassOutput          renderPass;
-    DescriptorSetLayoutHandle descriptorSetLayout[kMaxDescriptorSetLayouts];
+    //DescriptorSetLayoutHandle descriptorSetLayout[kMaxDescriptorSetLayouts];
     const ViewportState*      viewport = nullptr;
 
-    uint32_t numActiveLayouts = 0;
+    //uint32_t numActiveLayouts = 0;
 
     const char* name = nullptr;
 
-    PipelineCreation& addDescriptorSetLayout(DescriptorSetLayoutHandle handle) {
-        descriptorSetLayout[numActiveLayouts++] = handle;
-        return *this;
-    }
+    //PipelineCreation& addDescriptorSetLayout(DescriptorSetLayoutHandle handle) {
+    //    descriptorSetLayout[numActiveLayouts++] = handle;
+    //    return *this;
+    //}
 
     RenderPassOutput& renderPassOutput() {
         return renderPass;
