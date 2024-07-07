@@ -91,6 +91,10 @@
 #define GLM_DEPRECATED [[deprecated]]
 #include <glm/ext.hpp>
 
+// ImGui
+#include <imgui.h>
+#include <imgui_impl_vulkan.h>
+
 #include "gerium/gerium.h"
 
 typedef ptrdiff_t gerium_sint_t;

@@ -1,23 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 include(cmake/version.cmake)
 
-option(GERIUM_USE_VCPKG "Use the vcpkg package manager to resolve dependencies." ON)
 option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
-if(GERIUM_USE_VCPKG)
-    if(DEFINED ENV{VCPKG_ROOT})
-        set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
-    else()
-        include(FetchContent)
-        FetchContent_Declare(
-          vcpkg
-          GIT_REPOSITORY https://github.com/microsoft/vcpkg/
-          GIT_TAG 2024.06.15)
-        FetchContent_MakeAvailable(vcpkg)
-        set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
-    endif()
+if(DEFINED ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
+else()
+    include(FetchContent)
+    FetchContent_Declare(
+      vcpkg
+      GIT_REPOSITORY https://github.com/microsoft/vcpkg/
+      GIT_TAG 2024.06.15)
+    FetchContent_MakeAvailable(vcpkg)
+    set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 endif()
 
 if(APPLE)
@@ -31,6 +28,16 @@ if(APPLE)
     FetchContent_MakeAvailable(moltenVK)
     set(MOLTEN_VK_SRC "${moltenvk_SOURCE_DIR}/MoltenVK" CACHE STRING "MoltenVK dir")
 endif()
+
+include(FetchContent)
+FetchContent_Declare(
+    imgui
+    URL https://github.com/ocornut/imgui/archive/v1.90.9.zip
+    URL_HASH MD5=845a67241e6acd3b689ef8fc7c327b7a
+    GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(imgui)
+set(IMGUI_SRC "${imgui_SOURCE_DIR}" CACHE STRING "ImGui dir")
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
@@ -84,6 +91,15 @@ target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE glm::glm-header-only)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
+target_include_directories(gerium PRIVATE "${IMGUI_SRC}")
+target_include_directories(gerium PRIVATE "${IMGUI_SRC}/backends")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_demo.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_draw.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_tables.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_widgets.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
