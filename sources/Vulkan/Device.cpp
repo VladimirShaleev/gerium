@@ -135,6 +135,8 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     const char fs[] = "#version 450\n"
                       "\n"
+                      "layout(location = 0) in vec3 inColor;\n"
+
                       "layout(location = 0) out vec4 outColor;\n"
                       "\n"
                       "layout(set = 1, binding = 2) uniform UniformBufferObject1 {\n"
@@ -146,7 +148,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
                       "} test2;\n"
                       "\n"
                       "void main() {\n"
-                      "    outColor = vec4(test.f, test2.f, 0.0, 1.0);\n"
+                      "    outColor = vec4(inColor.r * test.f, inColor.g * test2.f, inColor.b, 1.0);\n"
                       "}\n";
 
     const auto fsSize = sizeof(fs) - 1;
@@ -190,11 +192,11 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     vertices[0].texcoord = glm::vec2(0.0f, 0.0f);
     
     vertices[1].position = glm::vec2(0.5, 0.5);
-    vertices[1].color = glm::vec3(1.0f, 0.0f, 0.0f);
+    vertices[1].color = glm::vec3(0.0f, 1.0f, 0.0f);
     vertices[1].texcoord = glm::vec2(0.0f, 0.0f);
 
     vertices[2].position = glm::vec2(-0.5, 0.5);
-    vertices[2].color = glm::vec3(1.0f, 0.0f, 0.0f);
+    vertices[2].color = glm::vec3(0.0f, 0.0f, 1.0f);
     vertices[2].texcoord = glm::vec2(0.0f, 0.0f);
     
     BufferCreation vc;
@@ -267,20 +269,42 @@ void Device::submit(CommandBuffer* commandBuffer) {
 }
 
 void Device::present() {
+    static float f1 = 1.0f;
+    static float f2 = 0.5f;
+    static float d1 = -0.001f;
+    static float d2 = 0.001f;
+    
     auto aspect = float(_swapchainExtent.width) / _swapchainExtent.height;
 
     auto data   = (UniformBufferObject*) mapBuffer(_ubo, 0, 0);
     data->model = glm::identity<glm::mat4>();
-    data->view  = glm::translate(glm::vec3(0.0f, 0.0f, -2.0f));
+    data->view  = glm::translate(glm::vec3(0.0f, 0.0f, -2.0f * f1));
     data->proj  = glm::perspective(glm::radians(60.0f), aspect, 0.1f, 1000.0f);
     unmapBuffer(_ubo);
 
+    f1 += d1;
+    f2 += d2;
+
+    if (f1 < 0.5f) {
+        d1 = 0.001f;
+    } 
+    if (f1 > 1.0f) {
+        d1 = -0.001f;
+    }
+
+    if (f2 < 0.5f) {
+        d2 = 0.001f;
+    } 
+    if (f2 > 1.0f) {
+        d2 = -0.001f;
+    }
+
     auto data1 = (UniformBufferObject1*) mapBuffer(_obj1, 0, 0);
-    data1->f   = 1.0f;
+    data1->f   = f1;
     unmapBuffer(_obj1);
 
     auto data2 = (UniformBufferObject2*) mapBuffer(_obj2, 0, 0);
-    data2->f   = 0.0f;
+    data2->f   = f2;
     unmapBuffer(_obj2);
 
     auto cb = getCommandBuffer(0);
