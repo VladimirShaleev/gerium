@@ -50,6 +50,11 @@ Device::~Device() {
         }
         deleteResources(true);
 
+        for (auto sampler : _samplers) {
+            destroySampler(_samplers.handle(sampler));
+        }
+        deleteResources(true);
+
         for (auto buffer : _buffers) {
             destroyBuffer(_buffers.handle(buffer));
         }
@@ -101,6 +106,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createDescriptorPool();
     createVmaAllocator();
     createDynamicBuffer();
+    createDefaultSampler();
     createSynchronizations();
     createSwapchain(application);
 
@@ -389,6 +395,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     texture->flags    = creation.flags;
     texture->type     = creation.type;
     texture->name     = intern(creation.name);
+    texture->sampler  = Undefined;
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -465,6 +472,40 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     if (creation.initialData) {
         // uploadTextureData(texture, creation.initialData);
     }
+
+    return handle;
+}
+
+SamplerHandle Device::createSampler(const SamplerCreation& creation) {
+    auto [handle, sampler] = _samplers.obtain_and_access();
+
+    sampler->minFilter    = creation.minFilter;
+    sampler->magFilter    = creation.magFilter;
+    sampler->mipFilter    = creation.mipFilter;
+    sampler->addressModeU = creation.addressModeU;
+    sampler->addressModeV = creation.addressModeV;
+    sampler->addressModeW = creation.addressModeW;
+    sampler->name         = intern(creation.name);
+
+    VkSamplerCreateInfo createInfo{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    createInfo.magFilter               = creation.magFilter;
+    createInfo.minFilter               = creation.minFilter;
+    createInfo.mipmapMode              = creation.mipFilter;
+    createInfo.addressModeU            = creation.addressModeU;
+    createInfo.addressModeV            = creation.addressModeV;
+    createInfo.addressModeW            = creation.addressModeW;
+    createInfo.mipLodBias              = 0.0f;
+    createInfo.anisotropyEnable        = VK_FALSE;
+    createInfo.maxAnisotropy           = 0.0f;
+    createInfo.compareEnable           = VK_FALSE;
+    createInfo.compareOp               = VK_COMPARE_OP_NEVER;
+    createInfo.minLod                  = 0;
+    createInfo.maxLod                  = 16;
+    createInfo.borderColor             = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+    createInfo.unnormalizedCoordinates = VK_FALSE;
+    check(_vkTable.vkCreateSampler(_device, &createInfo, getAllocCalls(), &sampler->vkSampler));
+
+    setObjectName(VK_OBJECT_TYPE_SAMPLER, (uint64_t) sampler->vkSampler, sampler->name);
 
     return handle;
 }
@@ -555,8 +596,8 @@ DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& cre
 
     for (uint32_t i = 0; i < creation.numResources; ++i) {
         descriptorSet->resources[i] = creation.resources[i];
-        // descriptorSet.samplers[i]  = creation.samplers[i];
-        descriptorSet->bindings[i] = creation.bindings[i];
+        descriptorSet->samplers[i]  = creation.samplers[i];
+        descriptorSet->bindings[i]  = creation.bindings[i];
     }
 
     VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
@@ -721,22 +762,6 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         auto layout = _descriptorSetLayouts.access(pipeline->descriptorSetLayoutHandles[numActiveLayouts]);
         vkLayouts[numActiveLayouts++] = layout->vkDescriptorSetLayout;
     }
-
-    // for (uint32_t l = 0; l < numActiveLayouts; ++l) {
-    //     if (shader.parseResult->sets[l].setIndex == 1 &&
-    //         shader.parseResult->sets[l].bindings[0].index == k_bindless_texture_binding) { // for BINDLESS
-    //         DescriptorSetLayout& s = _descriptorSetLayouts.access(_bindlessDescriptorSetLayout);
-    //         // Avoid deletion of this set as it is global and will be freed after.
-    //         pipeline.descriptorSetLayoutHandles[l] = DescriptorSetLayoutPool::Undefined;
-    //         vkLayouts[l]                           = s.vkDescriptorSetLayout;
-    //         continue;
-    //     } else {
-    //         pipeline.descriptorSetLayoutHandles[l] = createDescriptorSetLayout(shader.parseResult->sets[l]);
-    //     }
-
-    //     auto descriptorSetLayout = _descriptorSetLayouts.access(pipeline.descriptorSetLayoutHandles[l]);
-    //     vkLayouts[l]             = descriptorSetLayout.vkDescriptorSetLayout;
-    // }
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutInfo.pSetLayouts    = vkLayouts;
@@ -969,6 +994,10 @@ void Device::destroyBuffer(BufferHandle handle) {
 
 void Device::destroyTexture(TextureHandle handle) {
     _deletionQueue.push({ ResourceType::Texture, _currentFrame, handle });
+}
+
+void Device::destroySampler(SamplerHandle handle) {
+    _deletionQueue.push({ ResourceType::Sampler, _currentFrame, handle });
 }
 
 void Device::destroyRenderPass(RenderPassHandle handle) {
@@ -1229,6 +1258,16 @@ void Device::createDynamicBuffer() {
     _dynamicBufferMapped = (uint8_t*) mapBuffer(_dynamicBuffer);
 }
 
+void Device::createDefaultSampler() {
+    SamplerCreation sc{};
+    sc.setAddressModeUvw(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+        .setMinMagMip(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR)
+        .setName("Sampler Default");
+    _defaultSampler = createSampler(sc);
+}
+
 void Device::createSynchronizations() {
     VkSemaphoreCreateInfo semaphoreInfo{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
@@ -1461,6 +1500,8 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
                                          VkDescriptorImageInfo* imageInfo) {
     uint32_t usedResources = 0;
 
+    auto defaultSampler = _samplers.access(_defaultSampler)->vkSampler;
+
     for (uint32_t r = 0; r < descriptorSet.numResources; ++r) {
         uint32_t layoutBindingIndex = descriptorSet.bindings[r];
 
@@ -1488,24 +1529,23 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-                // auto texture = _textures.access(descriptorSet.resources[r]);
+                auto texture = _textures.access(descriptorSet.resources[r]);
 
-                // imageInfo[i].sampler = texture.sampler != SamplerPool::Undefined
-                //                          ? _samplers.access(texture.sampler).vkSampler
-                //                          : defaultSampler;
+                imageInfo[i].sampler =
+                    texture->sampler != Undefined ? _samplers.access(texture->sampler)->vkSampler : defaultSampler;
 
-                // if (descriptorSet.samplers[r] != SamplerPool::Undefined) {
-                //     auto& sampler        = _samplers.access(descriptorSet.samplers[r]);
-                //     imageInfo[i].sampler = sampler.vkSampler;
-                // }
+                if (descriptorSet.samplers[r] != Undefined) {
+                    auto sampler         = _samplers.access(descriptorSet.samplers[r]);
+                    imageInfo[i].sampler = sampler->vkSampler;
+                }
 
-                // imageInfo[i].imageLayout = hasDepthOrStencil(texture.vkFormat)
-                //                              ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-                //                              : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                imageInfo[i].imageLayout = hasDepthOrStencil(texture->vkFormat)
+                                               ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+                                               : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-                // imageInfo[i].imageView = texture.vkImageView;
+                imageInfo[i].imageView = texture->vkImageView;
 
-                // descriptorWrite[i].pImageInfo = &imageInfo[i];
+                descriptorWrite[i].pImageInfo = &imageInfo[i];
                 break;
             }
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
@@ -1521,39 +1561,39 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
                 break;
             }
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-                // auto& buffer = _buffers.access(BufferHandle{descriptorSet.resources[r]});
+                auto buffer = _buffers.access(descriptorSet.resources[r]);
 
-                // descriptorWrite[i].descriptorType = buffer.usage == ResourceUsageType::Dynamic
-                //                                       ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
-                //                                       : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
+                                                        ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+                                                        : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
-                // if (buffer.parent != BufferPool::Undefined) {
-                //     bufferInfo[i].buffer = _buffers.access(buffer.parent).vkBuffer;
-                // } else {
-                //     bufferInfo[i].buffer = buffer.vkBuffer;
-                // }
+                if (buffer->parent != Undefined) {
+                    bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
+                } else {
+                    bufferInfo[i].buffer = buffer->vkBuffer;
+                }
 
-                // bufferInfo[i].offset = 0;
-                // bufferInfo[i].range  = buffer.size;
+                bufferInfo[i].offset = 0;
+                bufferInfo[i].range  = buffer->size;
 
-                // descriptorWrite[i].pBufferInfo = &bufferInfo[i];
+                descriptorWrite[i].pBufferInfo = &bufferInfo[i];
                 break;
             }
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
-                // descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
-                // auto& buffer = _buffers.access(BufferHandle{descriptorSet.resources[r]});
+                auto buffer = _buffers.access(descriptorSet.resources[r]);
 
-                // if (buffer.parent != BufferPool::Undefined) {
-                //     bufferInfo[i].buffer = _buffers.access(buffer.parent).vkBuffer;
-                // } else {
-                //     bufferInfo[i].buffer = buffer.vkBuffer;
-                // }
+                if (buffer->parent != Undefined) {
+                    bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
+                } else {
+                    bufferInfo[i].buffer = buffer->vkBuffer;
+                }
 
-                // bufferInfo[i].offset = 0;
-                // bufferInfo[i].range  = buffer.size;
+                bufferInfo[i].offset = 0;
+                bufferInfo[i].range  = buffer->size;
 
-                // descriptorWrite[i].pBufferInfo = &bufferInfo[i];
+                descriptorWrite[i].pBufferInfo = &bufferInfo[i];
                 break;
             }
             default: {
@@ -1775,6 +1815,11 @@ void Device::deleteResources(bool forceDelete) {
                 _textures.release(resource.handle);
                 break;
             case ResourceType::Sampler:
+                if (_samplers.references(SamplerHandle{ resource.handle }) == 1) {
+                    auto sampler = _samplers.access(resource.handle);
+                    _vkTable.vkDestroySampler(_device, sampler->vkSampler, getAllocCalls());
+                }
+                _samplers.release(resource.handle);
                 break;
             case ResourceType::RenderPass:
                 if (_renderPasses.references(RenderPassHandle{ resource.handle }) == 1) {

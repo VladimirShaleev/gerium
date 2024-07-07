@@ -23,6 +23,7 @@ public:
 
     BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
+    SamplerHandle createSampler(const SamplerCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
     DescriptorSetHandle createDescriptorSet(const DescriptorSetCreation& creation);
@@ -32,6 +33,7 @@ public:
 
     void destroyBuffer(BufferHandle handle);
     void destroyTexture(TextureHandle handle);
+    void destroySampler(SamplerHandle handle);
     void destroyRenderPass(RenderPassHandle handle);
     void destroyFramebuffer(FramebufferHandle handle);
     void destroyDescriptorSet(DescriptorSetHandle handle);
@@ -116,6 +118,7 @@ private:
     void createDescriptorPool();
     void createVmaAllocator();
     void createDynamicBuffer();
+    void createDefaultSampler();
     void createSynchronizations();
     void createSwapchain(Application* application);
     void resizeSwapchain();
@@ -199,9 +202,11 @@ private:
     uint32_t _dynamicAllocatedSize{};
     BufferHandle _dynamicBuffer{ Undefined };
     uint8_t* _dynamicBufferMapped{};
+    SamplerHandle _defaultSampler{ Undefined };
 
     BufferPool _buffers;
     TexturePool _textures;
+    SamplerPool _samplers;
     RenderPassPool _renderPasses;
     DescriptorSetPool _descriptorSets;
     DescriptorSetLayoutPool _descriptorSetLayouts;

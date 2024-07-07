@@ -26,6 +26,7 @@ struct PipelineHandle : Handle {};
 
 using BufferPool              = ResourcePool<struct Buffer, BufferHandle>;
 using TexturePool             = ResourcePool<struct Texture, TextureHandle>;
+using SamplerPool             = ResourcePool<struct Sampler, SamplerHandle>;
 using RenderPassPool          = ResourcePool<struct RenderPass, RenderPassHandle>;
 using DescriptorSetPool       = ResourcePool<struct DescriptorSet, DescriptorSetHandle>;
 using DescriptorSetLayoutPool = ResourcePool<struct DescriptorSetLayout, DescriptorSetLayoutHandle>;
@@ -124,6 +125,48 @@ struct TextureCreation {
     }
 
     TextureCreation& setName(const char* name) {
+        this->name = name;
+        return *this;
+    }
+};
+
+struct SamplerCreation {
+    VkFilter            minFilter = VK_FILTER_NEAREST;
+    VkFilter            magFilter = VK_FILTER_NEAREST;
+    VkSamplerMipmapMode mipFilter = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+    VkSamplerAddressMode addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    VkSamplerAddressMode addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    const char* name = nullptr;
+
+    SamplerCreation& setMinMagMip(VkFilter min, VkFilter mag, VkSamplerMipmapMode mip) {
+        minFilter = min;
+        magFilter = mag;
+        mipFilter = mip;
+        return *this;
+    }
+
+    SamplerCreation& setAddressModeU(VkSamplerAddressMode u) {
+        addressModeU = u;
+        return *this;
+    }
+
+    SamplerCreation& setAddressModeUv(VkSamplerAddressMode u, VkSamplerAddressMode v) {
+        addressModeU = u;
+        addressModeV = v;
+        return *this;
+    }
+
+    SamplerCreation& setAddressModeUvw(VkSamplerAddressMode u, VkSamplerAddressMode v, VkSamplerAddressMode w) {
+        addressModeU = u;
+        addressModeV = v;
+        addressModeW = w;
+        return *this;
+    }
+
+    SamplerCreation& setName(const char* name) {
         this->name = name;
         return *this;
     }
@@ -440,9 +483,9 @@ struct FramebufferCreation {
 };
 
 struct DescriptorSetCreation {
-    Handle      resources[kMaxDescriptorsPerSet];
-    //SamplerHandle samplers[kMaxDescriptorsPerSet] = {SamplerPool::Undefined};
-    uint16_t      bindings[kMaxDescriptorsPerSet];
+    Handle      resources[kMaxDescriptorsPerSet] {Undefined};
+    SamplerHandle samplers[kMaxDescriptorsPerSet] {Undefined};
+    uint16_t      bindings[kMaxDescriptorsPerSet] {};
 
     DescriptorSetLayoutHandle layout       = Undefined;
     uint32_t                  numResources = 0;
@@ -522,7 +565,21 @@ struct Texture {
     gerium_texture_type_t type;
     gerium_utf8_t         name;
 
-    //SamplerHandle sampler;
+    SamplerHandle sampler;
+};
+
+struct Sampler {
+    VkSampler vkSampler;
+
+    VkFilter            minFilter;
+    VkFilter            magFilter;
+    VkSamplerMipmapMode mipFilter;
+
+    VkSamplerAddressMode addressModeU;
+    VkSamplerAddressMode addressModeV;
+    VkSamplerAddressMode addressModeW;
+
+    gerium_utf8_t name;
 };
 
 struct RenderPass {
@@ -534,8 +591,8 @@ struct RenderPass {
 struct DescriptorSet {
     VkDescriptorSet vkDescriptorSet;
 
-    Handle       resources[kMaxDescriptorsPerSet];
-    // SamplerHandle samplers[kMaxDescriptorsPerSet];
+    Handle        resources[kMaxDescriptorsPerSet];
+    SamplerHandle samplers[kMaxDescriptorsPerSet];
     uint16_t      bindings[kMaxDescriptorsPerSet];
     uint32_t      numResources;
 
