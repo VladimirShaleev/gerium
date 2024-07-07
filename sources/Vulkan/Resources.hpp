@@ -33,6 +33,54 @@ using ProgramPool             = ResourcePool<struct Program, ProgramHandle>;
 using PipelinePool            = ResourcePool<struct Pipeline, PipelineHandle>;
 using FramebufferPool         = ResourcePool<struct Framebuffer, FramebufferHandle>;
 
+struct BufferCreation {
+    VkBufferUsageFlags usageFlags  = {};
+    ResourceUsageType  usage       = ResourceUsageType::Immutable;
+    uint32_t           size        = 0;
+    bool               persistent  = false;
+    bool               deviceOnly  = false;
+    void*              initialData = nullptr;
+    const char*        name        = nullptr;
+
+    BufferCreation& reset() {
+        usageFlags  = {};
+        usage       = ResourceUsageType::Immutable;
+        size        = 0;
+        persistent  = false;
+        deviceOnly  = false;
+        initialData = nullptr;
+        name        = nullptr;
+        return *this;
+    }
+
+    BufferCreation& set(VkBufferUsageFlags flags, ResourceUsageType usage, uint32_t size) noexcept {
+        this->usageFlags = flags;
+        this->usage      = usage;
+        this->size       = size;
+        return *this;
+    }
+
+    BufferCreation& setInitialData(void* data) noexcept {
+        initialData = data;
+        return *this;
+    }
+
+    BufferCreation& setName(const char* name) noexcept {
+        this->name = name;
+        return *this;
+    }
+
+    BufferCreation& setPersistent(bool value) noexcept {
+        persistent = value;
+        return *this;
+    }
+
+    BufferCreation& setDeviceOnly(bool value) noexcept {
+        deviceOnly = value;
+        return *this;
+    }
+};
+
 struct TextureCreation {
     uint16_t              width        = 1;
     uint16_t              height       = 1;
@@ -448,7 +496,16 @@ struct DescriptorSetCreation {
 };*/
 
 struct Buffer {
-
+    VkBuffer           vkBuffer;
+    VmaAllocation      vmaAllocation;
+    VkDeviceMemory     vkDeviceMemory;
+    VkBufferUsageFlags vkUsageFlags;
+    ResourceUsageType  usage;
+    gerium_uint32_t    size;
+    gerium_uint32_t    globalOffset;
+    void*              mappedData;
+    gerium_utf8_t      name;
+    BufferHandle       parent;
 };
 
 struct Texture {
@@ -475,7 +532,14 @@ struct RenderPass {
 };
 
 struct DescriptorSet {
+    VkDescriptorSet vkDescriptorSet;
 
+    Handle       resources[kMaxDescriptorsPerSet];
+    // SamplerHandle samplers[kMaxDescriptorsPerSet];
+    uint16_t      bindings[kMaxDescriptorsPerSet];
+    uint32_t      numResources;
+
+    DescriptorSetLayoutHandle layout;
 };
 
 struct DescriptorSetLayout {

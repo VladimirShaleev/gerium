@@ -8,6 +8,11 @@ namespace gerium::vulkan {
 Device::~Device() {
     if (_device) {
         _vkTable.vkDeviceWaitIdle(_device);
+
+        if (_dynamicBuffer != Undefined && _dynamicBufferMapped) {
+            unmapBuffer(_dynamicBuffer);
+        }
+
         deleteResources(true);
 
         for (auto framebuffer : _framebuffers) {
@@ -45,6 +50,11 @@ Device::~Device() {
         }
         deleteResources(true);
 
+        for (auto buffer : _buffers) {
+            destroyBuffer(_buffers.handle(buffer));
+        }
+        deleteResources(true);
+
         if (_swapchain) {
             _vkTable.vkDestroySwapchainKHR(_device, _swapchain, getAllocCalls());
         }
@@ -57,6 +67,10 @@ Device::~Device() {
 
         if (_vmaAllocator) {
             vmaDestroyAllocator(_vmaAllocator);
+        }
+
+        if (_descriptorPool) {
+            _vkTable.vkDestroyDescriptorPool(_device, _descriptorPool, getAllocCalls());
         }
 
         _commandBufferManager.destroy();
@@ -86,6 +100,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createDevice();
     createDescriptorPool();
     createVmaAllocator();
+    createDynamicBuffer();
     createSynchronizations();
     createSwapchain(application);
 
@@ -183,7 +198,7 @@ void Device::newFrame() {
         check(result);
     }
 
-    //_dynamicAllocatedSize = _dynamicBufferSize * _currentFrame;
+    _dynamicAllocatedSize = _dynamicBufferSize * _currentFrame;
     _commandBufferManager.newFrame();
 
     if (_profilerEnabled) {
@@ -290,6 +305,77 @@ void Device::present() {
 
     frameCountersAdvance();
     deleteResources();
+}
+
+BufferHandle Device::createBuffer(const BufferCreation& creation) {
+    assert(creation.size && "It is impossible to create an empty buffer");
+    assert(!(creation.persistent && creation.deviceOnly));
+
+    auto [handle, buffer] = _buffers.obtain_and_access();
+
+    buffer->vkUsageFlags = creation.usageFlags;
+    buffer->usage        = creation.usage;
+    buffer->size         = creation.size;
+    buffer->name         = intern(creation.name);
+    buffer->parent       = Undefined;
+
+    constexpr VkBufferUsageFlags dynamicBufferFlags =
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+    const bool useGlobalBuffer = (creation.usageFlags & dynamicBufferFlags) != 0;
+    if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
+        buffer->parent = _dynamicBuffer;
+        return handle;
+    }
+
+    const auto vkUsage  = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | creation.usageFlags;
+    const auto vmaUsage = creation.deviceOnly ? VMA_MEMORY_USAGE_GPU_ONLY : VMA_MEMORY_USAGE_GPU_TO_CPU;
+    const auto vmaFlags =
+        VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT | (creation.persistent ? VMA_ALLOCATION_CREATE_MAPPED_BIT : 0);
+
+    VkBufferCreateInfo bufferCreateInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    bufferCreateInfo.size                  = creation.size;
+    bufferCreateInfo.usage                 = vkUsage;
+    bufferCreateInfo.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
+    bufferCreateInfo.queueFamilyIndexCount = 0;
+    bufferCreateInfo.pQueueFamilyIndices   = nullptr;
+
+    VmaAllocationCreateInfo allocationCreateInfo;
+    allocationCreateInfo.flags          = vmaFlags;
+    allocationCreateInfo.usage          = vmaUsage;
+    allocationCreateInfo.requiredFlags  = 0;
+    allocationCreateInfo.preferredFlags = 0;
+    allocationCreateInfo.memoryTypeBits = 0;
+    allocationCreateInfo.pool           = VK_NULL_HANDLE;
+    allocationCreateInfo.pUserData      = VK_NULL_HANDLE;
+    allocationCreateInfo.priority       = 0.0f;
+
+    VmaAllocationInfo allocationInfo{};
+
+    check(vmaCreateBuffer(_vmaAllocator,
+                          &bufferCreateInfo,
+                          &allocationCreateInfo,
+                          &buffer->vkBuffer,
+                          &buffer->vmaAllocation,
+                          &allocationInfo));
+    buffer->vkDeviceMemory = allocationInfo.deviceMemory;
+
+    if (_enableValidations && buffer->name) {
+        vmaSetAllocationName(_vmaAllocator, buffer->vmaAllocation, buffer->name);
+    }
+
+    setObjectName(VK_OBJECT_TYPE_BUFFER, (uint64_t) buffer->vkBuffer, buffer->name);
+
+    if (creation.initialData) {
+        void* data = mapBuffer(handle);
+        memcpy(data, creation.initialData, (size_t) creation.size);
+        unmapBuffer(handle);
+    }
+
+    if (creation.persistent) {
+        buffer->mappedData = static_cast<uint8_t*>(allocationInfo.pMappedData);
+    }
+    return handle;
 }
 
 TextureHandle Device::createTexture(const TextureCreation& creation) {
@@ -455,10 +541,32 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& creation) {
     auto [handle, descriptorSet] = _descriptorSets.obtain_and_access();
 
+    auto descriptorSetLayout = _descriptorSetLayouts.access(creation.layout);
+
     VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
     allocInfo.descriptorPool     = _descriptorPool;
     allocInfo.descriptorSetCount = 1;
-    // allocInfo.pSetLayouts        = &descriptorSetLayout.vkDescriptorSetLayout;
+    allocInfo.pSetLayouts        = &descriptorSetLayout->vkDescriptorSetLayout;
+
+    check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
+
+    descriptorSet->numResources = creation.numResources;
+    descriptorSet->layout       = creation.layout;
+
+    for (uint32_t i = 0; i < creation.numResources; ++i) {
+        descriptorSet->resources[i] = creation.resources[i];
+        // descriptorSet.samplers[i]  = creation.samplers[i];
+        descriptorSet->bindings[i] = creation.bindings[i];
+    }
+
+    VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
+    VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
+    VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
+
+    const uint32_t num =
+        fillWriteDescriptorSets(*descriptorSetLayout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
+
+    _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
 
     return handle;
 }
@@ -855,6 +963,10 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     return handle;
 }
 
+void Device::destroyBuffer(BufferHandle handle) {
+    _deletionQueue.push({ ResourceType::Buffer, _currentFrame, handle });
+}
+
 void Device::destroyTexture(TextureHandle handle) {
     _deletionQueue.push({ ResourceType::Texture, _currentFrame, handle });
 }
@@ -881,6 +993,33 @@ void Device::destroyProgram(ProgramHandle handle) {
 
 void Device::destroyPipeline(PipelineHandle handle) {
     _deletionQueue.push({ ResourceType::Pipeline, _currentFrame, handle });
+}
+
+void* Device::mapBuffer(BufferHandle handle, uint32_t offset, uint32_t size) {
+    auto buffer = _buffers.access(handle);
+
+    if (buffer->parent == _dynamicBuffer) {
+        buffer->globalOffset = _dynamicAllocatedSize;
+
+        uint8_t* mappedMemory = _dynamicBufferMapped + _dynamicAllocatedSize;
+        _dynamicAllocatedSize += align(size ? size : buffer->size, _uboAlignment);
+
+        return (void*) (mappedMemory + offset);
+    }
+
+    void* data = nullptr;
+    check(vmaMapMemory(_vmaAllocator, buffer->vmaAllocation, &data));
+    return (uint8_t*) data + offset;
+}
+
+void Device::unmapBuffer(BufferHandle handle) {
+    auto buffer = _buffers.access(handle);
+
+    if (buffer->parent == _dynamicBuffer) {
+        return;
+    }
+
+    vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
@@ -1048,14 +1187,14 @@ void Device::createDescriptorPool() {
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          kGlobalPoolElements     },
         //{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   kGlobalPoolElements     },
         //{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   kGlobalPoolElements     },
-        //{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       kGlobalPoolElements     }
     };
 
-    VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
     poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     poolInfo.maxSets       = kDescriptorSetsPoolSize;
     poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(poolSizes[0]);
@@ -1076,6 +1215,18 @@ void Device::createVmaAllocator() {
     createInfo.pVulkanFunctions     = &functions;
 
     check(vmaCreateAllocator(&createInfo, &_vmaAllocator));
+}
+
+void Device::createDynamicBuffer() {
+    _dynamicBufferSize = 1024 * 1024 * 10;
+
+    BufferCreation bc;
+    bc.set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+           ResourceUsageType::Immutable,
+           _dynamicBufferSize * MaxFrames)
+        .setName("Dynamic_Persistent_Buffer");
+    _dynamicBuffer       = createBuffer(bc);
+    _dynamicBufferMapped = (uint8_t*) mapBuffer(_dynamicBuffer);
 }
 
 void Device::createSynchronizations() {
@@ -1303,6 +1454,118 @@ void Device::printPhysicalDevices() {
     }
 }
 
+uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
+                                         const DescriptorSet& descriptorSet,
+                                         VkWriteDescriptorSet* descriptorWrite,
+                                         VkDescriptorBufferInfo* bufferInfo,
+                                         VkDescriptorImageInfo* imageInfo) {
+    uint32_t usedResources = 0;
+
+    for (uint32_t r = 0; r < descriptorSet.numResources; ++r) {
+        uint32_t layoutBindingIndex = descriptorSet.bindings[r];
+
+        auto it = std::find_if(descriptorSetLayout.data.bindings.cbegin(),
+                               descriptorSetLayout.data.bindings.cend(),
+                               [layoutBindingIndex](const auto& binding) {
+            return binding.binding == layoutBindingIndex;
+        });
+
+        if (it == descriptorSetLayout.data.bindings.cend()) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+
+        const auto& binding = *it;
+
+        auto i = usedResources++;
+
+        descriptorWrite[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite[i].dstSet          = descriptorSet.vkDescriptorSet;
+        descriptorWrite[i].dstBinding      = binding.binding;
+        descriptorWrite[i].dstArrayElement = 0;
+        descriptorWrite[i].descriptorCount = 1;
+
+        switch (binding.descriptorType) {
+            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
+                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+                // auto texture = _textures.access(descriptorSet.resources[r]);
+
+                // imageInfo[i].sampler = texture.sampler != SamplerPool::Undefined
+                //                          ? _samplers.access(texture.sampler).vkSampler
+                //                          : defaultSampler;
+
+                // if (descriptorSet.samplers[r] != SamplerPool::Undefined) {
+                //     auto& sampler        = _samplers.access(descriptorSet.samplers[r]);
+                //     imageInfo[i].sampler = sampler.vkSampler;
+                // }
+
+                // imageInfo[i].imageLayout = hasDepthOrStencil(texture.vkFormat)
+                //                              ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+                //                              : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+                // imageInfo[i].imageView = texture.vkImageView;
+
+                // descriptorWrite[i].pImageInfo = &imageInfo[i];
+                break;
+            }
+            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
+                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+
+                auto texture = _textures.access(descriptorSet.resources[r]);
+
+                imageInfo[i].sampler     = VK_NULL_HANDLE;
+                imageInfo[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                imageInfo[i].imageView   = texture->vkImageView;
+
+                descriptorWrite[i].pImageInfo = &imageInfo[i];
+                break;
+            }
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+                // auto& buffer = _buffers.access(BufferHandle{descriptorSet.resources[r]});
+
+                // descriptorWrite[i].descriptorType = buffer.usage == ResourceUsageType::Dynamic
+                //                                       ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+                //                                       : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+                // if (buffer.parent != BufferPool::Undefined) {
+                //     bufferInfo[i].buffer = _buffers.access(buffer.parent).vkBuffer;
+                // } else {
+                //     bufferInfo[i].buffer = buffer.vkBuffer;
+                // }
+
+                // bufferInfo[i].offset = 0;
+                // bufferInfo[i].range  = buffer.size;
+
+                // descriptorWrite[i].pBufferInfo = &bufferInfo[i];
+                break;
+            }
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
+                // descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+                // auto& buffer = _buffers.access(BufferHandle{descriptorSet.resources[r]});
+
+                // if (buffer.parent != BufferPool::Undefined) {
+                //     bufferInfo[i].buffer = _buffers.access(buffer.parent).vkBuffer;
+                // } else {
+                //     bufferInfo[i].buffer = buffer.vkBuffer;
+                // }
+
+                // bufferInfo[i].offset = 0;
+                // bufferInfo[i].range  = buffer.size;
+
+                // descriptorWrite[i].pBufferInfo = &bufferInfo[i];
+                break;
+            }
+            default: {
+                assert(!"Resource not supported in descriptor set creation!");
+                break;
+            }
+        }
+    }
+
+    return usedResources;
+}
+
 std::vector<uint32_t> Device::compileGLSL(const char* code,
                                           size_t size,
                                           VkShaderStageFlagBits stage,
@@ -1491,6 +1754,13 @@ void Device::deleteResources(bool forceDelete) {
         }
         switch (resource.type) {
             case ResourceType::Buffer:
+                if (_buffers.references(BufferHandle{ resource.handle }) == 1) {
+                    auto buffer = _buffers.access(resource.handle);
+                    if (buffer->parent == Undefined) {
+                        vmaDestroyBuffer(_vmaAllocator, buffer->vkBuffer, buffer->vmaAllocation);
+                    }
+                }
+                _buffers.release(resource.handle);
                 break;
             case ResourceType::Texture:
                 if (_textures.references(TextureHandle{ resource.handle }) == 1) {

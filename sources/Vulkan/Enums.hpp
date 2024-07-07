@@ -5,6 +5,13 @@
 
 namespace gerium::vulkan {
 
+enum class ResourceUsageType {
+    Immutable,
+    Dynamic,
+    Stream,
+    Staging
+};
+
 enum class TextureFlags {
     None         = 0,
     RenderTarget = 1,

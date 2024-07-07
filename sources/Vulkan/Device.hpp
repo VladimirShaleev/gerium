@@ -21,6 +21,7 @@ public:
     void submit(CommandBuffer* commandBuffer);
     void present();
 
+    BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
@@ -29,6 +30,7 @@ public:
     ProgramHandle createProgram(const ProgramCreation& creation);
     PipelineHandle createPipeline(const PipelineCreation& creation);
 
+    void destroyBuffer(BufferHandle handle);
     void destroyTexture(TextureHandle handle);
     void destroyRenderPass(RenderPassHandle handle);
     void destroyFramebuffer(FramebufferHandle handle);
@@ -36,6 +38,9 @@ public:
     void destroyDescriptorSetLayout(DescriptorSetLayoutHandle handle);
     void destroyProgram(ProgramHandle handle);
     void destroyPipeline(PipelineHandle handle);
+
+    void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
+    void unmapBuffer(BufferHandle handle);
 
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
 
@@ -110,6 +115,7 @@ private:
     void createDevice();
     void createDescriptorPool();
     void createVmaAllocator();
+    void createDynamicBuffer();
     void createSynchronizations();
     void createSwapchain(Application* application);
     void resizeSwapchain();
@@ -118,6 +124,11 @@ private:
     void printExtensions();
     void printPhysicalDevices();
 
+    uint32_t fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
+                                     const DescriptorSet& descriptorSet,
+                                     VkWriteDescriptorSet* descriptorWrite,
+                                     VkDescriptorBufferInfo* bufferInfo,
+                                     VkDescriptorImageInfo* imageInfo);
     std::vector<uint32_t> compileGLSL(const char* code, size_t size, VkShaderStageFlagBits stage, const char* name);
     VkRenderPass vkCreateRenderPass(const RenderPassOutput& output, const char* name);
     void deleteResources(bool forceDelete = false);
@@ -184,7 +195,12 @@ private:
     gerium_uint32_t _currentFrame{};
     gerium_uint32_t _previousFrame{ MaxFrames - 1 };
     gerium_uint32_t _absoluteFrame{};
+    uint32_t _dynamicBufferSize{};
+    uint32_t _dynamicAllocatedSize{};
+    BufferHandle _dynamicBuffer{ Undefined };
+    uint8_t* _dynamicBufferMapped{};
 
+    BufferPool _buffers;
     TexturePool _textures;
     RenderPassPool _renderPasses;
     DescriptorSetPool _descriptorSets;
