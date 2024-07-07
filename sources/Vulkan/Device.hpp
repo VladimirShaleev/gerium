@@ -24,6 +24,7 @@ public:
     TextureHandle createTexture(const TextureCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
+    DescriptorSetHandle createDescriptorSet(const DescriptorSetCreation& creation);
     DescriptorSetLayoutHandle createDescriptorSetLayout(const DescriptorSetLayoutCreation& creation);
     ProgramHandle createProgram(const ProgramCreation& creation);
     PipelineHandle createPipeline(const PipelineCreation& creation);
@@ -31,6 +32,7 @@ public:
     void destroyTexture(TextureHandle handle);
     void destroyRenderPass(RenderPassHandle handle);
     void destroyFramebuffer(FramebufferHandle handle);
+    void destroyDescriptorSet(DescriptorSetHandle handle);
     void destroyDescriptorSetLayout(DescriptorSetLayoutHandle handle);
     void destroyProgram(ProgramHandle handle);
     void destroyPipeline(PipelineHandle handle);
@@ -106,6 +108,7 @@ private:
     void createSurface(Application* application);
     void createPhysicalDevice();
     void createDevice();
+    void createDescriptorPool();
     void createVmaAllocator();
     void createSynchronizations();
     void createSwapchain(Application* application);
@@ -167,6 +170,7 @@ private:
     VkQueue _queueCompute{};
     VkQueue _queuePresent{};
     VkQueue _queueTransfer{};
+    VkDescriptorPool _descriptorPool{};
     VmaAllocator _vmaAllocator{};
     VkSemaphore _imageAvailableSemaphores[MaxFrames]{};
     VkSemaphore _renderFinishedSemaphores[MaxFrames]{};
@@ -183,6 +187,7 @@ private:
 
     TexturePool _textures;
     RenderPassPool _renderPasses;
+    DescriptorSetPool _descriptorSets;
     DescriptorSetLayoutPool _descriptorSetLayouts;
     ProgramPool _programs;
     PipelinePool _pipelines;

@@ -20,6 +20,11 @@ Device::~Device() {
         }
         deleteResources(true);
 
+        for (auto descriptorSet : _descriptorSets) {
+            destroyDescriptorSet(_descriptorSets.handle(descriptorSet));
+        }
+        deleteResources(true);
+
         for (auto layout : _descriptorSetLayouts) {
             destroyDescriptorSetLayout(_descriptorSetLayouts.handle(layout));
         }
@@ -79,6 +84,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createSurface(application);
     createPhysicalDevice();
     createDevice();
+    createDescriptorPool();
     createVmaAllocator();
     createSynchronizations();
     createSwapchain(application);
@@ -442,6 +448,17 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
     check(_vkTable.vkCreateFramebuffer(_device, &createInfo, getAllocCalls(), &framebuffer->vkFramebuffer));
 
     setObjectName(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t) framebuffer->vkFramebuffer, framebuffer->name);
+
+    return handle;
+}
+
+DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& creation) {
+    auto [handle, descriptorSet] = _descriptorSets.obtain_and_access();
+
+    VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    allocInfo.descriptorPool     = _descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    // allocInfo.pSetLayouts        = &descriptorSetLayout.vkDescriptorSetLayout;
 
     return handle;
 }
@@ -850,6 +867,10 @@ void Device::destroyFramebuffer(FramebufferHandle handle) {
     _deletionQueue.push({ ResourceType::Framebuffer, _currentFrame, handle });
 }
 
+void Device::destroyDescriptorSet(DescriptorSetHandle handle) {
+    _deletionQueue.push({ ResourceType::DescriptorSet, _currentFrame, handle });
+}
+
 void Device::destroyDescriptorSetLayout(DescriptorSetLayoutHandle handle) {
     _deletionQueue.push({ ResourceType::DescriptorSetLayout, _currentFrame, handle });
 }
@@ -1017,6 +1038,29 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
     _commandBufferManager.create(*this, 4, graphic.index);
+}
+
+void Device::createDescriptorPool() {
+    VkDescriptorPoolSize poolSizes[] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLER,                kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kGlobalPoolElements * 2 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          kGlobalPoolElements     },
+        //{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   kGlobalPoolElements     },
+        //{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   kGlobalPoolElements     },
+        //{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       kGlobalPoolElements     }
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.maxSets       = kDescriptorSetsPoolSize;
+    poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(poolSizes[0]);
+    poolInfo.pPoolSizes    = poolSizes;
+    check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &_descriptorPool));
 }
 
 void Device::createVmaAllocator() {
@@ -1499,6 +1543,10 @@ void Device::deleteResources(bool forceDelete) {
                 _programs.release(resource.handle);
                 break;
             case ResourceType::DescriptorSet:
+                if (_descriptorSets.references(DescriptorSetHandle{ resource.handle }) == 1) {
+                    auto descriptorSet = _descriptorSets.access(resource.handle); // ???????????
+                }
+                _descriptorSets.release(resource.handle);
                 break;
             case ResourceType::DescriptorSetLayout:
                 if (_descriptorSetLayouts.references(DescriptorSetLayoutHandle{ resource.handle }) == 1) {

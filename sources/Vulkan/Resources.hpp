@@ -9,20 +9,25 @@ namespace gerium::vulkan {
 
 // clang-format off
 
-constexpr uint8_t kMaxImageOutputs         = 8;
-constexpr uint8_t kMaxDescriptorSetLayouts = 8;
-constexpr uint8_t kMaxDescriptorsPerSet    = 16;
-constexpr uint8_t kMaxVertexStreams        = 16;
-constexpr uint8_t kMaxVertexAttributes     = 16;
-constexpr uint8_t kMaxShaderStages         = 5;
+constexpr uint8_t  kMaxImageOutputs         = 8;
+constexpr uint8_t  kMaxDescriptorSetLayouts = 8;
+constexpr uint8_t  kMaxDescriptorsPerSet    = 16;
+constexpr uint8_t  kMaxVertexStreams        = 16;
+constexpr uint8_t  kMaxVertexAttributes     = 16;
+constexpr uint8_t  kMaxShaderStages         = 5;
+constexpr uint32_t kGlobalPoolElements      = 1024;
+constexpr uint32_t kDescriptorSetsPoolSize  = 1024;
 
 struct RenderPassHandle : Handle {};
+struct DescriptorSetHandle : Handle {};
 struct DescriptorSetLayoutHandle : Handle {};
 struct ProgramHandle : Handle {};
 struct PipelineHandle : Handle {};
 
+using BufferPool              = ResourcePool<struct Buffer, BufferHandle>;
 using TexturePool             = ResourcePool<struct Texture, TextureHandle>;
 using RenderPassPool          = ResourcePool<struct RenderPass, RenderPassHandle>;
+using DescriptorSetPool       = ResourcePool<struct DescriptorSet, DescriptorSetHandle>;
 using DescriptorSetLayoutPool = ResourcePool<struct DescriptorSetLayout, DescriptorSetLayoutHandle>;
 using ProgramPool             = ResourcePool<struct Program, ProgramHandle>;
 using PipelinePool            = ResourcePool<struct Pipeline, PipelineHandle>;
@@ -386,6 +391,53 @@ struct FramebufferCreation {
     }
 };
 
+struct DescriptorSetCreation {
+    Handle      resources[kMaxDescriptorsPerSet];
+    //SamplerHandle samplers[kMaxDescriptorsPerSet] = {SamplerPool::Undefined};
+    uint16_t      bindings[kMaxDescriptorsPerSet];
+
+    DescriptorSetLayoutHandle layout       = Undefined;
+    uint32_t                  numResources = 0;
+
+    const char* name = nullptr;
+
+    DescriptorSetCreation& reset() {
+        numResources = 0;
+        return *this;
+    }
+
+    DescriptorSetCreation& setLayout(DescriptorSetLayoutHandle layout) {
+        this->layout = layout;
+        return *this;
+    }
+
+    DescriptorSetCreation& texture(TextureHandle texture, uint16_t binding) {
+        resources[numResources]  = texture;
+        //samplers[numResources]   = SamplerPool::Undefined;
+        bindings[numResources++] = binding;
+        return *this;
+    }
+
+    DescriptorSetCreation& buffer(BufferHandle buffer, uint16_t binding) {
+        resources[numResources]  = buffer;
+        //samplers[numResources]   = SamplerPool::Undefined;
+        bindings[numResources++] = binding;
+        return *this;
+    }
+
+    // DescriptorSetCreation& textureSampler(TextureHandle texture, SamplerHandle sampler, uint16_t binding) {
+    //     resources[numResources]  = texture.index;
+    //     //samplers[numResources]   = sampler;
+    //     bindings[numResources++] = binding;
+    //     return *this;
+    // }
+
+    DescriptorSetCreation& setName(const char* name) {
+        this->name = name;
+        return *this;
+    }
+};
+
 /*struct DescriptorBinding {
     VkDescriptorType type;
     uint16_t         index;
@@ -394,6 +446,10 @@ struct FramebufferCreation {
 
     const char* name;
 };*/
+
+struct Buffer {
+
+};
 
 struct Texture {
     VkImage               vkImage;
@@ -416,6 +472,10 @@ struct RenderPass {
     VkRenderPass     vkRenderPass;
     RenderPassOutput output;
     gerium_utf8_t    name;
+};
+
+struct DescriptorSet {
+
 };
 
 struct DescriptorSetLayout {

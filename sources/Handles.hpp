@@ -6,6 +6,8 @@
 
 namespace gerium {
 
+struct BufferHandle : Handle {};
+
 struct TextureHandle : Handle {};
 
 struct FramebufferHandle : Handle {};
