@@ -14,6 +14,10 @@ public:
     HINSTANCE hInstance() const noexcept;
     HWND hWnd() const noexcept;
 
+    void* native() noexcept override {
+        return (void*) hWnd();
+    }
+
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 

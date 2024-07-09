@@ -43,6 +43,8 @@ public:
     gerium_result_t run() noexcept;
     void exit() noexcept;
 
+    virtual void* native() noexcept = 0;
+
 protected:
     void changeState(gerium_application_state_t newState);
     bool callFrameFunc(gerium_float32_t elapsed) noexcept;

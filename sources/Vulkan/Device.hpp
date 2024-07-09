@@ -121,7 +121,7 @@ private:
     void createDefaultSampler();
     void createSynchronizations();
     void createSwapchain(Application* application);
-    void createImGui();
+    void createImGui(Application* application);
     void resizeSwapchain();
 
     void printValidationLayers();

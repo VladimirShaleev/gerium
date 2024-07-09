@@ -13,8 +13,7 @@
 
 namespace std { // add mi_* functions to std for vulkan headers
 
-inline mi_decl_restrict void* mi_malloc(size_t size) mi_attr_noexcept mi_attr_malloc
-    mi_attr_alloc_size(1) {
+inline mi_decl_restrict void* mi_malloc(size_t size) mi_attr_noexcept mi_attr_malloc mi_attr_alloc_size(1) {
     return mi_malloc(size);
 }
 
@@ -26,6 +25,10 @@ inline void mi_free(void* p) mi_attr_noexcept {
 #else
 # define GERIUM_MIMALLOC_DISABLE
 #endif
+
+// cmrc
+#include <cmrc/cmrc.hpp>
+CMRC_DECLARE(gerium::resources);
 
 #include <cassert>
 #include <chrono>
@@ -109,6 +112,9 @@ inline void mi_free(void* p) mi_attr_noexcept {
 // ImGui
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
+#ifdef GERIUM_PLATFORM_WINDOWS
+# include <imgui_impl_win32.h>
+#endif
 
 #include "gerium/gerium.h"
 

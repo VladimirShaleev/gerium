@@ -48,6 +48,7 @@ endif()
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
 find_package(mimalloc CONFIG REQUIRED)
+find_package(CMakeRC CONFIG REQUIRED)
 find_package(ctre CONFIG REQUIRED)
 find_package(absl CONFIG REQUIRED)
 find_package(VulkanHeaders CONFIG REQUIRED)
@@ -70,6 +71,32 @@ file(GLOB GERIUM_INCLUDE "include/*.h")
 file(GLOB GERIUM_SOURCES "sources/*.hpp" "sources/*.cpp" "sources/Vulkan/*.hpp" "sources/Vulkan/*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_INCLUDE})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES})
+
+file(GLOB GERIUM_RESOURCES "resources/*")
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_RESOURCES})
+
+cmrc_add_resource_library(
+    gerium-resources ALIAS gerium::resources 
+        NAMESPACE gerium::resources
+        TYPE STATIC
+        ${GERIUM_RESOURCES}
+)
+target_compile_features(gerium-resources PRIVATE cxx_std_20)
+set_target_properties(gerium-resources PROPERTIES
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    POSITION_INDEPENDENT_CODE ON
+    WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+if(MSVC)
+    target_compile_options(gerium-resources PUBLIC /GR-)
+    if(GERIUM_MSVC_DYNAMIC_RUNTIME)
+        set_target_properties(gerium-resources PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    else()
+        set_target_properties(gerium-resources PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
+endif()
 
 if(WIN32)
     file(GLOB GERIUM_WINDOWS_SOURCES 
@@ -96,6 +123,7 @@ add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
 
 target_link_libraries(gerium PRIVATE $<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
+target_link_libraries(gerium PRIVATE gerium::resources)
 target_link_libraries(gerium PRIVATE ctre::ctre)
 target_link_libraries(gerium PRIVATE absl::flat_hash_map)
 target_link_libraries(gerium PRIVATE Vulkan::Headers)

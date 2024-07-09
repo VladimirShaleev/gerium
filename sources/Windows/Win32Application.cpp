@@ -1,5 +1,7 @@
 #include "Win32Application.hpp"
 
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 namespace gerium::windows {
 
 Win32Application::Win32Application(gerium_utf8_t title,
@@ -396,6 +398,10 @@ void Win32Application::onExit() noexcept {
 }
 
 LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
+    if (ImGui_ImplWin32_WndProcHandler(_hWnd, message, wParam, lParam)) {
+        return 1;
+    }
+
     auto prevVisibility = _visibility;
     switch (message) {
         case WM_SYSKEYUP: // TODO: Need it for development and testing. Remove later

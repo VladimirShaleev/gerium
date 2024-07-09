@@ -5,6 +5,7 @@
   "builtin-baseline": "f7423ee180c4b7f40d43402c2feb3859161ef625",
   "dependencies": [
     "mimalloc",
+    "cmakerc",
     "wyhash",
     "ctre",
     "abseil",
@@ -16,7 +17,7 @@
     "gtest",
     {
       "name": "imgui",
-      "features": [ "vulkan-binding" ]
+      "features": [ "vulkan-binding", "win32-binding" ]
     }
   ],
   "overrides": [

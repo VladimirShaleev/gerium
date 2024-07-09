@@ -10,6 +10,7 @@ Device::~Device() {
         _vkTable.vkDeviceWaitIdle(_device);
 
         ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
 
         if (_dynamicBuffer != Undefined && _dynamicBufferMapped) {
@@ -116,7 +117,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createDefaultSampler();
     createSynchronizations();
     createSwapchain(application);
-    createImGui();
+    createImGui(application);
 
     const char vs[] = "#version 450\n"
                       "\n"
@@ -271,6 +272,7 @@ void Device::newFrame() {
     }
 
     ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 }
 
@@ -1502,7 +1504,7 @@ void Device::createSwapchain(Application* application) {
     commandBuffer->submit(QueueType::Graphics);
 }
 
-void Device::createImGui() {
+void Device::createImGui(Application* application) {
     auto renderPass = _renderPasses.access(_swapchainRenderPass)->vkRenderPass;
 
     VkDescriptorPoolSize poolSizes[] = {
@@ -1530,6 +1532,7 @@ void Device::createImGui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
+    ImGui_ImplWin32_Init(application->native());
 
     ImGui_ImplVulkan_LoadFunctions(imguiLoaderFunc, this);
 
@@ -1556,7 +1559,15 @@ void Device::createImGui() {
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.DisplaySize = ImVec2{ float(_swapchainExtent.width), float(_swapchainExtent.height) };
 
-    ImGui::GetStyle().ScaleAllSizes(2.0f);
+    auto fs   = cmrc::gerium::resources::get_filesystem();
+    auto font = fs.open("resources/font-awesome.ttf");
+
+    auto density = 1.5f;
+
+    auto dataFont = IM_ALLOC(font.size());
+    memcpy(dataFont, (void*) font.begin(), font.size());
+    io.Fonts->AddFontFromMemoryTTF(dataFont, font.size(), 12.0f * density);
+    ImGui::GetStyle().ScaleAllSizes(density);
     ImGui_ImplVulkan_CreateFontsTexture();
     
     const char vert[] = "#version 450\nvoid main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }\n";
