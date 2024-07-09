@@ -121,6 +121,7 @@ private:
     void createDefaultSampler();
     void createSynchronizations();
     void createSwapchain(Application* application);
+    void createImGui();
     void resizeSwapchain();
 
     void printValidationLayers();
@@ -163,6 +164,8 @@ private:
                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                 void* pUserData);
 
+    static PFN_vkVoidFunction imguiLoaderFunc(const char* functionName, void* userData);
+
     [[noreturn]] static void error(gerium_result_t result);
 
     virtual const char* onGetSurfaceExtension() const noexcept           = 0;
@@ -186,6 +189,7 @@ private:
     VkQueue _queuePresent{};
     VkQueue _queueTransfer{};
     VkDescriptorPool _descriptorPool{};
+    VkDescriptorPool _imguiPool{};
     VmaAllocator _vmaAllocator{};
     VkSemaphore _imageAvailableSemaphores[MaxFrames]{};
     VkSemaphore _renderFinishedSemaphores[MaxFrames]{};
@@ -204,6 +208,7 @@ private:
     BufferHandle _dynamicBuffer{ Undefined };
     uint8_t* _dynamicBufferMapped{};
     SamplerHandle _defaultSampler{ Undefined };
+    PipelineHandle _imguiPipeline{ Undefined };
 
     BufferPool _buffers;
     TexturePool _textures;

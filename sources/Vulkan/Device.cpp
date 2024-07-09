@@ -9,6 +9,9 @@ Device::~Device() {
     if (_device) {
         _vkTable.vkDeviceWaitIdle(_device);
 
+        ImGui_ImplVulkan_Shutdown();
+        ImGui::DestroyContext();
+
         if (_dynamicBuffer != Undefined && _dynamicBufferMapped) {
             unmapBuffer(_dynamicBuffer);
         }
@@ -74,6 +77,10 @@ Device::~Device() {
             vmaDestroyAllocator(_vmaAllocator);
         }
 
+        if (_imguiPool) {
+            _vkTable.vkDestroyDescriptorPool(_device, _imguiPool, getAllocCalls());
+        }
+
         if (_descriptorPool) {
             _vkTable.vkDestroyDescriptorPool(_device, _descriptorPool, getAllocCalls());
         }
@@ -109,6 +116,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createDefaultSampler();
     createSynchronizations();
     createSwapchain(application);
+    createImGui();
 
     const char vs[] = "#version 450\n"
                       "\n"
@@ -261,6 +269,9 @@ void Device::newFrame() {
     if (_profilerEnabled) {
         // _timestampManager.reset();
     }
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui::NewFrame();
 }
 
 void Device::submit(CommandBuffer* commandBuffer) {
@@ -317,6 +328,10 @@ void Device::present() {
     cb->bindDescriptorSet(_descriptorSet1);
     cb->bindVertexBuffer(_vertices, 0, 0);
     cb->draw(0, 3, 0, 1);
+    // cb->bindPipeline(_imguiPipeline, _swapchainFramebuffers[_swapchainImageIndex]);
+    ImGui::ShowDemoWindow();
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->_commandBuffer);
     submit(cb);
 
     VkCommandBuffer enqueuedCommandBuffers[16];
@@ -1487,6 +1502,104 @@ void Device::createSwapchain(Application* application) {
     commandBuffer->submit(QueueType::Graphics);
 }
 
+void Device::createImGui() {
+    auto renderPass = _renderPasses.access(_swapchainRenderPass)->vkRenderPass;
+
+    VkDescriptorPoolSize poolSizes[] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLER,                1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       1000 }
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.flags                      = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.maxSets                    = 1000;
+    poolInfo.poolSizeCount              = std::size(poolSizes);
+    poolInfo.pPoolSizes                 = poolSizes;
+    check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &_imguiPool));
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplVulkan_LoadFunctions(imguiLoaderFunc, this);
+
+    ImGui_ImplVulkan_InitInfo initInfo{};
+    initInfo.Instance            = _instance;
+    initInfo.PhysicalDevice      = _physicalDevice;
+    initInfo.Device              = _device;
+    initInfo.QueueFamily         = _queueFamilies.graphic.value().index;
+    initInfo.Queue               = _queueGraphic;
+    initInfo.DescriptorPool      = _imguiPool;
+    initInfo.RenderPass          = renderPass;
+    initInfo.MinImageCount       = _swapchainFramebuffers.size();
+    initInfo.ImageCount          = _swapchainFramebuffers.size();
+    initInfo.MSAASamples         = VK_SAMPLE_COUNT_1_BIT;
+    initInfo.Subpass             = 0;
+    initInfo.UseDynamicRendering = false;
+    initInfo.Allocator           = getAllocCalls();
+    initInfo.CheckVkResultFn     = check;
+    ImGui_ImplVulkan_Init(&initInfo);
+
+    ImGuiIO& io            = ImGui::GetIO();
+    io.BackendRendererName = "gerium-ui";
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+    io.DisplaySize = ImVec2{ float(_swapchainExtent.width), float(_swapchainExtent.height) };
+
+    ImGui::GetStyle().ScaleAllSizes(2.0f);
+    ImGui_ImplVulkan_CreateFontsTexture();
+    
+    const char vert[] = "#version 450\nvoid main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }\n";
+    const char frag[] = "#version 450\nvoid main() {}\n";
+
+    PipelineCreation pc{};
+    pc.rasterization.cullMode          = VK_CULL_MODE_BACK_BIT;
+    pc.rasterization.front             = VK_FRONT_FACE_CLOCKWISE;
+    pc.rasterization.fill              = FillMode::Solid;
+    pc.depthStencil.front.fail         = VK_STENCIL_OP_KEEP;
+    pc.depthStencil.front.pass         = VK_STENCIL_OP_KEEP;
+    pc.depthStencil.front.depthFail    = VK_STENCIL_OP_KEEP;
+    pc.depthStencil.front.compare      = VK_COMPARE_OP_ALWAYS;
+    pc.depthStencil.front.compareMask  = 0xff;
+    pc.depthStencil.front.writeMask    = 0xff;
+    pc.depthStencil.front.reference    = 0xff;
+    pc.depthStencil.back.fail          = VK_STENCIL_OP_KEEP;
+    pc.depthStencil.back.pass          = VK_STENCIL_OP_KEEP;
+    pc.depthStencil.back.depthFail     = VK_STENCIL_OP_KEEP;
+    pc.depthStencil.back.compare       = VK_COMPARE_OP_ALWAYS;
+    pc.depthStencil.back.compareMask   = 0xff;
+    pc.depthStencil.back.writeMask     = 0xff;
+    pc.depthStencil.back.reference     = 0xff;
+    pc.depthStencil.depthComparison    = VK_COMPARE_OP_NEVER;
+    pc.depthStencil.depthEnable        = 0;
+    pc.depthStencil.depthWriteEnable   = 0;
+    pc.depthStencil.stencilEnable      = 0;
+    pc.blendState.activeStates         = 0;
+    pc.vertexInput.numVertexStreams    = 0;
+    pc.vertexInput.numVertexAttributes = 0;
+    pc.program.name                    = "imgui";
+    pc.renderPass.numColorFormats      = 0;
+    pc.name                            = "imgui";
+    pc.program.addStage(vert, std::size(vert) - 1, VK_SHADER_STAGE_VERTEX_BIT);
+    pc.program.addStage(frag, std::size(frag) - 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    pc.renderPass.color(
+        _swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, RenderPassOperation::Load);
+    pc.renderPass.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    pc.renderPass.setDepthStencilOperations(RenderPassOperation::Load, RenderPassOperation::Load);
+
+    _imguiPipeline = createPipeline(pc);
+}
+
 void Device::resizeSwapchain() {
     _vkTable.vkDeviceWaitIdle(_device);
 
@@ -2319,6 +2432,11 @@ Device::debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messa
     auto device = (Device*) pUserData;
     device->debugCallback(messageSeverity, messageTypes, pCallbackData);
     return VK_FALSE;
+}
+
+PFN_vkVoidFunction Device::imguiLoaderFunc(const char* functionName, void* userData) {
+    auto device = (Device*) userData;
+    return device->_vkTable.vkGetInstanceProcAddr(device->_instance, functionName);
 }
 
 void Device::error(gerium_result_t result) {

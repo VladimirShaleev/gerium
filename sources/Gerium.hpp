@@ -107,8 +107,8 @@ inline void mi_free(void* p) mi_attr_noexcept {
 #include <glm/ext.hpp>
 
 // ImGui
-// #include <imgui.h>
-// #include <imgui_impl_vulkan.h>
+#include <imgui.h>
+#include <imgui_impl_vulkan.h>
 
 #include "gerium/gerium.h"
 
