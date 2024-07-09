@@ -55,14 +55,16 @@ private:
     void onAppCmd(int32_t cmd) noexcept;
 
     static void onAppCmd(android_app* application, int32_t cmd);
+    static std::chrono::high_resolution_clock::time_point getCurrentTime() noexcept;
 
-    android_app*     _application;
-    bool             _initialized;
-    bool             _activated;
-    bool             _focused;
-    bool             _exit;
-    bool             _callbackError;
-    jmethodID        _isInMultiWindowMode;
+    android_app* _application;
+    bool _initialized;
+    bool _activated;
+    bool _focused;
+    bool _exit;
+    bool _callbackError;
+    jmethodID _isInMultiWindowMode;
+    std::chrono::high_resolution_clock::time_point _prevTime;
 };
 
 #endif

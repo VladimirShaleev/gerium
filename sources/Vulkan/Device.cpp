@@ -188,17 +188,17 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     Vertex vertices[3]{};
     vertices[0].position = glm::vec2(0.0f, -0.5f);
-    vertices[0].color = glm::vec3(1.0f, 0.0f, 0.0f);
+    vertices[0].color    = glm::vec3(1.0f, 0.0f, 0.0f);
     vertices[0].texcoord = glm::vec2(0.0f, 0.0f);
-    
+
     vertices[1].position = glm::vec2(0.5, 0.5);
-    vertices[1].color = glm::vec3(0.0f, 1.0f, 0.0f);
+    vertices[1].color    = glm::vec3(0.0f, 1.0f, 0.0f);
     vertices[1].texcoord = glm::vec2(0.0f, 0.0f);
 
     vertices[2].position = glm::vec2(-0.5, 0.5);
-    vertices[2].color = glm::vec3(0.0f, 0.0f, 1.0f);
+    vertices[2].color    = glm::vec3(0.0f, 0.0f, 1.0f);
     vertices[2].texcoord = glm::vec2(0.0f, 0.0f);
-    
+
     BufferCreation vc;
     vc.reset()
         .set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, ResourceUsageType::Immutable, sizeof(Vertex) * 3)
@@ -273,7 +273,7 @@ void Device::present() {
     static float f2 = 0.5f;
     static float d1 = -0.001f;
     static float d2 = 0.001f;
-    
+
     auto aspect = float(_swapchainExtent.width) / _swapchainExtent.height;
 
     auto data   = (UniformBufferObject*) mapBuffer(_ubo, 0, 0);
@@ -287,14 +287,14 @@ void Device::present() {
 
     if (f1 < 0.5f) {
         d1 = 0.001f;
-    } 
+    }
     if (f1 > 1.0f) {
         d1 = -0.001f;
     }
 
     if (f2 < 0.5f) {
         d2 = 0.001f;
-    } 
+    }
     if (f2 > 1.0f) {
         d2 = -0.001f;
     }
@@ -2133,7 +2133,7 @@ std::vector<const char*> Device::selectExtensions() {
 std::vector<const char*> Device::selectDeviceExtensions() {
     return {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        // VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+    // VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
 #ifdef VK_USE_PLATFORM_MACOS_MVK
         "VK_KHR_portability_subset",
 #endif

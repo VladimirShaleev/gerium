@@ -263,17 +263,35 @@ public:
     void reserve(size_type newPoolSize) {
         assert(newPoolSize > _poolSize);
 
-        auto handles =
-            reinterpret_cast<base_handle_type*>(mi_reallocn(_handles, newPoolSize, sizeof(base_handle_type)));
+        auto handles = reinterpret_cast<base_handle_type*>(
+#ifdef GERIUM_MIMALLOC_DISABLE
+            realloc(_handles, newPoolSize * sizeof(base_handle_type))
+#else
+            mi_reallocn(_handles, newPoolSize, sizeof(base_handle_type))
+#endif
+        );
         if (!handles) {
             throw std::bad_alloc();
         }
 
-        Resource* data =
-            reinterpret_cast<Resource*>(mi_recalloc_aligned(_data, newPoolSize, sizeof(Resource), alignof(Resource)));
+        Resource* data = reinterpret_cast<Resource*>(
+#ifdef GERIUM_MIMALLOC_DISABLE
+            realloc(_data, newPoolSize * sizeof(Resource))
+#else
+            mi_recalloc_aligned(_data, newPoolSize, sizeof(Resource), alignof(Resource))
+#endif
+        );
+
+#ifdef GERIUM_MIMALLOC_DISABLE
+        memset((void*) (data + _poolSize), 0, (newPoolSize - _poolSize) * sizeof(Resource));
+#endif
 
         if (!data) {
+#ifdef GERIUM_MIMALLOC_DISABLE
+            free(handles);
+#else
             mi_free(handles);
+#endif
             throw std::bad_alloc();
         }
 
@@ -297,12 +315,20 @@ public:
         _poolSize = 0;
 
         if (_data) {
+#ifdef GERIUM_MIMALLOC_DISABLE
+            free(_data);
+#else
             mi_free_aligned(_data, alignof(Resource));
+#endif
             _data = nullptr;
         }
 
         if (_handles) {
+#ifdef GERIUM_MIMALLOC_DISABLE
+            free(_handles);
+#else
             mi_free(_handles);
+#endif
             _handles = nullptr;
         }
     }

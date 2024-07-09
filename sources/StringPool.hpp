@@ -66,13 +66,9 @@ public:
     }
 
 private:
-    using bucket_type  = std::vector<char, mi_stl_allocator<char>>;
-    using buckets_type = std::list<bucket_type, mi_stl_allocator<bucket_type>>;
-    using map_type     = absl::flat_hash_map<gerium_uint64_t,
-                                             gerium_utf8_t,
-                                             absl::container_internal::hash_default_hash<gerium_uint64_t>,
-                                             absl::container_internal::hash_default_eq<gerium_uint64_t>,
-                                             mi_stl_allocator<std::pair<const gerium_uint64_t, gerium_utf8_t>>>;
+    using bucket_type  = std::vector<char>;
+    using buckets_type = std::list<bucket_type>;
+    using map_type     = absl::flat_hash_map<gerium_uint64_t, gerium_utf8_t>;
 
     void addBucket() {
         _buckets.push_back({});

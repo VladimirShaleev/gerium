@@ -158,14 +158,14 @@ void MacOSApplication::frame() {
     auto currentTime = getCurrentTime();
     
     const std::chrono::duration<float, std::milli> delta = currentTime - _prevTime;
-    const auto ellapsed = delta.count();
+    const auto elapsed = delta.count();
     
-    if (ellapsed == 0.0f) {
+    if (elapsed == 0.0f) {
         return;
     }
     _prevTime = currentTime;
     
-    if (!callFrameFunc(ellapsed)) {
+    if (!callFrameFunc(elapsed)) {
         error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
 }

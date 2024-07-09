@@ -90,6 +90,8 @@ void check(VkResult result) {
     }
 }
 
+#ifndef GERIUM_MIMALLOC_DISABLE
+
 static void* VKAPI_PTR allocation(void* pUserData,
                                   size_t size,
                                   size_t alignment,
@@ -102,7 +104,7 @@ reallocation(void* pUserData, void* pOriginal, size_t size, size_t alignment, Vk
     return mi_realloc_aligned(pOriginal, size, alignment);
 }
 
-static void VKAPI_PTR free(void* pUserData, void* pMemory) {
+static void VKAPI_PTR freeMemory(void* pUserData, void* pMemory) {
     mi_free(pMemory);
 }
 
@@ -118,11 +120,17 @@ static void VKAPI_PTR internalFreeNotification(void* pUserData,
                                                VkSystemAllocationScope allocationScope) {
 }
 
+#endif
+
 const VkAllocationCallbacks* getAllocCalls() noexcept {
+#ifdef GERIUM_MIMALLOC_DISABLE
+    return nullptr;
+#else
     static constexpr VkAllocationCallbacks callbacks{
-        nullptr, allocation, reallocation, free, internalAllocationNotification, internalFreeNotification
+        nullptr, allocation, reallocation, freeMemory, internalAllocationNotification, internalFreeNotification
     };
     return &callbacks;
+#endif
 }
 
 } // namespace gerium::vulkan
