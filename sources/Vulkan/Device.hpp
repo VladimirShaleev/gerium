@@ -208,7 +208,6 @@ private:
     BufferHandle _dynamicBuffer{ Undefined };
     uint8_t* _dynamicBufferMapped{};
     SamplerHandle _defaultSampler{ Undefined };
-    PipelineHandle _imguiPipeline{ Undefined };
 
     BufferPool _buffers;
     TexturePool _textures;

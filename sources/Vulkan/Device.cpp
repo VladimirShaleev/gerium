@@ -330,7 +330,6 @@ void Device::present() {
     cb->bindDescriptorSet(_descriptorSet1);
     cb->bindVertexBuffer(_vertices, 0, 0);
     cb->draw(0, 3, 0, 1);
-    // cb->bindPipeline(_imguiPipeline, _swapchainFramebuffers[_swapchainImageIndex]);
     ImGui::ShowDemoWindow();
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->_commandBuffer);
@@ -1569,46 +1568,6 @@ void Device::createImGui(Application* application) {
     io.Fonts->AddFontFromMemoryTTF(dataFont, font.size(), 12.0f * density);
     ImGui::GetStyle().ScaleAllSizes(density);
     ImGui_ImplVulkan_CreateFontsTexture();
-    
-    const char vert[] = "#version 450\nvoid main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }\n";
-    const char frag[] = "#version 450\nvoid main() {}\n";
-
-    PipelineCreation pc{};
-    pc.rasterization.cullMode          = VK_CULL_MODE_BACK_BIT;
-    pc.rasterization.front             = VK_FRONT_FACE_CLOCKWISE;
-    pc.rasterization.fill              = FillMode::Solid;
-    pc.depthStencil.front.fail         = VK_STENCIL_OP_KEEP;
-    pc.depthStencil.front.pass         = VK_STENCIL_OP_KEEP;
-    pc.depthStencil.front.depthFail    = VK_STENCIL_OP_KEEP;
-    pc.depthStencil.front.compare      = VK_COMPARE_OP_ALWAYS;
-    pc.depthStencil.front.compareMask  = 0xff;
-    pc.depthStencil.front.writeMask    = 0xff;
-    pc.depthStencil.front.reference    = 0xff;
-    pc.depthStencil.back.fail          = VK_STENCIL_OP_KEEP;
-    pc.depthStencil.back.pass          = VK_STENCIL_OP_KEEP;
-    pc.depthStencil.back.depthFail     = VK_STENCIL_OP_KEEP;
-    pc.depthStencil.back.compare       = VK_COMPARE_OP_ALWAYS;
-    pc.depthStencil.back.compareMask   = 0xff;
-    pc.depthStencil.back.writeMask     = 0xff;
-    pc.depthStencil.back.reference     = 0xff;
-    pc.depthStencil.depthComparison    = VK_COMPARE_OP_NEVER;
-    pc.depthStencil.depthEnable        = 0;
-    pc.depthStencil.depthWriteEnable   = 0;
-    pc.depthStencil.stencilEnable      = 0;
-    pc.blendState.activeStates         = 0;
-    pc.vertexInput.numVertexStreams    = 0;
-    pc.vertexInput.numVertexAttributes = 0;
-    pc.program.name                    = "imgui";
-    pc.renderPass.numColorFormats      = 0;
-    pc.name                            = "imgui";
-    pc.program.addStage(vert, std::size(vert) - 1, VK_SHADER_STAGE_VERTEX_BIT);
-    pc.program.addStage(frag, std::size(frag) - 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-    pc.renderPass.color(
-        _swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, RenderPassOperation::Load);
-    pc.renderPass.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    pc.renderPass.setDepthStencilOperations(RenderPassOperation::Load, RenderPassOperation::Load);
-
-    _imguiPipeline = createPipeline(pc);
 }
 
 void Device::resizeSwapchain() {
