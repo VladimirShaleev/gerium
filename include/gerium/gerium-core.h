@@ -19,7 +19,7 @@ typedef struct _gerium_application* gerium_application_t;
 
 typedef struct _gerium_renderer* gerium_renderer_t;
 
-GERIUM_HANDLE(gerium_texture_h);
+GERIUM_HANDLE(gerium_texture_h)
 
 typedef enum
 {

@@ -7,7 +7,8 @@ Application::Application() noexcept :
     _stateFunc(nullptr),
     _frameData(nullptr),
     _stateData(nullptr),
-    _backgroundWait(false) {
+    _backgroundWait(false),
+    _prevState(GERIUM_APPLICATION_STATE_UNKNOWN) {
 }
 
 gerium_runtime_platform_t Application::getPlatform() const noexcept {
@@ -115,6 +116,15 @@ gerium_result_t Application::run() noexcept {
 
 void Application::exit() noexcept {
     onExit();
+}
+
+void Application::changeState(gerium_application_state_t newState) {
+    if (newState != _prevState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
+        _prevState = newState;
+        if (!callStateFunc(newState)) {
+            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+    }
 }
 
 bool Application::callFrameFunc(gerium_float32_t elapsed) noexcept {

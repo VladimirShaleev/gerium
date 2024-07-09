@@ -24,6 +24,26 @@
 # endif
 #endif
 
+#if defined(_WIN32) && !defined(GERIUM_PLATFORM_WINDOWS)
+# define GERIUM_PLATFORM_WINDOWS
+#elif defined(__APPLE__)
+# include <TargetConditionals.h>
+# include <unistd.h>
+# if TARGET_OS_IPHONE && !defined(GERIUM_PLATFORM_IOS)
+#  define GERIUM_PLATFORM_IOS
+# elif TARGET_IPHONE_SIMULATOR && !defined(GERIUM_PLATFORM_IOS)
+#  define GERIUM_PLATFORM_IOS
+# elif TARGET_OS_MAC && !defined(GERIUM_PLATFORM_MAC_OS)
+#  define GERIUM_PLATFORM_MAC_OS
+# else
+#  error unsupported platform
+# endif
+#elif defined(__ANDROID__) && !defined(GERIUM_PLATFORM_ANDROID)
+# define GERIUM_PLATFORM_ANDROID
+#else
+# error unsupported platform
+#endif
+
 #ifdef GERIUM_NO_STDINT_H
 # if defined(_MSC_VER)
     typedef signed   __int8  int8_t;

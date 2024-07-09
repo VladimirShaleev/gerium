@@ -27,22 +27,17 @@
 #include <ctre.hpp>
 #include <wyhash.h>
 
-// Vulkan API
-#if defined(_WIN32)
+// Vulkan
+#include "gerium/gerium-platform.h"
+#if defined(GERIUM_PLATFORM_WINDOWS)
 # define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(__APPLE__)
-# include <TargetConditionals.h>
-# include <unistd.h>
-# if TARGET_OS_IPHONE
-#  error unsupported platform
-# elif TARGET_IPHONE_SIMULATOR
-#  error unsupported platform
-# elif TARGET_OS_MAC
-#  define VK_USE_PLATFORM_MACOS_MVK
-#  define VK_USE_PLATFORM_METAL_EXT
-# else
-#  error unsupported platform
-# endif
+#elif defined(GERIUM_PLATFORM_IOS)
+# error unsupported platform
+#elif defined(GERIUM_PLATFORM_MAC_OS)
+# define VK_USE_PLATFORM_MACOS_MVK
+# define VK_USE_PLATFORM_METAL_EXT
+#elif defined(GERIUM_PLATFORM_ANDROID)
+# define VK_USE_PLATFORM_ANDROID_KHR
 #else
 # error unsupported platform
 #endif
@@ -85,6 +80,7 @@
 // GLM
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_MESSAGES
 // https://github.com/g-truc/glm/issues/1269
 #include <glm/detail/setup.hpp>
 #undef GLM_DEPRECATED
@@ -92,8 +88,8 @@
 #include <glm/ext.hpp>
 
 // ImGui
-#include <imgui.h>
-#include <imgui_impl_vulkan.h>
+// #include <imgui.h>
+// #include <imgui_impl_vulkan.h>
 
 #include "gerium/gerium.h"
 

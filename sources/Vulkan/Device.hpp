@@ -169,6 +169,7 @@ private:
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
     bool _enableValidations{};
+    bool _enableDebugNames{};
     Application* _application{};
     gerium_uint16_t _appWidth{};
     gerium_uint16_t _appHeight{};

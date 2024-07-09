@@ -44,6 +44,7 @@ public:
     void exit() noexcept;
 
 protected:
+    void changeState(gerium_application_state_t newState);
     bool callFrameFunc(gerium_float32_t elapsed) noexcept;
     bool callStateFunc(gerium_application_state_t state) noexcept;
 
@@ -76,6 +77,7 @@ private:
     gerium_data_t _frameData;
     gerium_data_t _stateData;
     gerium_bool_t _backgroundWait;
+    gerium_application_state_t _prevState;
 };
 
 } // namespace gerium

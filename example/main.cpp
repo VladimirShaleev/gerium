@@ -1,5 +1,6 @@
 #include <gerium/gerium.h>
-#include <iostream>
+#include <string>
+#include <stdexcept>
 
 static gerium_logger_t logger     = nullptr;
 static gerium_renderer_t renderer = nullptr;
@@ -39,10 +40,10 @@ bool initialize(gerium_application_t application) {
         int i = 0;
 
     } catch (const std::runtime_error& exc) {
-        std::cerr << "Error: " << exc.what() << std::endl;
+        gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
         return false;
     } catch (...) {
-        std::cerr << "Error: unknown error" << std::endl;
+        gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, "unknown error");
         return false;
     }
     return true;
@@ -131,9 +132,13 @@ int main() {
         check(gerium_application_run(application));
 
     } catch (const std::runtime_error& exc) {
-        std::cerr << "Error: " << exc.what() << std::endl;
+        if (logger) {
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
+        }
     } catch (...) {
-        std::cerr << "Error: unknown error" << std::endl;
+        if (logger) {
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, "unknown error");
+        }
     }
     gerium_application_destroy(application);
     gerium_logger_destroy(logger);

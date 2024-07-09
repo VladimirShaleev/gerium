@@ -24,4 +24,5 @@
 *.out
 *.app
 
+.idea
 .DS_Store

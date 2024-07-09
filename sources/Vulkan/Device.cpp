@@ -246,7 +246,7 @@ void Device::newFrame() {
                                                        _swapchain,
                                                        std::numeric_limits<uint64_t>::max(),
                                                        _imageAvailableSemaphores[_currentFrame],
-                                                       nullptr,
+                                                       VK_NULL_HANDLE,
                                                        &_swapchainImageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -458,7 +458,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
                           &allocationInfo));
     buffer->vkDeviceMemory = allocationInfo.deviceMemory;
 
-    if (_enableValidations && buffer->name) {
+    if (_enableDebugNames && buffer->name) {
         vmaSetAllocationName(_vmaAllocator, buffer->vmaAllocation, buffer->name);
     }
 
@@ -526,7 +526,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
         check(vmaCreateImage(
             _vmaAllocator, &imageInfo, &memoryInfo, &texture->vkImage, &texture->vmaAllocation, nullptr));
 
-        if (_enableValidations && texture->name) {
+        if (_enableDebugNames && texture->name) {
             vmaSetAllocationName(_vmaAllocator, texture->vmaAllocation, texture->name);
         }
     } else {
@@ -1169,6 +1169,10 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     const auto layers     = selectValidationLayers();
     const auto extensions = selectExtensions();
 
+    if (layers.empty()) {
+        _enableDebugNames = false;
+    }
+
     constexpr auto messageSeverity =
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -1202,7 +1206,7 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     features.pDisabledValidationFeatures    = nullptr;
 
     VkInstanceCreateInfo createInfo{ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
-    createInfo.pNext                   = _enableValidations ? &features : nullptr;
+    createInfo.pNext                   = layers.empty() ? nullptr : &features;
     createInfo.flags                   = 0;
     createInfo.pApplicationInfo        = &appInfo;
     createInfo.enabledLayerCount       = (uint32_t) layers.size();
@@ -1502,6 +1506,9 @@ void Device::printValidationLayers() {
     if (_enableValidations) {
         uint32_t count = 0;
         check(_vkTable.vkEnumerateInstanceLayerProperties(&count, nullptr));
+        if (count == 0) {
+            return;
+        }
 
         std::vector<VkLayerProperties> layers;
         layers.resize(count);
@@ -1524,6 +1531,9 @@ void Device::printExtensions() {
     if (_enableValidations) {
         uint32_t count = 0;
         check(_vkTable.vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
+        if (count == 0) {
+            return;
+        }
 
         std::vector<VkExtensionProperties> extensions;
         extensions.resize(count);
@@ -1982,7 +1992,7 @@ void Device::deleteResources(bool forceDelete) {
 }
 
 void Device::setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name) {
-    if (_enableValidations && name) {
+    if (_enableDebugNames && name) {
         VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
         info.objectType   = type;
         info.objectHandle = handle;
@@ -2123,7 +2133,7 @@ std::vector<const char*> Device::selectExtensions() {
 std::vector<const char*> Device::selectDeviceExtensions() {
     return {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+        // VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
 #ifdef VK_USE_PLATFORM_MACOS_MVK
         "VK_KHR_portability_subset",
 #endif
@@ -2201,8 +2211,10 @@ std::vector<const char*> Device::checkValidationLayers(const std::vector<const c
         check(_vkTable.vkEnumerateInstanceLayerProperties(&count, nullptr));
 
         std::vector<VkLayerProperties> props;
-        props.resize(count);
-        check(_vkTable.vkEnumerateInstanceLayerProperties(&count, props.data()));
+        if (count) {
+            props.resize(count);
+            check(_vkTable.vkEnumerateInstanceLayerProperties(&count, props.data()));
+        }
 
         for (const auto& prop : props) {
             for (const auto& layer : layers) {
@@ -2230,8 +2242,10 @@ std::vector<const char*> Device::checkExtensions(const std::vector<const char*>&
     check(_vkTable.vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
 
     std::vector<VkExtensionProperties> props;
-    props.resize(count);
-    check(_vkTable.vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data()));
+    if (count) {
+        props.resize(count);
+        check(_vkTable.vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data()));
+    }
 
     for (const auto& prop : props) {
         for (const auto& extension : extensions) {
@@ -2244,7 +2258,7 @@ std::vector<const char*> Device::checkExtensions(const std::vector<const char*>&
 
     for (const auto& extension : extensions) {
         const auto notFound = std::find(results.cbegin(), results.cend(), extension) == results.cend();
-        if (notFound) {
+        if (notFound && strcmp(extension, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != 0) {
             check(VK_ERROR_EXTENSION_NOT_PRESENT);
         }
     }

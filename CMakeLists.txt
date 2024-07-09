@@ -1,24 +1,25 @@
 cmake_minimum_required(VERSION 3.16)
+include(FetchContent)
 include(cmake/version.cmake)
+include(cmake/vcpkg_android.cmake)
 
 option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
+option(GERIUM_USE_NATIVE_APP_GLUE "Enable Native App Glue in Android build" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
 if(DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 else()
-    include(FetchContent)
     FetchContent_Declare(
-      vcpkg
-      GIT_REPOSITORY https://github.com/microsoft/vcpkg/
-      GIT_TAG 2024.06.15)
+        vcpkg
+        GIT_REPOSITORY https://github.com/microsoft/vcpkg/
+        GIT_TAG 2024.06.15)
     FetchContent_MakeAvailable(vcpkg)
     set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 endif()
 
 if(APPLE)
-    include(FetchContent)
     FetchContent_Declare(
         moltenVK
         URL https://github.com/KhronosGroup/MoltenVK/releases/download/v1.2.9/MoltenVK-all.tar
@@ -29,15 +30,20 @@ if(APPLE)
     set(MOLTEN_VK_SRC "${moltenvk_SOURCE_DIR}/MoltenVK" CACHE STRING "MoltenVK dir")
 endif()
 
-include(FetchContent)
-FetchContent_Declare(
-    imgui
-    URL https://github.com/ocornut/imgui/archive/v1.90.9.zip
-    URL_HASH MD5=845a67241e6acd3b689ef8fc7c327b7a
-    GIT_PROGRESS TRUE
-)
-FetchContent_MakeAvailable(imgui)
-set(IMGUI_SRC "${imgui_SOURCE_DIR}" CACHE STRING "ImGui dir")
+# FetchContent_Declare(
+#     imgui
+#     URL https://github.com/ocornut/imgui/archive/v1.90.9.zip
+#     URL_HASH MD5=845a67241e6acd3b689ef8fc7c327b7a
+#     GIT_PROGRESS TRUE
+#     CONFIGURE_COMMAND ""
+#     BUILD_COMMAND ""
+# )
+# FetchContent_GetProperties(imgui)
+# if(NOT imgui_POPULATED)
+#     FetchContent_Populate(imgui)
+# endif()
+#
+# set(IMGUI_SRC "${imgui_SOURCE_DIR}" CACHE STRING "ImGui dir")
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
@@ -59,7 +65,7 @@ cmake_dependent_option(GERIUM_BUILD_TESTS "Build tests" ON
 cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
-file(GLOB_RECURSE GERIUM_INCLUDE "include/*.h")
+file(GLOB GERIUM_INCLUDE "include/*.h")
 file(GLOB GERIUM_SOURCES "sources/*.hpp" "sources/*.cpp" "sources/Vulkan/*.hpp" "sources/Vulkan/*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_INCLUDE})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES})
@@ -70,6 +76,12 @@ if(WIN32)
         "sources/Vulkan/Windows/*.hpp" "sources/Vulkan/Windows/*.cpp")
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_WINDOWS_SOURCES})
     list(APPEND GERIUM_SOURCES ${GERIUM_WINDOWS_SOURCES})
+elseif(ANDROID)
+    file(GLOB GERIUM_ANDROID_SOURCES
+        "sources/Android/*.hpp" "sources/Android/*.cpp"
+        "sources/Vulkan/Android/*.hpp" "sources/Vulkan/Android/*.cpp")
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_ANDROID_SOURCES})
+    list(APPEND GERIUM_SOURCES ${GERIUM_ANDROID_SOURCES})
 elseif(IOS)
 elseif(APPLE)
     file(GLOB GERIUM_MACOS_SOURCES 
@@ -91,15 +103,15 @@ target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE glm::glm-header-only)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
-target_include_directories(gerium PRIVATE "${IMGUI_SRC}")
-target_include_directories(gerium PRIVATE "${IMGUI_SRC}/backends")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_demo.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_draw.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_tables.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_widgets.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
+# target_include_directories(gerium PRIVATE "${IMGUI_SRC}")
+# target_include_directories(gerium PRIVATE "${IMGUI_SRC}/backends")
+# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui.cpp")
+# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_demo.cpp")
+# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_draw.cpp")
+# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_tables.cpp")
+# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_widgets.cpp")
+# target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp")
+# target_sources(gerium PRIVATE "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -124,19 +136,59 @@ else()
     target_compile_definitions(gerium PUBLIC GERIUM_STATIC_BUILD)
 endif()
 
-if(WIN32)
-    target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_WINDOWS)
-elseif(APPLE)
-    target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_MAC_OS)
-elseif(UNIX)
-    target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_UNIX)
-elseif(ANDROID)
-    target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_ANDROID)
-elseif(IOS)
-    target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_IOS)
-elseif(EMSCRIPTEN)
-    target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_WEB)
+if(GERIUM_USE_NATIVE_APP_GLUE AND ANDROID)
+    enable_language(C)
+    file(GLOB GERIUM_ANDROID_APP_GLUE_SOURCES "sources/Android/*.hpp" "sources/Android/*.cpp")
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_ANDROID_APP_GLUE_SOURCES})
+    add_library(gerium-native-app-glue STATIC ${GERIUM_INCLUDE} ${GERIUM_ANDROID_APP_GLUE_SOURCES} ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
+    add_library(gerium::native-app-glue ALIAS gerium-native-app-glue)
+    target_link_libraries(gerium-native-app-glue PRIVATE $<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
+    target_link_libraries(gerium-native-app-glue PRIVATE ctre::ctre)
+    target_link_libraries(gerium-native-app-glue PRIVATE absl::flat_hash_map)
+    target_link_libraries(gerium-native-app-glue PRIVATE Vulkan::Headers)
+    target_link_libraries(gerium-native-app-glue PRIVATE GPUOpen::VulkanMemoryAllocator)
+    target_link_libraries(gerium-native-app-glue PRIVATE unofficial::shaderc::shaderc)
+    target_link_libraries(gerium-native-app-glue PRIVATE unofficial::spirv-reflect)
+    target_link_libraries(gerium-native-app-glue PRIVATE glm::glm-header-only)
+    target_include_directories(gerium-native-app-glue PRIVATE ${WYHASH_INCLUDE_DIRS})
+    target_include_directories(gerium-native-app-glue PRIVATE ${PROJECT_SOURCE_DIR}/include)
+    target_compile_definitions(gerium-native-app-glue PUBLIC GERIUM_ANDROID_HAS_NATIVE_APP_GLUE)
+    target_include_directories(gerium-native-app-glue PUBLIC
+        $<BUILD_INTERFACE:${ANDROID_NDK}/sources/android/native_app_glue/>
+        $<INSTALL_INTERFACE:include>)
+    target_link_libraries(gerium-native-app-glue PRIVATE android log)
+    target_compile_features(gerium-native-app-glue PRIVATE cxx_std_20)
+    set_target_properties(gerium-native-app-glue PROPERTIES
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        POSITION_INDEPENDENT_CODE ON
+        WINDOWS_EXPORT_ALL_SYMBOLS OFF
+        PUBLIC_HEADER ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.h)
+    if(BUILD_SHARED_LIBS)
+        set_target_properties(gerium-native-app-glue PROPERTIES
+            VERSION ${PROJECT_VERSION}
+            SOVERSION ${PROJECT_VERSION_MAJOR})
+        set_target_properties(gerium-native-app-glue PROPERTIES
+            CXX_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON)
+    else()
+        target_compile_definitions(gerium-native-app-glue PUBLIC GERIUM_STATIC_BUILD)
+    endif()
 endif()
+
+# if(WIN32)
+#     target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_WINDOWS)
+# elseif(ANDROID)
+#     target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_ANDROID)
+# elseif(IOS)
+#     target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_IOS)
+# elseif(APPLE)
+#     target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_MAC_OS)
+# elseif(UNIX)
+#     target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_UNIX)
+# elseif(EMSCRIPTEN)
+#     target_compile_definitions(gerium PUBLIC GERIUM_PLATFORM_WEB)
+# endif()
 
 if(MSVC)
     target_compile_options(gerium PUBLIC /GR-)
@@ -157,6 +209,12 @@ elseif(APPLE)
     target_link_libraries(gerium PRIVATE "-framework Foundation" "-framework QuartzCore" "-framework AppKit" "-framework IOKit" "-framework MetalKit" "-framework Metal" "-framework IOSurface")
 elseif(NOT APPLE)
     target_compile_options(gerium PUBLIC -fno-rtti)
+    if (ANDROID)
+        target_link_libraries(gerium PRIVATE android log)
+        if(GERIUM_USE_NATIVE_APP_GLUE)
+            target_compile_options(gerium-native-app-glue PUBLIC -fno-rtti)
+        endif()
+    endif()
 endif()
 
 if(GERIUM_BUILD_TESTS)

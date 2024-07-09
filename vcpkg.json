@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "gerium",
   "version": "1.0.0",
-  "builtin-baseline": "f7423ee180c4b7f40d43402c2feb3859161ef625",
+  "builtin-baseline": "576379156e82da642f8d1834220876759f13534d",
   "dependencies": [
     "mimalloc",
     "wyhash",

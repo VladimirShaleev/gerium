@@ -2,7 +2,7 @@ enable_testing()
 
 find_package(GTest CONFIG REQUIRED)
 
-file(GLOB_RECURSE GERIUM_TESTS "*.hpp" "*.cpp")
+file(GLOB GERIUM_TESTS "*.hpp" "*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX tests FILES ${GERIUM_TESTS})
 
 add_executable(gerium-tests ${GERIUM_TESTS} ${GERIUM_INCLUDE} ${GERIUM_SOURCES})

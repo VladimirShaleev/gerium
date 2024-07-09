@@ -110,8 +110,6 @@ std::vector<gerium_uint64_t> Logger::tagHashs(const std::string& tag) {
 
     std::string currentTag = tag;
 
-    gerium_logger_level_t currentLevel = GERIUM_LOGGER_LEVEL_VERBOSE;
-
     while (currentTag.length()) {
         result.push_back(hash(currentTag));
         if (auto pos = currentTag.rfind(':'); pos == std::string::npos) {
