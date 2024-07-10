@@ -33,8 +33,8 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         _getUnicodeCharMethod = env->GetMethodID(_keyEventClass, "getUnicodeChar", "()I");
         _getUnicodeCharIMethod = env->GetMethodID(_keyEventClass, "getUnicodeChar", "(I)I");
 
-        auto activity = app->activity->clazz;
-        auto activityClass = env->GetObjectClass(activity);
+        auto activityClazz = app->activity->clazz;
+        auto activityClass = env->GetObjectClass(activityClazz);
 
         auto contextClass = env->FindClass("android/content/Context");
         auto windowClass = env->FindClass("android/view/Window");
@@ -47,7 +47,7 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         auto getSystemServiceMethod = env->GetMethodID(
                 activityClass, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
         _inputMethodManager = env->NewGlobalRef(env->CallObjectMethod(
-                activity, getSystemServiceMethod, inputMethodService));
+                activityClazz, getSystemServiceMethod, inputMethodService));
 
         _getWindowMethod = env->GetMethodID(
                 activityClass, "getWindow", "()Landroid/view/Window;");
