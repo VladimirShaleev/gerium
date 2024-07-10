@@ -49,6 +49,8 @@ public:
     void shutdownImGui();
     void newFrameImGui();
 
+    bool fixResize() const noexcept;
+
 protected:
     gerium_application_state_t currentState() const noexcept;
     gerium_bool_t callbackStateFailed() const noexcept;
@@ -85,6 +87,8 @@ private:
     virtual void onInitImGui()     = 0;
     virtual void onShutdownImGui() = 0;
     virtual void onNewFrameImGui() = 0;
+
+    virtual bool onFixResize() const noexcept;
 
     gerium_application_frame_func_t _frameFunc;
     gerium_application_state_func_t _stateFunc;

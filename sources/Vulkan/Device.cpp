@@ -260,11 +260,13 @@ void Device::newFrame() {
 
     gerium_uint16_t appWidth, appHeight;
     _application->getSize(&appWidth, &appHeight);
-    const auto resized = _appWidth != appWidth || _appHeight != appHeight;
+    const auto resized = _application->fixResize() && (_appWidth != appWidth || _appHeight != appHeight);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resized) {
-        _appWidth  = appWidth;
-        _appHeight = appHeight;
+        if (_application->fixResize()) {
+            _appWidth  = appWidth;
+            _appHeight = appHeight;
+        }
         resizeSwapchain();
     } else {
         check(result);
@@ -420,7 +422,7 @@ void Device::present() {
     } else {
         check(result);
     }
-    
+
     frameCountersAdvance();
     deleteResources();
 }
@@ -1565,17 +1567,17 @@ void Device::createImGui(Application* application) {
     auto fs   = cmrc::gerium::resources::get_filesystem();
     auto font = fs.open("resources/font-awesome.ttf");
 
-    auto density = 1.5f;
+    auto density  = 1.5f;
     auto fontSize = 12.0f;
-    auto fontD = 1.0f;
+    auto fontD    = 1.0f;
 #ifdef GERIUM_PLATFORM_ANDROID
     // TODO: add calc density
-    density = 2.5f;
+    density  = 2.5f;
     fontSize = 15.0f;
 #elif defined(GERIUM_PLATFORM_MAC_OS)
-    density = 1.0f;
+    density  = 1.0f;
     fontSize = 12.0f;
-    fontD = 2.0f;
+    fontD    = 2.0f;
 #endif
 
     auto dataFont = IM_ALLOC(font.size());

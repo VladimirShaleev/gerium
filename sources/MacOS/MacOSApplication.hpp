@@ -70,6 +70,8 @@ private:
     void onShutdownImGui() override;
     void onNewFrameImGui() override;
 
+    bool onFixResize() const noexcept override;
+
     void enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays, gerium_uint32_t displayCount, bool isMain, gerium_uint32_t& index, gerium_display_info_t* displays) const;
 
     std::chrono::high_resolution_clock::time_point getCurrentTime() const noexcept;

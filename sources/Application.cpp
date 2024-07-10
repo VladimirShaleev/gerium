@@ -135,6 +135,10 @@ void Application::newFrameImGui() {
     onNewFrameImGui();
 }
 
+bool Application::fixResize() const noexcept {
+    return onFixResize();
+}
+
 gerium_application_state_t Application::currentState() const noexcept {
     return _currentState;
 }
@@ -162,6 +166,10 @@ bool Application::callFrameFunc(gerium_float32_t elapsed) noexcept {
 
 bool Application::callStateFunc(gerium_application_state_t state) noexcept {
     return _stateFunc ? _stateFunc(this, _stateData, state) : true;
+}
+
+bool Application::onFixResize() const noexcept {
+    return false;
 }
 
 } // namespace gerium
