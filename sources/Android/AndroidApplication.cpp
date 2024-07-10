@@ -2,26 +2,9 @@
 
 namespace gerium::android {
 
-ANativeWindow* AndroidApplication::nativeWindow() noexcept {
-    return onNativeWindow();
-}
-
-} // namespace gerium::android
-
-typedef gerium_result_t (*ApplicationCreateFunc)(gerium_utf8_t title,
-                                                 gerium_uint32_t width,
-                                                 gerium_uint32_t height,
-                                                 gerium_application_t* application);
-
-static ApplicationCreateFunc applicationCreateFunc = nullptr;
-
-#ifdef GERIUM_ANDROID_HAS_NATIVE_APP_GLUE
-
 static android_app* app = nullptr;
 
-namespace gerium::android {
-
-NativeAppGlueApplication::NativeAppGlueApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) :
+AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) :
     _application(app),
     _initialized(false),
     _activated(false),
@@ -43,15 +26,19 @@ NativeAppGlueApplication::NativeAppGlueApplication(gerium_utf8_t title, gerium_u
     }
 }
 
-gerium_runtime_platform_t NativeAppGlueApplication::onGetPlatform() const noexcept {
+ANativeWindow* AndroidApplication::nativeWindow() noexcept {
+    return _application->window;
+}
+
+gerium_runtime_platform_t AndroidApplication::onGetPlatform() const noexcept {
     return GERIUM_RUNTIME_PLATFORM_ANDROID;
 }
 
-void NativeAppGlueApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const {
+void AndroidApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const {
     displayCount = 0;
 }
 
-bool NativeAppGlueApplication::onIsFullscreen() const noexcept {
+bool AndroidApplication::onIsFullscreen() const noexcept {
     auto activity = _application->activity;
     auto result   = true;
 
@@ -64,25 +51,25 @@ bool NativeAppGlueApplication::onIsFullscreen() const noexcept {
     return result;
 }
 
-void NativeAppGlueApplication::onFullscreen(bool fullscreen,
+void AndroidApplication::onFullscreen(bool fullscreen,
                                             gerium_uint32_t displayId,
                                             const gerium_display_mode_t* mode) {
 }
 
-gerium_application_style_flags_t NativeAppGlueApplication::onGetStyle() const noexcept {
+gerium_application_style_flags_t AndroidApplication::onGetStyle() const noexcept {
     return {}; // TODO:
 }
 
-void NativeAppGlueApplication::onSetStyle(gerium_application_style_flags_t style) noexcept {
+void AndroidApplication::onSetStyle(gerium_application_style_flags_t style) noexcept {
 }
 
-void NativeAppGlueApplication::onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+void AndroidApplication::onGetMinSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
 }
 
-void NativeAppGlueApplication::onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+void AndroidApplication::onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
 }
 
-void NativeAppGlueApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
+void AndroidApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
     if (width) {
         *width = gerium_uint16_t(_application->contentRect.right - _application->contentRect.left);
     }
@@ -91,23 +78,23 @@ void NativeAppGlueApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t
     }
 }
 
-void NativeAppGlueApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+void AndroidApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
 }
 
-void NativeAppGlueApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+void AndroidApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
 }
 
-void NativeAppGlueApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
+void AndroidApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
 }
 
-gerium_utf8_t NativeAppGlueApplication::onGetTitle() const noexcept {
+gerium_utf8_t AndroidApplication::onGetTitle() const noexcept {
     return ""; // TODO:
 }
 
-void NativeAppGlueApplication::onSetTitle(gerium_utf8_t title) noexcept {
+void AndroidApplication::onSetTitle(gerium_utf8_t title) noexcept {
 }
 
-void NativeAppGlueApplication::onRun() {
+void AndroidApplication::onRun() {
     if (_application->destroyRequested) {
         error(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED);
     }
@@ -162,16 +149,28 @@ void NativeAppGlueApplication::onRun() {
     }
 }
 
-void NativeAppGlueApplication::onExit() noexcept {
+void AndroidApplication::onExit() noexcept {
     _exit = true;
     ANativeActivity_finish(_application->activity);
 }
 
-ANativeWindow* NativeAppGlueApplication::onNativeWindow() noexcept {
-    return _application->window;
+bool AndroidApplication::onIsRunning() const noexcept {
+    return _initialized;
 }
 
-void NativeAppGlueApplication::initialize() {
+void AndroidApplication::onInitImGui() {
+
+}
+
+void AndroidApplication::onShutdownImGui() {
+
+}
+
+void AndroidApplication::onNewFrameImGui() {
+
+}
+
+void AndroidApplication::initialize() {
     if (!_initialized && _application->window) {
         _initialized = true;
         changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
@@ -179,46 +178,46 @@ void NativeAppGlueApplication::initialize() {
     active();
 }
 
-void NativeAppGlueApplication::uninitialize() {
+void AndroidApplication::uninitialize() {
     if (_initialized) {
         _initialized = false;
         changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
     }
 }
 
-void NativeAppGlueApplication::active() {
+void AndroidApplication::active() {
     if (!_activated && _application->window) {
         _activated = true;
         changeState(GERIUM_APPLICATION_STATE_VISIBLE);
     }
 }
 
-void NativeAppGlueApplication::deactive() {
+void AndroidApplication::deactive() {
     if (_activated) {
         _activated = false;
         changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
     }
 }
 
-void NativeAppGlueApplication::gotFocus() {
+void AndroidApplication::gotFocus() {
     if (!_focused) {
         _focused = true;
         changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
     }
 }
 
-void NativeAppGlueApplication::lostFocus() {
+void AndroidApplication::lostFocus() {
     if (_focused) {
         _focused = false;
         changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS);
     }
 }
 
-bool NativeAppGlueApplication::isPause() const noexcept {
+bool AndroidApplication::isPause() const noexcept {
     return !_activated && getBackgroundWait();
 }
 
-void NativeAppGlueApplication::onAppCmd(int32_t cmd) noexcept {
+void AndroidApplication::onAppCmd(int32_t cmd) noexcept {
     try {
         switch (cmd) {
             case APP_CMD_INPUT_CHANGED:
@@ -292,50 +291,43 @@ void NativeAppGlueApplication::onAppCmd(int32_t cmd) noexcept {
     }
 }
 
-void NativeAppGlueApplication::onAppCmd(android_app* application, int32_t cmd) {
-    auto app = alias_cast<NativeAppGlueApplication*>(application->userData);
+void AndroidApplication::onAppCmd(android_app* application, int32_t cmd) {
+    auto app = alias_cast<AndroidApplication*>(application->userData);
     app->onAppCmd(cmd);
 }
 
-std::chrono::high_resolution_clock::time_point NativeAppGlueApplication::getCurrentTime() noexcept {
+std::chrono::high_resolution_clock::time_point AndroidApplication::getCurrentTime() noexcept {
     return std::chrono::high_resolution_clock::now();
 }
 
 } // namespace gerium::android
 
-extern "C" int main(int argc, char* argv[]);
-
-static gerium_result_t applicationCreate(gerium_utf8_t title,
-                                         gerium_uint32_t width,
-                                         gerium_uint32_t height,
-                                         gerium_application_t* application) {
-    using namespace gerium;
-    using namespace gerium::android;
-    return Object::create<NativeAppGlueApplication>(*application, title, width, height);
-}
-
 gerium_public void android_main(android_app* state) {
-    app                   = state;
-    applicationCreateFunc = applicationCreate;
+    typedef int (* mainFunc)(int argc, char* argv[]);
 
-    int pid = getpid();
-    char fname[256]{};
-    char cmdline[256]{};
-    snprintf(fname, sizeof fname, "/proc/%d/cmdline", pid);
-    FILE* fp = fopen(fname, "rb");
-    fgets(cmdline, sizeof cmdline, fp);
-    fclose(fp);
+    gerium::android::app = state;
 
-    char* argv = cmdline;
-    main(1, &argv);
+    if (auto main = (mainFunc) dlsym(RTLD_DEFAULT, "main"); main) {
+        int pid = getpid();
+        char fname[256]{};
+        char cmdline[256]{};
+        snprintf(fname, sizeof fname, "/proc/%d/cmdline", pid);
+        FILE* fp = fopen(fname, "rb");
+        fgets(cmdline, sizeof cmdline, fp);
+        fclose(fp);
+        char* argv = cmdline;
+
+        main(1, &argv);
+    }
 }
-
-#endif
 
 gerium_result_t gerium_application_create(gerium_utf8_t title,
                                           gerium_uint32_t width,
                                           gerium_uint32_t height,
                                           gerium_application_t* application) {
-    return applicationCreateFunc ? applicationCreateFunc(title, width, height, application)
-                                 : GERIUM_RESULT_ERROR_NOT_IMPLEMENTED;
+    using namespace gerium;
+    using namespace gerium::android;
+    return gerium::android::app
+        ? Object::create<AndroidApplication>(*application, title, width, height)
+        : GERIUM_RESULT_ERROR_NOT_IMPLEMENTED;
 }

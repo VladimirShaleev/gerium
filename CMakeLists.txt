@@ -36,16 +36,15 @@ FetchContent_Declare(
     URL_HASH MD5=845a67241e6acd3b689ef8fc7c327b7a
 )
 FetchContent_MakeAvailable(imgui)
-set(IMGUI_SRC "${imgui_SOURCE_DIR}" CACHE STRING "ImGui dir")
-set(IMGUI_INCLUDE_DIRS "${IMGUI_SRC}" "${IMGUI_SRC}/backends")
+set(IMGUI_INCLUDE_DIRS "${imgui_SOURCE_DIR}" "${imgui_SOURCE_DIR}/backends")
 set(IMGUI_SOURCES
-    "${IMGUI_SRC}/imgui.cpp"
-    "${IMGUI_SRC}/imgui_demo.cpp"
-    "${IMGUI_SRC}/imgui_draw.cpp"
-    "${IMGUI_SRC}/imgui_tables.cpp"
-    "${IMGUI_SRC}/imgui_widgets.cpp"
-    "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp"
-    "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
+    "${imgui_SOURCE_DIR}/imgui.cpp"
+    "${imgui_SOURCE_DIR}/imgui_demo.cpp"
+    "${imgui_SOURCE_DIR}/imgui_draw.cpp"
+    "${imgui_SOURCE_DIR}/imgui_tables.cpp"
+    "${imgui_SOURCE_DIR}/imgui_widgets.cpp"
+    "${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp"
+    "${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp")
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
@@ -141,6 +140,7 @@ target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+# target_compile_definitions(gerium PUBLIC IMGUI_IMPL_VULKAN_USE_LOADER)
 target_precompile_headers(gerium PRIVATE "sources/Gerium.hpp")
 target_compile_features(gerium PRIVATE cxx_std_20)
 set_target_properties(gerium PROPERTIES
@@ -160,23 +160,11 @@ else()
     target_compile_definitions(gerium PUBLIC GERIUM_STATIC_BUILD)
 endif()
 
-if(GERIUM_USE_NATIVE_APP_GLUE AND ANDROID)
+if(ANDROID)
     enable_language(C)
-    file(GLOB GERIUM_ANDROID_APP_GLUE_SOURCES "sources/Android/*.hpp" "sources/Android/*.cpp")
-    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_ANDROID_APP_GLUE_SOURCES})
-    add_library(gerium-native-app-glue STATIC ${GERIUM_INCLUDE} ${GERIUM_ANDROID_APP_GLUE_SOURCES} ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
+    add_library(gerium-native-app-glue STATIC ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
     add_library(gerium::native-app-glue ALIAS gerium-native-app-glue)
-    target_link_libraries(gerium-native-app-glue PRIVATE $<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
-    target_link_libraries(gerium-native-app-glue PRIVATE ctre::ctre)
-    target_link_libraries(gerium-native-app-glue PRIVATE absl::flat_hash_map)
-    target_link_libraries(gerium-native-app-glue PRIVATE Vulkan::Headers)
-    target_link_libraries(gerium-native-app-glue PRIVATE GPUOpen::VulkanMemoryAllocator)
-    target_link_libraries(gerium-native-app-glue PRIVATE unofficial::shaderc::shaderc)
-    target_link_libraries(gerium-native-app-glue PRIVATE unofficial::spirv-reflect)
-    target_link_libraries(gerium-native-app-glue PRIVATE glm::glm-header-only)
-    target_include_directories(gerium-native-app-glue PRIVATE ${WYHASH_INCLUDE_DIRS})
-    target_include_directories(gerium-native-app-glue PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_compile_definitions(gerium-native-app-glue PUBLIC GERIUM_ANDROID_HAS_NATIVE_APP_GLUE)
     target_include_directories(gerium-native-app-glue PUBLIC
         $<BUILD_INTERFACE:${ANDROID_NDK}/sources/android/native_app_glue/>
         $<INSTALL_INTERFACE:include>)
@@ -188,7 +176,8 @@ if(GERIUM_USE_NATIVE_APP_GLUE AND ANDROID)
         POSITION_INDEPENDENT_CODE ON
         WINDOWS_EXPORT_ALL_SYMBOLS OFF
         PUBLIC_HEADER ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.h)
-    target_compile_definitions(gerium-native-app-glue PUBLIC GERIUM_STATIC_BUILD)
+
+    target_link_libraries(gerium PRIVATE gerium::native-app-glue)
 endif()
 
 if(MSVC)
@@ -212,9 +201,9 @@ elseif(NOT APPLE)
     target_compile_options(gerium PUBLIC -fno-rtti)
     if (ANDROID)
         target_link_libraries(gerium PRIVATE android log)
-        if(GERIUM_USE_NATIVE_APP_GLUE)
-            target_compile_options(gerium-native-app-glue PUBLIC -fno-rtti)
-        endif()
+        # if(GERIUM_USE_NATIVE_APP_GLUE)
+        #     target_compile_options(gerium-native-app-glue PUBLIC -fno-rtti)
+        # endif()
     endif()
 endif()
 

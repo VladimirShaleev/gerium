@@ -3,21 +3,17 @@
 
 #include "../Application.hpp"
 
+#include <android/native_window.h>
+#include <android/configuration.h>
+#include <android_native_app_glue.h>
+
 namespace gerium::android {
 
-class AndroidApplication : public Application {
+class AndroidApplication final : public Application {
 public:
+    AndroidApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height);
+
     ANativeWindow* nativeWindow() noexcept;
-
-private:
-    virtual ANativeWindow* onNativeWindow() noexcept = 0;
-};
-
-#ifdef GERIUM_ANDROID_HAS_NATIVE_APP_GLUE
-
-class NativeAppGlueApplication final : public AndroidApplication {
-public:
-    NativeAppGlueApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height);
 
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
@@ -43,7 +39,11 @@ private:
     void onRun() override;
     void onExit() noexcept override;
 
-    ANativeWindow* onNativeWindow() noexcept override;
+    bool onIsRunning() const noexcept override;
+
+    void onInitImGui() override;
+    void onShutdownImGui() override;
+    void onNewFrameImGui() override;
 
     void initialize();
     void uninitialize();
@@ -66,8 +66,6 @@ private:
     jmethodID _isInMultiWindowMode;
     std::chrono::high_resolution_clock::time_point _prevTime;
 };
-
-#endif
 
 } // namespace gerium::android
 
