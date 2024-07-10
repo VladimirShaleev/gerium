@@ -1562,10 +1562,16 @@ void Device::createImGui(Application* application) {
     auto font = fs.open("resources/font-awesome.ttf");
 
     auto density = 1.5f;
+    auto fontSize = 12.0f;
+#ifdef GERIUM_PLATFORM_ANDROID
+    // TODO: add calc density
+    density = 2.5f;
+    fontSize = 15.0f;
+#endif
 
     auto dataFont = IM_ALLOC(font.size());
     memcpy(dataFont, (void*) font.begin(), font.size());
-    io.Fonts->AddFontFromMemoryTTF(dataFont, font.size(), 12.0f * density);
+    io.Fonts->AddFontFromMemoryTTF(dataFont, font.size(), fontSize * density);
     ImGui::GetStyle().ScaleAllSizes(density);
     ImGui_ImplVulkan_CreateFontsTexture();
 }

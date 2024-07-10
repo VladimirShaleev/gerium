@@ -52,9 +52,15 @@ private:
     void gotFocus();
     void lostFocus();
     bool isPause() const noexcept;
+    int getUnicodeChar(int eventType, int keyCode, int metaState) const;
+    bool showSoftKeyboard(bool show);
     void onAppCmd(int32_t cmd) noexcept;
+    int32_t onInputEvent(AInputEvent* event) noexcept;
 
     static void onAppCmd(android_app* application, int32_t cmd);
+    static int32_t onInputEvent(android_app* app, AInputEvent* event);
+    static ImGuiKey keyCodeToImGuiKey(int32_t keyCode) noexcept;
+
     static std::chrono::high_resolution_clock::time_point getCurrentTime() noexcept;
 
     android_app* _application;
@@ -64,6 +70,18 @@ private:
     bool _exit;
     jmethodID _isInMultiWindowMode;
     std::chrono::high_resolution_clock::time_point _prevTime;
+
+    jclass _keyEventClass;
+    jmethodID _keyEventCtor;
+    jmethodID _getUnicodeCharMethod;
+    jmethodID _getUnicodeCharIMethod;
+
+    jobject _inputMethodManager;
+    jmethodID _getWindowMethod;
+    jmethodID _getDecorViewMethod;
+    jmethodID _getWindowTokenMethod;
+    jmethodID _showSoftInputMethod;
+    jmethodID _hideSoftInputFromWindowMehtod;
 };
 
 } // namespace gerium::android

@@ -111,6 +111,7 @@ elseif(ANDROID)
         "sources/Vulkan/Android/*.hpp" "sources/Vulkan/Android/*.cpp")
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_ANDROID_SOURCES})
     list(APPEND GERIUM_SOURCES ${GERIUM_ANDROID_SOURCES})
+    list(APPEND IMGUI_SOURCES "${IMGUI_SRC}/backends/imgui_impl_android.cpp")
 elseif(IOS)
 elseif(APPLE)
     file(GLOB GERIUM_MACOS_SOURCES 
