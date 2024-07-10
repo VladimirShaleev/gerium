@@ -102,7 +102,7 @@ CMRC_DECLARE(gerium::resources);
 // GLM
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_FORCE_MESSAGES
+// #define GLM_FORCE_MESSAGES
 // https://github.com/g-truc/glm/issues/1269
 #include <glm/detail/setup.hpp>
 #undef GLM_DEPRECATED
@@ -110,6 +110,7 @@ CMRC_DECLARE(gerium::resources);
 #include <glm/ext.hpp>
 
 // ImGui
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 

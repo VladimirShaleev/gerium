@@ -30,20 +30,13 @@ if(APPLE)
     set(MOLTEN_VK_SRC "${moltenvk_SOURCE_DIR}/MoltenVK" CACHE STRING "MoltenVK dir")
 endif()
 
-# FetchContent_Declare(
-#     imgui
-#     URL https://github.com/ocornut/imgui/archive/v1.90.9.zip
-#     URL_HASH MD5=845a67241e6acd3b689ef8fc7c327b7a
-#     GIT_PROGRESS TRUE
-#     CONFIGURE_COMMAND ""
-#     BUILD_COMMAND ""
-# )
-# FetchContent_GetProperties(imgui)
-# if(NOT imgui_POPULATED)
-#     FetchContent_Populate(imgui)
-# endif()
-#
-# set(IMGUI_SRC "${imgui_SOURCE_DIR}" CACHE STRING "ImGui dir")
+FetchContent_Declare(
+    imgui
+    URL https://github.com/ocornut/imgui/archive/v1.90.9.zip
+    URL_HASH MD5=845a67241e6acd3b689ef8fc7c327b7a
+)
+FetchContent_MakeAvailable(imgui)
+set(IMGUI_SRC "${imgui_SOURCE_DIR}" CACHE STRING "ImGui dir")
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
@@ -56,7 +49,6 @@ find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(unofficial-shaderc CONFIG REQUIRED)
 find_package(unofficial-spirv-reflect CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
@@ -131,17 +123,19 @@ target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE glm::glm-header-only)
-target_link_libraries(gerium PRIVATE imgui::imgui)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
-# target_include_directories(gerium PRIVATE "${IMGUI_SRC}")
-# target_include_directories(gerium PRIVATE "${IMGUI_SRC}/backends")
-# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui.cpp")
-# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_demo.cpp")
-# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_draw.cpp")
-# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_tables.cpp")
-# target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_widgets.cpp")
-# target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp")
-# target_sources(gerium PRIVATE "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
+target_include_directories(gerium PRIVATE "${IMGUI_SRC}")
+target_include_directories(gerium PRIVATE "${IMGUI_SRC}/backends")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_demo.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_draw.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_tables.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_widgets.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp")
+target_sources(gerium PRIVATE "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
+if(WIN32)
+    target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_win32.cpp")
+endif()
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

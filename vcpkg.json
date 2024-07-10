@@ -14,11 +14,7 @@
     "shaderc",
     "spirv-reflect",
     "glm",
-    "gtest",
-    {
-      "name": "imgui",
-      "features": [ "vulkan-binding", "win32-binding" ]
-    }
+    "gtest"
   ],
   "overrides": [
     { "name": "wyhash", "version": "2023-01-25" }
