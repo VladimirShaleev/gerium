@@ -70,10 +70,6 @@ Win32Application::Win32Application(gerium_utf8_t title,
     SetWindowLongPtrW(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
 }
 
-bool Win32Application::isRunning() const noexcept {
-    return _running;
-}
-
 HINSTANCE Win32Application::hInstance() const noexcept {
     return _hInstance;
 }
@@ -396,6 +392,10 @@ void Win32Application::onExit() noexcept {
     }
 }
 
+bool Win32Application::onIsRunning() const noexcept {
+    return _running;
+}
+
 void Win32Application::onInitImGui() {
     ImGui_ImplWin32_Init((void*) _hWnd);
 }
@@ -408,7 +408,7 @@ void Win32Application::onNewFrameImGui() {
     ImGui_ImplWin32_NewFrame();
 }
 
-LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept {
     if (ImGui_ImplWin32_WndProcHandler(_hWnd, message, wParam, lParam)) {
         return 1;
     }

@@ -119,6 +119,10 @@ void Application::exit() noexcept {
     onExit();
 }
 
+bool Application::isRunning() const noexcept {
+    return onIsRunning();
+}
+
 void Application::initImGui() {
     onInitImGui();
 }

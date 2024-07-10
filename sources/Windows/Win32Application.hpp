@@ -9,8 +9,6 @@ class Win32Application final : public Application {
 public:
     Win32Application(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height, HINSTANCE instance);
 
-    bool isRunning() const noexcept;
-
     HINSTANCE hInstance() const noexcept;
     HWND hWnd() const noexcept;
 
@@ -38,11 +36,13 @@ private:
     void onRun() override;
     void onExit() noexcept override;
 
+    bool onIsRunning() const noexcept override;
+
     void onInitImGui() override;
     void onShutdownImGui() override;
     void onNewFrameImGui() override;
 
-    LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam);
+    LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept;
 
     void saveWindowPlacement();
     void restoreWindowPlacement();

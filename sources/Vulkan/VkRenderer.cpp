@@ -5,6 +5,9 @@ namespace gerium::vulkan {
 VkRenderer::VkRenderer(Application* application, std::unique_ptr<Device>&& device) noexcept :
     _application(application),
     _device(std::move(device)) {
+    if (!application->isRunning()) {
+        error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
+    }
 }
 
 void VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {

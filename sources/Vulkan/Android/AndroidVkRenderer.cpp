@@ -4,9 +4,6 @@ namespace gerium::vulkan::android {
 
 AndroidVkRenderer::AndroidVkRenderer(gerium::android::AndroidApplication* application) :
     VkRenderer(application, std::make_unique<AndroidDevice>()) {
-    // if (!application->isRunning()) {
-    //     error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
-    // }
 }
 
 void AndroidVkRenderer::onInitialize(gerium_uint32_t version, bool debug) {

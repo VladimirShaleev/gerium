@@ -4,9 +4,6 @@ namespace gerium::vulkan::macos {
 
 MacOSVkRenderer::MacOSVkRenderer(gerium::macos::MacOSApplication* application) :
     VkRenderer(application, std::make_unique<MacOSDevice>()) {
-    if (!application->isRunning()) {
-        error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
-    }
 }
 
 void MacOSVkRenderer::onInitialize(gerium_uint32_t version, bool debug) {

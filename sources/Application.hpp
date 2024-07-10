@@ -43,6 +43,8 @@ public:
     gerium_result_t run() noexcept;
     void exit() noexcept;
 
+    bool isRunning() const noexcept;
+
     void initImGui();
     void shutdownImGui();
     void newFrameImGui();
@@ -77,6 +79,8 @@ private:
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;
+
+    virtual bool onIsRunning() const noexcept = 0;
 
     virtual void onInitImGui()     = 0;
     virtual void onShutdownImGui() = 0;
