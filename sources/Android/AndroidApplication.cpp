@@ -19,22 +19,19 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
     _application->onInputEvent = onInputEvent;
 
     auto activity = _application->activity;
-    if (activity->sdkVersion >= 24) {
-        if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
-            auto classActivity   = env->FindClass("android/app/NativeActivity");
-            _isInMultiWindowMode = env->GetMethodID(classActivity, "isInMultiWindowMode", "()Z");
-            activity->vm->DetachCurrentThread();
-        }
-    }
 
     if (JNIEnv * env; app->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        auto activityClazz = app->activity->clazz;
+        auto activityClass = env->GetObjectClass(activityClazz);
+
+        if (activity->sdkVersion >= 24) {
+            _isInMultiWindowMode = env->GetMethodID(activityClass, "isInMultiWindowMode", "()Z");
+        }
+
         _keyEventClass         = (jclass) env->NewGlobalRef(env->FindClass("android/view/KeyEvent"));
         _keyEventCtor          = env->GetMethodID(_keyEventClass, "<init>", "(II)V");
         _getUnicodeCharMethod  = env->GetMethodID(_keyEventClass, "getUnicodeChar", "()I");
         _getUnicodeCharIMethod = env->GetMethodID(_keyEventClass, "getUnicodeChar", "(I)I");
-
-        auto activityClazz = app->activity->clazz;
-        auto activityClass = env->GetObjectClass(activityClazz);
 
         auto contextClass = env->FindClass("android/content/Context");
         auto windowClass  = env->FindClass("android/view/Window");
@@ -56,6 +53,27 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         _showSoftInputMethod = env->GetMethodID(inputMethodManagerClass, "showSoftInput", "(Landroid/view/View;I)Z");
         _hideSoftInputFromWindowMehtod =
             env->GetMethodID(inputMethodManagerClass, "hideSoftInputFromWindow", "(Landroid/os/IBinder;I)Z");
+
+        auto displayServiceField =
+                env->GetStaticFieldID(contextClass, "DISPLAY_SERVICE", "Ljava/lang/String;");
+        auto displayService = env->GetStaticObjectField(contextClass, displayServiceField);
+        _displayManager =
+                env->NewGlobalRef(env->CallObjectMethod(activityClazz, getSystemServiceMethod, displayService));
+        auto displayManagerClass = env->GetObjectClass(_displayManager);
+        _getDisplays = env->GetMethodID(displayManagerClass, "getDisplays", "()[Landroid/view/Display;");
+        auto displayClass = (jclass) env->FindClass("android/view/Display");
+        auto displayModeClass = (jclass) env->FindClass("android/view/Display$Mode");
+        _getDisplayName = env->GetMethodID(displayClass, "getName", "()Ljava/lang/String;");
+        _getDisplayId = env->GetMethodID(displayClass, "getDisplayId", "()I");
+        _getSupportedModes = env->GetMethodID(displayClass, "getSupportedModes", "()[Landroid/view/Display$Mode;");
+        _getPhysicalHeight = displayModeClass ? env->GetMethodID(displayModeClass, "getPhysicalHeight", "()I") : nullptr;
+        _getPhysicalWidth = displayModeClass ? env->GetMethodID(displayModeClass, "getPhysicalWidth", "()I") : nullptr;
+        _getRefreshRate = displayModeClass ? env->GetMethodID(displayModeClass, "getRefreshRate", "()F") : nullptr;
+
+        _getTitle = env->GetMethodID(activityClass, "getTitle", "()Ljava/lang/CharSequence;");
+        _setTitle = env->GetMethodID(activityClass, "setTitle", "(Ljava/lang/CharSequence;)V");
+
+        activity->vm->DetachCurrentThread();
     }
 }
 
@@ -68,7 +86,68 @@ gerium_runtime_platform_t AndroidApplication::onGetPlatform() const noexcept {
 }
 
 void AndroidApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const {
-    displayCount = 0;
+    auto activity = _application->activity;
+
+    if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        auto jDisplays = (jobjectArray) env->CallObjectMethod(_displayManager, _getDisplays);
+        auto attachedDisplays = (gerium_uint32_t) env->GetArrayLength(jDisplays);
+        displayCount = displays ? std::min(displayCount, attachedDisplays) : attachedDisplays;
+        if (displays) {
+            _modes.clear();
+            _names.clear();
+            for (gerium_uint32_t i = 0; i < displayCount; ++i) {
+                auto jDisplay = env->GetObjectArrayElement(jDisplays, (jsize) i);
+                auto jName = (jstring) env->CallObjectMethod(jDisplay, _getDisplayName);
+                auto jId = env->CallIntMethod(jDisplay, _getDisplayId);
+                auto jModes = _getSupportedModes ? (jobjectArray) env->CallObjectMethod(jDisplay, _getSupportedModes) : nullptr;
+                auto jModeCount = jModes ? env->GetArrayLength(jModes) : 0;
+                if (jName) {
+                    auto jNameLength = env->GetStringUTFLength(jName);
+                    std::string name;
+                    name.resize(jNameLength + 1);
+                    env->GetStringUTFRegion(jName, 0, jNameLength, name.data());
+                    env->DeleteLocalRef(jName);
+                    _names.push_back(std::move(name));
+                } else {
+                    _names.emplace_back("Unknown");
+                }
+
+                displays[i].id = gerium_uint32_t(jId);
+                displays[i].gpu_name = "Unknown";
+                displays[i].mode_count = gerium_uint32_t(jModeCount);
+                displays[i].modes = nullptr;
+
+                for (jsize m = 0; m < jModeCount; ++m) {
+                    auto jMode = env->GetObjectArrayElement(jModes, m);
+                    auto jWidth = env->CallIntMethod(jMode, _getPhysicalWidth);
+                    auto jHeight = env->CallIntMethod(jMode, _getPhysicalHeight);
+                    auto jRefreshRate = env->CallFloatMethod(jMode, _getRefreshRate);
+                    _modes.emplace_back(
+                            gerium_uint16_t(jWidth),
+                            gerium_uint16_t(jHeight),
+                            gerium_uint16_t(jRefreshRate));
+                    env->DeleteLocalRef(jMode);
+                }
+
+                env->DeleteLocalRef(jModes);
+                env->DeleteLocalRef(jDisplay);
+            }
+        }
+        env->DeleteLocalRef(jDisplays);
+        activity->vm->DetachCurrentThread();
+    }
+
+    if (displays) {
+        gerium_uint32_t modeOffset = 0;
+        for (gerium_uint32_t i = 0; i < displayCount; ++i) {
+            displays[i].name = _names[i].c_str();
+            displays[i].device_name  = _names[i].c_str();
+            if (displays[i].mode_count) {
+                displays[i].modes = &_modes[modeOffset];
+                modeOffset += displays[i].mode_count;
+            }
+        }
+    }
 }
 
 bool AndroidApplication::onIsFullscreen() const noexcept {
@@ -88,7 +167,7 @@ void AndroidApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId
 }
 
 gerium_application_style_flags_t AndroidApplication::onGetStyle() const noexcept {
-    return {}; // TODO:
+    return GERIUM_APPLICATION_STYLE_NONE_BIT;
 }
 
 void AndroidApplication::onSetStyle(gerium_application_style_flags_t style) noexcept {
@@ -119,10 +198,29 @@ void AndroidApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height
 }
 
 gerium_utf8_t AndroidApplication::onGetTitle() const noexcept {
-    return ""; // TODO:
+    auto activity = _application->activity;
+
+    if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        auto jTitle = (jstring) env->CallObjectMethod(_application->activity->clazz, _getTitle);
+        auto jTitleLength = env->GetStringLength(jTitle);
+        _title.clear();
+        _title.resize(jTitleLength + 1);
+        env->GetStringUTFRegion(jTitle, 0, jTitleLength, _title.data());
+        env->DeleteLocalRef(jTitle);
+        activity->vm->DetachCurrentThread();
+    }
+    return _title.c_str();
 }
 
 void AndroidApplication::onSetTitle(gerium_utf8_t title) noexcept {
+    auto activity = _application->activity;
+
+    if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        auto jTitle = env->NewStringUTF(title);
+        env->CallVoidMethod(_application->activity->clazz, _setTitle, jTitle);
+        env->DeleteLocalRef(jTitle);
+        activity->vm->DetachCurrentThread();
+    }
 }
 
 void AndroidApplication::onRun() {

@@ -68,6 +68,9 @@ private:
     bool _activated;
     bool _focused;
     bool _exit;
+    mutable std::string _title;
+    mutable std::vector<std::string> _names;
+    mutable std::vector<gerium_display_mode_t> _modes;
     jmethodID _isInMultiWindowMode;
     std::chrono::high_resolution_clock::time_point _prevTime;
 
@@ -82,6 +85,18 @@ private:
     jmethodID _getWindowTokenMethod;
     jmethodID _showSoftInputMethod;
     jmethodID _hideSoftInputFromWindowMehtod;
+
+    jobject _displayManager;
+    jmethodID _getDisplays;
+    jmethodID _getDisplayName;
+    jmethodID _getDisplayId;
+    jmethodID _getSupportedModes;
+    jmethodID _getPhysicalHeight;
+    jmethodID _getPhysicalWidth;
+    jmethodID _getRefreshRate;
+
+    jmethodID _getTitle;
+    jmethodID _setTitle;
 };
 
 } // namespace gerium::android
