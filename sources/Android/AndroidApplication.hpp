@@ -3,8 +3,8 @@
 
 #include "../Application.hpp"
 
-#include <android/native_window.h>
 #include <android/configuration.h>
+#include <android/native_window.h>
 #include <android_native_app_glue.h>
 
 namespace gerium::android {

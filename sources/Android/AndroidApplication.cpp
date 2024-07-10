@@ -14,8 +14,8 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
     _exit(false),
     _isInMultiWindowMode(nullptr) {
     assert(_application);
-    _application->userData = alias_cast<void*>(this);
-    _application->onAppCmd = onAppCmd;
+    _application->userData     = alias_cast<void*>(this);
+    _application->onAppCmd     = onAppCmd;
     _application->onInputEvent = onInputEvent;
 
     auto activity = _application->activity;
@@ -27,41 +27,35 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         }
     }
 
-    if (JNIEnv* env; app->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
-        _keyEventClass = (jclass) env->NewGlobalRef(env->FindClass("android/view/KeyEvent"));
-        _keyEventCtor = env->GetMethodID(_keyEventClass, "<init>", "(II)V");
-        _getUnicodeCharMethod = env->GetMethodID(_keyEventClass, "getUnicodeChar", "()I");
+    if (JNIEnv * env; app->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        _keyEventClass         = (jclass) env->NewGlobalRef(env->FindClass("android/view/KeyEvent"));
+        _keyEventCtor          = env->GetMethodID(_keyEventClass, "<init>", "(II)V");
+        _getUnicodeCharMethod  = env->GetMethodID(_keyEventClass, "getUnicodeChar", "()I");
         _getUnicodeCharIMethod = env->GetMethodID(_keyEventClass, "getUnicodeChar", "(I)I");
 
         auto activityClazz = app->activity->clazz;
         auto activityClass = env->GetObjectClass(activityClazz);
 
         auto contextClass = env->FindClass("android/content/Context");
-        auto windowClass = env->FindClass("android/view/Window");
-        auto viewClass = env->FindClass("android/view/View");
+        auto windowClass  = env->FindClass("android/view/Window");
+        auto viewClass    = env->FindClass("android/view/View");
 
         auto inputMethodServiceField =
-                env->GetStaticFieldID(contextClass, "INPUT_METHOD_SERVICE", "Ljava/lang/String;");
-        auto inputMethodService =
-                env->GetStaticObjectField(contextClass, inputMethodServiceField);
-        auto getSystemServiceMethod = env->GetMethodID(
-                activityClass, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
-        _inputMethodManager = env->NewGlobalRef(env->CallObjectMethod(
-                activityClazz, getSystemServiceMethod, inputMethodService));
+            env->GetStaticFieldID(contextClass, "INPUT_METHOD_SERVICE", "Ljava/lang/String;");
+        auto inputMethodService = env->GetStaticObjectField(contextClass, inputMethodServiceField);
+        auto getSystemServiceMethod =
+            env->GetMethodID(activityClass, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+        _inputMethodManager =
+            env->NewGlobalRef(env->CallObjectMethod(activityClazz, getSystemServiceMethod, inputMethodService));
 
-        _getWindowMethod = env->GetMethodID(
-                activityClass, "getWindow", "()Landroid/view/Window;");
-        _getDecorViewMethod = env->GetMethodID(
-                windowClass, "getDecorView", "()Landroid/view/View;");
-        _getWindowTokenMethod = env->GetMethodID(
-                viewClass, "getWindowToken", "()Landroid/os/IBinder;");
+        _getWindowMethod      = env->GetMethodID(activityClass, "getWindow", "()Landroid/view/Window;");
+        _getDecorViewMethod   = env->GetMethodID(windowClass, "getDecorView", "()Landroid/view/View;");
+        _getWindowTokenMethod = env->GetMethodID(viewClass, "getWindowToken", "()Landroid/os/IBinder;");
 
-        auto inputMethodManagerClass = env->FindClass(
-                "android/view/inputmethod/InputMethodManager");
-        _showSoftInputMethod = env->GetMethodID(
-                inputMethodManagerClass, "showSoftInput", "(Landroid/view/View;I)Z");
-        _hideSoftInputFromWindowMehtod = env->GetMethodID(
-                inputMethodManagerClass, "hideSoftInputFromWindow", "(Landroid/os/IBinder;I)Z");
+        auto inputMethodManagerClass = env->FindClass("android/view/inputmethod/InputMethodManager");
+        _showSoftInputMethod = env->GetMethodID(inputMethodManagerClass, "showSoftInput", "(Landroid/view/View;I)Z");
+        _hideSoftInputFromWindowMehtod =
+            env->GetMethodID(inputMethodManagerClass, "hideSoftInputFromWindow", "(Landroid/os/IBinder;I)Z");
     }
 }
 
@@ -90,9 +84,7 @@ bool AndroidApplication::onIsFullscreen() const noexcept {
     return result;
 }
 
-void AndroidApplication::onFullscreen(bool fullscreen,
-                                            gerium_uint32_t displayId,
-                                            const gerium_display_mode_t* mode) {
+void AndroidApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) {
 }
 
 gerium_application_style_flags_t AndroidApplication::onGetStyle() const noexcept {
@@ -207,6 +199,7 @@ void AndroidApplication::onShutdownImGui() {
 
 void AndroidApplication::onNewFrameImGui() {
     auto& io = ImGui::GetIO();
+
     static bool wantTextInputLast = false;
 
     if (io.WantTextInput && !wantTextInputLast) {
@@ -267,12 +260,11 @@ bool AndroidApplication::isPause() const noexcept {
 }
 
 int AndroidApplication::getUnicodeChar(int eventType, int keyCode, int metaState) const {
-    if (JNIEnv* env; _application->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+    if (JNIEnv * env; _application->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
         auto keyEvent = env->NewObject(_keyEventClass, _keyEventCtor, eventType, keyCode);
 
-        int unicodeKey = metaState == 0
-                         ? env->CallIntMethod(keyEvent, _getUnicodeCharMethod)
-                         : env->CallIntMethod(keyEvent, _getUnicodeCharIMethod, metaState);
+        int unicodeKey = metaState == 0 ? env->CallIntMethod(keyEvent, _getUnicodeCharMethod)
+                                        : env->CallIntMethod(keyEvent, _getUnicodeCharIMethod, metaState);
 
         env->DeleteLocalRef(keyEvent);
         _application->activity->vm->DetachCurrentThread();
@@ -284,17 +276,15 @@ int AndroidApplication::getUnicodeChar(int eventType, int keyCode, int metaState
 
 bool AndroidApplication::showSoftKeyboard(bool show) {
     auto result = false;
-    if (JNIEnv* env; _application->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
-        auto window = env->CallObjectMethod(_application->activity->clazz, _getWindowMethod);
+    if (JNIEnv * env; _application->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        auto window    = env->CallObjectMethod(_application->activity->clazz, _getWindowMethod);
         auto decorView = env->CallObjectMethod(window, _getDecorViewMethod);
 
         if (show) {
-            result = env->CallBooleanMethod(
-                    _inputMethodManager, _showSoftInputMethod, decorView, 0) != 0;
+            result = env->CallBooleanMethod(_inputMethodManager, _showSoftInputMethod, decorView, 0) != 0;
         } else {
             auto binder = env->CallObjectMethod(decorView, _getWindowTokenMethod);
-            result = env->CallBooleanMethod(
-                    _inputMethodManager, _hideSoftInputFromWindowMehtod, binder, 0) != 0;
+            result      = env->CallBooleanMethod(_inputMethodManager, _hideSoftInputFromWindowMehtod, binder, 0) != 0;
         }
 
         app->activity->vm->DetachCurrentThread();
@@ -376,19 +366,19 @@ void AndroidApplication::onAppCmd(int32_t cmd) noexcept {
 }
 
 int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
-    auto& io = ImGui::GetIO();
-    auto eventKeyCode = AKeyEvent_getKeyCode(event);
+    auto& io           = ImGui::GetIO();
+    auto eventKeyCode  = AKeyEvent_getKeyCode(event);
     auto eventScanCode = AKeyEvent_getScanCode(event);
 
     if (io.WantTextInput && AInputEvent_getType(event) == AINPUT_EVENT_TYPE_KEY &&
         AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP) {
-        if (eventKeyCode <= AKEYCODE_ENDCALL ||
-            (eventKeyCode >= AKEYCODE_DPAD_UP && eventKeyCode <= AKEYCODE_CLEAR) ||
+        if (eventKeyCode <= AKEYCODE_ENDCALL || (eventKeyCode >= AKEYCODE_DPAD_UP && eventKeyCode <= AKEYCODE_CLEAR) ||
             (eventKeyCode >= AKEYCODE_ALT_LEFT && eventKeyCode <= AKEYCODE_SHIFT_RIGHT) ||
             eventKeyCode >= AKEYCODE_SYM) {
             return ImGui_ImplAndroid_HandleInputEvent(event);
         }
         auto meta = AKeyEvent_getMetaState(event);
+
         auto c = getUnicodeChar(AKEY_EVENT_ACTION_DOWN, eventKeyCode, meta);
         io.AddInputCharacter(c);
         return 0;
@@ -639,7 +629,7 @@ std::chrono::high_resolution_clock::time_point AndroidApplication::getCurrentTim
 } // namespace gerium::android
 
 gerium_public void android_main(android_app* state) {
-    typedef int (* mainFunc)(int argc, char* argv[]);
+    typedef int (*mainFunc)(int argc, char* argv[]);
 
     gerium::android::app = state;
 
@@ -663,7 +653,6 @@ gerium_result_t gerium_application_create(gerium_utf8_t title,
                                           gerium_application_t* application) {
     using namespace gerium;
     using namespace gerium::android;
-    return gerium::android::app
-        ? Object::create<AndroidApplication>(*application, title, width, height)
-        : GERIUM_RESULT_ERROR_NOT_IMPLEMENTED;
+    return gerium::android::app ? Object::create<AndroidApplication>(*application, title, width, height)
+                                : GERIUM_RESULT_ERROR_NOT_IMPLEMENTED;
 }
