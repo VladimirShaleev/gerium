@@ -46,7 +46,6 @@ private:
 
     void saveWindowPlacement();
     void restoreWindowPlacement();
-    bool changeState(gerium_application_state_t newState) noexcept;
     gerium_uint64_t getCurrentTime() noexcept;
     LONG getStyle() const noexcept;
     std::pair<gerium_uint16_t, gerium_uint16_t> clientSize() const noexcept;
@@ -70,11 +69,9 @@ private:
     bool _running;
     bool _resizing;
     bool _visibility;
-    bool _callbackError;
     WINDOWPLACEMENT _windowPlacement;
     LONG _styleEx;
     gerium_application_style_flags_t _styleFlags;
-    gerium_application_state_t _prevState;
     gerium_uint16_t _minWidth;
     gerium_uint16_t _minHeight;
     gerium_uint16_t _maxWidth;

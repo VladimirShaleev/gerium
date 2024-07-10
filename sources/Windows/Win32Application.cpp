@@ -15,12 +15,10 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _running(false),
     _resizing(false),
     _visibility(false),
-    _callbackError(false),
     _windowPlacement({}),
     _styleEx(0),
     _styleFlags(GERIUM_APPLICATION_STYLE_RESIZABLE_BIT | GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT |
                 GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT),
-    _prevState(GERIUM_APPLICATION_STATE_UNKNOWN),
     _minWidth(0),
     _minHeight(0),
     _maxWidth(0),
@@ -339,9 +337,8 @@ void Win32Application::onRun() {
     }
     _running = true;
 
-    if (!changeState(GERIUM_APPLICATION_STATE_CREATE) || !changeState(GERIUM_APPLICATION_STATE_INITIALIZE)) {
-        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
+    changeState(GERIUM_APPLICATION_STATE_CREATE);
+    changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
 
     ShowWindow(_hWnd, onIsFullscreen() ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
     UpdateWindow(_hWnd);
@@ -355,7 +352,7 @@ void Win32Application::onRun() {
 
     MSG msg{};
     while (msg.message != WM_QUIT) {
-        if (_callbackError) {
+        if (callbackStateFailed()) {
             error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
         }
 
@@ -434,12 +431,12 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             break;
 
         case WM_CLOSE:
-            changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+            changeState(GERIUM_APPLICATION_STATE_INVISIBLE, true);
             exit();
             break;
 
         case WM_ACTIVATEAPP:
-            changeState(wParam ? GERIUM_APPLICATION_STATE_GOT_FOCUS : GERIUM_APPLICATION_STATE_LOST_FOCUS);
+            changeState(wParam ? GERIUM_APPLICATION_STATE_GOT_FOCUS : GERIUM_APPLICATION_STATE_LOST_FOCUS, true);
             break;
 
         case WM_SIZING:
@@ -451,9 +448,9 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             switch (wParam) {
                 case SIZE_RESTORED:
                     if (_resizing) {
-                        changeState(GERIUM_APPLICATION_STATE_RESIZE);
+                        changeState(GERIUM_APPLICATION_STATE_RESIZE, true);
                     } else {
-                        changeState(GERIUM_APPLICATION_STATE_NORMAL);
+                        changeState(GERIUM_APPLICATION_STATE_NORMAL, true);
                     }
                     break;
                 case SIZE_MINIMIZED:
@@ -462,18 +459,19 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
                     break;
                 case SIZE_MAXIMIZED:
                     changeState(onIsFullscreen() ? GERIUM_APPLICATION_STATE_FULLSCREEN
-                                                 : GERIUM_APPLICATION_STATE_MAXIMIZE);
+                                                 : GERIUM_APPLICATION_STATE_MAXIMIZE,
+                                true);
                     break;
             }
             if (_visibility != prevVisibility) {
-                changeState(_visibility ? GERIUM_APPLICATION_STATE_VISIBLE : GERIUM_APPLICATION_STATE_INVISIBLE);
+                changeState(_visibility ? GERIUM_APPLICATION_STATE_VISIBLE : GERIUM_APPLICATION_STATE_INVISIBLE, true);
             }
             _resizing = false;
             break;
 
         case WM_EXITSIZEMOVE:
-            if (_prevState == GERIUM_APPLICATION_STATE_RESIZE) {
-                changeState(GERIUM_APPLICATION_STATE_RESIZED);
+            if (currentState() == GERIUM_APPLICATION_STATE_RESIZE) {
+                changeState(GERIUM_APPLICATION_STATE_RESIZED, true);
             }
             break;
 
@@ -492,8 +490,8 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             break;
 
         case WM_DESTROY:
-            changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
-            changeState(GERIUM_APPLICATION_STATE_DESTROY);
+            changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE, true);
+            changeState(GERIUM_APPLICATION_STATE_DESTROY, true);
             PostQuitMessage(0);
             _hWnd    = nullptr;
             _running = false;
@@ -518,19 +516,6 @@ void Win32Application::restoreWindowPlacement() {
     }
     SetWindowPlacement(_hWnd, &_windowPlacement);
     _styleEx = 0;
-}
-
-bool Win32Application::changeState(gerium_application_state_t newState) noexcept {
-    if (_prevState != newState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
-        _prevState = newState;
-        if (callStateFunc(newState)) {
-            return true;
-        } else {
-            _callbackError = true;
-            return false;
-        }
-    }
-    return true;
 }
 
 gerium_uint64_t Win32Application::getCurrentTime() noexcept {

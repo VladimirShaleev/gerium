@@ -8,7 +8,8 @@ Application::Application() noexcept :
     _frameData(nullptr),
     _stateData(nullptr),
     _backgroundWait(false),
-    _prevState(GERIUM_APPLICATION_STATE_UNKNOWN) {
+    _currentState(GERIUM_APPLICATION_STATE_UNKNOWN),
+    _callbackStateFailed(false) {
 }
 
 gerium_runtime_platform_t Application::getPlatform() const noexcept {
@@ -130,11 +131,23 @@ void Application::newFrameImGui() {
     onNewFrameImGui();
 }
 
-void Application::changeState(gerium_application_state_t newState) {
-    if (newState != _prevState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
-        _prevState = newState;
+gerium_application_state_t Application::currentState() const noexcept {
+    return _currentState;
+}
+
+gerium_bool_t Application::callbackStateFailed() const noexcept {
+    return _callbackStateFailed;
+}
+
+void Application::changeState(gerium_application_state_t newState, bool noThrow) {
+    if (newState != _currentState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
+        _currentState = newState;
         if (!callStateFunc(newState)) {
-            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            if (noThrow) {
+                _callbackStateFailed = true;
+            } else {
+                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            }
         }
     }
 }

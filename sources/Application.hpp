@@ -48,7 +48,9 @@ public:
     void newFrameImGui();
 
 protected:
-    void changeState(gerium_application_state_t newState);
+    gerium_application_state_t currentState() const noexcept;
+    gerium_bool_t callbackStateFailed() const noexcept;
+    void changeState(gerium_application_state_t newState, bool noThrow = false);
     bool callFrameFunc(gerium_float32_t elapsed) noexcept;
     bool callStateFunc(gerium_application_state_t state) noexcept;
 
@@ -85,7 +87,8 @@ private:
     gerium_data_t _frameData;
     gerium_data_t _stateData;
     gerium_bool_t _backgroundWait;
-    gerium_application_state_t _prevState;
+    gerium_application_state_t _currentState;
+    gerium_bool_t _callbackStateFailed;
 };
 
 } // namespace gerium
