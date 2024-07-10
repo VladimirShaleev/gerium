@@ -112,9 +112,6 @@ CMRC_DECLARE(gerium::resources);
 // ImGui
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
-#ifdef GERIUM_PLATFORM_WINDOWS
-# include <imgui_impl_win32.h>
-#endif
 
 #include "gerium/gerium.h"
 

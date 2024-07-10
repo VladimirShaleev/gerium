@@ -1,5 +1,7 @@
 #include "Win32Application.hpp"
 
+#include <imgui_impl_win32.h>
+
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace gerium::windows {
@@ -395,6 +397,18 @@ void Win32Application::onExit() noexcept {
     if (_hWnd) {
         DestroyWindow(_hWnd);
     }
+}
+
+void Win32Application::onInitImGui() {
+    ImGui_ImplWin32_Init((void*) _hWnd);
+}
+
+void Win32Application::onShutdownImGui() {
+    ImGui_ImplWin32_Shutdown();
+}
+
+void Win32Application::onNewFrameImGui() {
+    ImGui_ImplWin32_NewFrame();
 }
 
 LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {

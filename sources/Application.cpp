@@ -118,6 +118,18 @@ void Application::exit() noexcept {
     onExit();
 }
 
+void Application::initImGui() {
+    onInitImGui();
+}
+
+void Application::shutdownImGui() {
+    onShutdownImGui();
+}
+
+void Application::newFrameImGui() {
+    onNewFrameImGui();
+}
+
 void Application::changeState(gerium_application_state_t newState) {
     if (newState != _prevState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
         _prevState = newState;

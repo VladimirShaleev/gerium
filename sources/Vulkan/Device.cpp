@@ -10,7 +10,7 @@ Device::~Device() {
         _vkTable.vkDeviceWaitIdle(_device);
 
         ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplWin32_Shutdown();
+        _application->shutdownImGui();
         ImGui::DestroyContext();
 
         if (_dynamicBuffer != Undefined && _dynamicBufferMapped) {
@@ -272,7 +272,7 @@ void Device::newFrame() {
     }
 
     ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplWin32_NewFrame();
+    _application->newFrameImGui();
     ImGui::NewFrame();
 }
 
@@ -1531,7 +1531,7 @@ void Device::createImGui(Application* application) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
-    ImGui_ImplWin32_Init(application->native());
+    application->initImGui();
 
     ImGui_ImplVulkan_LoadFunctions(imguiLoaderFunc, this);
 

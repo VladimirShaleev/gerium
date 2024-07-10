@@ -43,7 +43,9 @@ public:
     gerium_result_t run() noexcept;
     void exit() noexcept;
 
-    virtual void* native() noexcept = 0;
+    void initImGui();
+    void shutdownImGui();
+    void newFrameImGui();
 
 protected:
     void changeState(gerium_application_state_t newState);
@@ -73,6 +75,10 @@ private:
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;
+
+    virtual void onInitImGui()     = 0;
+    virtual void onShutdownImGui() = 0;
+    virtual void onNewFrameImGui() = 0;
 
     gerium_application_frame_func_t _frameFunc;
     gerium_application_state_func_t _stateFunc;

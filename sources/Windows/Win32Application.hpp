@@ -14,10 +14,6 @@ public:
     HINSTANCE hInstance() const noexcept;
     HWND hWnd() const noexcept;
 
-    void* native() noexcept override {
-        return (void*) hWnd();
-    }
-
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
@@ -41,6 +37,10 @@ private:
 
     void onRun() override;
     void onExit() noexcept override;
+
+    void onInitImGui() override;
+    void onShutdownImGui() override;
+    void onNewFrameImGui() override;
 
     LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam);
 
