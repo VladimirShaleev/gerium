@@ -1,5 +1,7 @@
 #include "MacOSApplication.hpp"
 
+#include <imgui_impl_osx.h>
+
 #import <MetalKit/MetalKit.h>
 #import <QuartzCore/QuartzCore.h>
 #import <IOKit/graphics/IOGraphicsLib.h>
@@ -134,10 +136,6 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
     } @catch (NSException*) {
         error(GERIUM_RESULT_ERROR_UNKNOWN);
     }
-}
-
-bool MacOSApplication::isRunning() const noexcept {
-    return _running;
 }
 
 const CAMetalLayer* MacOSApplication::layer() const noexcept {
@@ -445,6 +443,24 @@ void MacOSApplication::onExit() noexcept {
         [controller.window close];
     }
     _exited = true;
+}
+
+bool MacOSApplication::onIsRunning() const noexcept {
+    return _running;
+}
+
+void MacOSApplication::onInitImGui() {
+    MTKView* view = ((__bridge MTKView*) _view);
+    ImGui_ImplOSX_Init(view);
+}
+
+void MacOSApplication::onShutdownImGui() {
+    ImGui_ImplOSX_Shutdown();
+}
+
+void MacOSApplication::onNewFrameImGui() {
+    MTKView* view = ((__bridge MTKView*) _view);
+    ImGui_ImplOSX_NewFrame(view);
 }
 
 void MacOSApplication::enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays, gerium_uint32_t displayCount, bool isMain, gerium_uint32_t& index, gerium_display_info_t* displays) const {

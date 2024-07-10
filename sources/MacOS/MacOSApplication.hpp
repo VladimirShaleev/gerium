@@ -20,8 +20,6 @@ public:
         }
     }
 
-    bool isRunning() const noexcept;
-
     const CAMetalLayer* layer() const noexcept;
 
     void changeState(gerium_application_state_t newState);
@@ -66,6 +64,12 @@ private:
     void onRun() override;
     void onExit() noexcept override;
     
+    bool onIsRunning() const noexcept override;
+
+    void onInitImGui() override;
+    void onShutdownImGui() override;
+    void onNewFrameImGui() override;
+
     void enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays, gerium_uint32_t displayCount, bool isMain, gerium_uint32_t& index, gerium_display_info_t* displays) const;
 
     std::chrono::high_resolution_clock::time_point getCurrentTime() const noexcept;

@@ -258,7 +258,13 @@ void Device::newFrame() {
                                                        VK_NULL_HANDLE,
                                                        &_swapchainImageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    gerium_uint16_t appWidth, appHeight;
+    _application->getSize(&appWidth, &appHeight);
+    const auto resized = _appWidth != appWidth || _appHeight != appHeight;
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resized) {
+        _appWidth  = appWidth;
+        _appHeight = appHeight;
         resizeSwapchain();
     } else {
         check(result);
@@ -411,12 +417,10 @@ void Device::present() {
         _appWidth  = appWidth;
         _appHeight = appHeight;
         resizeSwapchain();
-        frameCountersAdvance();
-        return;
+    } else {
+        check(result);
     }
-
-    check(result);
-
+    
     frameCountersAdvance();
     deleteResources();
 }
@@ -1563,15 +1567,22 @@ void Device::createImGui(Application* application) {
 
     auto density = 1.5f;
     auto fontSize = 12.0f;
+    auto fontD = 1.0f;
 #ifdef GERIUM_PLATFORM_ANDROID
     // TODO: add calc density
     density = 2.5f;
     fontSize = 15.0f;
+#elif defined(GERIUM_PLATFORM_MAC_OS)
+    density = 1.0f;
+    fontSize = 12.0f;
+    fontD = 2.0f;
 #endif
 
     auto dataFont = IM_ALLOC(font.size());
     memcpy(dataFont, (void*) font.begin(), font.size());
-    io.Fonts->AddFontFromMemoryTTF(dataFont, font.size(), fontSize * density);
+    ImFontConfig config{};
+    config.RasterizerDensity = fontD;
+    io.Fonts->AddFontFromMemoryTTF(dataFont, font.size(), fontSize * density, &config);
     ImGui::GetStyle().ScaleAllSizes(density);
     ImGui_ImplVulkan_CreateFontsTexture();
 }
