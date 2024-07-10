@@ -10,7 +10,6 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
     _activated(false),
     _focused(false),
     _exit(false),
-    _callbackError(false),
     _isInMultiWindowMode(nullptr) {
     assert(_application);
     _application->userData = alias_cast<void*>(this);
@@ -104,11 +103,11 @@ void AndroidApplication::onRun() {
 
     ANativeActivity_setWindowFormat(_application->activity, WINDOW_FORMAT_RGBX_8888);
 
-    try {
-        changeState(GERIUM_APPLICATION_STATE_CREATE);
-    } catch (...) {
+    changeState(GERIUM_APPLICATION_STATE_CREATE, true);
+
+    if (callbackStateFailed()) {
         onExit();
-        throw;
+        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
 
     int events;
@@ -123,7 +122,7 @@ void AndroidApplication::onRun() {
             }
 
             if (_application->destroyRequested) {
-                if (_callbackError) {
+                if (callbackStateFailed()) {
                     error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
                 }
                 return;
@@ -173,7 +172,7 @@ void AndroidApplication::onNewFrameImGui() {
 void AndroidApplication::initialize() {
     if (!_initialized && _application->window) {
         _initialized = true;
-        changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
+        changeState(GERIUM_APPLICATION_STATE_INITIALIZE, true);
     }
     active();
 }
@@ -181,35 +180,35 @@ void AndroidApplication::initialize() {
 void AndroidApplication::uninitialize() {
     if (_initialized) {
         _initialized = false;
-        changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
+        changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE, true);
     }
 }
 
 void AndroidApplication::active() {
     if (!_activated && _application->window) {
         _activated = true;
-        changeState(GERIUM_APPLICATION_STATE_VISIBLE);
+        changeState(GERIUM_APPLICATION_STATE_VISIBLE, true);
     }
 }
 
 void AndroidApplication::deactive() {
     if (_activated) {
         _activated = false;
-        changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+        changeState(GERIUM_APPLICATION_STATE_INVISIBLE, true);
     }
 }
 
 void AndroidApplication::gotFocus() {
     if (!_focused) {
         _focused = true;
-        changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
+        changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS, true);
     }
 }
 
 void AndroidApplication::lostFocus() {
     if (_focused) {
         _focused = false;
-        changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS);
+        changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS, true);
     }
 }
 
@@ -218,82 +217,81 @@ bool AndroidApplication::isPause() const noexcept {
 }
 
 void AndroidApplication::onAppCmd(int32_t cmd) noexcept {
-    try {
-        switch (cmd) {
-            case APP_CMD_INPUT_CHANGED:
-                break;
+    switch (cmd) {
+        case APP_CMD_INPUT_CHANGED:
+            break;
 
-            case APP_CMD_INIT_WINDOW:
-                initialize();
+        case APP_CMD_INIT_WINDOW:
+            initialize();
 
-                if (!onIsFullscreen()) {
-                    active();
-                }
-                break;
+            if (!onIsFullscreen()) {
+                active();
+            }
+            break;
 
-            case APP_CMD_TERM_WINDOW:
-                if (!onIsFullscreen()) {
-                    deactive();
-                    uninitialize();
-                }
-                break;
-
-            case APP_CMD_WINDOW_RESIZED:
-                break;
-
-            case APP_CMD_WINDOW_REDRAW_NEEDED:
-                break;
-
-            case APP_CMD_CONTENT_RECT_CHANGED:
-                break;
-
-            case APP_CMD_GAINED_FOCUS:
-                if (onIsFullscreen()) {
-                    active();
-                }
-                gotFocus();
-                break;
-
-            case APP_CMD_LOST_FOCUS:
-                break;
-
-            case APP_CMD_CONFIG_CHANGED:
-                break;
-
-            case APP_CMD_LOW_MEMORY:
-                break;
-
-            case APP_CMD_RESUME:
-                break;
-
-            case APP_CMD_SAVE_STATE:
+        case APP_CMD_TERM_WINDOW:
+            if (!onIsFullscreen()) {
                 deactive();
-                // changeState(GERIUM_APPLICATION_STATE_SAVE);
                 uninitialize();
-                break;
+            }
+            break;
 
-            case APP_CMD_PAUSE:
-                lostFocus();
+        case APP_CMD_WINDOW_RESIZED:
+            break;
 
-                if (onIsFullscreen()) {
-                    deactive();
-                }
-                break;
+        case APP_CMD_WINDOW_REDRAW_NEEDED:
+            break;
 
-            case APP_CMD_DESTROY:
-                uninitialize();
-                // changeState(GERIUM_APPLICATION_STATE_DESTROY);
-                break;
-        }
-    } catch (...) {
-        _callbackError = true;
+        case APP_CMD_CONTENT_RECT_CHANGED:
+            break;
+
+        case APP_CMD_GAINED_FOCUS:
+            if (onIsFullscreen()) {
+                active();
+            }
+            gotFocus();
+            break;
+
+        case APP_CMD_LOST_FOCUS:
+            break;
+
+        case APP_CMD_CONFIG_CHANGED:
+            break;
+
+        case APP_CMD_LOW_MEMORY:
+            break;
+
+        case APP_CMD_RESUME:
+            break;
+
+        case APP_CMD_SAVE_STATE:
+            deactive();
+            // changeState(GERIUM_APPLICATION_STATE_SAVE);
+            uninitialize();
+            break;
+
+        case APP_CMD_PAUSE:
+            lostFocus();
+
+            if (onIsFullscreen()) {
+                deactive();
+            }
+            break;
+
+        case APP_CMD_DESTROY:
+            uninitialize();
+            changeState(GERIUM_APPLICATION_STATE_DESTROY, true);
+            break;
+    }
+
+    if (callbackStateFailed()) {
         onExit();
     }
 }
 
 void AndroidApplication::onAppCmd(android_app* application, int32_t cmd) {
-    auto app = alias_cast<AndroidApplication*>(application->userData);
-    app->onAppCmd(cmd);
+    auto androidApp = alias_cast<AndroidApplication*>(application->userData);
+    androidApp->onAppCmd(cmd);
 }
 
 std::chrono::high_resolution_clock::time_point AndroidApplication::getCurrentTime() noexcept {

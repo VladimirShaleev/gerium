@@ -140,7 +140,6 @@ target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-# target_compile_definitions(gerium PUBLIC IMGUI_IMPL_VULKAN_USE_LOADER)
 target_precompile_headers(gerium PRIVATE "sources/Gerium.hpp")
 target_compile_features(gerium PRIVATE cxx_std_20)
 set_target_properties(gerium PROPERTIES
@@ -201,9 +200,6 @@ elseif(NOT APPLE)
     target_compile_options(gerium PUBLIC -fno-rtti)
     if (ANDROID)
         target_link_libraries(gerium PRIVATE android log)
-        # if(GERIUM_USE_NATIVE_APP_GLUE)
-        #     target_compile_options(gerium-native-app-glue PUBLIC -fno-rtti)
-        # endif()
     endif()
 endif()
 

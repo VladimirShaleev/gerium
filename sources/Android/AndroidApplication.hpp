@@ -62,7 +62,6 @@ private:
     bool _activated;
     bool _focused;
     bool _exit;
-    bool _callbackError;
     jmethodID _isInMultiWindowMode;
     std::chrono::high_resolution_clock::time_point _prevTime;
 };
