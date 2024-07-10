@@ -67,7 +67,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
         error(GERIUM_RESULT_ERROR_NO_DISPLAY);
     }
 
-    SetWindowLongPtr(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
+    SetWindowLongPtrW(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
 }
 
 bool Win32Application::isRunning() const noexcept {
@@ -167,8 +167,8 @@ void Win32Application::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
     if (fullscreen) {
         saveWindowPlacement();
 
-        DEVMODE currentMode{};
-        if (!EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &currentMode)) {
+        DEVMODEW currentMode{};
+        if (!EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &currentMode)) {
             error(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE);
         }
 
@@ -210,19 +210,19 @@ void Win32Application::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
             }
         }
 
-        if (ChangeDisplaySettings(&newMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
-            if (ChangeDisplaySettings(&currentMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+        if (ChangeDisplaySettingsW(&newMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            if (ChangeDisplaySettingsW(&currentMode, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
                 error(GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE);
             }
         }
 
-        SetWindowLong(_hWnd, GWL_STYLE, WS_POPUP);
-        SetWindowLong(_hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
+        SetWindowLongW(_hWnd, GWL_STYLE, WS_POPUP);
+        SetWindowLongW(_hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
         if (_running) {
             ShowWindow(_hWnd, SW_SHOWMAXIMIZED);
         }
     } else {
-        ChangeDisplaySettings(nullptr, 0);
+        ChangeDisplaySettingsW(nullptr, 0);
         restoreWindowPlacement();
         onSetSize(_newWidth, _newHeight);
     }
@@ -235,7 +235,7 @@ gerium_application_style_flags_t Win32Application::onGetStyle() const noexcept {
 void Win32Application::onSetStyle(gerium_application_style_flags_t style) noexcept {
     _styleFlags = style;
     if (!onIsFullscreen()) {
-        SetWindowLong(_hWnd, GWL_STYLE, getStyle());
+        SetWindowLongW(_hWnd, GWL_STYLE, getStyle());
         ShowWindow(_hWnd, SW_SHOWNORMAL);
     }
 }
@@ -366,7 +366,7 @@ void Win32Application::onRun() {
             }
 
             TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            DispatchMessageW(&msg);
         }
 
         QueryPerformanceCounter(&currentTime);
@@ -498,19 +498,19 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) {
             break;
 
         default:
-            return DefWindowProc(_hWnd, message, wParam, lParam);
+            return DefWindowProcW(_hWnd, message, wParam, lParam);
     }
     return 0;
 }
 
 void Win32Application::saveWindowPlacement() {
     GetWindowPlacement(_hWnd, &_windowPlacement);
-    _styleEx = GetWindowLong(_hWnd, GWL_EXSTYLE);
+    _styleEx = GetWindowLongW(_hWnd, GWL_EXSTYLE);
 }
 
 void Win32Application::restoreWindowPlacement() {
-    SetWindowLong(_hWnd, GWL_STYLE, getStyle());
-    SetWindowLong(_hWnd, GWL_EXSTYLE, _styleEx);
+    SetWindowLongW(_hWnd, GWL_STYLE, getStyle());
+    SetWindowLongW(_hWnd, GWL_EXSTYLE, _styleEx);
     if (_running) {
         ShowWindow(_hWnd, SW_SHOWNORMAL);
     }
@@ -617,7 +617,7 @@ bool Win32Application::waitInBackground(LPMSG pMsg) {
     }
 
     while (GetMessage(pMsg, nullptr, 0, 0)) {
-        DispatchMessage(pMsg);
+        DispatchMessageW(pMsg);
         if (GetActiveWindow()) {
             return true;
         }
@@ -642,8 +642,8 @@ std::string Win32Application::utf8String(const std::wstring& wstr) {
 }
 
 LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    auto application = (Win32Application*) GetWindowLongPtr(hWnd, GWLP_USERDATA);
-    return application ? application->wndProc(message, wParam, lParam) : DefWindowProc(hWnd, message, wParam, lParam);
+    auto application = (Win32Application*) GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+    return application ? application->wndProc(message, wParam, lParam) : DefWindowProcW(hWnd, message, wParam, lParam);
 }
 
 } // namespace gerium::windows
