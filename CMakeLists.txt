@@ -37,6 +37,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 set(IMGUI_SRC "${imgui_SOURCE_DIR}" CACHE STRING "ImGui dir")
+set(IMGUI_INCLUDE_DIRS "${IMGUI_SRC}" "${IMGUI_SRC}/backends")
+set(IMGUI_SOURCES
+    "${IMGUI_SRC}/imgui.cpp"
+    "${IMGUI_SRC}/imgui_demo.cpp"
+    "${IMGUI_SRC}/imgui_draw.cpp"
+    "${IMGUI_SRC}/imgui_tables.cpp"
+    "${IMGUI_SRC}/imgui_widgets.cpp"
+    "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp"
+    "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
 
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
@@ -96,6 +105,7 @@ if(WIN32)
         "sources/Vulkan/Windows/*.hpp" "sources/Vulkan/Windows/*.cpp")
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_WINDOWS_SOURCES})
     list(APPEND GERIUM_SOURCES ${GERIUM_WINDOWS_SOURCES})
+    list(APPEND IMGUI_SOURCES "${IMGUI_SRC}/backends/imgui_impl_win32.cpp")
 elseif(ANDROID)
     file(GLOB GERIUM_ANDROID_SOURCES
         "sources/Android/*.hpp" "sources/Android/*.cpp"
@@ -124,18 +134,8 @@ target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE glm::glm-header-only)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
-target_include_directories(gerium PRIVATE "${IMGUI_SRC}")
-target_include_directories(gerium PRIVATE "${IMGUI_SRC}/backends")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_demo.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_draw.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_tables.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/imgui_widgets.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_vulkan.cpp")
-target_sources(gerium PRIVATE "${IMGUI_SRC}/misc/cpp/imgui_stdlib.cpp")
-if(WIN32)
-    target_sources(gerium PRIVATE "${IMGUI_SRC}/backends/imgui_impl_win32.cpp")
-endif()
+target_include_directories(gerium PRIVATE ${IMGUI_INCLUDE_DIRS})
+target_sources(gerium PRIVATE ${IMGUI_SOURCES})
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -188,16 +188,7 @@ if(GERIUM_USE_NATIVE_APP_GLUE AND ANDROID)
         POSITION_INDEPENDENT_CODE ON
         WINDOWS_EXPORT_ALL_SYMBOLS OFF
         PUBLIC_HEADER ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.h)
-    if(BUILD_SHARED_LIBS)
-        set_target_properties(gerium-native-app-glue PROPERTIES
-            VERSION ${PROJECT_VERSION}
-            SOVERSION ${PROJECT_VERSION_MAJOR})
-        set_target_properties(gerium-native-app-glue PROPERTIES
-            CXX_VISIBILITY_PRESET hidden
-            VISIBILITY_INLINES_HIDDEN ON)
-    else()
-        target_compile_definitions(gerium-native-app-glue PUBLIC GERIUM_STATIC_BUILD)
-    endif()
+    target_compile_definitions(gerium-native-app-glue PUBLIC GERIUM_STATIC_BUILD)
 endif()
 
 if(MSVC)
