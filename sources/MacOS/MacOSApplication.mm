@@ -463,10 +463,6 @@ void MacOSApplication::onNewFrameImGui() {
     ImGui_ImplOSX_NewFrame(view);
 }
 
-bool MacOSApplication::onFixResize() const noexcept {
-    return true;
-}
-
 void MacOSApplication::enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays, gerium_uint32_t displayCount, bool isMain, gerium_uint32_t& index, gerium_display_info_t* displays) const {
     for (uint32_t i = 0; i < displayCount; ++i) {
         if (CGDisplayIsMain(activeDisplays[i]) != isMain) {

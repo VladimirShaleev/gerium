@@ -265,15 +265,8 @@ void Device::newFrame() {
                                                        VK_NULL_HANDLE,
                                                        &_swapchainImageIndex);
 
-    gerium_uint16_t appWidth, appHeight;
-    _application->getSize(&appWidth, &appHeight);
-    const auto resized = _application->fixResize() && (_appWidth != appWidth || _appHeight != appHeight);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resized) {
-        if (_application->fixResize()) {
-            _appWidth  = appWidth;
-            _appHeight = appHeight;
-        }
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        _application->getSize(&_appWidth, &_appHeight);
         resizeSwapchain();
     } else {
         check(result);
