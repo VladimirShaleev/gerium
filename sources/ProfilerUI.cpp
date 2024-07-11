@@ -3,7 +3,7 @@
 namespace gerium {
 
 static const uint32_t k_distinct_colors[] = {
-    0xFF000000, 0xFF00FF00, 0xFFFF0000, 0xFF0000FF, 0xFFFEFF01, 0xFFFEA6FF, 0xFF66DBFF, 0xFF016400,
+    0xFF010067, 0xFF00FF00, 0xFFFF0000, 0xFF0000FF, 0xFFFEFF01, 0xFFFEA6FF, 0xFF66DBFF, 0xFF016400,
     0xFF670001, 0xFF3A0095, 0xFFB57D00, 0xFFF600FF, 0xFFE8EEFF, 0xFF004D77, 0xFF92FB90, 0xFFFF7600,
     0xFF00FFD5, 0xFF7E93FF, 0xFF6C826A, 0xFF9D02FF, 0xFF0089FE, 0xFF82477A, 0xFFD22D7E, 0xFF00A985,
     0xFF5600FF, 0xFF0024A4, 0xFF7EAE00, 0xFF3B3D68, 0xFFFFC6BD, 0xFF003426, 0xFF93D3BD, 0xFF17B900,
@@ -23,15 +23,21 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
         colors.resize(maxFrames * 32);
         perFrameActive.resize(maxFrames);
 
-        maxDuration  = 4.0f;
+        maxDuration  = 2.0f;
         currentFrame = 0;
         minTime = maxTime = averageTime = 0.f;
 
         paused = false;
     }
 
+    if (!paused && prevPaused) {
+        memset(perFrameActive.data(), 0, perFrameActive.size() * sizeof(perFrameActive[0]));
+        memset(timestamps.data(), 0, timestamps.size() * sizeof(timestamps[0]));
+        prevPaused = false;
+    }
+
     if (!paused) {
-        perFrameActive[currentFrame] = 1000;
+        perFrameActive[currentFrame] = 32;
         gerium_profiler_get_gpu_timestamps(profiler, &perFrameActive[currentFrame], &timestamps[currentFrame * 32]);
 
         for (uint32_t i = 0; i < perFrameActive[currentFrame]; ++i) {
@@ -50,13 +56,16 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
             colors[32 * currentFrame + i] = get_distinct_color(colorIndex);
         }
 
-        currentFrame = (currentFrame + 1) % maxFrames;
-
         if (currentFrame == 0) {
             maxTime     = -FLT_MAX;
             minTime     = FLT_MAX;
             averageTime = 0.f;
         }
+
+        currentFrame = (currentFrame + 1) % maxFrames;
+
+    } else {
+        prevPaused = true;
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 260));
@@ -109,7 +118,11 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
 
             // Draw Graph
             for (uint32_t i = 0; i < maxFrames; ++i) {
-                uint32_t frame_index = (currentFrame - 1 - i) % maxFrames;
+                int32_t frame_pos = int32_t(currentFrame) - 1 - int32_t(i);
+                if (frame_pos < 0) {
+                    frame_pos = maxFrames + frame_pos;
+                }
+                int32_t frame_index = (frame_pos) % maxFrames;
 
                 float frame_x          = cursor_pos.x + rect_x;
                 auto* frame_timestamps = &timestamps[frame_index * 32];
@@ -147,7 +160,7 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
                         { frame_x, cursor_pos.y + widget_height }, { frame_x + rect_width, cursor_pos.y }, 0x0fffffff);
 
                     if (perFrameActive[frame_index]) {
-                        ImGui::SetTooltip("(%u): %f", frame_timestamps[0].frame, frame_time);
+                        ImGui::SetTooltip("frame %u\nelapsed %fms", frame_timestamps[0].frame, frame_time);
                     }
                     //}
 
@@ -172,7 +185,13 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
             // Draw legend
             ImGui::SetCursorPosX(cursor_pos.x + graph_width);
             // Default to last frame if nothing is selected.
-            selected_frame = selected_frame == -1 ? (currentFrame - 1) % maxFrames : selected_frame;
+
+            int32_t frame_pos = int32_t(currentFrame) - 1;
+            if (frame_pos < 0) {
+                frame_pos = maxFrames + frame_pos;
+            }
+            int32_t frame_index = (frame_pos) % maxFrames;
+            selected_frame      = selected_frame == -1 ? frame_index : selected_frame;
             if (selected_frame >= 0) {
                 auto* frame_timestamps = &timestamps[selected_frame * 32];
                 auto* frame_colors     = &colors[selected_frame * 32];
@@ -184,13 +203,14 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
                     const auto& timestamp = frame_timestamps[j];
                     const auto& color     = frame_colors[j];
 
-                    /*if ( timestamp.depth != 1 ) {
-                        continue;
-                    }*/
+                    draw_list->AddRectFilled({ x, y + 4 }, { x + 8, y + 12 }, color);
 
-                    draw_list->AddRectFilled({ x, y }, { x + 8, y + 8 }, color);
+                    char spaces[33]{};
+                    for (int s = 0; s < timestamp.depth; ++s) {
+                        spaces[s] = '-';
+                    }
 
-                    sprintf(buf, "(%d)- %s %2.4f", timestamp.depth, timestamp.name, timestamp.elapsed);
+                    sprintf(buf, "%s%s %2.4f", spaces, timestamp.name, timestamp.elapsed);
                     draw_list->AddText({ x + 12, y }, 0xffffffff, buf);
 
                     y += 16;
@@ -211,10 +231,10 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
         ImGui::Separator();
         ImGui::Checkbox("Pause", &paused);
 
-        static const char* items[]         = { "200ms", "100ms", "66ms", "33ms", "16ms", "8ms", "4ms" };
-        static const float max_durations[] = { 200.f, 100.f, 66.f, 33.f, 16.f, 8.f, 4.f };
+        static const char* items[]         = { "33ms", "16ms", "8ms", "4ms", "2ms" };
+        static const float max_durations[] = { 33.f, 16.f, 8.f, 4.f, 2.f };
 
-        static int max_duration_index = 6;
+        static int max_duration_index = 4;
         if (ImGui::Combo("Graph Max", &max_duration_index, items, IM_ARRAYSIZE(items))) {
             maxDuration = max_durations[max_duration_index];
         }

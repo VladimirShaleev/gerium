@@ -14,7 +14,6 @@ private:
     std::vector<uint32_t> colors;
     std::vector<uint32_t> perFrameActive;
 
-    uint32_t maxFrames{};
     uint32_t currentFrame{};
 
     float maxTime{};
@@ -22,6 +21,7 @@ private:
     float averageTime{};
 
     float maxDuration{};
+    bool prevPaused{};
     bool paused{};
 
     //uint32_t initialFramesPaused = 3;

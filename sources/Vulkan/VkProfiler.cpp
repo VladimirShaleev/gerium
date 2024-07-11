@@ -8,6 +8,8 @@ VkProfiler::VkProfiler(Device& device, uint16_t queriesPerFrame, uint16_t maxFra
     _device(&device),
     _queriesPerFrame(queriesPerFrame),
     _currentQuery(0),
+    _previosQuery(0),
+    _previosFrame(0),
     _parentQuery(0),
     _depth(0) {
     _timestamps.resize(_queriesPerFrame * maxFrames);
@@ -42,7 +44,6 @@ uint32_t VkProfiler::popTimestamp() {
 }
 
 void VkProfiler::resetTimestamps() {
-    _previosQuery = _currentQuery;
     _currentQuery = 0;
     _parentQuery  = 0;
     _depth        = 0;
@@ -84,13 +85,16 @@ void VkProfiler::fetchDataFromGpu() {
             timestamp.elapsed = elapsed;
         }
     }
+
+    _previosQuery = _currentQuery;
+    _previosFrame = _device->currentFrame();
 }
 
 void VkProfiler::onGetGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
                                     gerium_gpu_timestamp_t* gpuTimestamps) const noexcept {
     gpuTimestampsCount = gpuTimestamps ? std::min(gpuTimestampsCount, _previosQuery) : _previosQuery;
     if (gpuTimestamps) {
-        auto* timestamps = &_timestamps[_device->previousFrame() * _queriesPerFrame];
+        auto* timestamps = &_timestamps[_previosFrame * _queriesPerFrame];
         for (gerium_uint32_t q = 0; q < gpuTimestampsCount; ++q) {
             gpuTimestamps[q].name    = timestamps[q].name;
             gpuTimestamps[q].elapsed = timestamps[q].elapsed;

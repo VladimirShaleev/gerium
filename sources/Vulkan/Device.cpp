@@ -336,7 +336,7 @@ void Device::present() {
     unmapBuffer(_obj2);
 
     auto cb = getCommandBuffer(0);
-    cb->pushMarker("frame");
+    cb->pushMarker("total");
     cb->pushMarker("triangle");
     cb->clearColor(1.0f, 0.8f, 1.0f, 1.0f);
     cb->clearDepthStencil(1.0f, 0);
