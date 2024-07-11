@@ -116,6 +116,7 @@ private:
     void createSurface(Application* application);
     void createPhysicalDevice();
     void createDevice();
+    void createProfiler(uint16_t gpuTimeQueriesPerFrame);
     void createDescriptorPool();
     void createVmaAllocator();
     void createDynamicBuffer();
@@ -189,6 +190,7 @@ private:
     VkQueue _queueCompute{};
     VkQueue _queuePresent{};
     VkQueue _queueTransfer{};
+    VkQueryPool _queryPool{};
     VkDescriptorPool _descriptorPool{};
     VkDescriptorPool _imguiPool{};
     VmaAllocator _vmaAllocator{};
@@ -232,6 +234,7 @@ private:
     uint32_t _ssboAlignment{};
     bool _profilerSupported{};
     bool _profilerEnabled{};
+    double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
 
     //// Test

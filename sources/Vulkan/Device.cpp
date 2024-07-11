@@ -111,6 +111,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createSurface(application);
     createPhysicalDevice();
     createDevice();
+    createProfiler(32);
     createDescriptorPool();
     createVmaAllocator();
     createDynamicBuffer();
@@ -1268,12 +1269,6 @@ void Device::createPhysicalDevice() {
     if (_profilerSupported) {
         _profilerEnabled = _enableValidations;
     }
-    if (_profilerSupported) {
-        VkProfiler* profiler;
-        Object::create<VkProfiler>(profiler);
-        _profiler = profiler;
-        profiler->destroy();
-    }
 }
 
 void Device::createDevice() {
@@ -1330,6 +1325,23 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
     _commandBufferManager.create(*this, 4, graphic.index);
+}
+
+void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
+    if (_profilerSupported) {
+        VkProfiler* profiler;
+        Object::create<VkProfiler>(profiler);
+        _profiler = profiler;
+        profiler->destroy();
+
+        VkQueryPoolCreateInfo createInfo{ VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+        createInfo.queryType          = VK_QUERY_TYPE_TIMESTAMP;
+        createInfo.queryCount         = gpuTimeQueriesPerFrame * 2 * MaxFrames;
+        createInfo.pipelineStatistics = 0;
+        check(_vkTable.vkCreateQueryPool(_device, &createInfo, getAllocCalls(), &_queryPool));
+
+        _gpuFrequency = _deviceProperties.limits.timestampPeriod / (1'000'000.0);
+    }
 }
 
 void Device::createDescriptorPool() {
