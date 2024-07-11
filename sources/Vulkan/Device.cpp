@@ -16,7 +16,6 @@ Device::~Device() {
         if (_dynamicBuffer != Undefined && _dynamicBufferMapped) {
             unmapBuffer(_dynamicBuffer);
         }
-
         deleteResources(true);
 
         for (auto framebuffer : _framebuffers) {
@@ -126,6 +125,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createSwapchain(application);
     createImGui(application);
 
+    // TODO: For current testing only, delete later
     const char vs[] = "#version 450\n"
                       "\n"
                       "layout(location = 0) in vec2 inPosition;\n"
@@ -299,6 +299,8 @@ void Device::submit(CommandBuffer* commandBuffer) {
 }
 
 void Device::present() {
+    // TODO: For current testing only, delete later
+    //
     static float f1 = 1.0f;
     static float f2 = 0.5f;
     static float d1 = -0.001f;
@@ -357,6 +359,8 @@ void Device::present() {
     cb->popMarker();
     cb->popMarker();
     submit(cb);
+    //
+    ////////////////////
 
     VkCommandBuffer enqueuedCommandBuffers[16];
     for (uint32_t i = 0; i < _numQueuedCommandBuffers; ++i) {

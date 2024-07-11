@@ -266,7 +266,7 @@ private:
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};
 
-    //// Test
+    // TODO: For current testing only, delete later
     struct UniformBufferObject {
         glm::mat4 model;
         glm::mat4 view;
