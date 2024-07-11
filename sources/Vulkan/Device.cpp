@@ -86,6 +86,12 @@ Device::~Device() {
             _vkTable.vkDestroyDescriptorPool(_device, _descriptorPool, getAllocCalls());
         }
 
+        _profiler.reset();
+
+        if (_queryPool) {
+            _vkTable.vkDestroyQueryPool(_device, _queryPool, getAllocCalls());
+        }
+
         _commandBufferManager.destroy();
 
         _vkTable.vkDestroyDevice(_device, getAllocCalls());
