@@ -1,3 +1,10 @@
+/*
+ * For testing, the UI for the profiler is posted here.
+ *
+ * UI taken from this project:
+ *   https://github.com/PacktPublishing/Mastering-Graphics-Programming-with-Vulkan
+ */
+
 #include "ProfilerUI.hpp"
 
 namespace gerium {
