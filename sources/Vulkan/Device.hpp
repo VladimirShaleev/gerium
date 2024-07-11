@@ -5,6 +5,7 @@
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
 #include "../StringPool.hpp"
+#include "../ProfilerUI.hpp"
 #include "CommandBuffer.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
@@ -290,6 +291,7 @@ private:
     BufferHandle _obj2{};
     DescriptorSetHandle _descriptorSet0{};
     DescriptorSetHandle _descriptorSet1{};
+    ProfilerUI _profilerUI{};
 };
 
 } // namespace gerium::vulkan

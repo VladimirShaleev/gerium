@@ -38,6 +38,7 @@ private:
 
     uint16_t _queriesPerFrame;
     uint32_t _currentQuery;
+    uint32_t _previosQuery;
     uint32_t _parentQuery;
     uint32_t _depth;
 

@@ -196,6 +196,7 @@ typedef struct  {
     gerium_utf8_t    name;
     gerium_float64_t elapsed;
     gerium_uint32_t  frame;
+    gerium_uint32_t  depth;
 } gerium_gpu_timestamp_t;
 
 typedef gerium_bool_t

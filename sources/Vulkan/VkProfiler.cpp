@@ -42,6 +42,7 @@ uint32_t VkProfiler::popTimestamp() {
 }
 
 void VkProfiler::resetTimestamps() {
+    _previosQuery = _currentQuery;
     _currentQuery = 0;
     _parentQuery  = 0;
     _depth        = 0;
@@ -87,13 +88,14 @@ void VkProfiler::fetchDataFromGpu() {
 
 void VkProfiler::onGetGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
                                     gerium_gpu_timestamp_t* gpuTimestamps) const noexcept {
-    gpuTimestampsCount = gpuTimestamps ? std::min(gpuTimestampsCount, _currentQuery) : _currentQuery;
+    gpuTimestampsCount = gpuTimestamps ? std::min(gpuTimestampsCount, _previosQuery) : _previosQuery;
     if (gpuTimestamps) {
         auto* timestamps = &_timestamps[_device->previousFrame() * _queriesPerFrame];
         for (gerium_uint32_t q = 0; q < gpuTimestampsCount; ++q) {
             gpuTimestamps[q].name    = timestamps[q].name;
             gpuTimestamps[q].elapsed = timestamps[q].elapsed;
             gpuTimestamps[q].frame   = timestamps[q].frame;
+            gpuTimestamps[q].depth   = timestamps[q].depth;
         }
     }
 }

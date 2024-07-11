@@ -349,7 +349,7 @@ void Device::present() {
     cb->draw(0, 3, 0, 1);
     cb->popMarker();
     cb->pushMarker("imgui");
-    ImGui::ShowDemoWindow();
+    _profilerUI.draw(_profiler.get(), 100);
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->_commandBuffer);
     cb->popMarker();
