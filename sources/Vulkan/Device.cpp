@@ -103,6 +103,7 @@ Device::~Device() {
 
 void Device::create(Application* application, gerium_uint32_t version, bool enableValidations) {
     _enableValidations = enableValidations;
+    _enableDebugNames  = enableValidations;
     _application       = application;
     _logger            = Logger::create("gerium:renderer:vulkan");
     _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
