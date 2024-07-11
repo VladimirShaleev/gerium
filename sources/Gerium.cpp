@@ -20,6 +20,9 @@ gerium_utf8_t gerium_result_to_string(gerium_result_t result) {
         case GERIUM_RESULT_SUCCESS:
             return "no error has occurred";
 
+        case GERIUM_RESULT_SKIP_FRAME:
+            return "frame skip request";
+
         case GERIUM_RESULT_ERROR_UNKNOWN:
             return "unknown error";
 

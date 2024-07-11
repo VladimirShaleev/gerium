@@ -19,7 +19,7 @@ public:
 
     void create(Application* application, gerium_uint32_t version, bool enableValidations);
 
-    void newFrame();
+    bool newFrame();
     void submit(CommandBuffer* commandBuffer);
     void present();
 
@@ -47,6 +47,8 @@ public:
     void unmapBuffer(BufferHandle handle);
 
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
+
+    uint32_t totalMemoryUsed();
 
     const vk::DispatchLoaderDynamic& vkTable() const noexcept {
         return _vkTable;
@@ -262,6 +264,7 @@ private:
     bool _profilerEnabled{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
+    std::vector<VmaBudget> _vmaBudget{};
 
     //// Test
     struct UniformBufferObject {

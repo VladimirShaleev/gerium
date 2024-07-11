@@ -26,17 +26,18 @@ GERIUM_HANDLE(gerium_texture_h)
 typedef enum
 {
     GERIUM_RESULT_SUCCESS                           = 0,
-    GERIUM_RESULT_ERROR_UNKNOWN                     = 1,
-    GERIUM_RESULT_ERROR_OUT_OF_MEMORY               = 2,
-    GERIUM_RESULT_ERROR_NOT_IMPLEMENTED             = 3,
-    GERIUM_RESULT_ERROR_FROM_CALLBACK               = 4,
-    GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED       = 5,
-    GERIUM_RESULT_ERROR_INVALID_ARGUMENT            = 6,
-    GERIUM_RESULT_ERROR_NO_DISPLAY                  = 7,
-    GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING = 8,
-    GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING     = 9,
-    GERIUM_RESULT_ERROR_APPLICATION_TERMINATED      = 10,
-    GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE         = 11,
+    GERIUM_RESULT_SKIP_FRAME                        = 1,
+    GERIUM_RESULT_ERROR_UNKNOWN                     = 2,
+    GERIUM_RESULT_ERROR_OUT_OF_MEMORY               = 3,
+    GERIUM_RESULT_ERROR_NOT_IMPLEMENTED             = 4,
+    GERIUM_RESULT_ERROR_FROM_CALLBACK               = 5,
+    GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED       = 6,
+    GERIUM_RESULT_ERROR_INVALID_ARGUMENT            = 7,
+    GERIUM_RESULT_ERROR_NO_DISPLAY                  = 8,
+    GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING = 9,
+    GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING     = 10,
+    GERIUM_RESULT_ERROR_APPLICATION_TERMINATED      = 11,
+    GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE         = 12,
     GERIUM_RESULT_MAX_ENUM                          = 0x7FFFFFFF
 } gerium_result_t;
 
@@ -389,6 +390,9 @@ gerium_public void
 gerium_profiler_get_gpu_timestamps(gerium_profiler_t profiler,
                                    gerium_uint32_t* gpu_timestamps_count,
                                    gerium_gpu_timestamp_t* gpu_timestamps);
+
+gerium_public gerium_uint32_t
+gerium_profiler_get_gpu_total_memory_used(gerium_profiler_t profiler);
 
 GERIUM_END
 

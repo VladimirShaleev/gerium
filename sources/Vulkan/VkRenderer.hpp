@@ -22,7 +22,7 @@ private:
 
     void onDestroyTexture(TextureHandle handle) noexcept override;
 
-    void onNewFrame() override;
+    bool onNewFrame() override;
     void onPresent() override;
 
     Profiler* onGetProfiler() noexcept override;

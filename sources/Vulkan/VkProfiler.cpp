@@ -11,7 +11,8 @@ VkProfiler::VkProfiler(Device& device, uint16_t queriesPerFrame, uint16_t maxFra
     _previosQuery(0),
     _previosFrame(0),
     _parentQuery(0),
-    _depth(0) {
+    _depth(0),
+    _totalMemoryUsed(0) {
     _timestamps.resize(_queriesPerFrame * maxFrames);
     _timestampsData.resize(_queriesPerFrame * maxFrames * 2);
 }
@@ -88,6 +89,8 @@ void VkProfiler::fetchDataFromGpu() {
 
     _previosQuery = _currentQuery;
     _previosFrame = _device->currentFrame();
+
+    _totalMemoryUsed = _device->totalMemoryUsed();
 }
 
 void VkProfiler::onGetGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
@@ -102,6 +105,10 @@ void VkProfiler::onGetGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
             gpuTimestamps[q].depth   = timestamps[q].depth;
         }
     }
+}
+
+gerium_uint32_t VkProfiler::onGetGpuTotalMemoryUsed() const noexcept {
+    return _totalMemoryUsed;
 }
 
 } // namespace gerium::vulkan

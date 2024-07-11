@@ -1,13 +1,13 @@
 #include <gerium/gerium.h>
-#include <string>
 #include <stdexcept>
+#include <string>
 
 static gerium_logger_t logger     = nullptr;
 static gerium_renderer_t renderer = nullptr;
 static gerium_profiler_t profiler = nullptr;
 
 void check(gerium_result_t result) {
-    if (result != GERIUM_RESULT_SUCCESS) {
+    if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
         throw std::runtime_error(gerium_result_to_string(result));
     }
 }
@@ -57,8 +57,9 @@ void unitialize(gerium_application_t application) {
 }
 
 gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
-    gerium_renderer_new_frame(renderer);
-    gerium_renderer_present(renderer);
+    if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SUCCESS) {
+        gerium_renderer_present(renderer);
+    }
     return 1;
 }
 

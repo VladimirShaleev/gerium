@@ -8,6 +8,10 @@ void Profiler::getGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
     onGetGpuTimestamps(gpuTimestampsCount, gpuTimestamps);
 }
 
+gerium_uint32_t Profiler::getGpuTotalMemoryUsed() const noexcept {
+    return onGetGpuTotalMemoryUsed();
+}
+
 } // namespace gerium
 
 using namespace gerium;
@@ -38,4 +42,9 @@ void gerium_profiler_get_gpu_timestamps(gerium_profiler_t profiler,
     assert(profiler);
     assert(gpu_timestamps_count);
     return alias_cast<Profiler*>(profiler)->getGpuTimestamps(*gpu_timestamps_count, gpu_timestamps);
+}
+
+gerium_uint32_t gerium_profiler_get_gpu_total_memory_used(gerium_profiler_t profiler) {
+    assert(profiler);
+    return alias_cast<Profiler*>(profiler)->getGpuTotalMemoryUsed();
 }

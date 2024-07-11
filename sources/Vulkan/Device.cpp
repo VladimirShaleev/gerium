@@ -252,7 +252,14 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     _descriptorSet1 = createDescriptorSet(dsc1);
 }
 
-void Device::newFrame() {
+bool Device::newFrame() {
+    gerium_uint16_t width, height;
+    _application->getSize(&width, &height);
+
+    if (width == 0 || height == 0) {
+        return false;
+    }
+
     constexpr auto max = std::numeric_limits<uint64_t>::max();
 
     check(_vkTable.vkWaitForFences(_device, 1, &_inFlightFences[_currentFrame], VK_TRUE, max));
@@ -282,6 +289,8 @@ void Device::newFrame() {
     ImGui_ImplVulkan_NewFrame();
     _application->newFrameImGui();
     ImGui::NewFrame();
+
+    return true;
 }
 
 void Device::submit(CommandBuffer* commandBuffer) {
@@ -1143,6 +1152,19 @@ void Device::unmapBuffer(BufferHandle handle) {
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
     return _commandBufferManager.getCommandBuffer(_currentFrame, thread);
+}
+
+uint32_t Device::totalMemoryUsed() {
+    if (_vmaBudget.size() != _deviceMemProperties.memoryHeapCount) {
+        _vmaBudget.resize(_deviceMemProperties.memoryHeapCount);
+    }
+    vmaGetHeapBudgets(_vmaAllocator, _vmaBudget.data());
+
+    uint32_t total = 0;
+    for (const auto& budget : _vmaBudget) {
+        total += budget.usage;
+    }
+    return total;
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {

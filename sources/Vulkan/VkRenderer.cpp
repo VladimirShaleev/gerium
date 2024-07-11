@@ -32,8 +32,8 @@ void VkRenderer::onDestroyTexture(TextureHandle handle) noexcept {
     _device->destroyTexture(handle);
 }
 
-void VkRenderer::onNewFrame() {
-    _device->newFrame();
+bool VkRenderer::onNewFrame() {
+    return _device->newFrame();
 }
 
 void VkRenderer::onPresent() {

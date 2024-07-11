@@ -33,7 +33,7 @@ private:
 
     virtual void onDestroyTexture(TextureHandle handle) noexcept = 0;
 
-    virtual void onNewFrame() = 0;
+    virtual bool onNewFrame() = 0;
     virtual void onPresent()  = 0;
 
     virtual Profiler* onGetProfiler() noexcept = 0;

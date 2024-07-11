@@ -33,6 +33,8 @@ public:
 private:
     void onGetGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
                             gerium_gpu_timestamp_t* gpuTimestamps) const noexcept override;
+                            
+    gerium_uint32_t onGetGpuTotalMemoryUsed() const noexcept override;
 
     Device* _device;
 
@@ -45,6 +47,8 @@ private:
 
     std::vector<Timestamp> _timestamps;
     std::vector<uint64_t> _timestampsData;
+
+    uint32_t _totalMemoryUsed;
 };
 
 } // namespace gerium::vulkan

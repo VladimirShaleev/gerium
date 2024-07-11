@@ -39,6 +39,7 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
     if (!paused) {
         perFrameActive[currentFrame] = 32;
         gerium_profiler_get_gpu_timestamps(profiler, &perFrameActive[currentFrame], &timestamps[currentFrame * 32]);
+        totalMemoryUsed = gerium_profiler_get_gpu_total_memory_used(profiler) / (1024 * 1024);
 
         for (uint32_t i = 0; i < perFrameActive[currentFrame]; ++i) {
             auto& timestamp = timestamps[32 * currentFrame + i];
@@ -70,7 +71,7 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 260));
     if (ImGui::Begin("GPU Profiler", nullptr, ImGuiWindowFlags_NoScrollbar)) {
-        ImGui::Text("GPU Memory Total: %lluMB", totalMemoryUsed);
+        ImGui::Text("GPU Memory Total %lluMB", totalMemoryUsed);
 
         ImGui::Separator();
 

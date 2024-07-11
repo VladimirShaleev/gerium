@@ -22,9 +22,14 @@ void Renderer::destroyTexture(gerium_texture_h handle) noexcept {
 }
 
 gerium_result_t Renderer::newFrame() noexcept {
-    return invoke<Renderer>([](auto obj) {
-        obj->onNewFrame();
+    bool drawFrame = false;
+    auto result = invoke<Renderer>([&drawFrame](auto obj) {
+        drawFrame = obj->onNewFrame();
     });
+    if (result != GERIUM_RESULT_SUCCESS) {
+        return result;
+    }
+    return drawFrame ? GERIUM_RESULT_SUCCESS : GERIUM_RESULT_SKIP_FRAME;
 }
 
 gerium_result_t Renderer::present() noexcept {
