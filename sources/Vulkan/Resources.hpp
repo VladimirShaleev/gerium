@@ -46,7 +46,6 @@ struct BufferCreation {
     ResourceUsageType  usage       = ResourceUsageType::Immutable;
     uint32_t           size        = 0;
     bool               persistent  = false;
-    bool               deviceOnly  = false;
     void*              initialData = nullptr;
     const char*        name        = nullptr;
 
@@ -55,7 +54,6 @@ struct BufferCreation {
         usage       = ResourceUsageType::Immutable;
         size        = 0;
         persistent  = false;
-        deviceOnly  = false;
         initialData = nullptr;
         name        = nullptr;
         return *this;
@@ -80,11 +78,6 @@ struct BufferCreation {
 
     BufferCreation& setPersistent(bool value) noexcept {
         persistent = value;
-        return *this;
-    }
-
-    BufferCreation& setDeviceOnly(bool value) noexcept {
-        deviceOnly = value;
         return *this;
     }
 };

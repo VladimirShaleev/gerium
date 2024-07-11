@@ -38,6 +38,7 @@ public:
               gerium_uint32_t vertexCount,
               gerium_uint32_t firstInstance,
               gerium_uint32_t instanceCount);
+    void copyBuffer(BufferHandle src, BufferHandle dst);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
     void submit(QueueType queue);
@@ -97,7 +98,7 @@ public:
 
     void newFrame() noexcept;
 
-    CommandBuffer* getCommandBuffer(uint32_t frame, uint32_t thread, bool profile = true);
+    CommandBuffer* getCommandBuffer(uint32_t frame, uint32_t thread, bool profile);
 
 private:
     uint32_t getPoolIndex(uint32_t frame, uint32_t thread) const noexcept;

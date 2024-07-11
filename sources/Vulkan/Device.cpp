@@ -12,10 +12,6 @@ Device::~Device() {
         ImGui_ImplVulkan_Shutdown();
         _application->shutdownImGui();
         ImGui::DestroyContext();
-
-        if (_dynamicBuffer != Undefined && _dynamicBufferMapped) {
-            unmapBuffer(_dynamicBuffer);
-        }
         deleteResources(true);
 
         for (auto framebuffer : _framebuffers) {
@@ -279,6 +275,11 @@ bool Device::newFrame() {
         check(result);
     }
 
+    if (_frameCommandBuffer) {
+        _frameCommandBuffer->submit(QueueType::Graphics);
+        _frameCommandBuffer = nullptr;
+    }
+
     _dynamicAllocatedSize = _dynamicBufferSize * _currentFrame;
     _commandBufferManager.newFrame();
 
@@ -290,6 +291,10 @@ bool Device::newFrame() {
     _application->newFrameImGui();
     ImGui::NewFrame();
 
+    if (!_frameCommandBuffer) {
+        _frameCommandBuffer = getCommandBuffer(0, false);
+    }
+
     return true;
 }
 
@@ -299,6 +304,10 @@ void Device::submit(CommandBuffer* commandBuffer) {
 }
 
 void Device::present() {
+    submit(_frameCommandBuffer);
+    
+    _frameCommandBuffer = nullptr;
+
     // TODO: For current testing only, delete later
     //
     static float f1 = 1.0f;
@@ -418,7 +427,6 @@ void Device::present() {
 
 BufferHandle Device::createBuffer(const BufferCreation& creation) {
     assert(creation.size && "It is impossible to create an empty buffer");
-    assert(!(creation.persistent && creation.deviceOnly));
 
     auto [handle, buffer] = _buffers.obtain_and_access();
 
@@ -437,10 +445,32 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
         return handle;
     }
 
-    const auto vkUsage  = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | creation.usageFlags;
-    const auto vmaUsage = creation.deviceOnly ? VMA_MEMORY_USAGE_GPU_ONLY : VMA_MEMORY_USAGE_GPU_TO_CPU;
-    const auto vmaFlags =
-        VMA_ALLOCATION_CREATE_STRATEGY_BEST_FIT_BIT | (creation.persistent ? VMA_ALLOCATION_CREATE_MAPPED_BIT : 0);
+    const auto vkUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | creation.usageFlags;
+
+    VmaAllocationCreateFlags vmaFlags;
+    switch (creation.usage) {
+        case ResourceUsageType::Immutable:
+            if (creation.initialData) {
+                vmaFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                           VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT |
+                           VMA_ALLOCATION_CREATE_MAPPED_BIT;
+            } else {
+                vmaFlags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+                if (creation.persistent) {
+                    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+                }
+            }
+            break;
+        case ResourceUsageType::Staging:
+            vmaFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            if (creation.persistent) {
+                vmaFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+            }
+            break;
+        default:
+            assert(!"unreachable code");
+            break;
+    }
 
     VkBufferCreateInfo bufferCreateInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     bufferCreateInfo.size                  = creation.size;
@@ -451,7 +481,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 
     VmaAllocationCreateInfo allocationCreateInfo;
     allocationCreateInfo.flags          = vmaFlags;
-    allocationCreateInfo.usage          = vmaUsage;
+    allocationCreateInfo.usage          = VMA_MEMORY_USAGE_AUTO;
     allocationCreateInfo.requiredFlags  = 0;
     allocationCreateInfo.preferredFlags = 0;
     allocationCreateInfo.memoryTypeBits = 0;
@@ -475,15 +505,36 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 
     setObjectName(VK_OBJECT_TYPE_BUFFER, (uint64_t) buffer->vkBuffer, buffer->name);
 
-    if (creation.initialData) {
-        void* data = mapBuffer(handle);
-        memcpy(data, creation.initialData, (size_t) creation.size);
-        unmapBuffer(handle);
-    }
-
     if (creation.persistent) {
         buffer->mappedData = static_cast<uint8_t*>(allocationInfo.pMappedData);
     }
+
+    if (creation.initialData) {
+        VkMemoryPropertyFlags memPropFlags;
+        vmaGetAllocationMemoryProperties(_vmaAllocator, buffer->vmaAllocation, &memPropFlags);
+
+        if(memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+            if (buffer->mappedData) {
+                memcpy(buffer->mappedData, creation.initialData, (size_t) creation.size);
+            } else {
+                void* data = mapBuffer(handle);
+                memcpy(data, creation.initialData, (size_t) creation.size);
+                unmapBuffer(handle);
+            }
+        } else {
+            BufferCreation stagingCreation{};
+            stagingCreation.set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, buffer->size);
+            auto stagingBuffer = createBuffer(stagingCreation);
+
+            auto ptr = mapBuffer(stagingBuffer, 0, buffer->size);
+            memcpy(ptr, creation.initialData, buffer->size);
+            unmapBuffer(stagingBuffer);
+
+            _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
+            destroyBuffer(stagingBuffer);
+        }
+    }
+
     return handle;
 }
 
@@ -1148,6 +1199,8 @@ void Device::unmapBuffer(BufferHandle handle) {
     auto buffer = _buffers.access(handle);
 
     if (buffer->parent == _dynamicBuffer) {
+        auto parentBuffer = _buffers.access(buffer->parent);
+        vmaFlushAllocation(_vmaAllocator, parentBuffer->vmaAllocation, buffer->globalOffset, buffer->size);
         return;
     }
 
@@ -1155,7 +1208,7 @@ void Device::unmapBuffer(BufferHandle handle) {
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
-    return _commandBufferManager.getCommandBuffer(_currentFrame, thread);
+    return _commandBufferManager.getCommandBuffer(_currentFrame, thread, profile);
 }
 
 uint32_t Device::totalMemoryUsed() {
@@ -1322,6 +1375,7 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
     _commandBufferManager.create(*this, 4, graphic.index);
+    _frameCommandBuffer = getCommandBuffer(0, false);
 }
 
 void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
@@ -1386,11 +1440,12 @@ void Device::createDynamicBuffer() {
 
     BufferCreation bc;
     bc.set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-           ResourceUsageType::Immutable,
+           ResourceUsageType::Staging,
            _dynamicBufferSize * MaxFrames)
+        .setPersistent(true)
         .setName("Dynamic_Persistent_Buffer");
     _dynamicBuffer       = createBuffer(bc);
-    _dynamicBufferMapped = (uint8_t*) mapBuffer(_dynamicBuffer);
+    _dynamicBufferMapped = (uint8_t*) _buffers.access(_dynamicBuffer)->mappedData;
 }
 
 void Device::createDefaultSampler() {

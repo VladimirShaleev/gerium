@@ -4,8 +4,8 @@
 #include "../Application.hpp"
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
-#include "../StringPool.hpp"
 #include "../ProfilerUI.hpp"
+#include "../StringPool.hpp"
 #include "CommandBuffer.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
@@ -254,6 +254,7 @@ private:
     std::queue<ResourceDeletion> _deletionQueue{};
     std::map<gerium_uint64_t, RenderPassHandle> _renderPassCache{};
     CommandBuffer* _queuedCommandBuffers[16]{};
+    CommandBuffer* _frameCommandBuffer{};
     gerium_uint32_t _numQueuedCommandBuffers{};
 
     VkPhysicalDeviceProperties _deviceProperties{};

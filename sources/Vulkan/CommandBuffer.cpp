@@ -198,6 +198,52 @@ void CommandBuffer::draw(gerium_uint32_t firstVertex,
     _device->vkTable().vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
+void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
+    auto srcBuffer = _device->_buffers.access(src);
+    auto dstBuffer = _device->_buffers.access(dst);
+
+    auto srcOffset = 0;
+    auto srcSize   = srcBuffer->size;
+
+    if (srcBuffer->parent != Undefined) {
+        srcBuffer = _device->_buffers.access(srcBuffer->parent);
+        srcOffset = srcBuffer->globalOffset;
+    }
+
+    VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+    barrier.srcAccessMask       = VK_ACCESS_HOST_WRITE_BIT;
+    barrier.dstAccessMask       = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.buffer              = srcBuffer->vkBuffer;
+    barrier.offset              = srcOffset;
+    barrier.size                = srcSize;
+
+    const auto srcStageMask = utilDeterminePipelineStageFlags(barrier.srcAccessMask, QueueType::Graphics);
+    const auto dstStageMask = utilDeterminePipelineStageFlags(barrier.dstAccessMask, QueueType::Graphics);
+
+    _device->vkTable().vkCmdPipelineBarrier(
+        _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+
+    VkBufferCopy bufferCopy = { srcOffset, 0, srcSize };
+    _device->vkTable().vkCmdCopyBuffer(_commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, 1, &bufferCopy);
+    
+    VkBufferMemoryBarrier barrier2{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+    barrier2.srcAccessMask       = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier2.dstAccessMask       = VK_ACCESS_SHADER_READ_BIT;
+    barrier2.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier2.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier2.buffer              = srcBuffer->vkBuffer;
+    barrier2.offset              = srcOffset;
+    barrier2.size                = srcSize;
+
+    const auto srcStageMask2 = utilDeterminePipelineStageFlags(barrier2.srcAccessMask, QueueType::Graphics);
+    const auto dstStageMask2 = utilDeterminePipelineStageFlags(barrier2.dstAccessMask, QueueType::Graphics);
+
+    _device->vkTable().vkCmdPipelineBarrier(
+        _commandBuffer, srcStageMask2, dstStageMask2, 0, 0, nullptr, 1, &barrier2, 0, nullptr);
+}
+
 void CommandBuffer::pushMarker(gerium_utf8_t name) {
     if (_device->_profilerEnabled) {
         auto queryIndex = profiler()->pushTimestamp(name);
@@ -257,6 +303,10 @@ void CommandBuffer::reset() {
 }
 
 void CommandBuffer::begin() {
+    _currentRenderPass  = Undefined;
+    _currentFramebuffer = Undefined;
+    _currentPipeline    = Undefined;
+
     VkCommandBufferBeginInfo beginInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     _device->vkTable().vkBeginCommandBuffer(_commandBuffer, &beginInfo);

@@ -8,7 +8,6 @@ namespace gerium::vulkan {
 enum class ResourceUsageType {
     Immutable,
     Dynamic,
-    Stream,
     Staging
 };
 
