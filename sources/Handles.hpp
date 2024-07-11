@@ -10,10 +10,6 @@ struct BufferHandle : Handle {};
 
 struct TextureHandle : Handle {};
 
-struct SamplerHandle : Handle {};
-
-struct FramebufferHandle : Handle {};
-
 } // namespace gerium
 
 #endif

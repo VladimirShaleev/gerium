@@ -11,6 +11,12 @@ gerium_result_t Renderer::initialize(gerium_uint32_t version, bool debug) noexce
     });
 }
 
+gerium_result_t Renderer::createBuffer(const gerium_buffer_creation_t& creation, gerium_buffer_h& handle) noexcept {
+    return invoke<Renderer>([&creation, &handle](auto obj) {
+        handle = obj->onCreateBuffer(creation);
+    });
+}
+
 gerium_result_t Renderer::createTexture(const gerium_texture_creation_t& creation, gerium_texture_h& handle) noexcept {
     return invoke<Renderer>([&creation, &handle](auto obj) {
         handle = obj->onCreateTexture(creation);
@@ -23,6 +29,7 @@ void Renderer::destroyTexture(gerium_texture_h handle) noexcept {
 
 gerium_result_t Renderer::newFrame() noexcept {
     bool drawFrame = false;
+
     auto result = invoke<Renderer>([&drawFrame](auto obj) {
         drawFrame = obj->onNewFrame();
     });
@@ -58,11 +65,21 @@ void gerium_renderer_destroy(gerium_renderer_t renderer) {
     }
 }
 
+gerium_result_t gerium_renderer_create_buffer(gerium_renderer_t renderer,
+                                              const gerium_buffer_creation_t* creation,
+                                              gerium_buffer_h* handle) {
+    assert(renderer);
+    assert(creation);
+    assert(handle);
+    return alias_cast<Renderer*>(renderer)->createBuffer(*creation, *handle);
+}
+
 gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
                                                const gerium_texture_creation_t* creation,
                                                gerium_texture_h* handle) {
     assert(renderer);
     assert(creation);
+    assert(handle);
     return alias_cast<Renderer*>(renderer)->createTexture(*creation, *handle);
 }
 

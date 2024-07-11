@@ -13,15 +13,13 @@
 
 GERIUM_BEGIN
 
-typedef struct _gerium_logger* gerium_logger_t;
+GERIUM_TYPE(gerium_logger)
+GERIUM_TYPE(gerium_application)
+GERIUM_TYPE(gerium_renderer)
+GERIUM_TYPE(gerium_profiler)
 
-typedef struct _gerium_application* gerium_application_t;
-
-typedef struct _gerium_renderer* gerium_renderer_t;
-
-typedef struct _gerium_profiler* gerium_profiler_t;
-
-GERIUM_HANDLE(gerium_texture_h)
+GERIUM_HANDLE(gerium_buffer)
+GERIUM_HANDLE(gerium_texture)
 
 typedef enum
 {
@@ -180,6 +178,11 @@ typedef struct
     gerium_uint32_t              mode_count;
     const gerium_display_mode_t* modes;
 } gerium_display_info_t;
+
+typedef struct
+{
+    gerium_utf8_t         name;
+} gerium_buffer_creation_t;
 
 typedef struct
 {
@@ -360,6 +363,11 @@ gerium_renderer_reference(gerium_renderer_t renderer);
 
 gerium_public void
 gerium_renderer_destroy(gerium_renderer_t renderer);
+
+gerium_public gerium_result_t
+gerium_renderer_create_buffer(gerium_renderer_t renderer,
+                              const gerium_buffer_creation_t* creation,
+                              gerium_buffer_h* handle);
 
 gerium_public gerium_result_t
 gerium_renderer_create_texture(gerium_renderer_t renderer,

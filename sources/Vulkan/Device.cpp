@@ -1234,7 +1234,7 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     createInfo.enabledExtensionCount   = (uint32_t) extensions.size();
     createInfo.ppEnabledExtensionNames = extensions.data();
 
-#ifdef VK_USE_PLATFORM_MACOS_MVK
+#ifdef __APPLE__
     createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
 
@@ -1370,6 +1370,8 @@ void Device::createVmaAllocator() {
     functions.vkGetDeviceProcAddr   = _vkTable.vkGetDeviceProcAddr;
 
     VmaAllocatorCreateInfo createInfo{};
+    createInfo.flags                = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    createInfo.vulkanApiVersion     = VK_API_VERSION_1_2;
     createInfo.physicalDevice       = _physicalDevice;
     createInfo.device               = _device;
     createInfo.instance             = _instance;
@@ -2252,8 +2254,8 @@ std::vector<const char*> Device::selectExtensions() {
 std::vector<const char*> Device::selectDeviceExtensions() {
     return {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    // VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-#ifdef VK_USE_PLATFORM_MACOS_MVK
+        VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
+#ifdef __APPLE__
         "VK_KHR_portability_subset",
 #endif
     };

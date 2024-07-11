@@ -18,6 +18,12 @@ Application* VkRenderer::application() noexcept {
     return _application.get();
 }
 
+BufferHandle VkRenderer::onCreateBuffer(const gerium_buffer_creation_t& creation) {
+    BufferCreation bc;
+    // TODO: add creation
+    return _device->createBuffer(bc);
+}
+
 TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creation) {
     TextureCreation tc;
     tc.setSize(creation.width, creation.height, creation.depth)
