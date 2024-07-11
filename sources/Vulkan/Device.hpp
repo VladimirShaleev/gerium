@@ -71,6 +71,10 @@ public:
         return _gpuFrequency;
     }
 
+    VkProfiler* profiler() noexcept {
+        return _profiler.get();
+    }
+
     static constexpr gerium_uint32_t MaxFrames = 2;
 
 protected:

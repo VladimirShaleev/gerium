@@ -40,4 +40,8 @@ void VkRenderer::onPresent() {
     _device->present();
 }
 
+Profiler* VkRenderer::onGetProfiler() noexcept {
+    return _device->profiler();
+}
+
 } // namespace gerium::vulkan

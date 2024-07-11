@@ -1143,11 +1143,7 @@ void Device::unmapBuffer(BufferHandle handle) {
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
-    auto commandBuffer = _commandBufferManager.getCommandBuffer(_currentFrame, thread);
-    if (_profilerEnabled && profile) {
-        // TODO:
-    }
-    return commandBuffer;
+    return _commandBufferManager.getCommandBuffer(_currentFrame, thread);
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
@@ -1452,7 +1448,7 @@ void Device::createSwapchain(Application* application) {
     }
     _swapchainFramebuffers.resize(swapchainImages);
 
-    auto commandBuffer = getCommandBuffer(0);
+    auto commandBuffer = getCommandBuffer(0, false);
 
     for (uint32_t i = 0; i < swapchainImages; ++i) {
         auto [colorHandle, color] = _textures.obtain_and_access();

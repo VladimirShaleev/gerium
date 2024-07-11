@@ -33,6 +33,10 @@ gerium_result_t Renderer::present() noexcept {
     });
 }
 
+Profiler* Renderer::getProfiler() noexcept {
+    return onGetProfiler();
+}
+
 } // namespace gerium
 
 using namespace gerium;

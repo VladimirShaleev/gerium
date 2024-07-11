@@ -192,6 +192,12 @@ typedef struct
     gerium_utf8_t         name;
 } gerium_texture_creation_t;
 
+typedef struct  {
+    gerium_utf8_t    name;
+    gerium_float64_t elapsed;
+    gerium_uint32_t  frame;
+} gerium_gpu_timestamp_t;
+
 typedef gerium_bool_t
 (*gerium_application_frame_func_t)(gerium_application_t application,
                                    gerium_data_t data,
@@ -367,6 +373,16 @@ gerium_renderer_new_frame(gerium_renderer_t renderer);
 
 gerium_public gerium_result_t
 gerium_renderer_present(gerium_renderer_t renderer);
+
+gerium_public gerium_result_t
+gerium_profiler_create(gerium_renderer_t renderer,
+                       gerium_profiler_t* profiler);
+
+gerium_public gerium_profiler_t
+gerium_profiler_reference(gerium_profiler_t profiler);
+
+gerium_public void
+gerium_profiler_destroy(gerium_profiler_t profiler);
 
 GERIUM_END
 

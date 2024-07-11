@@ -25,6 +25,8 @@ private:
     void onNewFrame() override;
     void onPresent() override;
 
+    Profiler* onGetProfiler() noexcept override;
+
     ObjectPtr<Application> _application;
     std::unique_ptr<Device> _device;
 };
