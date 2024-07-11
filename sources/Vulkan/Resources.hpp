@@ -1,3 +1,8 @@
+/*
+ * The current organization of Vulkan resources is mainly taken from this project:
+ *   https://github.com/PacktPublishing/Mastering-Graphics-Programming-with-Vulkan
+ */
+
 #ifndef GERIUM_WINDOWS_VULKAN_RESOURCES_HPP
 #define GERIUM_WINDOWS_VULKAN_RESOURCES_HPP
 

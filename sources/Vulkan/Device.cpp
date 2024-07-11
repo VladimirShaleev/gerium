@@ -1582,6 +1582,7 @@ void Device::createImGui(Application* application) {
     auto fs   = cmrc::gerium::resources::get_filesystem();
     auto font = fs.open("resources/font-awesome.ttf");
 
+    // Add API to obtain DPI and other metrics
     auto density  = 1.5f;
     auto fontSize = 12.0f;
     auto fontD    = 1.5f;

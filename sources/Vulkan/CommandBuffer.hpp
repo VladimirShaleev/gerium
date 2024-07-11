@@ -1,3 +1,8 @@
+/*
+ * The current command pool implementation is inspired from this project:
+ *   https://github.com/PacktPublishing/Mastering-Graphics-Programming-with-Vulkan
+ */
+
 #ifndef GERIUM_WINDOWS_VULKAN_COMMAND_BUFFER_HPP
 #define GERIUM_WINDOWS_VULKAN_COMMAND_BUFFER_HPP
 
