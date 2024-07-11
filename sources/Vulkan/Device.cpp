@@ -1268,6 +1268,12 @@ void Device::createPhysicalDevice() {
     if (_profilerSupported) {
         _profilerEnabled = _enableValidations;
     }
+    if (_profilerSupported) {
+        VkProfiler* profiler;
+        Object::create<VkProfiler>(profiler);
+        _profiler = profiler;
+        profiler->destroy();
+    }
 }
 
 void Device::createDevice() {
@@ -1569,11 +1575,12 @@ void Device::createImGui(Application* application) {
 
     auto density  = 1.5f;
     auto fontSize = 12.0f;
-    auto fontD    = 1.0f;
+    auto fontD    = 1.5f;
 #ifdef GERIUM_PLATFORM_ANDROID
     // TODO: add calc density
     density  = 2.5f;
     fontSize = 15.0f;
+    fontD    = 1.0f;
 #elif defined(GERIUM_PLATFORM_MAC_OS)
     density  = 1.0f;
     fontSize = 12.0f;

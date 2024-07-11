@@ -8,6 +8,7 @@
 #include "CommandBuffer.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
+#include "VkProfiler.hpp"
 
 namespace gerium::vulkan {
 
@@ -231,6 +232,7 @@ private:
     uint32_t _ssboAlignment{};
     bool _profilerSupported{};
     bool _profilerEnabled{};
+    ObjectPtr<VkProfiler> _profiler{};
 
     //// Test
     struct UniformBufferObject {
