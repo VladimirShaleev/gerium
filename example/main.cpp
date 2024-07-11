@@ -2,9 +2,10 @@
 #include <stdexcept>
 #include <string>
 
-static gerium_logger_t logger     = nullptr;
-static gerium_renderer_t renderer = nullptr;
-static gerium_profiler_t profiler = nullptr;
+static gerium_application_t application = nullptr;
+static gerium_logger_t logger           = nullptr;
+static gerium_renderer_t renderer       = nullptr;
+static gerium_profiler_t profiler       = nullptr;
 
 void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
@@ -24,23 +25,6 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &renderer));
         check(gerium_profiler_create(renderer, &profiler));
 
-        gerium_texture_creation_t creation;
-        creation.width   = 128;
-        creation.height  = 128;
-        creation.depth   = 1;
-        creation.mipmaps = 1;
-        creation.format  = GERIUM_FORMAT_R8G8B8A8_UINT;
-        creation.type    = GERIUM_TEXTURE_TYPE_2D;
-        creation.data    = nullptr;
-        creation.name    = "texture";
-
-        gerium_texture_h texture;
-        check(gerium_renderer_create_texture(renderer, &creation, &texture));
-
-        gerium_renderer_destroy_texture(renderer, texture);
-
-        int i = 0;
-
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
         return false;
@@ -57,9 +41,12 @@ void unitialize(gerium_application_t application) {
 }
 
 gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
-    if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SUCCESS) {
-        gerium_renderer_present(renderer);
+    if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SKIP_FRAME) {
+        return 1;
     }
+        
+    gerium_renderer_present(renderer);
+
     return 1;
 }
 
@@ -113,10 +100,9 @@ gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium
 }
 
 int main() {
-    gerium_application_t application = nullptr;
+    check(gerium_logger_create("app", &logger));
 
     try {
-        check(gerium_logger_create("app", &logger));
         check(gerium_application_create("test", 800, 600, &application));
         gerium_application_set_background_wait(application, 1);
 
@@ -136,13 +122,9 @@ int main() {
         check(gerium_application_run(application));
 
     } catch (const std::runtime_error& exc) {
-        if (logger) {
-            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
-        }
+        gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
     } catch (...) {
-        if (logger) {
-            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, "unknown error");
-        }
+        gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, "unknown error");
     }
     gerium_application_destroy(application);
     gerium_logger_destroy(logger);

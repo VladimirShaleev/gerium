@@ -17,8 +17,8 @@ public:
     static gerium_result_t create(T*& obj, Args&&... args) noexcept;
 
 protected:
-    template <typename D>
-    gerium_result_t invoke(std::function<void(D*)>&& func) const noexcept;
+    template <typename D, typename Func>
+    gerium_result_t invoke(Func func) const noexcept;
 
     [[noreturn]] static void error(gerium_result_t result);
 
@@ -30,8 +30,8 @@ template <typename D, typename T, typename... Args>
 gerium_inline gerium_result_t Object::create(T*& obj, Args&&... args) noexcept {
     static_assert(std::is_base_of_v<T, D>, "D must inheritance from T");
     try {
-        obj = new (std::nothrow) D(args...);
-        return obj ? GERIUM_RESULT_SUCCESS : GERIUM_RESULT_ERROR_OUT_OF_MEMORY;
+        obj = new D(args...);
+        return GERIUM_RESULT_SUCCESS;
     } catch (const Exception& exc) {
         return exc.result();
     } catch (const std::bad_alloc&) {
@@ -41,8 +41,8 @@ gerium_inline gerium_result_t Object::create(T*& obj, Args&&... args) noexcept {
     }
 }
 
-template <typename D>
-inline gerium_result_t Object::invoke(std::function<void(D*)>&& func) const noexcept {
+template <typename D, typename Func>
+inline gerium_result_t Object::invoke(Func func) const noexcept {
     static_assert(std::is_base_of_v<Object, D>, "D must inheritance from T");
     try {
         func(alias_cast<D*>(this));
