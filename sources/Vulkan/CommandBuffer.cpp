@@ -198,6 +198,22 @@ void CommandBuffer::draw(gerium_uint32_t firstVertex,
     _device->vkTable().vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
+void CommandBuffer::pushMarker(gerium_utf8_t name) {
+    if (_device->_profilerEnabled) {
+        auto queryIndex = profiler()->pushTimestamp(name);
+        _device->vkTable().vkCmdWriteTimestamp(
+            _commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, _device->_queryPool, queryIndex);
+    }
+}
+
+void CommandBuffer::popMarker() {
+    if (_device->_profilerEnabled) {
+        auto queryIndex = profiler()->popTimestamp();
+        _device->vkTable().vkCmdWriteTimestamp(
+            _commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, _device->_queryPool, queryIndex);
+    }
+}
+
 void CommandBuffer::submit(QueueType queue) {
     end();
 
@@ -228,6 +244,10 @@ void CommandBuffer::endCurrentRenderPass() {
         _currentRenderPass  = Undefined;
         _currentFramebuffer = Undefined;
     }
+}
+
+VkProfiler* CommandBuffer::profiler() noexcept {
+    return _device->_profiler.get();
 }
 
 void CommandBuffer::reset() {
@@ -302,7 +322,7 @@ void CommandBufferManager::newFrame() noexcept {
     memset(_usedBuffers.data(), 0, _usedBuffers.size());
 }
 
-CommandBuffer* CommandBufferManager::getCommandBuffer(uint32_t frame, uint32_t thread) {
+CommandBuffer* CommandBufferManager::getCommandBuffer(uint32_t frame, uint32_t thread, bool profile) {
     const auto poolIndex = getPoolIndex(frame, thread);
     assert(_usedBuffers[poolIndex] < CommandBuffersPerThread);
 
@@ -310,6 +330,12 @@ CommandBuffer* CommandBufferManager::getCommandBuffer(uint32_t frame, uint32_t t
     auto& commandBuffer = _commandBuffers[poolIndex * CommandBuffersPerThread + offset];
     commandBuffer.reset();
     commandBuffer.begin();
+
+    if (_device->_profilerEnabled && profile && !_device->_profiler->hasTimestamps()) {
+        const auto queriesPerFrame = _device->_profiler->queriesPerFrame();
+        _device->vkTable().vkCmdResetQueryPool(
+            commandBuffer._commandBuffer, _device->_queryPool, frame * queriesPerFrame * 2, queriesPerFrame);
+    }
 
     return &commandBuffer;
 }

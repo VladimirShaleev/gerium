@@ -55,6 +55,22 @@ public:
         return _device;
     }
 
+    gerium_uint32_t currentFrame() const noexcept {
+        return _currentFrame;
+    }
+
+    gerium_uint32_t absoluteFrame() const noexcept {
+        return _absoluteFrame;
+    }
+
+    VkQueryPool vkQueryPool() noexcept {
+        return _queryPool;
+    }
+
+    double gpuFrequency() const noexcept {
+        return _gpuFrequency;
+    }
+
     static constexpr gerium_uint32_t MaxFrames = 2;
 
 protected:
@@ -64,6 +80,7 @@ protected:
 
 private:
     friend CommandBuffer;
+    friend CommandBufferManager;
 
     enum class ResourceType {
         Buffer,

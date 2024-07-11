@@ -283,7 +283,7 @@ void Device::newFrame() {
     _commandBufferManager.newFrame();
 
     if (_profilerEnabled) {
-        // _timestampManager.reset();
+        _profiler->resetTimestamps();
     }
 
     ImGui_ImplVulkan_NewFrame();
@@ -385,37 +385,7 @@ void Device::present() {
     _numQueuedCommandBuffers = 0;
 
     if (_profilerEnabled) {
-        // if (_timestampManager.hasQueries()) {
-        //     const auto queryOffset = _currentFrame * _timestampManager.getQueriesPerFrame() * 2;
-        //     const auto queryCount  = _timestampManager.getCurrentQuery() * 2;
-
-        //     check(_vkTable.vkGetQueryPoolResults(_device,
-        //                                          _queryPool,
-        //                                          queryOffset,
-        //                                          queryCount,
-        //                                          sizeof(uint64_t) * queryCount * 2,
-        //                                          _timestampManager.getTimestampData(queryOffset),
-        //                                          sizeof(uint64_t),
-        //                                          VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
-
-        //     for (uint32_t i = 0; i < _timestampManager.getCurrentQuery(); ++i) {
-        //         auto index = _currentFrame * _timestampManager.getQueriesPerFrame() + i;
-
-        //         auto& timestamp = _timestampManager.getTimestamp(index);
-
-        //         double start       = (double) *_timestampManager.getTimestampData(index * 2);
-        //         double end         = (double) *_timestampManager.getTimestampData(index * 2 + 1);
-        //         double range       = end - start;
-        //         double elapsedTime = range * _gpuFrequency;
-
-        //         timestamp.elapsedMs  = elapsedTime;
-        //         timestamp.frameIndex = _absoluteFrame;
-        //     }
-        // }
-
-        // _profilerReset = true;
-    } else {
-        // _profilerReset = false;
+        _profiler->fetchDataFromGpu();
     }
 
     gerium_uint16_t appWidth, appHeight;
@@ -1174,7 +1144,7 @@ void Device::unmapBuffer(BufferHandle handle) {
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
     auto commandBuffer = _commandBufferManager.getCommandBuffer(_currentFrame, thread);
-    if (_profilerEnabled) {
+    if (_profilerEnabled && profile) {
         // TODO:
     }
     return commandBuffer;
@@ -1336,7 +1306,7 @@ void Device::createDevice() {
 void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
     if (_profilerSupported) {
         VkProfiler* profiler;
-        Object::create<VkProfiler>(profiler);
+        Object::create<VkProfiler>(profiler, *this, gpuTimeQueriesPerFrame, MaxFrames);
         _profiler = profiler;
         profiler->destroy();
 
@@ -1624,9 +1594,9 @@ void Device::resizeSwapchain() {
         _vkTable.vkDestroySwapchainKHR(_device, oldSwapchain, getAllocCalls());
     }
 
-    if (_profilerEnabled) {
-        // _profilerReset = true;
-    }
+    // if (_profilerEnabled) {
+    //     _profilerReset = true;
+    // }
 }
 
 void Device::printValidationLayers() {

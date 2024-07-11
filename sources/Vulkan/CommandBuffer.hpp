@@ -4,6 +4,7 @@
 #include "../Gerium.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
+#include "VkProfiler.hpp"
 
 namespace gerium::vulkan {
 
@@ -32,6 +33,8 @@ public:
               gerium_uint32_t vertexCount,
               gerium_uint32_t firstInstance,
               gerium_uint32_t instanceCount);
+    void pushMarker(gerium_utf8_t name);
+    void popMarker();
     void submit(QueueType queue);
 
 private:
@@ -39,6 +42,8 @@ private:
     friend CommandBufferManager;
 
     void endCurrentRenderPass();
+
+    VkProfiler* profiler() noexcept;
 
     void reset();
     void begin();
@@ -87,7 +92,7 @@ public:
 
     void newFrame() noexcept;
 
-    CommandBuffer* getCommandBuffer(uint32_t frame, uint32_t thread);
+    CommandBuffer* getCommandBuffer(uint32_t frame, uint32_t thread, bool profile = true);
 
 private:
     uint32_t getPoolIndex(uint32_t frame, uint32_t thread) const noexcept;
