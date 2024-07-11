@@ -25,24 +25,21 @@ public:
     uint32_t popTimestamp();
     void resetTimestamps();
     bool hasTimestamps() const noexcept;
-    // const Timestamp& getTimestamp(uint32_t index) const noexcept;
-    // const uint64_t* getTimestampData(uint32_t offset) const noexcept;
 
     uint16_t queriesPerFrame() const noexcept;
-    // uint16_t maxFrames() const noexcept;
-    // uint32_t queryCount() const noexcept;
-    // uint32_t queryIndex(uint32_t query) const noexcept;
 
     void fetchDataFromGpu();
 
 private:
+    void onGetGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
+                            gerium_gpu_timestamp_t* gpuTimestamps) const noexcept override;
+
     Device* _device;
 
     uint16_t _queriesPerFrame;
     uint32_t _currentQuery;
     uint32_t _parentQuery;
     uint32_t _depth;
-    uint16_t _maxFrames;
 
     std::vector<Timestamp> _timestamps;
     std::vector<uint64_t> _timestampsData;

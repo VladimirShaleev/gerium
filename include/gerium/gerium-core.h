@@ -384,6 +384,11 @@ gerium_profiler_reference(gerium_profiler_t profiler);
 gerium_public void
 gerium_profiler_destroy(gerium_profiler_t profiler);
 
+gerium_public void
+gerium_profiler_get_gpu_timestamps(gerium_profiler_t profiler,
+                                   gerium_uint32_t* gpu_timestamps_count,
+                                   gerium_gpu_timestamp_t* gpu_timestamps);
+
 GERIUM_END
 
 #endif

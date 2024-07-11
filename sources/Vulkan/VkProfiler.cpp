@@ -9,10 +9,9 @@ VkProfiler::VkProfiler(Device& device, uint16_t queriesPerFrame, uint16_t maxFra
     _queriesPerFrame(queriesPerFrame),
     _currentQuery(0),
     _parentQuery(0),
-    _depth(0),
-    _maxFrames(maxFrames) {
-    _timestamps.resize(_queriesPerFrame * _maxFrames);
-    _timestampsData.resize(_queriesPerFrame * _maxFrames * 2);
+    _depth(0) {
+    _timestamps.resize(_queriesPerFrame * maxFrames);
+    _timestampsData.resize(_queriesPerFrame * maxFrames * 2);
 }
 
 uint32_t VkProfiler::pushTimestamp(gerium_utf8_t name) {
@@ -52,29 +51,9 @@ bool VkProfiler::hasTimestamps() const noexcept {
     return _currentQuery > 0 && _depth == 0;
 }
 
-// const VkProfiler::Timestamp& VkProfiler::getTimestamp(uint32_t index) const noexcept {
-//     return _timestamps[index];
-// }
-//
-// const uint64_t* VkProfiler::getTimestampData(uint32_t offset) const noexcept {
-//     return &_timestampsData[offset];
-// }
-
 uint16_t VkProfiler::queriesPerFrame() const noexcept {
     return _queriesPerFrame;
 }
-
-// uint16_t VkProfiler::maxFrames() const noexcept {
-//     return _maxFrames;
-// }
-
-// uint32_t VkProfiler::queryCount() const noexcept {
-//     return _currentQuery;
-// }
-//
-// uint32_t VkProfiler::queryIndex(uint32_t query) const noexcept {
-//     auto index = _device->currentFrame() * _queriesPerFrame + query;
-// }
 
 void VkProfiler::fetchDataFromGpu() {
     if (hasTimestamps()) {
@@ -85,7 +64,7 @@ void VkProfiler::fetchDataFromGpu() {
                                                        _device->vkQueryPool(),
                                                        queryOffset,
                                                        queryCount,
-                                                       sizeof(uint64_t) * queryCount * 2,
+                                                       sizeof(uint64_t) * queryCount,
                                                        &_timestampsData[queryOffset],
                                                        sizeof(uint64_t),
                                                        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
@@ -102,6 +81,19 @@ void VkProfiler::fetchDataFromGpu() {
 
             timestamp.frame   = _device->absoluteFrame();
             timestamp.elapsed = elapsed;
+        }
+    }
+}
+
+void VkProfiler::onGetGpuTimestamps(gerium_uint32_t& gpuTimestampsCount,
+                                    gerium_gpu_timestamp_t* gpuTimestamps) const noexcept {
+    gpuTimestampsCount = gpuTimestamps ? std::min(gpuTimestampsCount, _currentQuery) : _currentQuery;
+    if (gpuTimestamps) {
+        auto* timestamps = &_timestamps[_device->previousFrame() * _queriesPerFrame];
+        for (gerium_uint32_t q = 0; q < gpuTimestampsCount; ++q) {
+            gpuTimestamps[q].name    = timestamps[q].name;
+            gpuTimestamps[q].elapsed = timestamps[q].elapsed;
+            gpuTimestamps[q].frame   = timestamps[q].frame;
         }
     }
 }

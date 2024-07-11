@@ -336,6 +336,8 @@ void Device::present() {
     unmapBuffer(_obj2);
 
     auto cb = getCommandBuffer(0);
+    cb->pushMarker("frame");
+    cb->pushMarker("triangle");
     cb->clearColor(1.0f, 0.8f, 1.0f, 1.0f);
     cb->clearDepthStencil(1.0f, 0);
     cb->bindPipeline(_pipeline, _swapchainFramebuffers[_swapchainImageIndex]);
@@ -345,9 +347,13 @@ void Device::present() {
     cb->bindDescriptorSet(_descriptorSet1);
     cb->bindVertexBuffer(_vertices, 0, 0);
     cb->draw(0, 3, 0, 1);
+    cb->popMarker();
+    cb->pushMarker("imgui");
     ImGui::ShowDemoWindow();
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->_commandBuffer);
+    cb->popMarker();
+    cb->popMarker();
     submit(cb);
 
     VkCommandBuffer enqueuedCommandBuffers[16];

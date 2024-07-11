@@ -4,6 +4,7 @@
 
 static gerium_logger_t logger     = nullptr;
 static gerium_renderer_t renderer = nullptr;
+static gerium_profiler_t profiler = nullptr;
 
 void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS) {
@@ -21,6 +22,7 @@ bool initialize(gerium_application_t application) {
 #endif
 
         check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &renderer));
+        check(gerium_profiler_create(renderer, &profiler));
 
         gerium_texture_creation_t creation;
         creation.width   = 128;
@@ -50,6 +52,7 @@ bool initialize(gerium_application_t application) {
 }
 
 void unitialize(gerium_application_t application) {
+    gerium_profiler_destroy(profiler);
     gerium_renderer_destroy(renderer);
 }
 

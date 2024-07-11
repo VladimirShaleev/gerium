@@ -55,6 +55,10 @@ public:
         return _device;
     }
 
+    gerium_uint32_t previousFrame() const noexcept {
+        return _previousFrame;
+    }
+
     gerium_uint32_t currentFrame() const noexcept {
         return _currentFrame;
     }
