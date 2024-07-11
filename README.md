@@ -2,7 +2,8 @@
 
 A framework for cross-platform game development
 
-PROJECT IS UNDER ACTIVE DEVELOPMENT AND NOT READY FOR USE!
+> [!IMPORTANT]  
+> PROJECT IS UNDER ACTIVE DEVELOPMENT AND NOT READY FOR USE!
 
 The goal of this project is to implement a simple C interface (and later wrappers for other languages and environments) for constructing a frame graph. The frame graph represents a directed acyclic graph (DAG) of rendering passes. Modern rendering mechanisms require hundreds of passes to create a frame, and manual management of these passes is error-prone. However, by describing frame passes as a graph, we achieve the following advantages:
 
