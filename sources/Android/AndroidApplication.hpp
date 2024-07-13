@@ -3,6 +3,8 @@
 
 #include "../Application.hpp"
 
+#include <android_native_app_glue.h>
+
 namespace gerium::android {
 
 class AndroidApplication final : public Application {

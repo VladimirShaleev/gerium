@@ -410,6 +410,8 @@ void Device::present() {
         _profiler->fetchDataFromGpu();
     }
 
+    vmaSetCurrentFrameIndex(_vmaAllocator, _currentFrame);
+
     gerium_uint16_t appWidth, appHeight;
     _application->getSize(&appWidth, &appHeight);
     const auto resized = _appWidth != appWidth || _appHeight != appHeight;
@@ -2310,7 +2312,9 @@ std::vector<const char*> Device::selectExtensions() {
 std::vector<const char*> Device::selectDeviceExtensions() {
     return {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+#ifndef __ANDROID__
         VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
+#endif
 #ifdef __APPLE__
         "VK_KHR_portability_subset",
 #endif

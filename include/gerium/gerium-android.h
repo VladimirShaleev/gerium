@@ -12,7 +12,6 @@
 
 #include <android/native_window.h>
 #include <android/configuration.h>
-#include <android_native_app_glue.h>
 
 GERIUM_BEGIN
 
