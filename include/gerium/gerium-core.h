@@ -16,6 +16,7 @@ GERIUM_BEGIN
 GERIUM_TYPE(gerium_logger)
 GERIUM_TYPE(gerium_application)
 GERIUM_TYPE(gerium_renderer)
+GERIUM_TYPE(gerium_frame_graph)
 GERIUM_TYPE(gerium_profiler)
 
 GERIUM_HANDLE(gerium_buffer)
@@ -162,6 +163,31 @@ typedef enum
     GERIUM_TEXTURE_TYPE_MAX_ENUM   = 0x7FFFFFFF
 } gerium_texture_type_t;
 
+typedef gerium_bool_t
+(*gerium_application_frame_func_t)(gerium_application_t application,
+                                   gerium_data_t data,
+                                   gerium_float32_t elapsed);
+
+typedef gerium_bool_t
+(*gerium_application_state_func_t)(gerium_application_t application,
+                                   gerium_data_t data,
+                                   gerium_application_state_t state);
+
+typedef gerium_bool_t
+(*gerium_frame_graph_prepare_func_t)(gerium_frame_graph_t frame_graph,
+                                     gerium_renderer_t renderer,
+                                     gerium_data_t data);
+
+typedef gerium_bool_t
+(*gerium_frame_graph_resize_func_t)(gerium_frame_graph_t frame_graph,
+                                    gerium_renderer_t renderer,
+                                    gerium_data_t data);
+
+typedef gerium_bool_t
+(*gerium_frame_graph_render_func_t)(gerium_frame_graph_t frame_graph,
+                                    gerium_renderer_t renderer,
+                                    gerium_data_t data);
+
 typedef struct
 {
     gerium_uint16_t width;
@@ -203,15 +229,11 @@ typedef struct  {
     gerium_uint32_t  depth;
 } gerium_gpu_timestamp_t;
 
-typedef gerium_bool_t
-(*gerium_application_frame_func_t)(gerium_application_t application,
-                                   gerium_data_t data,
-                                   gerium_float32_t elapsed);
-
-typedef gerium_bool_t
-(*gerium_application_state_func_t)(gerium_application_t application,
-                                   gerium_data_t data,
-                                   gerium_application_state_t state);
+typedef struct {
+    gerium_frame_graph_prepare_func_t prepare;
+    gerium_frame_graph_resize_func_t  resize;
+    gerium_frame_graph_render_func_t  render;
+} gerium_render_pass_t;
 
 gerium_public gerium_uint32_t
 gerium_version(void);
@@ -383,6 +405,22 @@ gerium_renderer_new_frame(gerium_renderer_t renderer);
 
 gerium_public gerium_result_t
 gerium_renderer_present(gerium_renderer_t renderer);
+
+gerium_public gerium_result_t
+gerium_frame_graph_create(gerium_renderer_t renderer,
+                          gerium_frame_graph_t* frame_graph);
+
+gerium_public gerium_frame_graph_t
+gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);
+
+gerium_public void
+gerium_frame_graph_destroy(gerium_frame_graph_t frame_graph);
+
+gerium_public gerium_result_t
+gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
+                            gerium_utf8_t name,
+                            const gerium_render_pass_t* render_pass,
+                            gerium_data_t* data);
 
 gerium_public gerium_result_t
 gerium_profiler_create(gerium_renderer_t renderer,

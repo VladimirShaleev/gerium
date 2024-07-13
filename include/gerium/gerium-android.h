@@ -12,10 +12,7 @@
 
 #include <android/native_window.h>
 #include <android/configuration.h>
-
-#if GERIUM_ANDROID_HAS_NATIVE_APP_GLUE
-# include <android_native_app_glue.h>
-#endif
+#include <android_native_app_glue.h>
 
 GERIUM_BEGIN
 

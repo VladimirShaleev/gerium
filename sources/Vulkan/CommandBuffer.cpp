@@ -225,7 +225,7 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
     _device->vkTable().vkCmdPipelineBarrier(
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &barrier, 0, nullptr);
 
-    VkBufferCopy bufferCopy = { srcOffset, 0, srcSize };
+    VkBufferCopy bufferCopy = { (VkDeviceSize) srcOffset, 0, srcSize };
     _device->vkTable().vkCmdCopyBuffer(_commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, 1, &bufferCopy);
     
     VkBufferMemoryBarrier barrier2{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };

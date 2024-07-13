@@ -5,7 +5,6 @@ include(cmake/vcpkg_android.cmake)
 
 option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
-option(GERIUM_USE_NATIVE_APP_GLUE "Enable Native App Glue in Android build" ON)
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
 if(DEFINED ENV{VCPKG_ROOT})

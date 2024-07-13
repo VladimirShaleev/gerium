@@ -5,6 +5,7 @@
 static gerium_application_t application = nullptr;
 static gerium_logger_t logger           = nullptr;
 static gerium_renderer_t renderer       = nullptr;
+static gerium_frame_graph_t frameGraph  = nullptr;
 static gerium_profiler_t profiler       = nullptr;
 
 void check(gerium_result_t result) {
@@ -23,6 +24,7 @@ bool initialize(gerium_application_t application) {
 #endif
 
         check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &renderer));
+        check(gerium_frame_graph_create(renderer, &frameGraph));
         check(gerium_profiler_create(renderer, &profiler));
 
     } catch (const std::runtime_error& exc) {
@@ -37,6 +39,7 @@ bool initialize(gerium_application_t application) {
 
 void unitialize(gerium_application_t application) {
     gerium_profiler_destroy(profiler);
+    gerium_frame_graph_destroy(frameGraph);
     gerium_renderer_destroy(renderer);
 }
 
@@ -44,7 +47,7 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return 1;
     }
-        
+
     gerium_renderer_present(renderer);
 
     return 1;
