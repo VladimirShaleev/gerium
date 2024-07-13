@@ -14,7 +14,7 @@
         tools:targetApi="35">
         <activity
             android:name="android.app.NativeActivity"
-            android:configChanges="screenSize|keyboardHidden"
+            android:configChanges="screenSize|orientation|keyboardHidden"
             android:exported="true"
             android:launchMode="singleTask"
             android:resizeableActivity="true"

@@ -1427,7 +1427,9 @@ void Device::createVmaAllocator() {
     functions.vkGetDeviceProcAddr   = _vkTable.vkGetDeviceProcAddr;
 
     VmaAllocatorCreateInfo createInfo{};
+#ifndef __ANDROID__
     createInfo.flags                = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+#endif
     createInfo.vulkanApiVersion     = VK_API_VERSION_1_2;
     createInfo.physicalDevice       = _physicalDevice;
     createInfo.device               = _device;
@@ -1643,14 +1645,14 @@ void Device::createImGui(Application* application) {
     auto font = fs.open("resources/font-awesome.ttf");
 
     // Add API to obtain DPI and other metrics
+    // TODO: add calc density
     auto density  = 1.5f;
     auto fontSize = 12.0f;
     auto fontD    = 1.5f;
 #ifdef GERIUM_PLATFORM_ANDROID
-    // TODO: add calc density
-    density  = 2.5f;
-    fontSize = 15.0f;
-    fontD    = 1.0f;
+    density  = 1.5f;
+    fontSize = 12.0f;
+    fontD    = 1.4f;
 #elif defined(GERIUM_PLATFORM_MAC_OS)
     density  = 1.0f;
     fontSize = 12.0f;
