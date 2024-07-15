@@ -27,6 +27,91 @@ bool initialize(gerium_application_t application) {
         check(gerium_frame_graph_create(renderer, &frameGraph));
         check(gerium_profiler_create(renderer, &profiler));
 
+        gerium_resource_input_t gbufferInputs[] = {
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT, "depth" }
+        };
+        gerium_resource_output_t gbufferOutputs[] = {
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "color",                        0,
+             GERIUM_FORMAT_R8G8B8A8_UNORM,      0,
+             0, GERIUM_RENDER_PASS_OPERATION_CLEAR },
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "normals",                      0,
+             GERIUM_FORMAT_R16G16B16A16_SFLOAT, 0,
+             0, GERIUM_RENDER_PASS_OPERATION_CLEAR },
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "metallic_roughness_occlusion", 0,
+             GERIUM_FORMAT_R8G8B8A8_UNORM,      0,
+             0, GERIUM_RENDER_PASS_OPERATION_CLEAR },
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "position",                     0,
+             GERIUM_FORMAT_R16G16B16A16_SFLOAT, 0,
+             0, GERIUM_RENDER_PASS_OPERATION_CLEAR },
+        };
+
+        gerium_resource_input_t transparentInputs[] = {
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT, "lighting" },
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT, "depth"    }
+        };
+        gerium_resource_output_t transparentOutputs[] = {
+            { GERIUM_RESOURCE_TYPE_REFERENCE, "lighting" }
+        };
+
+        gerium_resource_input_t dofInputs[] = {
+            { GERIUM_RESOURCE_TYPE_REFERENCE, "lighting" },
+            { GERIUM_RESOURCE_TYPE_REFERENCE, "depth"    },
+        };
+        gerium_resource_output_t dofOutputs[] = {
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "final", 0,
+             GERIUM_FORMAT_R8G8B8A8_UNORM, 0,
+             0, GERIUM_RENDER_PASS_OPERATION_CLEAR }
+        };
+
+        gerium_resource_input_t lightingInputs[] = {
+            { GERIUM_RESOURCE_TYPE_TEXTURE, "color"                        },
+            { GERIUM_RESOURCE_TYPE_TEXTURE, "normals"                      },
+            { GERIUM_RESOURCE_TYPE_TEXTURE, "metallic_roughness_occlusion" },
+            { GERIUM_RESOURCE_TYPE_TEXTURE, "position"                     }
+        };
+        gerium_resource_output_t lightingOutputs[] = {
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "lighting", 0,
+             GERIUM_FORMAT_R8G8B8A8_UNORM, 0,
+             0, GERIUM_RENDER_PASS_OPERATION_CLEAR }
+        };
+
+        gerium_resource_output_t depthOutputs[] = {
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "depth", 0,
+             GERIUM_FORMAT_D32_SFLOAT, 0,
+             0, GERIUM_RENDER_PASS_OPERATION_CLEAR }
+        };
+
+        check(gerium_frame_graph_add_node(frameGraph,
+                                          "gbuffer_pass",
+                                          std::size(gbufferInputs),
+                                          gbufferInputs,
+                                          std::size(gbufferOutputs),
+                                          gbufferOutputs));
+        check(gerium_frame_graph_add_node(frameGraph,
+                                          "transparent_pass",
+                                          std::size(transparentInputs),
+                                          transparentInputs,
+                                          std::size(transparentOutputs),
+                                          transparentOutputs));
+        check(gerium_frame_graph_add_node(
+            frameGraph, "depth_of_field_pass", std::size(dofInputs), dofInputs, std::size(dofOutputs), dofOutputs));
+        check(gerium_frame_graph_add_node(frameGraph,
+                                          "lighting_pass",
+                                          std::size(lightingInputs),
+                                          lightingInputs,
+                                          std::size(lightingOutputs),
+                                          lightingOutputs));
+        check(gerium_frame_graph_add_node(
+            frameGraph, "depth_pre_pass", 0, nullptr, std::size(depthOutputs), depthOutputs));
+        check(gerium_frame_graph_compile(frameGraph));
+
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
         return false;

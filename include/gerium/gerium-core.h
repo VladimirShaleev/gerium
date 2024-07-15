@@ -239,20 +239,29 @@ typedef struct
     gerium_utf8_t         name;
 } gerium_texture_creation_t;
 
-typedef struct  {
+typedef struct
+{
     gerium_utf8_t    name;
     gerium_float64_t elapsed;
     gerium_uint32_t  frame;
     gerium_uint32_t  depth;
 } gerium_gpu_timestamp_t;
 
-typedef struct {
+typedef struct
+{
     gerium_frame_graph_prepare_func_t prepare;
     gerium_frame_graph_resize_func_t  resize;
     gerium_frame_graph_render_func_t  render;
 } gerium_render_pass_t;
 
-typedef struct {
+typedef struct
+{
+    gerium_resource_type_t         type;
+    gerium_utf8_t                  name;
+} gerium_resource_input_t;
+
+typedef struct
+{
     gerium_resource_type_t         type;
     gerium_utf8_t                  name;
     gerium_bool_t                  external;
@@ -260,7 +269,7 @@ typedef struct {
     gerium_uint16_t                width;
     gerium_uint16_t                height;
     gerium_render_pass_operation_t operation;
-} gerium_frame_graph_resource_t;
+} gerium_resource_output_t;
 
 gerium_public gerium_uint32_t
 gerium_version(void);
@@ -450,12 +459,20 @@ gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
                             gerium_data_t* data);
 
 gerium_public gerium_result_t
+gerium_frame_graph_remove_pass(gerium_frame_graph_t frame_graph,
+                               gerium_utf8_t name);
+
+gerium_public gerium_result_t
 gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             gerium_utf8_t name,
                             gerium_uint32_t input_count,
-                            const gerium_frame_graph_resource_t* inputs,
+                            const gerium_resource_input_t* inputs,
                             gerium_uint32_t output_count,
-                            const gerium_frame_graph_resource_t* outputs);
+                            const gerium_resource_output_t* outputs);
+
+// temp
+gerium_public gerium_result_t
+gerium_frame_graph_compile(gerium_frame_graph_t frame_graph);
 
 gerium_public gerium_result_t
 gerium_profiler_create(gerium_renderer_t renderer,
