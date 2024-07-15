@@ -11,13 +11,6 @@ enum class ResourceUsageType {
     Staging
 };
 
-enum class TextureFlags {
-    None         = 0,
-    RenderTarget = 1,
-    Compute      = 2
-};
-GERIUM_FLAGS(TextureFlags)
-
 enum class RenderPassOperation {
     DontCare,
     Load,

@@ -17,7 +17,7 @@ gerium_result_t Renderer::createBuffer(const gerium_buffer_creation_t& creation,
     });
 }
 
-gerium_result_t Renderer::createTexture(const gerium_texture_creation_t& creation, gerium_texture_h& handle) noexcept {
+gerium_result_t Renderer::createTexture(const TextureCreation& creation, TextureHandle& handle) noexcept {
     return invoke<Renderer>([&creation, &handle](auto obj) {
         handle = obj->onCreateTexture(creation);
     });
@@ -80,7 +80,17 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
     assert(renderer);
     assert(creation);
     assert(handle);
-    return alias_cast<Renderer*>(renderer)->createTexture(*creation, *handle);
+
+    TextureCreation tc;
+    tc.setSize(creation->width, creation->height, creation->depth)
+        .setFlags(creation->mipmaps, false, false)
+        .setFormat(creation->format, creation->type)
+        .setData((void*) creation->data)
+        .setName(creation->name);
+    TextureHandle texture;
+    auto result = alias_cast<Renderer*>(renderer)->createTexture(tc, texture);
+    *handle = texture;
+    return result;
 }
 
 void gerium_renderer_destroy_texture(gerium_renderer_t renderer, gerium_texture_h handle) {

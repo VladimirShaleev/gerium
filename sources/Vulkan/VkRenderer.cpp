@@ -24,14 +24,8 @@ BufferHandle VkRenderer::onCreateBuffer(const gerium_buffer_creation_t& creation
     return _device->createBuffer(bc);
 }
 
-TextureHandle VkRenderer::onCreateTexture(const gerium_texture_creation_t& creation) {
-    TextureCreation tc;
-    tc.setSize(creation.width, creation.height, creation.depth)
-        .setFlags(creation.mipmaps, false, false)
-        .setFormat(creation.format, creation.type)
-        .setData((void*) creation.data)
-        .setName(creation.name);
-    return _device->createTexture(tc);
+TextureHandle VkRenderer::onCreateTexture(const TextureCreation& creation) {
+    return _device->createTexture(creation);
 }
 
 void VkRenderer::onDestroyTexture(TextureHandle handle) noexcept {

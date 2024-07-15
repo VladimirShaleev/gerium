@@ -16,7 +16,9 @@ void Object::destroy() noexcept {
 }
 
 void Object::error(gerium_result_t result) {
-    throw Exception(result);
+    if (result >= GERIUM_RESULT_ERROR_UNKNOWN) {
+        throw Exception(result);
+    }
 }
 
 } // namespace gerium

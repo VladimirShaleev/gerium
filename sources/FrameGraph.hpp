@@ -3,6 +3,7 @@
 
 #include "Handles.hpp"
 #include "ObjectPtr.hpp"
+#include "Renderer.hpp"
 
 struct _gerium_frame_graph : public gerium::Object {};
 
@@ -42,21 +43,35 @@ struct FrameGraphNode {
     std::array<FrameGraphResourceHandle, kMaxOutputs> edges;
 };
 
+struct FrameGraphResourceInfo {
+    union {
+        struct {
+        } buffer;
+
+        struct {
+            gerium_format_t format;
+            gerium_uint16_t width;
+            gerium_uint16_t height;
+            gerium_uint16_t depth;
+            gerium_render_pass_operation_t operation;
+            TextureHandle handle;
+        } texture;
+    };
+};
+
 struct FrameGraphResource {
     gerium_resource_type_t type;
     gerium_utf8_t name;
     gerium_bool_t external;
-    gerium_format_t format;
-    gerium_uint16_t width;
-    gerium_uint16_t height;
-    gerium_render_pass_operation_t operation;
+    gerium_uint32_t refCount;
     FrameGraphNodeHandle producer;
     FrameGraphNodeHandle output;
+    FrameGraphResourceInfo info;
 };
 
 class FrameGraph : public _gerium_frame_graph {
 public:
-    FrameGraph();
+    FrameGraph(Renderer* renderer);
 
     gerium_result_t addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data);
     gerium_result_t removePass(gerium_utf8_t name);
@@ -86,6 +101,8 @@ private:
 
     FrameGraphResource* findResource(gerium_utf8_t name) noexcept;
 
+    Renderer* _renderer;
+
     FrameGraphNodePool _nodes;
     FrameGraphResourcePool _resources;
     FrameGraphRenderPassPool _rendererPasses;
@@ -96,6 +113,12 @@ private:
 
     gerium_uint32_t _nodeGraphCount;
     std::array<FrameGraphNodeHandle, kMaxNodes> _nodeGraph;
+
+    std::array<FrameGraphNodeHandle, kMaxNodes> _sortedNodes;
+    std::array<FrameGraphNodeHandle, kMaxNodes> _stack;
+    std::array<uint8_t, kMaxNodes> _visited;
+    std::array<TextureHandle, kMaxOutputs> _freeList;
+    std::array<FrameGraphNodeHandle, kMaxNodes> _allocations;
 };
 
 } // namespace gerium
