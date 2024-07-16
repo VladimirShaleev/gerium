@@ -50,11 +50,9 @@ gerium_result_t FrameGraph::addNode(gerium_utf8_t name,
 
     node->renderPass  = Undefined;
     node->framebuffer = Undefined;
-    // node->pass        = nullptr;
-    node->name = intern(name);
-    // node->edgeCount   = 0;
-    node->enabled = 1;
-    // node->edges       = ;
+    node->pass        = Undefined;
+    node->name        = intern(name);
+    node->enabled     = 1;
 
     for (gerium_uint32_t i = 0; i < inputCount; ++i) {
         node->inputs[node->inputCount++] = createNodeInput(inputs[i]);
@@ -267,6 +265,16 @@ void FrameGraph::compileGraph() {
 
         if (node->framebuffer == Undefined) {
             error(_renderer->createFramebuffer(*this, node, node->framebuffer));
+        }
+    }
+
+    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
+        auto node = _nodes.access(_nodeGraph[i]);
+
+        if (auto it = _renderPassCache.find(hash(node->name)); it != _renderPassCache.end()) {
+            node->pass = it->second;
+        } else {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
         }
     }
 }

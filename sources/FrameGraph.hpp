@@ -32,7 +32,7 @@ struct FrameGraphRenderPass {
 struct FrameGraphNode {
     RenderPassHandle renderPass;
     FramebufferHandle framebuffer;
-    const gerium_render_pass_t* pass;
+    FrameGraphRenderPassHandle pass;
     gerium_utf8_t name;
     gerium_uint8_t inputCount;
     gerium_uint8_t outputCount;

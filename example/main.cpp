@@ -27,6 +27,17 @@ bool initialize(gerium_application_t application) {
         check(gerium_frame_graph_create(renderer, &frameGraph));
         check(gerium_profiler_create(renderer, &profiler));
 
+        gerium_render_pass_t gbufferPass{};
+        gerium_render_pass_t transparentPass{};
+        gerium_render_pass_t depthOfFieldPass{};
+        gerium_render_pass_t lightingPass{};
+        gerium_render_pass_t depthPrePass{};
+        gerium_frame_graph_add_pass(frameGraph, "gbuffer_pass", &gbufferPass, nullptr);
+        gerium_frame_graph_add_pass(frameGraph, "transparent_pass", &transparentPass, nullptr);
+        gerium_frame_graph_add_pass(frameGraph, "depth_of_field_pass", &depthOfFieldPass, nullptr);
+        gerium_frame_graph_add_pass(frameGraph, "lighting_pass", &lightingPass, nullptr);
+        gerium_frame_graph_add_pass(frameGraph, "depth_pre_pass", &depthPrePass, nullptr);
+
         gerium_resource_input_t gbufferInputs[] = {
             { GERIUM_RESOURCE_TYPE_ATTACHMENT, "depth" }
         };
