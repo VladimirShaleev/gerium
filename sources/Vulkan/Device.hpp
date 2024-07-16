@@ -82,6 +82,14 @@ public:
         return _profiler.get();
     }
 
+    RenderPassHandle getSwapchainPass() const noexcept {
+        return _swapchainRenderPass;
+    }
+
+    const RenderPassOutput& getRenderPassOutput(RenderPassHandle handle) const noexcept {
+        return _renderPasses.access(handle)->output;
+    }
+
     static constexpr gerium_uint32_t MaxFrames = 2;
 
 protected:

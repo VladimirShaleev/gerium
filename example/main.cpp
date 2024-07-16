@@ -202,7 +202,6 @@ bool initialize(gerium_application_t application) {
         lightingShaders[1].size = strlen(lightingShaders[0].data);
 
         gerium_pipeline_t lightingPipelines[1];
-        lightingPipelines[0].name                   = "main";
         lightingPipelines[0].render_pass            = "lighting_pass";
         lightingPipelines[0].vertex_attribute_count = std::size(vertexAttributes);
         lightingPipelines[0].vertex_attributes      = vertexAttributes;
@@ -212,7 +211,7 @@ bool initialize(gerium_application_t application) {
         lightingPipelines[0].shaders                = lightingShaders;
 
         check(gerium_renderer_create_material(
-            renderer, frameGraph, std::size(lightingPipelines), lightingPipelines, &lighting));
+            renderer, frameGraph, "lighting", std::size(lightingPipelines), lightingPipelines, &lighting));
 
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());

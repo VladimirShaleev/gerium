@@ -21,6 +21,7 @@ public:
     gerium_result_t createBuffer(const gerium_buffer_creation_t& creation, gerium_buffer_h& handle) noexcept;
     gerium_result_t createTexture(const TextureCreation& creation, TextureHandle& handle) noexcept;
     gerium_result_t createMaterial(const FrameGraph& frameGraph,
+                                   gerium_utf8_t name,
                                    gerium_uint32_t pipelineCount,
                                    const gerium_pipeline_t* pipelines,
                                    MaterialHandle& handle) noexcept;
@@ -48,6 +49,7 @@ private:
     virtual BufferHandle onCreateBuffer(const gerium_buffer_creation_t& creation)                           = 0;
     virtual TextureHandle onCreateTexture(const TextureCreation& creation)                                  = 0;
     virtual MaterialHandle onCreateMaterial(const FrameGraph& frameGraph,
+                                            gerium_utf8_t name,
                                             gerium_uint32_t pipelineCount,
                                             const gerium_pipeline_t* pipelines)                             = 0;
     virtual RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node)   = 0;

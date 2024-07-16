@@ -87,6 +87,13 @@ const FrameGraphNode* FrameGraph::getNode(gerium_uint32_t index) const noexcept 
     return _nodes.access(_nodeGraph[index]);
 }
 
+const FrameGraphNode* FrameGraph::getNode(gerium_utf8_t name) const noexcept {
+    if (auto it = _nodeCache.find(hash(name)); it != _nodeCache.end()) {
+        return _nodes.access(it->second);
+    }
+    return nullptr;
+}
+
 const FrameGraphRenderPass* FrameGraph::getPass(FrameGraphRenderPassHandle handle) const noexcept {
     return _renderPasses.access(handle);
 }

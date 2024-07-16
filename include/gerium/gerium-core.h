@@ -306,7 +306,6 @@ typedef struct {
 
 typedef struct
 {
-    gerium_utf8_t                    name;
     gerium_utf8_t                    render_pass;
     // TODO: add rasterization info
     // TODO: add ...
@@ -482,6 +481,7 @@ gerium_renderer_create_texture(gerium_renderer_t renderer,
 gerium_public gerium_result_t
 gerium_renderer_create_material(gerium_renderer_t renderer,
                                 gerium_frame_graph_t frame_graph,
+                                gerium_utf8_t name,
                                 gerium_uint32_t pipeline_count,
                                 const gerium_pipeline_t* pipelines,
                                 gerium_material_h* handle);

@@ -30,8 +30,84 @@ TextureHandle VkRenderer::onCreateTexture(const TextureCreation& creation) {
 }
 
 MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
+                                            gerium_utf8_t name,
                                             gerium_uint32_t pipelineCount,
                                             const gerium_pipeline_t* pipelines) {
+    PipelineCreation creations[100]{};
+    ViewportState viewport{};
+
+    for (gerium_uint32_t i = 0; i < pipelineCount; ++i) {
+        auto& pc = creations[i];
+
+        pc.rasterization.cullMode = VK_CULL_MODE_NONE;
+        pc.rasterization.front    = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        pc.rasterization.fill     = FillMode::Solid;
+        // pc.depthStencil.front            = ;
+        // pc.depthStencil.back             = ;
+        pc.depthStencil.depthComparison  = VK_COMPARE_OP_ALWAYS;
+        pc.depthStencil.depthEnable      = 0;
+        pc.depthStencil.depthWriteEnable = 0;
+        pc.depthStencil.stencilEnable    = 0;
+        // pc.program                       = ;
+        pc.viewport = &viewport;
+        pc.name     = "Simple Triangle";
+
+        for (gerium_uint32_t j = 0; j < pipelines[i].shader_count; ++j) {
+            const auto& shader = pipelines[i].shaders[j];
+            pc.program.addStage(shader.data,
+                                shader.size,
+                                shader.type == GERIUM_SHADER_TYPE_VERTEX ? VK_SHADER_STAGE_VERTEX_BIT
+                                                                         : VK_SHADER_STAGE_FRAGMENT_BIT);
+            pc.program.setName("simple");
+        }
+
+        for (gerium_uint32_t j = 0; j < pipelines[i].vertex_attribute_count; ++j) {
+            const auto& attribute = pipelines[i].vertex_attributes[j];
+            VertexAttribute a{};
+            a.location = attribute.location;
+            a.binding  = attribute.binding;
+            a.offset   = attribute.offset;
+            switch (attribute.format) {
+                case GERIUM_FORMAT_R32G32_SFLOAT:
+                    a.format = VertexComponentFormat::Float2;
+                    break;
+
+                case GERIUM_FORMAT_R32G32B32_SFLOAT:
+                    a.format = VertexComponentFormat::Float3;
+                    break;
+
+                default:
+                    break;
+            }
+            pc.vertexInput.addVertexAttribute(a);
+        }
+
+        for (gerium_uint32_t j = 0; j < pipelines[i].vertex_binding_count; ++j) {
+            const auto& binding = pipelines[i].vertex_bindings[j];
+            VertexStream s{};
+            s.binding = binding.binding;
+            s.stride  = binding.stride;
+            switch (binding.inputRate) {
+                case GERIUM_VERTEX_RATE_PER_VERTEX:
+                    s.inputRate = VertexInputRate::PerVertex;
+                    break;
+
+                case GERIUM_VERTEX_RATE_PER_INSTANCE:
+                    s.inputRate = VertexInputRate::PerInstance;
+                    break;
+
+                default:
+                    break;
+            }
+            pc.vertexInput.addVertexStream(s);
+        }
+
+        if (auto node = frameGraph.getNode(pipelines[i].render_pass); node) {
+            pc.renderPass = _device->getRenderPassOutput(node->renderPass);
+        } else {
+            pc.renderPass = _device->getRenderPassOutput(_device->getSwapchainPass());
+        }
+    }
     return MaterialHandle();
 }
 
