@@ -98,6 +98,11 @@ void gerium_renderer_destroy(gerium_renderer_t renderer) {
     }
 }
 
+gerium_texture_h gerium_renderer_get_swapchain_texture(gerium_renderer_t renderer) {
+    assert(renderer);
+    return { Undefined };
+}
+
 gerium_result_t gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,
                                                         gerium_utf8_t name,
                                                         gerium_cdata_t data,

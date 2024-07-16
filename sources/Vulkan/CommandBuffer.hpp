@@ -42,6 +42,10 @@ public:
     void popMarker();
     void submit(QueueType queue);
 
+    VkCommandBuffer vkCommandBuffer() noexcept {
+        return _commandBuffer;
+    }
+
 private:
     friend Device;
     friend CommandBufferManager;

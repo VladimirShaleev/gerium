@@ -221,6 +221,10 @@ void FrameGraph::compileGraph() {
             auto resourceIndex = node->outputs[j].index;
             auto resource      = _resources.access(node->outputs[j]);
 
+            if (resource->swapchain) {
+                error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            }
+
             if (!resource->external && _allocations[resourceIndex] == Undefined) {
                 _allocations[resourceIndex] = _nodeGraph[i];
 
@@ -239,6 +243,21 @@ void FrameGraph::compileGraph() {
                     }
 
                     error(_renderer->createTexture(creation, resource->info.texture.handle));
+                }
+            } else if (resource->external && resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                if (auto it = _renderPassCache.find(hash(node->name)); it != _renderPassCache.end()) {
+                    auto pass = _renderPasses.access(it->second);
+                    gerium_texture_h texture{};
+                    if (!pass->pass.external_texture(this, _renderer, resource->name, pass->data, &texture)) {
+                        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                    }
+                    resource->info.texture.handle = { texture.unused };
+
+                    if (resource->info.texture.handle == Undefined) {
+                        resource->swapchain = true;
+                    }
+                } else {
+                    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
                 }
             }
         }
@@ -278,11 +297,13 @@ void FrameGraph::compileGraph() {
             resource->info.texture.handle = getResource(resource->name)->info.texture.handle;
         }
 
+        bool swapchain = node->outputCount == 1 && _resources.access(node->outputs[0])->swapchain;
+
         if (node->renderPass == Undefined) {
             error(_renderer->createRenderPass(*this, node, node->renderPass));
         }
 
-        if (node->framebuffer == Undefined) {
+        if (node->framebuffer == Undefined && !swapchain) {
             error(_renderer->createFramebuffer(*this, node, node->framebuffer));
         }
     }

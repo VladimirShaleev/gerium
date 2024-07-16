@@ -63,6 +63,7 @@ struct FrameGraphResourceInfo {
 struct FrameGraphResource {
     gerium_utf8_t name;
     gerium_bool_t external;
+    gerium_bool_t swapchain;
     gerium_uint32_t refCount;
     FrameGraphNodeHandle producer;
     FrameGraphNodeHandle output;

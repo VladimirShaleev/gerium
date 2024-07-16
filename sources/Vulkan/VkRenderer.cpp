@@ -15,7 +15,10 @@ VkRenderer::VkRenderer(Application* application, std::unique_ptr<Device>&& devic
 PipelineHandle VkRenderer::getPipeline(MaterialHandle handle) const noexcept {
     auto material = _materials.access(handle);
 
-    auto it = std::lower_bound(material->passes, material->passes + material->passCount, _currentRenderPass, [](const auto& p1, const auto& pass) {
+    auto it = std::lower_bound(material->passes,
+                               material->passes + material->passCount,
+                               _currentRenderPass,
+                               [](const auto& p1, const auto& pass) {
         return p1.render_pass < pass;
     });
 
@@ -254,14 +257,17 @@ bool VkRenderer::onNewFrame() {
 void VkRenderer::onRender(const FrameGraph& frameGraph) {
     auto cb = _device->getCommandBuffer(0);
     cb->bindRenderer(this);
-    cb->pushMarker("frame_graph");
+    cb->pushMarker("total");
 
+    cb->pushMarker("frame_graph");
     for (gerium_uint32_t i = 0; i < frameGraph.nodeCount(); ++i) {
         auto node = frameGraph.getNode(i);
 
         if (!node->enabled) {
             continue;
         }
+
+        auto pass = frameGraph.getPass(node->pass);
 
         _currentRenderPass = node->name;
 
@@ -294,12 +300,32 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
         for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
             auto resource = frameGraph.getResource(node->outputs[i]);
 
+            if (resource->swapchain) {
+                width = gerium_uint16_t(_device->getSwapchainExtent().width);
+                height = gerium_uint16_t(_device->getSwapchainExtent().height);
+                break;
+            }
+
             if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                auto handle = resource->info.texture.handle;
+
+                if (resource->external && pass->pass.external_texture) {
+                    gerium_texture_h texture{};
+                    if (!pass->pass.external_texture(alias_cast<gerium_frame_graph_t>(&frameGraph),
+                                                     this,
+                                                     resource->name,
+                                                     pass->data,
+                                                     &texture)) {
+                        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                    }
+                    handle = { texture.unused };
+                }
+
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
 
                 if (hasDepthOrStencil(toVkFormat(resource->info.texture.format))) {
-                    cb->addImageBarrier(resource->info.texture.handle,
+                    cb->addImageBarrier(handle,
                                         ResourceState::Undefined,
                                         ResourceState::DepthWrite,
                                         0,
@@ -307,13 +333,8 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
                                         true,
                                         hasStencil(toVkFormat(resource->info.texture.format)));
                 } else {
-                    cb->addImageBarrier(resource->info.texture.handle,
-                                        ResourceState::Undefined,
-                                        ResourceState::RenderTarget,
-                                        0,
-                                        1,
-                                        false,
-                                        false);
+                    cb->addImageBarrier(
+                        handle, ResourceState::Undefined, ResourceState::RenderTarget, 0, 1, false, false);
                 }
             }
         }
@@ -327,8 +348,6 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
         cb->setScissor(&scissor);
         cb->setViewport(&viewport);
 
-        auto pass = frameGraph.getPass(node->pass);
-
         if (pass->pass.prepare) {
             pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
         }
@@ -341,6 +360,15 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
 
         cb->popMarker();
     }
+
+    cb->popMarker();
+
+    cb->pushMarker("imgui");
+    cb->bindPass(_device->getSwapchainPass(), _device->getSwapchainFramebuffer());
+    _device->drawProfiler();
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->vkCommandBuffer());
+    cb->popMarker();
 
     cb->popMarker();
     _device->submit(cb);

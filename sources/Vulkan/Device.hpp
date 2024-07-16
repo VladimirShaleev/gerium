@@ -86,8 +86,22 @@ public:
         return _swapchainRenderPass;
     }
 
+    FramebufferHandle getSwapchainFramebuffer() const noexcept {
+        return _swapchainFramebuffers[_swapchainImageIndex];
+    }
+
+    const VkExtent2D& getSwapchainExtent() const noexcept {
+        return _swapchainExtent;
+    }
+
+    // TextureHandle
+
     const RenderPassOutput& getRenderPassOutput(RenderPassHandle handle) const noexcept {
         return _renderPasses.access(handle)->output;
+    }
+
+    void drawProfiler() {
+        _profilerUI.draw(_profiler.get(), 100);
     }
 
     static constexpr gerium_uint32_t MaxFrames = 2;

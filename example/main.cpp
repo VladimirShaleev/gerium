@@ -8,8 +8,9 @@ static gerium_renderer_t renderer       = nullptr;
 static gerium_frame_graph_t frameGraph  = nullptr;
 static gerium_profiler_t profiler       = nullptr;
 
-static gerium_buffer_h vertices       = {};
-static gerium_material_h baseMaterial = {};
+static gerium_buffer_h vertices             = {};
+static gerium_material_h baseMaterial       = {};
+static gerium_material_h fullscreenMaterial = {};
 
 void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
@@ -45,6 +46,27 @@ gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
     gerium_command_buffer_bind_vertex_buffer(command_buffer, vertices, 0, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
     return 1;
+}
+
+gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
+                               gerium_renderer_t renderer,
+                               gerium_command_buffer_t command_buffer,
+                               gerium_data_t data) {
+    gerium_command_buffer_bind_material(command_buffer, fullscreenMaterial);
+    gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
+    return 1;
+}
+
+gerium_bool_t fullscreenExternal(gerium_frame_graph_t frame_graph,
+                                 gerium_renderer_t renderer,
+                                 gerium_utf8_t name,
+                                 gerium_data_t data,
+                                 gerium_texture_h* handle) {
+    if (strcmp(name, "swapchain") == 0) {
+        *handle = gerium_renderer_get_swapchain_texture(renderer);
+        return 1;
+    }
+    return 0;
 }
 
 bool initialize(gerium_application_t application) {
@@ -237,8 +259,27 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create_material(
             renderer, frameGraph, "lighting", std::size(lightingPipelines), lightingPipelines, &lighting));*/
 
-        gerium_render_pass_t simplePass{ 0, 0, simpleRender };
+        gerium_render_pass_t fullscreenPass{ fullscreenExternal, 0, 0, fullscreenRender };
+        gerium_frame_graph_add_pass(frameGraph, "present_pass", &fullscreenPass, nullptr);
+
+        gerium_render_pass_t simplePass{ 0, 0, 0, simpleRender };
         gerium_frame_graph_add_pass(frameGraph, "simple_pass", &simplePass, nullptr);
+
+        gerium_resource_input_t fullscreenInputs[] = {
+            { GERIUM_RESOURCE_TYPE_REFERENCE, "color" },
+        };
+        gerium_resource_output_t fullscreenOutputs[] = {
+            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
+             "swapchain", 1,
+             GERIUM_FORMAT_R8G8B8A8_UNORM, 0,
+             0, GERIUM_RENDER_PASS_OPERATION_DONT_CARE }
+        };
+        check(gerium_frame_graph_add_node(frameGraph,
+                                          "present_pass",
+                                          std::size(fullscreenInputs),
+                                          fullscreenInputs,
+                                          std::size(fullscreenOutputs),
+                                          fullscreenOutputs));
 
         gerium_resource_output_t simpleOutputs[] = {
             { GERIUM_RESOURCE_TYPE_ATTACHMENT,
@@ -250,7 +291,6 @@ bool initialize(gerium_application_t application) {
              GERIUM_FORMAT_D24_UNORM_S8_UINT, 0,
              0, GERIUM_RENDER_PASS_OPERATION_CLEAR }
         };
-
         check(gerium_frame_graph_add_node(
             frameGraph, "simple_pass", 0, nullptr, std::size(simpleOutputs), simpleOutputs));
 
@@ -266,7 +306,7 @@ bool initialize(gerium_application_t application) {
             { 0, sizeof(float) * 7, GERIUM_VERTEX_RATE_PER_VERTEX }
         };
 
-        gerium_shader_t baseShaders[2];
+        gerium_shader_t baseShaders[2]{};
         baseShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
         baseShaders[0].name = "base.vert.glsl";
         baseShaders[0].data = "#version 450\n"
@@ -309,6 +349,45 @@ bool initialize(gerium_application_t application) {
 
         check(gerium_renderer_create_material(
             renderer, frameGraph, "base", std::size(basePipelines), basePipelines, &baseMaterial));
+
+        gerium_shader_t fullscreenShaders[2];
+        fullscreenShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
+        fullscreenShaders[0].name = "fullscreen.vert.glsl";
+        fullscreenShaders[0].data = "#version 450\n"
+                                    "\n"
+                                    "layout(location = 0) out vec2 vTexCoord;"
+                                    "\n"
+                                    "void main() {\n"
+                                    "    vTexCoord.xy = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
+                                    "    gl_Position = vec4(vTexCoord.xy * 2.0f - 1.0f, 0.0f, 1.0f);\n"
+                                    "    gl_Position.y = -gl_Position.y;\n"
+                                    "}\n";
+        fullscreenShaders[0].size = strlen(fullscreenShaders[0].data);
+
+        fullscreenShaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
+        fullscreenShaders[1].name = "fullscreen.frag.glsl";
+        fullscreenShaders[1].data = "#version 450\n"
+                                    "\n"
+                                    "layout(location = 0) in vec2 vTexCoord;\n"
+                                    
+                                    "layout(location = 0) out vec4 outColor;\n"
+                                    "\n"
+                                    "void main() {\n"
+                                    "    outColor = vec4(vTexCoord, 0.0, 1.0);\n"
+                                    "}\n";
+        fullscreenShaders[1].size = strlen(fullscreenShaders[1].data);
+
+        gerium_pipeline_t fullscreenPipelines[1]{};
+        fullscreenPipelines[0].render_pass  = "present_pass";
+        fullscreenPipelines[0].shader_count = std::size(fullscreenShaders);
+        fullscreenPipelines[0].shaders      = fullscreenShaders;
+
+        check(gerium_renderer_create_material(renderer,
+                                              frameGraph,
+                                              "fullscreen",
+                                              std::size(fullscreenPipelines),
+                                              fullscreenPipelines,
+                                              &fullscreenMaterial));
 
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());

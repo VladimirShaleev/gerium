@@ -349,27 +349,27 @@ void Device::present() {
     data2->f   = f2;
     unmapBuffer(_obj2);
 
-    auto cb = getCommandBuffer(0);
-    cb->pushMarker("total");
-    cb->pushMarker("triangle");
-    cb->clearColor(1.0f, 0.8f, 1.0f, 1.0f);
-    cb->clearDepthStencil(1.0f, 0);
-    cb->bindPass(_swapchainRenderPass, _swapchainFramebuffers[_swapchainImageIndex]);
-    cb->bindPipeline(_pipeline);
-    cb->setScissor(nullptr);
-    cb->setViewport(nullptr);
-    cb->bindDescriptorSet(_descriptorSet0);
-    cb->bindDescriptorSet(_descriptorSet1);
-    cb->bindVertexBuffer(_vertices, 0, 0);
-    cb->draw(0, 3, 0, 1);
-    cb->popMarker();
-    cb->pushMarker("imgui");
-    _profilerUI.draw(_profiler.get(), 100);
-    ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->_commandBuffer);
-    cb->popMarker();
-    cb->popMarker();
-    submit(cb);
+    // auto cb = getCommandBuffer(0);
+    // cb->pushMarker("total");
+    // cb->pushMarker("triangle");
+    // cb->clearColor(1.0f, 0.8f, 1.0f, 1.0f);
+    // cb->clearDepthStencil(1.0f, 0);
+    // cb->bindPass(_swapchainRenderPass, _swapchainFramebuffers[_swapchainImageIndex]);
+    // cb->bindPipeline(_pipeline);
+    // cb->setScissor(nullptr);
+    // cb->setViewport(nullptr);
+    // cb->bindDescriptorSet(_descriptorSet0);
+    // cb->bindDescriptorSet(_descriptorSet1);
+    // cb->bindVertexBuffer(_vertices, 0, 0);
+    // cb->draw(0, 3, 0, 1);
+    // cb->popMarker();
+    // cb->pushMarker("imgui");
+    // _profilerUI.draw(_profiler.get(), 100);
+    // ImGui::Render();
+    // ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->_commandBuffer);
+    // cb->popMarker();
+    // cb->popMarker();
+    // submit(cb);
     //
     ////////////////////
 
