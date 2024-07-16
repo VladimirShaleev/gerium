@@ -16,6 +16,19 @@ struct RenderPassHandle : Handle {};
 
 struct FramebufferHandle : Handle {};
 
+enum class ResourceUsageType {
+    Immutable,
+    Dynamic,
+    Staging
+};
+
+enum class BufferUsageFlags {
+    Vertex  = 1,
+    Index   = 2,
+    Uniform = 4
+};
+GERIUM_FLAGS(BufferUsageFlags)
+
 enum class TextureFlags {
     None         = 0,
     RenderTarget = 1,
@@ -23,18 +36,59 @@ enum class TextureFlags {
 };
 GERIUM_FLAGS(TextureFlags)
 
+struct BufferCreation {
+    BufferUsageFlags usageFlags = {};
+    ResourceUsageType usage     = ResourceUsageType::Immutable;
+    uint32_t size               = 0;
+    bool persistent             = false;
+    void* initialData           = nullptr;
+    const char* name            = nullptr;
+
+    BufferCreation& reset() {
+        usageFlags  = {};
+        usage       = ResourceUsageType::Immutable;
+        size        = 0;
+        persistent  = false;
+        initialData = nullptr;
+        name        = nullptr;
+        return *this;
+    }
+
+    BufferCreation& set(BufferUsageFlags flags, ResourceUsageType usage, uint32_t size) noexcept {
+        this->usageFlags = flags;
+        this->usage      = usage;
+        this->size       = size;
+        return *this;
+    }
+
+    BufferCreation& setInitialData(void* data) noexcept {
+        initialData = data;
+        return *this;
+    }
+
+    BufferCreation& setName(const char* name) noexcept {
+        this->name = name;
+        return *this;
+    }
+
+    BufferCreation& setPersistent(bool value) noexcept {
+        persistent = value;
+        return *this;
+    }
+};
+
 struct TextureCreation {
-    uint16_t              width        = 1;
-    uint16_t              height       = 1;
-    uint16_t              depth        = 1;
-    uint16_t              mipmaps      = 1;
-    TextureFlags          flags        = TextureFlags::None;
-    gerium_format_t       format       = GERIUM_FORMAT_R8G8B8A8_UNORM;
-    gerium_texture_type_t type         = GERIUM_TEXTURE_TYPE_2D;
-    TextureHandle         alias        = Undefined;
-    void*                 initialData  = nullptr;
-    const char*           name         = nullptr;
-    
+    uint16_t width             = 1;
+    uint16_t height            = 1;
+    uint16_t depth             = 1;
+    uint16_t mipmaps           = 1;
+    TextureFlags flags         = TextureFlags::None;
+    gerium_format_t format     = GERIUM_FORMAT_R8G8B8A8_UNORM;
+    gerium_texture_type_t type = GERIUM_TEXTURE_TYPE_2D;
+    TextureHandle alias        = Undefined;
+    void* initialData          = nullptr;
+    const char* name           = nullptr;
+
     TextureCreation& setSize(uint16_t width, uint16_t height, uint16_t depth) {
         this->width  = width;
         this->height = height;
@@ -44,8 +98,8 @@ struct TextureCreation {
 
     TextureCreation& setFlags(uint8_t mipmaps, bool renderTarget, bool compute) {
         this->mipmaps = mipmaps;
-        this->flags  |= renderTarget ? TextureFlags::RenderTarget : TextureFlags::None;
-        this->flags  |= compute ? TextureFlags::Compute : TextureFlags::None;
+        this->flags |= renderTarget ? TextureFlags::RenderTarget : TextureFlags::None;
+        this->flags |= compute ? TextureFlags::Compute : TextureFlags::None;
         return *this;
     }
 

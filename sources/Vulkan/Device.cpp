@@ -214,26 +214,26 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     BufferCreation vc;
     vc.reset()
-        .set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, ResourceUsageType::Immutable, sizeof(Vertex) * 3)
+        .set(BufferUsageFlags::Vertex, ResourceUsageType::Immutable, sizeof(Vertex) * 3)
         .setName("vertices")
         .setInitialData((void*) vertices);
     _vertices = createBuffer(vc);
 
     BufferCreation bc;
     bc.reset()
-        .set(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, sizeof(UniformBufferObject))
+        .set(BufferUsageFlags::Uniform, ResourceUsageType::Dynamic, sizeof(UniformBufferObject))
         .setName("mesh_data");
     _ubo = createBuffer(bc);
 
     BufferCreation bc1;
     bc1.reset()
-        .set(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, sizeof(UniformBufferObject1))
+        .set(BufferUsageFlags::Uniform, ResourceUsageType::Dynamic, sizeof(UniformBufferObject1))
         .setName("ubo1");
     _obj1 = createBuffer(bc1);
 
     BufferCreation bc2;
     bc2.reset()
-        .set(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, sizeof(UniformBufferObject2))
+        .set(BufferUsageFlags::Uniform, ResourceUsageType::Dynamic, sizeof(UniformBufferObject2))
         .setName("ubo2");
     _obj2 = createBuffer(bc2);
 
@@ -354,7 +354,8 @@ void Device::present() {
     cb->pushMarker("triangle");
     cb->clearColor(1.0f, 0.8f, 1.0f, 1.0f);
     cb->clearDepthStencil(1.0f, 0);
-    cb->bindPipeline(_pipeline, _swapchainFramebuffers[_swapchainImageIndex]);
+    cb->bindPass(_swapchainRenderPass, _swapchainFramebuffers[_swapchainImageIndex]);
+    cb->bindPipeline(_pipeline);
     cb->setScissor(nullptr);
     cb->setViewport(nullptr);
     cb->bindDescriptorSet(_descriptorSet0);
@@ -433,22 +434,22 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 
     auto [handle, buffer] = _buffers.obtain_and_access();
 
-    buffer->vkUsageFlags = creation.usageFlags;
+    buffer->vkUsageFlags = toVkBufferUsageFlags(creation.usageFlags);
     buffer->usage        = creation.usage;
     buffer->size         = creation.size;
     buffer->name         = intern(creation.name);
     buffer->parent       = Undefined;
 
-    constexpr VkBufferUsageFlags dynamicBufferFlags =
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    constexpr auto dynamicBufferFlags =
+        BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform;
 
-    const bool useGlobalBuffer = (creation.usageFlags & dynamicBufferFlags) != 0;
+    const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
         buffer->parent = _dynamicBuffer;
         return handle;
     }
 
-    const auto vkUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | creation.usageFlags;
+    const auto vkUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | buffer->vkUsageFlags;
 
     VmaAllocationCreateFlags vmaFlags;
     switch (creation.usage) {
@@ -526,8 +527,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
             }
         } else {
             BufferCreation stagingCreation{};
-            stagingCreation.set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            stagingCreation.set(dynamicBufferFlags,
                                 ResourceUsageType::Dynamic,
                                 buffer->size);
             auto stagingBuffer = createBuffer(stagingCreation);
@@ -604,7 +604,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     setObjectName(VK_OBJECT_TYPE_IMAGE, (uint64_t) texture->vkImage, texture->name);
 
-    VkImageAspectFlags aspectMask;
+    VkImageAspectFlags aspectMask{};
     if (hasDepthOrStencil(texture->vkFormat)) {
         aspectMask |= hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
         aspectMask |= hasStencil(texture->vkFormat) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
@@ -1466,7 +1466,7 @@ void Device::createDynamicBuffer() {
     _dynamicBufferSize = 1024 * 1024 * 10;
 
     BufferCreation bc;
-    bc.set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+    bc.set(BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform,
            ResourceUsageType::Staging,
            _dynamicBufferSize * MaxFrames)
         .setPersistent(true)

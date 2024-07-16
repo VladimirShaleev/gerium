@@ -16,6 +16,7 @@ GERIUM_BEGIN
 GERIUM_TYPE(gerium_logger)
 GERIUM_TYPE(gerium_application)
 GERIUM_TYPE(gerium_renderer)
+GERIUM_TYPE(gerium_command_buffer)
 GERIUM_TYPE(gerium_frame_graph)
 GERIUM_TYPE(gerium_profiler)
 
@@ -216,6 +217,7 @@ typedef gerium_bool_t
 typedef gerium_bool_t
 (*gerium_frame_graph_render_func_t)(gerium_frame_graph_t frame_graph,
                                     gerium_renderer_t renderer,
+                                    gerium_command_buffer_t command_buffer,
                                     gerium_data_t data);
 
 typedef struct
@@ -469,9 +471,11 @@ gerium_public void
 gerium_renderer_destroy(gerium_renderer_t renderer);
 
 gerium_public gerium_result_t
-gerium_renderer_create_buffer(gerium_renderer_t renderer,
-                              const gerium_buffer_creation_t* creation,
-                              gerium_buffer_h* handle);
+gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,
+                                        gerium_utf8_t name,
+                                        gerium_cdata_t data,
+                                        gerium_uint32_t size,
+                                        gerium_buffer_h* handle);
 
 gerium_public gerium_result_t
 gerium_renderer_create_texture(gerium_renderer_t renderer,
@@ -503,6 +507,23 @@ gerium_renderer_present(gerium_renderer_t renderer);
 gerium_public gerium_result_t
 gerium_frame_graph_create(gerium_renderer_t renderer,
                           gerium_frame_graph_t* frame_graph);
+
+gerium_public void
+gerium_command_buffer_bind_material(gerium_command_buffer_t command_buffer,
+                                    gerium_material_h handle);
+
+gerium_public void
+gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_buffer,
+                                         gerium_buffer_h handle,
+                                         gerium_uint32_t binding,
+                                         gerium_uint32_t offset);
+
+gerium_public void
+gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
+                           gerium_uint32_t first_vertex,
+                           gerium_uint32_t vertex_count,
+                           gerium_uint32_t first_instance,
+                           gerium_uint32_t instance_count);
 
 gerium_public gerium_frame_graph_t
 gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);

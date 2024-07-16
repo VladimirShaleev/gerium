@@ -5,12 +5,6 @@
 
 namespace gerium::vulkan {
 
-enum class ResourceUsageType {
-    Immutable,
-    Dynamic,
-    Staging
-};
-
 enum class ResourceState {
     Undefined               = 0,
     VertexAndConstantBuffer = 0x1,

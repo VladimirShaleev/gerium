@@ -20,6 +20,7 @@ constexpr uint8_t  kMaxDescriptorsPerSet    = 16;
 constexpr uint8_t  kMaxVertexStreams        = 16;
 constexpr uint8_t  kMaxVertexAttributes     = 16;
 constexpr uint8_t  kMaxShaderStages         = 5;
+constexpr uint8_t  kMaxMaterialPasses       = 20;
 constexpr uint32_t kGlobalPoolElements      = 1024;
 constexpr uint32_t kDescriptorSetsPoolSize  = 1024;
 
@@ -38,47 +39,7 @@ using DescriptorSetLayoutPool = ResourcePool<struct DescriptorSetLayout, Descrip
 using ProgramPool             = ResourcePool<struct Program, ProgramHandle>;
 using PipelinePool            = ResourcePool<struct Pipeline, PipelineHandle>;
 using FramebufferPool         = ResourcePool<struct Framebuffer, FramebufferHandle>;
-
-struct BufferCreation {
-    VkBufferUsageFlags usageFlags  = {};
-    ResourceUsageType  usage       = ResourceUsageType::Immutable;
-    uint32_t           size        = 0;
-    bool               persistent  = false;
-    void*              initialData = nullptr;
-    const char*        name        = nullptr;
-
-    BufferCreation& reset() {
-        usageFlags  = {};
-        usage       = ResourceUsageType::Immutable;
-        size        = 0;
-        persistent  = false;
-        initialData = nullptr;
-        name        = nullptr;
-        return *this;
-    }
-
-    BufferCreation& set(VkBufferUsageFlags flags, ResourceUsageType usage, uint32_t size) noexcept {
-        this->usageFlags = flags;
-        this->usage      = usage;
-        this->size       = size;
-        return *this;
-    }
-
-    BufferCreation& setInitialData(void* data) noexcept {
-        initialData = data;
-        return *this;
-    }
-
-    BufferCreation& setName(const char* name) noexcept {
-        this->name = name;
-        return *this;
-    }
-
-    BufferCreation& setPersistent(bool value) noexcept {
-        persistent = value;
-        return *this;
-    }
-};
+using MaterialPool            = ResourcePool<struct Material, MaterialHandle>;
 
 struct SamplerCreation {
     VkFilter            minFilter = VK_FILTER_NEAREST;
@@ -602,6 +563,17 @@ struct Framebuffer {
     uint8_t resize;
 
     gerium_utf8_t name;
+};
+
+struct MaterialPass {
+    gerium_utf8_t  render_pass;
+    PipelineHandle pipeline;
+};
+
+struct Material {
+    gerium_utf8_t   name;
+    gerium_uint32_t passCount;
+    MaterialPass    passes[kMaxMaterialPasses];
 };
 
 // clang-format on

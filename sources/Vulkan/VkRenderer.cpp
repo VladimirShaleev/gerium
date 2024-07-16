@@ -5,10 +5,21 @@ namespace gerium::vulkan {
 
 VkRenderer::VkRenderer(Application* application, std::unique_ptr<Device>&& device) noexcept :
     _application(application),
-    _device(std::move(device)) {
+    _device(std::move(device)),
+    _currentRenderPass(nullptr) {
     if (!application->isRunning()) {
         error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
     }
+}
+
+PipelineHandle VkRenderer::getPipeline(MaterialHandle handle) const noexcept {
+    auto material = _materials.access(handle);
+
+    auto it = std::lower_bound(material->passes, material->passes + material->passCount, _currentRenderPass, [](const auto& p1, const auto& pass) {
+        return p1.render_pass < pass;
+    });
+
+    return it != material->passes + material->passCount ? it->pipeline : Undefined;
 }
 
 void VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
@@ -19,10 +30,8 @@ Application* VkRenderer::application() noexcept {
     return _application.get();
 }
 
-BufferHandle VkRenderer::onCreateBuffer(const gerium_buffer_creation_t& creation) {
-    BufferCreation bc;
-    // TODO: add creation
-    return _device->createBuffer(bc);
+BufferHandle VkRenderer::onCreateBuffer(const BufferCreation& creation) {
+    return _device->createBuffer(creation);
 }
 
 TextureHandle VkRenderer::onCreateTexture(const TextureCreation& creation) {
@@ -33,12 +42,13 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
                                             gerium_utf8_t name,
                                             gerium_uint32_t pipelineCount,
                                             const gerium_pipeline_t* pipelines) {
-    PipelineCreation creations[100]{};
+    auto [handle, material] = _materials.obtain_and_access();
+    material->name          = intern(name);
+
     ViewportState viewport{};
 
     for (gerium_uint32_t i = 0; i < pipelineCount; ++i) {
-        auto& pc = creations[i];
-
+        PipelineCreation pc{};
         pc.rasterization.cullMode = VK_CULL_MODE_NONE;
         pc.rasterization.front    = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         pc.rasterization.fill     = FillMode::Solid;
@@ -50,7 +60,7 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
         pc.depthStencil.stencilEnable    = 0;
         // pc.program                       = ;
         pc.viewport = &viewport;
-        pc.name     = "Simple Triangle";
+        pc.name     = pipelines[i].render_pass;
 
         for (gerium_uint32_t j = 0; j < pipelines[i].shader_count; ++j) {
             const auto& shader = pipelines[i].shaders[j];
@@ -107,8 +117,17 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
         } else {
             pc.renderPass = _device->getRenderPassOutput(_device->getSwapchainPass());
         }
+
+        material->passes[i].render_pass = intern(pipelines[i].render_pass);
+        material->passes[i].pipeline    = _device->createPipeline(pc);
+        ++material->passCount;
     }
-    return MaterialHandle();
+
+    std::sort(material->passes, material->passes + material->passCount, [](const auto& mat1, const auto& mat2) {
+        return mat1.render_pass < mat2.render_pass;
+    });
+
+    return handle;
 }
 
 RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) {
@@ -234,6 +253,7 @@ bool VkRenderer::onNewFrame() {
 
 void VkRenderer::onRender(const FrameGraph& frameGraph) {
     auto cb = _device->getCommandBuffer(0);
+    cb->bindRenderer(this);
     cb->pushMarker("frame_graph");
 
     for (gerium_uint32_t i = 0; i < frameGraph.nodeCount(); ++i) {
@@ -242,6 +262,8 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
         if (!node->enabled) {
             continue;
         }
+
+        _currentRenderPass = node->name;
 
         cb->pushMarker(node->name);
 
@@ -313,7 +335,7 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
 
         cb->bindPass(node->renderPass, node->framebuffer);
 
-        if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data)) {
+        if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, pass->data)) {
             error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
         }
 

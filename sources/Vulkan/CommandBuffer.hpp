@@ -6,6 +6,7 @@
 #ifndef GERIUM_WINDOWS_VULKAN_COMMAND_BUFFER_HPP
 #define GERIUM_WINDOWS_VULKAN_COMMAND_BUFFER_HPP
 
+#include "../CommandBuffer.hpp"
 #include "../Gerium.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
@@ -14,9 +15,10 @@
 namespace gerium::vulkan {
 
 class Device;
+class VkRenderer;
 class CommandBufferManager;
 
-class CommandBuffer final {
+class CommandBuffer final : public gerium::CommandBuffer {
 public:
     CommandBuffer(Device& device, VkCommandBuffer commandBuffer);
     ~CommandBuffer();
@@ -33,13 +35,8 @@ public:
     void setScissor(const Rect2DInt* rect);
     void setViewport(const Viewport* viewport);
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer);
-    void bindPipeline(PipelineHandle pipeline, FramebufferHandle framebuffer);
-    void bindVertexBuffer(BufferHandle handle, uint32_t binding, uint32_t offset);
+    void bindPipeline(PipelineHandle pipeline);
     void bindDescriptorSet(DescriptorSetHandle handle);
-    void draw(gerium_uint32_t firstVertex,
-              gerium_uint32_t vertexCount,
-              gerium_uint32_t firstInstance,
-              gerium_uint32_t instanceCount);
     void copyBuffer(BufferHandle src, BufferHandle dst);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
@@ -50,6 +47,13 @@ private:
     friend CommandBufferManager;
 
     void endCurrentRenderPass();
+
+    void onBindMaterial(MaterialHandle handle) noexcept override;
+    void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept override;
+    void onDraw(gerium_uint32_t firstVertex,
+                gerium_uint32_t vertexCount,
+                gerium_uint32_t firstInstance,
+                gerium_uint32_t instanceCount) noexcept override;
 
     VkProfiler* profiler() noexcept;
 

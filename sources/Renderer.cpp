@@ -12,7 +12,7 @@ gerium_result_t Renderer::initialize(gerium_uint32_t version, bool debug) noexce
     });
 }
 
-gerium_result_t Renderer::createBuffer(const gerium_buffer_creation_t& creation, gerium_buffer_h& handle) noexcept {
+gerium_result_t Renderer::createBuffer(const BufferCreation& creation, BufferHandle& handle) noexcept {
     return invoke<Renderer>([&creation, &handle](auto obj) {
         handle = obj->onCreateBuffer(creation);
     });
@@ -98,13 +98,25 @@ void gerium_renderer_destroy(gerium_renderer_t renderer) {
     }
 }
 
-gerium_result_t gerium_renderer_create_buffer(gerium_renderer_t renderer,
-                                              const gerium_buffer_creation_t* creation,
-                                              gerium_buffer_h* handle) {
+gerium_result_t gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,
+                                                        gerium_utf8_t name,
+                                                        gerium_cdata_t data,
+                                                        gerium_uint32_t size,
+                                                        gerium_buffer_h* handle) {
     assert(renderer);
-    assert(creation);
+    assert(data);
     assert(handle);
-    return alias_cast<Renderer*>(renderer)->createBuffer(*creation, *handle);
+
+    BufferCreation bc;
+    bc.set(BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform,
+           ResourceUsageType::Immutable,
+           size)
+        .setName(name)
+        .setInitialData((void*) data);
+    BufferHandle buffer;
+    auto result = alias_cast<Renderer*>(renderer)->createBuffer(bc, buffer);
+    *handle     = buffer;
+    return result;
 }
 
 gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,

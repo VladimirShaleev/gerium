@@ -12,13 +12,15 @@ class VkRenderer : public Renderer {
 public:
     VkRenderer(Application* application, std::unique_ptr<Device>&& device) noexcept;
 
+    PipelineHandle getPipeline(MaterialHandle handle) const noexcept;
+
 protected:
     void onInitialize(gerium_uint32_t version, bool debug) override;
 
     Application* application() noexcept;
 
 private:
-    BufferHandle onCreateBuffer(const gerium_buffer_creation_t& creation) override;
+    BufferHandle onCreateBuffer(const BufferCreation& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
     MaterialHandle onCreateMaterial(const FrameGraph& frameGraph,
                                     gerium_utf8_t name,
@@ -37,6 +39,9 @@ private:
 
     ObjectPtr<Application> _application;
     std::unique_ptr<Device> _device;
+    gerium_utf8_t _currentRenderPass;
+
+    MaterialPool _materials;
 };
 
 } // namespace gerium::vulkan

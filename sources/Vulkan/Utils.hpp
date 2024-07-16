@@ -2,6 +2,7 @@
 #define GERIUM_WINDOWS_VULKAN_UTILS_HPP
 
 #include "../Gerium.hpp"
+#include "../Handles.hpp"
 #include "Enums.hpp"
 
 namespace gerium::vulkan {
@@ -137,6 +138,24 @@ gerium_inline VkFormat toVkFormat(gerium_format_t format) noexcept {
             assert(!"unreachable code");
             return VK_FORMAT_UNDEFINED;
     }
+}
+
+gerium_inline VkBufferUsageFlags toVkBufferUsageFlags(BufferUsageFlags flags) noexcept {
+    VkBufferUsageFlags result{};
+
+    if ((flags & BufferUsageFlags::Vertex) == BufferUsageFlags::Vertex) {
+        result |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    }
+
+    if ((flags & BufferUsageFlags::Index) == BufferUsageFlags::Index) {
+        result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    }
+
+    if ((flags & BufferUsageFlags::Uniform) == BufferUsageFlags::Uniform) {
+        result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    }
+
+    return result;
 }
 
 gerium_inline VkImageType toVkImageType(gerium_texture_type_t type) noexcept {

@@ -79,13 +79,13 @@ typedef const void* gerium_cdata_t;
 #ifdef __cplusplus
 # define GERIUM_FLAGS(gerium_enum_t)                                                                          \
 extern "C++" {                                                                                                \
-inline gerium_enum_t operator|(gerium_enum_t lhr, gerium_enum_t rhs) noexcept {                               \
+inline constexpr gerium_enum_t operator|(gerium_enum_t lhr, gerium_enum_t rhs) noexcept {                     \
     return static_cast<gerium_enum_t>(static_cast<gerium_sint32_t>(lhr) | static_cast<gerium_sint32_t>(rhs)); \
 }                                                                                                             \
-inline gerium_enum_t operator&(gerium_enum_t lhr, gerium_enum_t rhs) noexcept {                               \
+inline constexpr gerium_enum_t operator&(gerium_enum_t lhr, gerium_enum_t rhs) noexcept {                     \
     return static_cast<gerium_enum_t>(static_cast<gerium_sint32_t>(lhr) & static_cast<gerium_sint32_t>(rhs)); \
 }                                                                                                             \
-inline gerium_enum_t operator^(gerium_enum_t lhr, gerium_enum_t rhs) noexcept {                               \
+inline constexpr gerium_enum_t operator^(gerium_enum_t lhr, gerium_enum_t rhs) noexcept {                     \
     return static_cast<gerium_enum_t>(static_cast<gerium_sint32_t>(lhr) ^ static_cast<gerium_sint32_t>(rhs)); \
 }                                                                                                             \
 inline gerium_enum_t& operator|=(gerium_enum_t& lhr, gerium_enum_t rhs) noexcept {                            \

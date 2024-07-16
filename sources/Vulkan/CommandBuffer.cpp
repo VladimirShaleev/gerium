@@ -1,5 +1,6 @@
 #include "CommandBuffer.hpp"
 #include "Device.hpp"
+#include "VkRenderer.hpp"
 
 namespace gerium::vulkan {
 
@@ -108,7 +109,7 @@ void CommandBuffer::setViewport(const Viewport* viewport) {
 }
 
 void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
-    auto renderPassObj = _device->_renderPasses.access(renderPass);
+    auto renderPassObj  = _device->_renderPasses.access(renderPass);
     auto framebufferObj = _device->_framebuffers.access(framebuffer);
 
     if (_currentRenderPass != renderPass) {
@@ -145,59 +146,14 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle fram
     }
 }
 
-void CommandBuffer::bindPipeline(PipelineHandle pipeline, FramebufferHandle framebuffer) {
-    auto pipelineObj    = _device->_pipelines.access(pipeline);
-    auto framebufferObj = _device->_framebuffers.access(framebuffer);
-    auto renderPass     = _device->_renderPasses.access(pipelineObj->renderPass);
+// TODO: remove later
+void CommandBuffer::bindPipeline(PipelineHandle pipeline) {
+    auto pipelineObj = _device->_pipelines.access(pipeline);
 
-    if (_currentRenderPass != pipelineObj->renderPass) {
-        endCurrentRenderPass();
-
-        uint32_t clearValuesCount = 0;
-        VkClearValue clearValues[kMaxImageOutputs + 1];
-
-        for (uint32_t o = 0; o < renderPass->output.numColorFormats; ++o) {
-            if (renderPass->output.colorOperations[o] == GERIUM_RENDER_PASS_OPERATION_CLEAR) {
-                clearValues[clearValuesCount++] = _clears[0];
-            }
-        }
-
-        if (renderPass->output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
-            if (renderPass->output.depthOperation == GERIUM_RENDER_PASS_OPERATION_CLEAR) {
-                clearValues[clearValuesCount++] = _clears[1];
-            }
-        }
-
-        VkRenderPassBeginInfo renderPassBegin{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-        renderPassBegin.framebuffer       = framebufferObj->vkFramebuffer;
-        renderPassBegin.renderPass        = renderPass->vkRenderPass;
-        renderPassBegin.renderArea.offset = { 0, 0 };
-        renderPassBegin.renderArea.extent = { framebufferObj->width, framebufferObj->height };
-        renderPassBegin.clearValueCount   = clearValuesCount;
-        renderPassBegin.pClearValues      = clearValues;
-        _device->vkTable().vkCmdBeginRenderPass(_commandBuffer,
-                                                &renderPassBegin,
-                                                false ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
-                                                      : VK_SUBPASS_CONTENTS_INLINE);
-        _currentRenderPass  = pipelineObj->renderPass;
-        _currentFramebuffer = framebuffer;
+    if (_currentPipeline != pipeline) {
+        _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
+        _currentPipeline = pipeline;
     }
-
-    _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
-    _currentPipeline = pipeline;
-}
-
-void CommandBuffer::bindVertexBuffer(BufferHandle handle, uint32_t binding, uint32_t offset) {
-    auto buffer = _device->_buffers.access(handle);
-
-    VkBuffer vkBuffer     = buffer->vkBuffer;
-    VkDeviceSize vkOffset = offset;
-    if (buffer->parent != Undefined) {
-        auto parentBuffer = _device->_buffers.access(buffer->parent);
-        vkBuffer          = parentBuffer->vkBuffer;
-        vkOffset          = buffer->globalOffset;
-    }
-    _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
 }
 
 void CommandBuffer::bindDescriptorSet(DescriptorSetHandle handle) {
@@ -232,13 +188,6 @@ void CommandBuffer::bindDescriptorSet(DescriptorSetHandle handle) {
                                                &descriptorSet->vkDescriptorSet,
                                                numOffsets,
                                                offsetsCache);
-}
-
-void CommandBuffer::draw(gerium_uint32_t firstVertex,
-                         gerium_uint32_t vertexCount,
-                         gerium_uint32_t firstInstance,
-                         gerium_uint32_t instanceCount) {
-    _device->vkTable().vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
@@ -333,6 +282,38 @@ void CommandBuffer::endCurrentRenderPass() {
         _currentRenderPass  = Undefined;
         _currentFramebuffer = Undefined;
     }
+}
+
+void CommandBuffer::onBindMaterial(MaterialHandle handle) noexcept {
+    auto pipeline = alias_cast<VkRenderer*>(getRenderer())->getPipeline(handle);
+
+    if (_currentPipeline != pipeline) {
+        auto pipelineObj = _device->_pipelines.access(pipeline);
+        _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
+        _currentPipeline = pipeline;
+    }
+}
+
+void CommandBuffer::onBindVertexBuffer(BufferHandle handle,
+                                       gerium_uint32_t binding,
+                                       gerium_uint32_t offset) noexcept {
+    auto buffer = _device->_buffers.access(handle);
+
+    VkBuffer vkBuffer     = buffer->vkBuffer;
+    VkDeviceSize vkOffset = offset;
+    if (buffer->parent != Undefined) {
+        auto parentBuffer = _device->_buffers.access(buffer->parent);
+        vkBuffer          = parentBuffer->vkBuffer;
+        vkOffset          = buffer->globalOffset;
+    }
+    _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
+}
+
+void CommandBuffer::onDraw(gerium_uint32_t firstVertex,
+                           gerium_uint32_t vertexCount,
+                           gerium_uint32_t firstInstance,
+                           gerium_uint32_t instanceCount) noexcept {
+    _device->vkTable().vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 VkProfiler* CommandBuffer::profiler() noexcept {

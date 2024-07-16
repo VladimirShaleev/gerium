@@ -8,6 +8,7 @@ static gerium_renderer_t renderer       = nullptr;
 static gerium_frame_graph_t frameGraph  = nullptr;
 static gerium_profiler_t profiler       = nullptr;
 
+static gerium_buffer_h vertices       = {};
 static gerium_material_h baseMaterial = {};
 
 void check(gerium_result_t result) {
@@ -36,7 +37,13 @@ gerium_bool_t depthPrePassRender(gerium_frame_graph_t frame_graph, gerium_render
     return 1;
 } */
 
-gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph, gerium_renderer_t renderer, gerium_data_t data) {
+gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
+                           gerium_renderer_t renderer,
+                           gerium_command_buffer_t command_buffer,
+                           gerium_data_t data) {
+    gerium_command_buffer_bind_material(command_buffer, baseMaterial);
+    gerium_command_buffer_bind_vertex_buffer(command_buffer, vertices, 0, 0);
+    gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
     return 1;
 }
 
@@ -52,6 +59,19 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &renderer));
         check(gerium_frame_graph_create(renderer, &frameGraph));
         check(gerium_profiler_create(renderer, &profiler));
+
+        struct Vertex {
+            float position[2];
+            float color[3];
+            float texcoord[2];
+        };
+
+        Vertex vData[3]{
+            { { 0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+            { { 0.5, 0.5 },    { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+            { { -0.5, 0.5 },   { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } }
+        };
+        check(gerium_renderer_create_buffer_from_data(renderer, "vertices", vData, sizeof(Vertex) * 3, &vertices));
 
         /*gerium_render_pass_t gbufferPass{ 0, 0, gbufferRender };
         gerium_render_pass_t transparentPass{ 0, 0, transparentRender };
@@ -250,46 +270,32 @@ bool initialize(gerium_application_t application) {
         baseShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
         baseShaders[0].name = "base.vert.glsl";
         baseShaders[0].data = "#version 450\n"
-                                "\n"
-                                "layout(location = 0) in vec2 inPosition;\n"
-                                "layout(location = 1) in vec3 inColor;\n"
-                                "layout(location = 2) in vec2 inTexCoord;\n"
-                                "\n"
-                                "layout(location = 0) out vec3 outColor;\n"
-                                "layout(location = 1) out vec2 outTexCoord;\n"
-                                "\n"
-                                "layout(binding = 0) uniform UniformBufferObject {\n"
-                                "    mat4 model;\n"
-                                "    mat4 view;\n"
-                                "    mat4 proj;\n"
-                                "} ubo;\n"
-                                "\n"
-                                "void main() {\n"
-                                "    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 0.0, 1.0);\n"
-                                "    outColor = inColor;\n"
-                                "    outTexCoord = inTexCoord;\n"
-                                "}\n";
+                              "\n"
+                              "layout(location = 0) in vec2 inPosition;\n"
+                              "layout(location = 1) in vec3 inColor;\n"
+                              "layout(location = 2) in vec2 inTexCoord;\n"
+                              "\n"
+                              "layout(location = 0) out vec3 outColor;\n"
+                              "layout(location = 1) out vec2 outTexCoord;\n"
+                              "\n"
+                              "void main() {\n"
+                              "    gl_Position = vec4(inPosition, 0.0, 1.0);\n"
+                              "    outColor = inColor;\n"
+                              "    outTexCoord = inTexCoord;\n"
+                              "}\n";
         baseShaders[0].size = strlen(baseShaders[0].data);
 
         baseShaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
         baseShaders[1].name = "base.frag.glsl";
         baseShaders[1].data = "#version 450\n"
-                                "\n"
-                                "layout(location = 0) in vec3 inColor;\n"
+                              "\n"
+                              "layout(location = 0) in vec3 inColor;\n"
 
-                                "layout(location = 0) out vec4 outColor;\n"
-                                "\n"
-                                "layout(set = 1, binding = 2) uniform UniformBufferObject1 {\n"
-                                "    float f;\n"
-                                "} test;\n"
-                                "\n"
-                                "layout(set = 0, binding = 2) uniform UniformBufferObject2 {\n"
-                                "    float f;\n"
-                                "} test2;\n"
-                                "\n"
-                                "void main() {\n"
-                                "    outColor = vec4(inColor.r * test.f, inColor.g * test2.f, inColor.b, 1.0);\n"
-                                "}\n";
+                              "layout(location = 0) out vec4 outColor;\n"
+                              "\n"
+                              "void main() {\n"
+                              "    outColor = vec4(inColor, 1.0);\n"
+                              "}\n";
         baseShaders[1].size = strlen(baseShaders[1].data);
 
         gerium_pipeline_t basePipelines[1];
