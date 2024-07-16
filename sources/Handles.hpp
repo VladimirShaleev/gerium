@@ -10,6 +10,8 @@ struct BufferHandle : Handle {};
 
 struct TextureHandle : Handle {};
 
+struct MaterialHandle : Handle {};
+
 struct RenderPassHandle : Handle {};
 
 struct FramebufferHandle : Handle {};

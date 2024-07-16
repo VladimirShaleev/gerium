@@ -24,6 +24,15 @@ gerium_result_t Renderer::createTexture(const TextureCreation& creation, Texture
     });
 }
 
+gerium_result_t Renderer::createMaterial(const FrameGraph& frameGraph,
+                                         gerium_uint32_t pipelineCount,
+                                         const gerium_pipeline_t* pipelines,
+                                         MaterialHandle& handle) noexcept {
+    return invoke<Renderer>([&frameGraph, pipelineCount, pipelines, &handle](auto obj) {
+        handle = obj->onCreateMaterial(frameGraph, pipelineCount, pipelines);
+    });
+}
+
 gerium_result_t Renderer::createRenderPass(const FrameGraph& frameGraph,
                                            const FrameGraphNode* node,
                                            RenderPassHandle& handle) noexcept {
@@ -113,6 +122,22 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
     TextureHandle texture;
     auto result = alias_cast<Renderer*>(renderer)->createTexture(tc, texture);
     *handle     = texture;
+    return result;
+}
+
+gerium_result_t gerium_renderer_create_material(gerium_renderer_t renderer,
+                                                gerium_frame_graph_t frame_graph,
+                                                gerium_uint32_t pipeline_count,
+                                                const gerium_pipeline_t* pipelines,
+                                                gerium_material_h* handle) {
+    assert(renderer);
+    assert(frame_graph);
+    assert(pipeline_count > 0);
+    assert(pipelines);
+    assert(handle);
+    MaterialHandle material;
+    auto result = alias_cast<Renderer*>(renderer)->createMaterial(*alias_cast<FrameGraph*>(frame_graph), pipeline_count, pipelines, material);
+    *handle     = material;
     return result;
 }
 

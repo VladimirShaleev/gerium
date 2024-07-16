@@ -29,6 +29,12 @@ TextureHandle VkRenderer::onCreateTexture(const TextureCreation& creation) {
     return _device->createTexture(creation);
 }
 
+MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
+                                            gerium_uint32_t pipelineCount,
+                                            const gerium_pipeline_t* pipelines) {
+    return MaterialHandle();
+}
+
 RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) {
     RenderPassCreation creation{};
     creation.setName(node->name);
@@ -207,9 +213,9 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
             }
         }
 
-        Rect2DInt scissor{0, 0, width, height};
+        Rect2DInt scissor{ 0, 0, width, height };
         Viewport viewport{};
-        viewport.rect      = {0, 0, width, height};
+        viewport.rect      = { 0, 0, width, height };
         viewport.min_depth = 0.0f;
         viewport.max_depth = 1.0f;
 
@@ -223,7 +229,7 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
         }
 
         cb->bindPass(node->renderPass, node->framebuffer);
-        
+
         if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data)) {
             error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
         }

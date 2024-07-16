@@ -8,6 +8,8 @@ static gerium_renderer_t renderer       = nullptr;
 static gerium_frame_graph_t frameGraph  = nullptr;
 static gerium_profiler_t profiler       = nullptr;
 
+static gerium_material_h lighting = {};
+
 void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
         throw std::runtime_error(gerium_result_to_string(result));
@@ -142,6 +144,75 @@ bool initialize(gerium_application_t application) {
         check(gerium_frame_graph_add_node(
             frameGraph, "depth_pre_pass", 0, nullptr, std::size(depthOutputs), depthOutputs));
         check(gerium_frame_graph_compile(frameGraph));
+
+        gerium_vertex_attribute_t vertexAttributes[] = {
+            { 0, 0, 0,                                     GERIUM_FORMAT_R32G32_SFLOAT    },
+            { 1, 0, sizeof(float) * 2,                     GERIUM_FORMAT_R32G32B32_SFLOAT },
+            { 2, 0, sizeof(float) * 2 + sizeof(float) * 3, GERIUM_FORMAT_R32G32_SFLOAT    }
+        };
+
+        gerium_vertex_binding_t vertexBindings[] = {
+            { 0, sizeof(float) * 7, GERIUM_VERTEX_RATE_PER_VERTEX }
+        };
+
+        gerium_shader_t lightingShaders[2];
+        lightingShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
+        lightingShaders[0].name = "lighting.vert.glsl";
+        lightingShaders[0].data = "#version 450\n"
+                                  "\n"
+                                  "layout(location = 0) in vec2 inPosition;\n"
+                                  "layout(location = 1) in vec3 inColor;\n"
+                                  "layout(location = 2) in vec2 inTexCoord;\n"
+                                  "\n"
+                                  "layout(location = 0) out vec3 outColor;\n"
+                                  "layout(location = 1) out vec2 outTexCoord;\n"
+                                  "\n"
+                                  "layout(binding = 0) uniform UniformBufferObject {\n"
+                                  "    mat4 model;\n"
+                                  "    mat4 view;\n"
+                                  "    mat4 proj;\n"
+                                  "} ubo;\n"
+                                  "\n"
+                                  "void main() {\n"
+                                  "    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 0.0, 1.0);\n"
+                                  "    outColor = inColor;\n"
+                                  "    outTexCoord = inTexCoord;\n"
+                                  "}\n";
+        lightingShaders[0].size = strlen(lightingShaders[0].data);
+
+        lightingShaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
+        lightingShaders[1].name = "lighting.frag.glsl";
+        lightingShaders[1].data = "#version 450\n"
+                                  "\n"
+                                  "layout(location = 0) in vec3 inColor;\n"
+
+                                  "layout(location = 0) out vec4 outColor;\n"
+                                  "\n"
+                                  "layout(set = 1, binding = 2) uniform UniformBufferObject1 {\n"
+                                  "    float f;\n"
+                                  "} test;\n"
+                                  "\n"
+                                  "layout(set = 0, binding = 2) uniform UniformBufferObject2 {\n"
+                                  "    float f;\n"
+                                  "} test2;\n"
+                                  "\n"
+                                  "void main() {\n"
+                                  "    outColor = vec4(inColor.r * test.f, inColor.g * test2.f, inColor.b, 1.0);\n"
+                                  "}\n";
+        lightingShaders[1].size = strlen(lightingShaders[0].data);
+
+        gerium_pipeline_t lightingPipelines[1];
+        lightingPipelines[0].name                   = "main";
+        lightingPipelines[0].render_pass            = "lighting_pass";
+        lightingPipelines[0].vertex_attribute_count = std::size(vertexAttributes);
+        lightingPipelines[0].vertex_attributes      = vertexAttributes;
+        lightingPipelines[0].vertex_binding_count   = std::size(vertexBindings);
+        lightingPipelines[0].vertex_bindings        = vertexBindings;
+        lightingPipelines[0].shader_count           = std::size(lightingShaders);
+        lightingPipelines[0].shaders                = lightingShaders;
+
+        check(gerium_renderer_create_material(
+            renderer, frameGraph, std::size(lightingPipelines), lightingPipelines, &lighting));
 
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());

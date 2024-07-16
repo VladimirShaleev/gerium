@@ -21,6 +21,7 @@ GERIUM_TYPE(gerium_profiler)
 
 GERIUM_HANDLE(gerium_buffer)
 GERIUM_HANDLE(gerium_texture)
+GERIUM_HANDLE(gerium_material)
 
 typedef enum
 {
@@ -180,6 +181,18 @@ typedef enum
     GERIUM_RENDER_PASS_OPERATION_MAX_ENUM  = 0x7FFFFFFF
 } gerium_render_pass_operation_t;
 
+typedef enum {
+    GERIUM_VERTEX_RATE_PER_VERTEX   = 0,
+    GERIUM_VERTEX_RATE_PER_INSTANCE = 1,
+    GERIUM_VERTEX_RATE_MAX_ENUM     = 0x7FFFFFFF
+} gerium_vertex_rate_t;
+
+typedef enum {
+    GERIUM_SHADER_TYPE_VERTEX   = 0,
+    GERIUM_SHADER_TYPE_FRAGMENT = 1,
+    GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
+} gerium_shader_type_t;
+
 typedef gerium_bool_t
 (*gerium_application_frame_func_t)(gerium_application_t application,
                                    gerium_data_t data,
@@ -270,6 +283,40 @@ typedef struct
     gerium_uint16_t                height;
     gerium_render_pass_operation_t operation;
 } gerium_resource_output_t;
+
+typedef struct {
+    gerium_uint16_t location;
+    gerium_uint16_t binding;
+    gerium_uint32_t offset;
+    gerium_format_t format;
+} gerium_vertex_attribute_t;
+
+typedef struct {
+    gerium_uint16_t             binding;
+    gerium_uint16_t             stride;
+    gerium_vertex_rate_t inputRate;
+} gerium_vertex_binding_t;
+
+typedef struct {
+    gerium_shader_type_t type;
+    gerium_utf8_t        name;
+    gerium_utf8_t        data;
+    gerium_uint32_t      size;
+} gerium_shader_t;
+
+typedef struct
+{
+    gerium_utf8_t                    name;
+    gerium_utf8_t                    render_pass;
+    // TODO: add rasterization info
+    // TODO: add ...
+    gerium_uint32_t                  vertex_attribute_count;
+    const gerium_vertex_attribute_t* vertex_attributes;
+    gerium_uint32_t                  vertex_binding_count;
+    const gerium_vertex_binding_t*   vertex_bindings;
+    gerium_uint32_t                  shader_count;
+    const gerium_shader_t*           shaders;
+} gerium_pipeline_t;
 
 gerium_public gerium_uint32_t
 gerium_version(void);
@@ -431,6 +478,13 @@ gerium_public gerium_result_t
 gerium_renderer_create_texture(gerium_renderer_t renderer,
                                const gerium_texture_creation_t* creation,
                                gerium_texture_h* handle);
+
+gerium_public gerium_result_t
+gerium_renderer_create_material(gerium_renderer_t renderer,
+                                gerium_frame_graph_t frame_graph,
+                                gerium_uint32_t pipeline_count,
+                                const gerium_pipeline_t* pipelines,
+                                gerium_material_h* handle);
 
 gerium_public void
 gerium_renderer_destroy_texture(gerium_renderer_t renderer,
