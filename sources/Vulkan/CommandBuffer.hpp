@@ -26,7 +26,8 @@ public:
                          ResourceState newState,
                          gerium_uint32_t mipLevel,
                          gerium_uint32_t mipCount,
-                         bool isDepth);
+                         bool isDepth,
+                         bool isStencil);
     void clearColor(float red, float green, float blue, float alpha);
     void clearDepthStencil(float depth, float value);
     void setScissor(const Rect2DInt* rect);

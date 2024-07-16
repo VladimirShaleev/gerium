@@ -19,7 +19,8 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
                                     ResourceState newState,
                                     gerium_uint32_t mipLevel,
                                     gerium_uint32_t mipCount,
-                                    bool isDepth) {
+                                    bool isDepth,
+                                    bool isStencil) {
     auto texture = _device->_textures.access(handle);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
@@ -35,6 +36,10 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     barrier.subresourceRange.levelCount     = mipCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount     = 1;
+
+    if (isStencil) {
+        barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
 
     const auto srcStageMask = utilDeterminePipelineStageFlags(barrier.srcAccessMask, QueueType::Graphics);
     const auto dstStageMask = utilDeterminePipelineStageFlags(barrier.dstAccessMask, QueueType::Graphics);

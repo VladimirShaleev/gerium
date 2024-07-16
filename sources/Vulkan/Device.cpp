@@ -170,7 +170,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     RenderPassOutput output{};
     output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
-    output.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    output.depth(VK_FORMAT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     output.setDepthStencilOperations(GERIUM_RENDER_PASS_OPERATION_CLEAR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
 
     PipelineCreation pc{};
@@ -606,7 +606,8 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     VkImageAspectFlags aspectMask;
     if (hasDepthOrStencil(texture->vkFormat)) {
-        aspectMask = hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
+        aspectMask |= hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
+        aspectMask |= hasStencil(texture->vkFormat) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
     } else {
         aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     }
@@ -1539,7 +1540,7 @@ void Device::createSwapchain(Application* application) {
         RenderPassCreation rc{};
         rc.setName("SwapchainRenderPass");
         rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
-        rc.output.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        rc.output.depth(VK_FORMAT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         rc.output.setDepthStencilOperations(GERIUM_RENDER_PASS_OPERATION_CLEAR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
         _swapchainRenderPass = createRenderPass(rc);
     }
@@ -1576,14 +1577,14 @@ void Device::createSwapchain(Application* application) {
         viewInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
         check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &color->vkImageView));
 
-        TextureCreation depthCreation{};
-        depthCreation.setName("SwapchainDepthStencilTexture");
-        depthCreation.setSize(_swapchainExtent.width, _swapchainExtent.height, 1);
-        depthCreation.setFlags(1, false, false);
-        depthCreation.setFormat(GERIUM_FORMAT_D32_SFLOAT, GERIUM_TEXTURE_TYPE_2D);
+        // TextureCreation depthCreation{};
+        // depthCreation.setName("SwapchainDepthStencilTexture");
+        // depthCreation.setSize(_swapchainExtent.width, _swapchainExtent.height, 1);
+        // depthCreation.setFlags(1, false, false);
+        // depthCreation.setFormat(GERIUM_FORMAT_D32_SFLOAT, GERIUM_TEXTURE_TYPE_2D);
 
-        auto depthHandle = createTexture(depthCreation);
-        auto depth       = _textures.access(depthHandle);
+        // auto depthHandle = createTexture(depthCreation);
+        // auto depth       = _textures.access(depthHandle);
 
         auto name = "SwapchainFramebuffer"s + std::to_string(i);
 
@@ -1591,7 +1592,7 @@ void Device::createSwapchain(Application* application) {
         fc.setName(name.c_str());
         fc.setScaling(1.0f, 1.0f, 0);
         fc.addRenderTexture(colorHandle);
-        fc.setDepthStencilTexture(depthHandle);
+        // fc.setDepthStencilTexture(depthHandle);
         fc.width      = _swapchainExtent.width;
         fc.height     = _swapchainExtent.height;
         fc.renderPass = _swapchainRenderPass;
@@ -1599,9 +1600,9 @@ void Device::createSwapchain(Application* application) {
         _swapchainFramebuffers[i] = createFramebuffer(fc);
 
         _textures.release(colorHandle);
-        _textures.release(depthHandle);
+        // _textures.release(depthHandle);
 
-        commandBuffer->addImageBarrier(colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1, false);
+        commandBuffer->addImageBarrier(colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1, false, false);
     }
 
     commandBuffer->submit(QueueType::Graphics);

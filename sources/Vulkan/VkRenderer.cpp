@@ -261,7 +261,8 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
                                     ResourceState::ShaderResource,
                                     0,
                                     1,
-                                    hasDepth(toVkFormat(resource->info.texture.format)));
+                                    hasDepth(toVkFormat(resource->info.texture.format)),
+                                    hasStencil(toVkFormat(resource->info.texture.format)));
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
@@ -275,15 +276,21 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
 
-                if (hasDepth(toVkFormat(resource->info.texture.format))) {
-                    cb->addImageBarrier(
-                        resource->info.texture.handle, ResourceState::Undefined, ResourceState::DepthWrite, 0, 1, true);
+                if (hasDepthOrStencil(toVkFormat(resource->info.texture.format))) {
+                    cb->addImageBarrier(resource->info.texture.handle,
+                                        ResourceState::Undefined,
+                                        ResourceState::DepthWrite,
+                                        0,
+                                        1,
+                                        true,
+                                        hasStencil(toVkFormat(resource->info.texture.format)));
                 } else {
                     cb->addImageBarrier(resource->info.texture.handle,
                                         ResourceState::Undefined,
                                         ResourceState::RenderTarget,
                                         0,
                                         1,
+                                        false,
                                         false);
                 }
             }
