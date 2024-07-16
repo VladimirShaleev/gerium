@@ -70,15 +70,19 @@ gerium_result_t FrameGraph::addNode(gerium_utf8_t name,
     return GERIUM_RESULT_SUCCESS;
 }
 
+const FrameGraphResource* FrameGraph::getResource(FrameGraphResourceHandle handle) const noexcept {
+    return _resources.access(handle);
+}
+
 FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_output_t& output,
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();
 
-    resource->type                   = output.type;
     resource->name                   = intern(output.name);
     resource->external               = output.external;
     resource->producer               = Undefined;
     resource->output                 = Undefined;
+    resource->info.type              = output.type;
     resource->info.texture.format    = output.format;
     resource->info.texture.width     = 800; // output.width;
     resource->info.texture.height    = 600; // output.height;
@@ -86,7 +90,7 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
     resource->info.texture.operation = output.operation;
     resource->info.texture.handle    = Undefined;
 
-    if (resource->type != GERIUM_RESOURCE_TYPE_REFERENCE) {
+    if (output.type != GERIUM_RESOURCE_TYPE_REFERENCE) {
         resource->producer = producer;
         resource->output   = handle;
 
@@ -100,10 +104,10 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
 FrameGraphResourceHandle FrameGraph::createNodeInput(const gerium_resource_input_t& input) {
     auto [handle, resource] = _resources.obtain_and_access();
 
-    resource->type     = input.type;
-    resource->name     = intern(input.name);
-    resource->producer = Undefined;
-    resource->output   = Undefined;
+    resource->name      = intern(input.name);
+    resource->producer  = Undefined;
+    resource->output    = Undefined;
+    resource->info.type = input.type;
 
     return handle;
 }
@@ -196,7 +200,7 @@ void FrameGraph::compileGraph() {
             if (!resource->external && _allocations[resourceIndex] == Undefined) {
                 _allocations[resourceIndex] = _nodeGraph[i];
 
-                if (resource->type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                     const auto& info = resource->info.texture;
 
                     TextureCreation creation{};
@@ -209,7 +213,7 @@ void FrameGraph::compileGraph() {
                         auto alias = _freeList[--_freeListCount];
                         creation.setAlias(alias);
                     }
-                    
+
                     error(_renderer->createTexture(creation, resource->info.texture.handle));
                 }
             }
@@ -224,11 +228,27 @@ void FrameGraph::compileGraph() {
             --resource->refCount;
 
             if (!resource->external && resource->refCount == 0) {
-                if (resource->type == GERIUM_RESOURCE_TYPE_ATTACHMENT ||
-                    resource->type == GERIUM_RESOURCE_TYPE_TEXTURE) {
+                if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT ||
+                    resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
                     _freeList[_freeListCount++] = resource->info.texture.handle;
                 }
             }
+        }
+    }
+
+    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
+        auto node = _nodes.access(_nodeGraph[i]);
+
+        if (!node->enabled) {
+            continue;
+        }
+
+        if (node->renderPass == Undefined) {
+            error(_renderer->createRenderPass(*this, node, node->renderPass));
+        }
+
+        if (node->framebuffer == Undefined) {
+            createFramebuffer(node);
         }
     }
 }
@@ -265,6 +285,9 @@ FrameGraphResource* FrameGraph::findResource(gerium_utf8_t name) noexcept {
         return _resources.access(it->second);
     }
     return nullptr;
+}
+
+void FrameGraph::createFramebuffer(FrameGraphNode* node) {
 }
 
 } // namespace gerium

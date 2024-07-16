@@ -11,13 +11,6 @@ enum class ResourceUsageType {
     Staging
 };
 
-enum class RenderPassOperation {
-    DontCare,
-    Load,
-    Clear,
-    Count
-};
-
 enum class ResourceState {
     Undefined               = 0,
     VertexAndConstantBuffer = 0x1,

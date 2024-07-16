@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "FrameGraph.hpp"
 
 namespace gerium {
 
@@ -20,6 +21,12 @@ gerium_result_t Renderer::createBuffer(const gerium_buffer_creation_t& creation,
 gerium_result_t Renderer::createTexture(const TextureCreation& creation, TextureHandle& handle) noexcept {
     return invoke<Renderer>([&creation, &handle](auto obj) {
         handle = obj->onCreateTexture(creation);
+    });
+}
+
+gerium_result_t Renderer::createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node, RenderPassHandle& handle) noexcept {
+    return invoke<Renderer>([&frameGraph, node, &handle](auto obj) {
+        handle = obj->onCreateRenderPass(frameGraph, node);
     });
 }
 

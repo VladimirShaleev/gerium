@@ -1,4 +1,5 @@
 #include "VkRenderer.hpp"
+#include "../FrameGraph.hpp"
 
 namespace gerium::vulkan {
 
@@ -26,6 +27,43 @@ BufferHandle VkRenderer::onCreateBuffer(const gerium_buffer_creation_t& creation
 
 TextureHandle VkRenderer::onCreateTexture(const TextureCreation& creation) {
     return _device->createTexture(creation);
+}
+
+RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) {
+    RenderPassCreation creation{};
+    creation.setName(node->name);
+
+    for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
+        auto& info = frameGraph.getResource(node->outputs[i])->info;
+
+        if (info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+            const auto format = toVkFormat(info.texture.format);
+
+            if (hasDepthOrStencil(format)) {
+                creation.output.depth(format, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+                creation.output.setDepthStencilOperations(info.texture.operation, info.texture.operation);
+            } else {
+                creation.output.color(format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, info.texture.operation);
+            }
+        }
+    }
+
+    for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
+        auto& info = frameGraph.getResource(node->inputs[i])->info;
+
+        if (info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+            const auto format = toVkFormat(info.texture.format);
+
+            if (hasDepthOrStencil(format)) {
+                creation.output.depth(format, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+                creation.output.setDepthStencilOperations(info.texture.operation, GERIUM_RENDER_PASS_OPERATION_LOAD);
+            } else {
+                creation.output.color(format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, GERIUM_RENDER_PASS_OPERATION_LOAD);
+            }
+        }
+    }
+
+    return _device->createRenderPass(creation);
 }
 
 void VkRenderer::onDestroyTexture(TextureHandle handle) noexcept {

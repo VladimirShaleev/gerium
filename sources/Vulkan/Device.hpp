@@ -174,14 +174,15 @@ private:
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
-    std::vector<const char*> selectDeviceExtensions();
+    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device);
     VkPhysicalDevice selectPhysicalDevice();
     VkSurfaceFormatKHR selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats);
     VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
     VkExtent2D selectSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, Application* application);
 
     std::vector<const char*> checkValidationLayers(const std::vector<const char*>& layers);
-    std::vector<const char*> checkExtensions(const std::vector<const char*>& extensions);
+    std::vector<const char*> checkExtensions(const std::vector<std::pair<const char*, bool>>& extensions);
+    std::vector<const char*> checkDeviceExtensions(VkPhysicalDevice device, const std::vector<std::pair<const char*, bool>>& extensions);
     bool checkPhysicalDeviceExtensions(VkPhysicalDevice device, const std::vector<const char*>& extensions);
 
     void debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -263,6 +264,9 @@ private:
     uint32_t _ssboAlignment{};
     bool _profilerSupported{};
     bool _profilerEnabled{};
+    bool _deviceProperties2Supported{};
+    bool _memoryBudgetSupported{};
+    bool _imageAliasingSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};

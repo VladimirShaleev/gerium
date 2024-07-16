@@ -44,6 +44,7 @@ struct FrameGraphNode {
 };
 
 struct FrameGraphResourceInfo {
+    gerium_resource_type_t type;
     union {
         struct {
         } buffer;
@@ -60,7 +61,6 @@ struct FrameGraphResourceInfo {
 };
 
 struct FrameGraphResource {
-    gerium_resource_type_t type;
     gerium_utf8_t name;
     gerium_bool_t external;
     gerium_uint32_t refCount;
@@ -82,6 +82,8 @@ public:
                             gerium_uint32_t outputCount,
                             const gerium_resource_output_t* outputs);
 
+    const FrameGraphResource* getResource(FrameGraphResourceHandle handle) const noexcept;
+
     gerium_result_t compile() {
         compileGraph();
         return GERIUM_RESULT_SUCCESS;
@@ -100,6 +102,7 @@ private:
     void clearGraph() noexcept;
 
     FrameGraphResource* findResource(gerium_utf8_t name) noexcept;
+    void createFramebuffer(FrameGraphNode* node);
 
     Renderer* _renderer;
 

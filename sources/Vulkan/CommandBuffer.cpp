@@ -114,13 +114,13 @@ void CommandBuffer::bindPipeline(PipelineHandle pipeline, FramebufferHandle fram
         VkClearValue clearValues[kMaxImageOutputs + 1];
 
         for (uint32_t o = 0; o < renderPass->output.numColorFormats; ++o) {
-            if (renderPass->output.colorOperations[o] == RenderPassOperation::Clear) {
+            if (renderPass->output.colorOperations[o] == GERIUM_RENDER_PASS_OPERATION_CLEAR) {
                 clearValues[clearValuesCount++] = _clears[0];
             }
         }
 
         if (renderPass->output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
-            if (renderPass->output.depthOperation == RenderPassOperation::Clear) {
+            if (renderPass->output.depthOperation == GERIUM_RENDER_PASS_OPERATION_CLEAR) {
                 clearValues[clearValuesCount++] = _clears[1];
             }
         }

@@ -169,9 +169,9 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     ViewportState viewport{};
 
     RenderPassOutput output{};
-    output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, RenderPassOperation::Clear);
+    output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
     output.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    output.setDepthStencilOperations(RenderPassOperation::Clear, RenderPassOperation::Clear);
+    output.setDepthStencilOperations(GERIUM_RENDER_PASS_OPERATION_CLEAR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
 
     PipelineCreation pc{};
     pc.rasterization.cullMode = VK_CULL_MODE_NONE;
@@ -306,7 +306,7 @@ void Device::submit(CommandBuffer* commandBuffer) {
 
 void Device::present() {
     submit(_frameCommandBuffer);
-    
+
     _frameCommandBuffer = nullptr;
 
     // TODO: For current testing only, delete later
@@ -516,7 +516,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
         VkMemoryPropertyFlags memPropFlags;
         vmaGetAllocationMemoryProperties(_vmaAllocator, buffer->vmaAllocation, &memPropFlags);
 
-        if(memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+        if (memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
             if (buffer->mappedData) {
                 memcpy(buffer->mappedData, creation.initialData, (size_t) creation.size);
             } else {
@@ -526,7 +526,10 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
             }
         } else {
             BufferCreation stagingCreation{};
-            stagingCreation.set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, ResourceUsageType::Dynamic, buffer->size);
+            stagingCreation.set(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                ResourceUsageType::Dynamic,
+                                buffer->size);
             auto stagingBuffer = createBuffer(stagingCreation);
 
             auto ptr = mapBuffer(stagingBuffer, 0, buffer->size);
@@ -587,7 +590,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     VmaAllocationCreateInfo memoryInfo{};
     memoryInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-    if (creation.alias == Undefined) {
+    if (creation.alias == Undefined) { //  || !_imageAliasingSupported) {
         check(vmaCreateImage(
             _vmaAllocator, &imageInfo, &memoryInfo, &texture->vkImage, &texture->vmaAllocation, nullptr));
 
@@ -1245,6 +1248,10 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     const auto layers     = selectValidationLayers();
     const auto extensions = selectExtensions();
 
+    _deviceProperties2Supported = std::find_if(extensions.cbegin(), extensions.cend(), [](const auto& extension) {
+        return strcmp(extension, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0;
+    }) != std::end(extensions);
+
     if (layers.empty()) {
         _enableDebugNames = false;
     }
@@ -1327,7 +1334,22 @@ void Device::createPhysicalDevice() {
 void Device::createDevice() {
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
-    const auto extensions    = selectDeviceExtensions();
+    const auto extensions    = selectDeviceExtensions(_physicalDevice);
+
+    _memoryBudgetSupported = std::find_if(extensions.cbegin(), extensions.cend(), [](const auto extension) {
+        return strcmp(extension, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME) == 0;
+    }) != std::end(extensions);
+
+    // VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV aliasingFeatures{
+    //     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEDICATED_ALLOCATION_IMAGE_ALIASING_FEATURES_NV
+    // };
+    // VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    // features.pNext = (void*) &aliasingFeatures;
+
+    // if (_deviceProperties2Supported) {
+    //     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &features);
+    //     _imageAliasingSupported = aliasingFeatures.dedicatedAllocationImageAliasing;
+    // }
 
     size_t queueCreateInfoCount                 = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[4] = {};
@@ -1361,6 +1383,7 @@ void Device::createDevice() {
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+    createInfo.pNext                   = nullptr; // _deviceProperties2Supported ? (void*) &features : nullptr;
     createInfo.queueCreateInfoCount    = (uint32_t) queueCreateInfoCount;
     createInfo.pQueueCreateInfos       = queueCreateInfos;
     createInfo.enabledLayerCount       = (uint32_t) layers.size();
@@ -1427,9 +1450,7 @@ void Device::createVmaAllocator() {
     functions.vkGetDeviceProcAddr   = _vkTable.vkGetDeviceProcAddr;
 
     VmaAllocatorCreateInfo createInfo{};
-#ifndef __ANDROID__
-    createInfo.flags                = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
-#endif
+    createInfo.flags                = _memoryBudgetSupported ? VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT : 0;
     createInfo.vulkanApiVersion     = VK_API_VERSION_1_2;
     createInfo.physicalDevice       = _physicalDevice;
     createInfo.device               = _device;
@@ -1517,9 +1538,9 @@ void Device::createSwapchain(Application* application) {
     if (_swapchainRenderPass == Undefined) {
         RenderPassCreation rc{};
         rc.setName("SwapchainRenderPass");
-        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, RenderPassOperation::Clear);
+        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
         rc.output.depth(VK_FORMAT_D32_SFLOAT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-        rc.output.setDepthStencilOperations(RenderPassOperation::Clear, RenderPassOperation::Clear);
+        rc.output.setDepthStencilOperations(GERIUM_RENDER_PASS_OPERATION_CLEAR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
         _swapchainRenderPass = createRenderPass(rc);
     }
 
@@ -1947,15 +1968,15 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     VkImageLayout depthInitial;
 
     switch (output.depthOperation) {
-        case RenderPassOperation::DontCare:
+        case GERIUM_RENDER_PASS_OPERATION_DONT_CARE:
             depthOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
             break;
-        case RenderPassOperation::Load:
+        case GERIUM_RENDER_PASS_OPERATION_LOAD:
             depthOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
             depthInitial = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             break;
-        case RenderPassOperation::Clear:
+        case GERIUM_RENDER_PASS_OPERATION_CLEAR:
             depthOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
             depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
             break;
@@ -1965,13 +1986,13 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     }
 
     switch (output.stencilOperation) {
-        case RenderPassOperation::DontCare:
+        case GERIUM_RENDER_PASS_OPERATION_DONT_CARE:
             stencilOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             break;
-        case RenderPassOperation::Load:
+        case GERIUM_RENDER_PASS_OPERATION_LOAD:
             stencilOp = VK_ATTACHMENT_LOAD_OP_LOAD;
             break;
-        case RenderPassOperation::Clear:
+        case GERIUM_RENDER_PASS_OPERATION_CLEAR:
             stencilOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             break;
         default:
@@ -1984,15 +2005,15 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
         VkAttachmentLoadOp colorOp;
         VkImageLayout colorInitial;
         switch (output.colorOperations[attachmentCount]) {
-            case RenderPassOperation::DontCare:
+            case GERIUM_RENDER_PASS_OPERATION_DONT_CARE:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
-            case RenderPassOperation::Load:
+            case GERIUM_RENDER_PASS_OPERATION_LOAD:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
                 colorInitial = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 break;
-            case RenderPassOperation::Clear:
+            case GERIUM_RENDER_PASS_OPERATION_CLEAR:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
                 colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
@@ -2199,8 +2220,13 @@ int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
         return 0;
     }
 
-    if (!checkPhysicalDeviceExtensions(device, selectDeviceExtensions())) {
-        return 0;
+    try {
+        selectDeviceExtensions(device);
+    } catch (const Exception& exc) {
+        if (exc.result() == GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED) {
+            return 0;
+        }
+        throw;
     }
 
     uint32_t countFormats  = 0;
@@ -2302,25 +2328,30 @@ std::vector<const char*> Device::selectValidationLayers() {
 }
 
 std::vector<const char*> Device::selectExtensions() {
-    std::vector extensions = { VK_KHR_SURFACE_EXTENSION_NAME, onGetSurfaceExtension() };
+    std::vector<std::pair<const char*, bool>> extensions = {
+        { VK_KHR_SURFACE_EXTENSION_NAME,                          true  },
+        { onGetSurfaceExtension(),                                true  },
+        { VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, false }
+    };
 
     if (_enableValidations) {
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        extensions.push_back({ VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false });
     }
 
     return checkExtensions(extensions);
 }
 
-std::vector<const char*> Device::selectDeviceExtensions() {
-    return {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-#ifndef __ANDROID__
-        VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
-#endif
+std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device) {
+    std::vector<std::pair<const char*, bool>> extensions = {
+        { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
+        { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false },
+    // { VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, false },
 #ifdef __APPLE__
         "VK_KHR_portability_subset",
 #endif
     };
+
+    return checkDeviceExtensions(device, extensions);
 }
 
 VkPhysicalDevice Device::selectPhysicalDevice() {
@@ -2418,7 +2449,7 @@ std::vector<const char*> Device::checkValidationLayers(const std::vector<const c
     return results;
 }
 
-std::vector<const char*> Device::checkExtensions(const std::vector<const char*>& extensions) {
+std::vector<const char*> Device::checkExtensions(const std::vector<std::pair<const char*, bool>>& extensions) {
     std::vector<const char*> results;
 
     uint32_t count = 0;
@@ -2431,7 +2462,7 @@ std::vector<const char*> Device::checkExtensions(const std::vector<const char*>&
     }
 
     for (const auto& prop : props) {
-        for (const auto& extension : extensions) {
+        for (const auto& [extension, _] : extensions) {
             if (strncmp(prop.extensionName, extension, 255) == 0) {
                 results.push_back(extension);
                 break;
@@ -2439,9 +2470,38 @@ std::vector<const char*> Device::checkExtensions(const std::vector<const char*>&
         }
     }
 
-    for (const auto& extension : extensions) {
+    for (const auto& [extension, required] : extensions) {
         const auto notFound = std::find(results.cbegin(), results.cend(), extension) == results.cend();
-        if (notFound && strcmp(extension, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != 0) {
+        if (notFound && required) {
+            check(VK_ERROR_EXTENSION_NOT_PRESENT);
+        }
+    }
+
+    return results;
+}
+
+std::vector<const char*> Device::checkDeviceExtensions(VkPhysicalDevice device,
+                                                       const std::vector<std::pair<const char*, bool>>& extensions) {
+    std::vector<const char*> results;
+
+    uint32_t count = 0;
+    check(_vkTable.vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr));
+
+    std::vector<VkExtensionProperties> avaiableExtensions;
+    avaiableExtensions.resize(count);
+    check(_vkTable.vkEnumerateDeviceExtensionProperties(device, nullptr, &count, avaiableExtensions.data()));
+
+    for (const auto& [extension, required] : extensions) {
+        bool found = false;
+        for (const auto& avaiable : avaiableExtensions) {
+            if (strncmp(avaiable.extensionName, extension, 255) == 0) {
+                found = true;
+                results.push_back(extension);
+                break;
+            }
+        }
+
+        if (!found && required) {
             check(VK_ERROR_EXTENSION_NOT_PRESENT);
         }
     }
