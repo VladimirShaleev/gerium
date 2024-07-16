@@ -24,7 +24,7 @@ using FrameGraphNodePool       = ResourcePool<struct FrameGraphNode, FrameGraphN
 using FrameGraphResourcePool   = ResourcePool<struct FrameGraphResource, FrameGraphResourceHandle>;
 
 struct FrameGraphRenderPass {
-    const gerium_render_pass_t* pass;
+    gerium_render_pass_t pass;
     gerium_utf8_t name;
     gerium_data_t* data;
 };
@@ -87,6 +87,7 @@ public:
 
     gerium_uint32_t nodeCount() const noexcept;
     const FrameGraphNode* getNode(gerium_uint32_t index) const noexcept;
+    const FrameGraphRenderPass* getPass(FrameGraphRenderPassHandle handle) const noexcept;
 
     gerium_result_t compile() {
         compileGraph();
@@ -109,7 +110,7 @@ private:
 
     FrameGraphNodePool _nodes;
     FrameGraphResourcePool _resources;
-    FrameGraphRenderPassPool _rendererPasses;
+    FrameGraphRenderPassPool _renderPasses;
 
     NodeHashMap _nodeCache;
     ResourceHashMap _resourceCache;

@@ -31,6 +31,7 @@ public:
     void clearDepthStencil(float depth, float value);
     void setScissor(const Rect2DInt* rect);
     void setViewport(const Viewport* viewport);
+    void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer);
     void bindPipeline(PipelineHandle pipeline, FramebufferHandle framebuffer);
     void bindVertexBuffer(BufferHandle handle, uint32_t binding, uint32_t offset);
     void bindDescriptorSet(DescriptorSetHandle handle);

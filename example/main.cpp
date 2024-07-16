@@ -14,6 +14,26 @@ void check(gerium_result_t result) {
     }
 }
 
+gerium_bool_t gbufferRender(gerium_frame_graph_t frame_graph, gerium_renderer_t renderer, gerium_data_t data) {
+    return 1;
+}
+
+gerium_bool_t transparentRender(gerium_frame_graph_t frame_graph, gerium_renderer_t renderer, gerium_data_t data) {
+    return 1;
+}
+
+gerium_bool_t depthOfFieldRender(gerium_frame_graph_t frame_graph, gerium_renderer_t renderer, gerium_data_t data) {
+    return 1;
+}
+
+gerium_bool_t lightingRender(gerium_frame_graph_t frame_graph, gerium_renderer_t renderer, gerium_data_t data) {
+    return 1;
+}
+
+gerium_bool_t depthPrePassRender(gerium_frame_graph_t frame_graph, gerium_renderer_t renderer, gerium_data_t data) {
+    return 1;
+}
+
 bool initialize(gerium_application_t application) {
     try {
         constexpr auto debug =
@@ -27,11 +47,11 @@ bool initialize(gerium_application_t application) {
         check(gerium_frame_graph_create(renderer, &frameGraph));
         check(gerium_profiler_create(renderer, &profiler));
 
-        gerium_render_pass_t gbufferPass{};
-        gerium_render_pass_t transparentPass{};
-        gerium_render_pass_t depthOfFieldPass{};
-        gerium_render_pass_t lightingPass{};
-        gerium_render_pass_t depthPrePass{};
+        gerium_render_pass_t gbufferPass{ 0, 0, gbufferRender };
+        gerium_render_pass_t transparentPass{ 0, 0, transparentRender };
+        gerium_render_pass_t depthOfFieldPass{ 0, 0, depthOfFieldRender };
+        gerium_render_pass_t lightingPass{ 0, 0, lightingRender };
+        gerium_render_pass_t depthPrePass{ 0, 0, depthPrePassRender };
         gerium_frame_graph_add_pass(frameGraph, "gbuffer_pass", &gbufferPass, nullptr);
         gerium_frame_graph_add_pass(frameGraph, "transparent_pass", &transparentPass, nullptr);
         gerium_frame_graph_add_pass(frameGraph, "depth_of_field_pass", &depthOfFieldPass, nullptr);

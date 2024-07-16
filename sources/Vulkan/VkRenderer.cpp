@@ -162,6 +162,72 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
         }
 
         cb->pushMarker(node->name);
+
+        // TODO: remove
+        cb->clearColor(1.0f, 0.0f, 1.0f, 1.0f);
+        cb->clearDepthStencil(1.0f, 0.0f);
+
+        gerium_uint16_t width;
+        gerium_uint16_t height;
+
+        for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
+            auto resource = frameGraph.getResource(node->inputs[i]);
+
+            if (resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
+                cb->addImageBarrier(resource->info.texture.handle,
+                                    ResourceState::RenderTarget,
+                                    ResourceState::ShaderResource,
+                                    0,
+                                    1,
+                                    hasDepth(toVkFormat(resource->info.texture.format)));
+            } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                width  = resource->info.texture.width;
+                height = resource->info.texture.height;
+            }
+        }
+
+        for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
+            auto resource = frameGraph.getResource(node->outputs[i]);
+
+            if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                width  = resource->info.texture.width;
+                height = resource->info.texture.height;
+
+                if (hasDepth(toVkFormat(resource->info.texture.format))) {
+                    cb->addImageBarrier(
+                        resource->info.texture.handle, ResourceState::Undefined, ResourceState::DepthWrite, 0, 1, true);
+                } else {
+                    cb->addImageBarrier(resource->info.texture.handle,
+                                        ResourceState::Undefined,
+                                        ResourceState::RenderTarget,
+                                        0,
+                                        1,
+                                        false);
+                }
+            }
+        }
+
+        Rect2DInt scissor{0, 0, width, height};
+        Viewport viewport{};
+        viewport.rect      = {0, 0, width, height};
+        viewport.min_depth = 0.0f;
+        viewport.max_depth = 1.0f;
+
+        cb->setScissor(&scissor);
+        cb->setViewport(&viewport);
+
+        auto pass = frameGraph.getPass(node->pass);
+
+        if (pass->pass.prepare) {
+            pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
+        }
+
+        cb->bindPass(node->renderPass, node->framebuffer);
+        
+        if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data)) {
+            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+
         cb->popMarker();
     }
 

@@ -102,6 +102,44 @@ void CommandBuffer::setViewport(const Viewport* viewport) {
     _device->vkTable().vkCmdSetViewport(_commandBuffer, 0, 1, &vk_viewport);
 }
 
+void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
+    auto renderPassObj = _device->_renderPasses.access(renderPass);
+    auto framebufferObj = _device->_framebuffers.access(framebuffer);
+
+    if (_currentRenderPass != renderPass) {
+        endCurrentRenderPass();
+
+        uint32_t clearValuesCount = 0;
+        VkClearValue clearValues[kMaxImageOutputs + 1];
+
+        for (uint32_t o = 0; o < renderPassObj->output.numColorFormats; ++o) {
+            if (renderPassObj->output.colorOperations[o] == GERIUM_RENDER_PASS_OPERATION_CLEAR) {
+                clearValues[clearValuesCount++] = _clears[0];
+            }
+        }
+
+        if (renderPassObj->output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
+            if (renderPassObj->output.depthOperation == GERIUM_RENDER_PASS_OPERATION_CLEAR) {
+                clearValues[clearValuesCount++] = _clears[1];
+            }
+        }
+
+        VkRenderPassBeginInfo renderPassBegin{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+        renderPassBegin.framebuffer       = framebufferObj->vkFramebuffer;
+        renderPassBegin.renderPass        = renderPassObj->vkRenderPass;
+        renderPassBegin.renderArea.offset = { 0, 0 };
+        renderPassBegin.renderArea.extent = { framebufferObj->width, framebufferObj->height };
+        renderPassBegin.clearValueCount   = clearValuesCount;
+        renderPassBegin.pClearValues      = clearValues;
+        _device->vkTable().vkCmdBeginRenderPass(_commandBuffer,
+                                                &renderPassBegin,
+                                                false ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
+                                                      : VK_SUBPASS_CONTENTS_INLINE);
+        _currentRenderPass  = renderPass;
+        _currentFramebuffer = framebuffer;
+    }
+}
+
 void CommandBuffer::bindPipeline(PipelineHandle pipeline, FramebufferHandle framebuffer) {
     auto pipelineObj    = _device->_pipelines.access(pipeline);
     auto framebufferObj = _device->_framebuffers.access(framebuffer);
@@ -227,7 +265,7 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
 
     VkBufferCopy bufferCopy = { (VkDeviceSize) srcOffset, 0, srcSize };
     _device->vkTable().vkCmdCopyBuffer(_commandBuffer, srcBuffer->vkBuffer, dstBuffer->vkBuffer, 1, &bufferCopy);
-    
+
     VkBufferMemoryBarrier barrier2{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
     barrier2.srcAccessMask       = VK_ACCESS_TRANSFER_READ_BIT;
     barrier2.dstAccessMask       = VK_ACCESS_SHADER_READ_BIT;

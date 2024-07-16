@@ -13,9 +13,9 @@ gerium_result_t FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass
         return GERIUM_RESULT_ERROR_UNKNOWN; // TODO: add err GERIUM_RESULT_ERROR_EXISTS;
     }
 
-    auto [handle, pass] = _rendererPasses.obtain_and_access();
+    auto [handle, pass] = _renderPasses.obtain_and_access();
 
-    pass->pass = renderPass;
+    pass->pass = *renderPass;
     pass->name = intern(name);
     pass->data = data;
 
@@ -85,6 +85,10 @@ gerium_uint32_t FrameGraph::nodeCount() const noexcept {
 
 const FrameGraphNode* FrameGraph::getNode(gerium_uint32_t index) const noexcept {
     return _nodes.access(_nodeGraph[index]);
+}
+
+const FrameGraphRenderPass* FrameGraph::getPass(FrameGraphRenderPassHandle handle) const noexcept {
+    return _renderPasses.access(handle);
 }
 
 FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_output_t& output,
@@ -278,6 +282,10 @@ void FrameGraph::compileGraph() {
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
+
+        if (!node->enabled) {
+            continue;
+        }
 
         if (auto it = _renderPassCache.find(hash(node->name)); it != _renderPassCache.end()) {
             node->pass = it->second;
