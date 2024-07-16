@@ -85,6 +85,9 @@ public:
     const FrameGraphResource* getResource(FrameGraphResourceHandle handle) const noexcept;
     const FrameGraphResource* getResource(gerium_utf8_t name) const noexcept;
 
+    gerium_uint32_t nodeCount() const noexcept;
+    const FrameGraphNode* getNode(gerium_uint32_t index) const noexcept;
+
     gerium_result_t compile() {
         compileGraph();
         return GERIUM_RESULT_SUCCESS;

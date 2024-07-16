@@ -79,6 +79,14 @@ const FrameGraphResource* FrameGraph::getResource(gerium_utf8_t name) const noex
     return nullptr;
 }
 
+gerium_uint32_t FrameGraph::nodeCount() const noexcept {
+    return _nodeGraphCount;
+}
+
+const FrameGraphNode* FrameGraph::getNode(gerium_uint32_t index) const noexcept {
+    return _nodes.access(_nodeGraph[index]);
+}
+
 FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_output_t& output,
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();

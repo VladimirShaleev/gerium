@@ -27,6 +27,8 @@ public:
 
     gerium_result_t newFrame() noexcept;
 
+    gerium_result_t render(const FrameGraph& frameGraph) noexcept;
+
     gerium_result_t present() noexcept;
 
     Profiler* getProfiler() noexcept;
@@ -43,6 +45,7 @@ private:
     virtual void onDestroyTexture(TextureHandle handle) noexcept = 0;
 
     virtual bool onNewFrame() = 0;
+    virtual void onRender(const FrameGraph& frameGraph) = 0;
     virtual void onPresent()  = 0;
 
     virtual Profiler* onGetProfiler() noexcept = 0;

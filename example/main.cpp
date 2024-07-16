@@ -144,6 +144,7 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
         return 1;
     }
 
+    gerium_renderer_render(renderer, frameGraph);
     gerium_renderer_present(renderer);
 
     return 1;

@@ -150,6 +150,25 @@ bool VkRenderer::onNewFrame() {
     return _device->newFrame();
 }
 
+void VkRenderer::onRender(const FrameGraph& frameGraph) {
+    auto cb = _device->getCommandBuffer(0);
+    cb->pushMarker("frame_graph");
+
+    for (gerium_uint32_t i = 0; i < frameGraph.nodeCount(); ++i) {
+        auto node = frameGraph.getNode(i);
+
+        if (!node->enabled) {
+            continue;
+        }
+
+        cb->pushMarker(node->name);
+        cb->popMarker();
+    }
+
+    cb->popMarker();
+    _device->submit(cb);
+}
+
 void VkRenderer::onPresent() {
     _device->present();
 }

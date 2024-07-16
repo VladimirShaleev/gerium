@@ -26,6 +26,7 @@ private:
     void onDestroyTexture(TextureHandle handle) noexcept override;
 
     bool onNewFrame() override;
+    void onRender(const FrameGraph& frameGraph) override;
     void onPresent() override;
 
     Profiler* onGetProfiler() noexcept override;

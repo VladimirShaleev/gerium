@@ -24,7 +24,9 @@ gerium_result_t Renderer::createTexture(const TextureCreation& creation, Texture
     });
 }
 
-gerium_result_t Renderer::createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node, RenderPassHandle& handle) noexcept {
+gerium_result_t Renderer::createRenderPass(const FrameGraph& frameGraph,
+                                           const FrameGraphNode* node,
+                                           RenderPassHandle& handle) noexcept {
     return invoke<Renderer>([&frameGraph, node, &handle](auto obj) {
         handle = obj->onCreateRenderPass(frameGraph, node);
     });
@@ -52,6 +54,12 @@ gerium_result_t Renderer::newFrame() noexcept {
         return result;
     }
     return drawFrame ? GERIUM_RESULT_SUCCESS : GERIUM_RESULT_SKIP_FRAME;
+}
+
+gerium_result_t Renderer::render(const FrameGraph& frameGraph) noexcept {
+    return invoke<Renderer>([&frameGraph](auto obj) {
+        obj->onRender(frameGraph);
+    });
 }
 
 gerium_result_t Renderer::present() noexcept {
@@ -104,7 +112,7 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
         .setName(creation->name);
     TextureHandle texture;
     auto result = alias_cast<Renderer*>(renderer)->createTexture(tc, texture);
-    *handle = texture;
+    *handle     = texture;
     return result;
 }
 
@@ -116,6 +124,12 @@ void gerium_renderer_destroy_texture(gerium_renderer_t renderer, gerium_texture_
 gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->newFrame();
+}
+
+gerium_result_t gerium_renderer_render(gerium_renderer_t renderer, gerium_frame_graph_t frame_graph) {
+    assert(renderer);
+    assert(frame_graph);
+    return alias_cast<Renderer*>(renderer)->render(*alias_cast<FrameGraph*>(frame_graph));
 }
 
 gerium_result_t gerium_renderer_present(gerium_renderer_t renderer) {

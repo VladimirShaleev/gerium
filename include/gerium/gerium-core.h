@@ -440,6 +440,10 @@ gerium_public gerium_result_t
 gerium_renderer_new_frame(gerium_renderer_t renderer);
 
 gerium_public gerium_result_t
+gerium_renderer_render(gerium_renderer_t renderer,
+                       gerium_frame_graph_t frame_graph);
+
+gerium_public gerium_result_t
 gerium_renderer_present(gerium_renderer_t renderer);
 
 gerium_public gerium_result_t
