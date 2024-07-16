@@ -30,6 +30,14 @@ gerium_result_t Renderer::createRenderPass(const FrameGraph& frameGraph, const F
     });
 }
 
+gerium_result_t Renderer::createFramebuffer(const FrameGraph& frameGraph,
+                                            const FrameGraphNode* node,
+                                            FramebufferHandle& handle) noexcept {
+    return invoke<Renderer>([&frameGraph, node, &handle](auto obj) {
+        handle = obj->onCreateFramebuffer(frameGraph, node);
+    });
+}
+
 void Renderer::destroyTexture(gerium_texture_h handle) noexcept {
     onDestroyTexture({ handle.unused });
 }

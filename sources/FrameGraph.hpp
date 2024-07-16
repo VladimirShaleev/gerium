@@ -83,6 +83,7 @@ public:
                             const gerium_resource_output_t* outputs);
 
     const FrameGraphResource* getResource(FrameGraphResourceHandle handle) const noexcept;
+    const FrameGraphResource* getResource(gerium_utf8_t name) const noexcept;
 
     gerium_result_t compile() {
         compileGraph();
@@ -100,9 +101,6 @@ private:
     void compileGraph();
     void computeEdges(FrameGraphNode* node);
     void clearGraph() noexcept;
-
-    FrameGraphResource* findResource(gerium_utf8_t name) noexcept;
-    void createFramebuffer(FrameGraphNode* node);
 
     Renderer* _renderer;
 

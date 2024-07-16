@@ -74,6 +74,13 @@ const FrameGraphResource* FrameGraph::getResource(FrameGraphResourceHandle handl
     return _resources.access(handle);
 }
 
+const FrameGraphResource* FrameGraph::getResource(gerium_utf8_t name) const noexcept {
+    if (auto it = _resourceCache.find(hash(name)); it != _resourceCache.end()) {
+        return getResource(it->second);
+    }
+    return nullptr;
+}
+
 FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_output_t& output,
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();
@@ -243,12 +250,23 @@ void FrameGraph::compileGraph() {
             continue;
         }
 
+        for (gerium_uint32_t j = 0; j < node->inputCount; ++j) {
+            auto resource = _resources.access(node->inputs[j]);
+
+            if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ||
+                resource->info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
+                continue;
+            }
+
+            resource->info.texture.handle = getResource(resource->name)->info.texture.handle;
+        }
+
         if (node->renderPass == Undefined) {
             error(_renderer->createRenderPass(*this, node, node->renderPass));
         }
 
         if (node->framebuffer == Undefined) {
-            createFramebuffer(node);
+            error(_renderer->createFramebuffer(*this, node, node->framebuffer));
         }
     }
 }
@@ -256,16 +274,19 @@ void FrameGraph::compileGraph() {
 void FrameGraph::computeEdges(FrameGraphNode* node) {
     for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
         auto inputResource  = _resources.access(node->inputs[i]);
-        auto outputResource = findResource(inputResource->name);
+        auto outputResource = getResource(inputResource->name);
 
         if (outputResource == nullptr && !inputResource->external) {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
 
-        inputResource->external = outputResource->external;
-        inputResource->producer = outputResource->producer;
-        inputResource->output   = outputResource->output;
-        inputResource->info     = outputResource->info;
+        const auto type = inputResource->info.type;
+
+        inputResource->external  = outputResource->external;
+        inputResource->producer  = outputResource->producer;
+        inputResource->output    = outputResource->output;
+        inputResource->info      = outputResource->info;
+        inputResource->info.type = type;
 
         auto perentNode                            = _nodes.access(inputResource->producer);
         perentNode->edges[perentNode->edgeCount++] = _nodes.handle(node);
@@ -278,16 +299,6 @@ void FrameGraph::clearGraph() noexcept {
     _nodeCache.clear();
     _resourceCache.clear();
     _nodeGraphCount = 0;
-}
-
-FrameGraphResource* FrameGraph::findResource(gerium_utf8_t name) noexcept {
-    if (auto it = _resourceCache.find(hash(name)); it != _resourceCache.end()) {
-        return _resources.access(it->second);
-    }
-    return nullptr;
-}
-
-void FrameGraph::createFramebuffer(FrameGraphNode* node) {
 }
 
 } // namespace gerium

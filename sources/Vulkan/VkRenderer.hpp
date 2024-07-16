@@ -21,6 +21,7 @@ private:
     BufferHandle onCreateBuffer(const gerium_buffer_creation_t& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
     RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
+    FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
 
     void onDestroyTexture(TextureHandle handle) noexcept override;
 
