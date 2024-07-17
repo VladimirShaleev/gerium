@@ -15,7 +15,7 @@ enum class ResourceState {
     DepthRead               = 0x20,
     NonPixelShaderResource  = 0x40,
     PixelShaderResource     = 0x80,
-    ShaderResource          = NonPixelShaderResource | 0x80,
+    ShaderResource          = NonPixelShaderResource | PixelShaderResource,
     StreamOut               = 0x100,
     IndirectArgument        = 0x200,
     CopyDest                = 0x400,

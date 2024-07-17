@@ -324,13 +324,13 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
             }
         }
 
-        auto renderPass = node->renderPass;
+        auto renderPass  = node->renderPass;
         auto framebuffer = node->framebuffer;
 
         if (!node->outputCount) {
-            width  = _device->getSwapchainExtent().width;
-            height = _device->getSwapchainExtent().height;
-            renderPass = _device->getSwapchainPass();
+            width       = _device->getSwapchainExtent().width;
+            height      = _device->getSwapchainExtent().height;
+            renderPass  = _device->getSwapchainPass();
             framebuffer = _device->getSwapchainFramebuffer();
         }
 
@@ -351,6 +351,10 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
 
         if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, pass->data)) {
             error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
+
+        if (node->outputCount) {
+            cb->endCurrentRenderPass();
         }
 
         cb->popMarker();

@@ -42,6 +42,8 @@ public:
     void popMarker();
     void submit(QueueType queue);
 
+    void endCurrentRenderPass();
+
     VkCommandBuffer vkCommandBuffer() noexcept {
         return _commandBuffer;
     }
@@ -49,8 +51,6 @@ public:
 private:
     friend Device;
     friend CommandBufferManager;
-
-    void endCurrentRenderPass();
 
     void onBindMaterial(MaterialHandle handle) noexcept override;
     void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept override;

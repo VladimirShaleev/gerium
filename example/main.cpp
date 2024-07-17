@@ -254,7 +254,7 @@ bool initialize(gerium_application_t application) {
         gerium_frame_graph_add_pass(frameGraph, "simple_pass", &simplePass, nullptr);
 
         gerium_resource_input_t fullscreenInputs[] = {
-            { GERIUM_RESOURCE_TYPE_REFERENCE, "color" },
+            { GERIUM_RESOURCE_TYPE_TEXTURE, "color" },
         };
         check(gerium_frame_graph_add_node(
             frameGraph, "present_pass", std::size(fullscreenInputs), fullscreenInputs, 0, nullptr));
