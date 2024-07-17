@@ -57,18 +57,6 @@ gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
     return 1;
 }
 
-gerium_bool_t fullscreenExternal(gerium_frame_graph_t frame_graph,
-                                 gerium_renderer_t renderer,
-                                 gerium_utf8_t name,
-                                 gerium_data_t data,
-                                 gerium_texture_h* handle) {
-    if (strcmp(name, "swapchain") == 0) {
-        *handle = gerium_renderer_get_swapchain_texture(renderer);
-        return 1;
-    }
-    return 0;
-}
-
 bool initialize(gerium_application_t application) {
     try {
         constexpr auto debug =
@@ -259,27 +247,17 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create_material(
             renderer, frameGraph, "lighting", std::size(lightingPipelines), lightingPipelines, &lighting));*/
 
-        gerium_render_pass_t fullscreenPass{ fullscreenExternal, 0, 0, fullscreenRender };
+        gerium_render_pass_t fullscreenPass{ 0, 0, fullscreenRender };
         gerium_frame_graph_add_pass(frameGraph, "present_pass", &fullscreenPass, nullptr);
 
-        gerium_render_pass_t simplePass{ 0, 0, 0, simpleRender };
+        gerium_render_pass_t simplePass{ 0, 0, simpleRender };
         gerium_frame_graph_add_pass(frameGraph, "simple_pass", &simplePass, nullptr);
 
         gerium_resource_input_t fullscreenInputs[] = {
             { GERIUM_RESOURCE_TYPE_REFERENCE, "color" },
         };
-        gerium_resource_output_t fullscreenOutputs[] = {
-            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
-             "swapchain", 1,
-             GERIUM_FORMAT_R8G8B8A8_UNORM, 0,
-             0, GERIUM_RENDER_PASS_OPERATION_DONT_CARE }
-        };
-        check(gerium_frame_graph_add_node(frameGraph,
-                                          "present_pass",
-                                          std::size(fullscreenInputs),
-                                          fullscreenInputs,
-                                          std::size(fullscreenOutputs),
-                                          fullscreenOutputs));
+        check(gerium_frame_graph_add_node(
+            frameGraph, "present_pass", std::size(fullscreenInputs), fullscreenInputs, 0, nullptr));
 
         gerium_resource_output_t simpleOutputs[] = {
             { GERIUM_RESOURCE_TYPE_ATTACHMENT,
@@ -369,7 +347,7 @@ bool initialize(gerium_application_t application) {
         fullscreenShaders[1].data = "#version 450\n"
                                     "\n"
                                     "layout(location = 0) in vec2 vTexCoord;\n"
-                                    
+
                                     "layout(location = 0) out vec4 outColor;\n"
                                     "\n"
                                     "void main() {\n"

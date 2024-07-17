@@ -115,7 +115,7 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
             pc.vertexInput.addVertexStream(s);
         }
 
-        if (auto node = frameGraph.getNode(pipelines[i].render_pass); node) {
+        if (auto node = frameGraph.getNode(pipelines[i].render_pass); node && node->renderPass != Undefined) {
             pc.renderPass = _device->getRenderPassOutput(node->renderPass);
         } else {
             pc.renderPass = _device->getRenderPassOutput(_device->getSwapchainPass());
@@ -300,32 +300,12 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
         for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
             auto resource = frameGraph.getResource(node->outputs[i]);
 
-            if (resource->swapchain) {
-                width = gerium_uint16_t(_device->getSwapchainExtent().width);
-                height = gerium_uint16_t(_device->getSwapchainExtent().height);
-                break;
-            }
-
             if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
-                auto handle = resource->info.texture.handle;
-
-                if (resource->external && pass->pass.external_texture) {
-                    gerium_texture_h texture{};
-                    if (!pass->pass.external_texture(alias_cast<gerium_frame_graph_t>(&frameGraph),
-                                                     this,
-                                                     resource->name,
-                                                     pass->data,
-                                                     &texture)) {
-                        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-                    }
-                    handle = { texture.unused };
-                }
-
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
 
                 if (hasDepthOrStencil(toVkFormat(resource->info.texture.format))) {
-                    cb->addImageBarrier(handle,
+                    cb->addImageBarrier(resource->info.texture.handle,
                                         ResourceState::Undefined,
                                         ResourceState::DepthWrite,
                                         0,
@@ -333,10 +313,25 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
                                         true,
                                         hasStencil(toVkFormat(resource->info.texture.format)));
                 } else {
-                    cb->addImageBarrier(
-                        handle, ResourceState::Undefined, ResourceState::RenderTarget, 0, 1, false, false);
+                    cb->addImageBarrier(resource->info.texture.handle,
+                                        ResourceState::Undefined,
+                                        ResourceState::RenderTarget,
+                                        0,
+                                        1,
+                                        false,
+                                        false);
                 }
             }
+        }
+
+        auto renderPass = node->renderPass;
+        auto framebuffer = node->framebuffer;
+
+        if (!node->outputCount) {
+            width  = _device->getSwapchainExtent().width;
+            height = _device->getSwapchainExtent().height;
+            renderPass = _device->getSwapchainPass();
+            framebuffer = _device->getSwapchainFramebuffer();
         }
 
         Rect2DInt scissor{ 0, 0, width, height };
@@ -352,7 +347,7 @@ void VkRenderer::onRender(const FrameGraph& frameGraph) {
             pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
         }
 
-        cb->bindPass(node->renderPass, node->framebuffer);
+        cb->bindPass(renderPass, framebuffer);
 
         if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, pass->data)) {
             error(GERIUM_RESULT_ERROR_FROM_CALLBACK);

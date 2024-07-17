@@ -205,13 +205,6 @@ typedef gerium_bool_t
                                    gerium_application_state_t state);
 
 typedef gerium_bool_t
-(*gerium_frame_graph_external_texture_func_t)(gerium_frame_graph_t frame_graph,
-                                              gerium_renderer_t renderer,
-                                              gerium_utf8_t name,
-                                              gerium_data_t data,
-                                              gerium_texture_h* handle);
-
-typedef gerium_bool_t
 (*gerium_frame_graph_prepare_func_t)(gerium_frame_graph_t frame_graph,
                                      gerium_renderer_t renderer,
                                      gerium_data_t data);
@@ -271,10 +264,9 @@ typedef struct
 
 typedef struct
 {
-    gerium_frame_graph_external_texture_func_t external_texture;
-    gerium_frame_graph_prepare_func_t          prepare;
-    gerium_frame_graph_resize_func_t           resize;
-    gerium_frame_graph_render_func_t           render;
+    gerium_frame_graph_prepare_func_t prepare;
+    gerium_frame_graph_resize_func_t  resize;
+    gerium_frame_graph_render_func_t  render;
 } gerium_render_pass_t;
 
 typedef struct
@@ -477,9 +469,6 @@ gerium_renderer_reference(gerium_renderer_t renderer);
 
 gerium_public void
 gerium_renderer_destroy(gerium_renderer_t renderer);
-
-gerium_public gerium_texture_h
-gerium_renderer_get_swapchain_texture(gerium_renderer_t renderer);
 
 gerium_public gerium_result_t
 gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,

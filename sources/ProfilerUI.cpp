@@ -216,6 +216,7 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
                     char spaces[33]{};
                     for (int s = 0; s < timestamp.depth; ++s) {
                         spaces[s] = '-';
+                        spaces[s + 1] = ' ';
                     }
 
                     sprintf(buf, "%s%s %2.4f", spaces, timestamp.name, timestamp.elapsed);

@@ -109,9 +109,6 @@ void CommandBuffer::setViewport(const Viewport* viewport) {
 }
 
 void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
-    renderPass  = framebuffer == Undefined ? _device->getSwapchainPass() : renderPass;
-    framebuffer = framebuffer == Undefined ? _device->getSwapchainFramebuffer() : framebuffer;
-
     auto renderPassObj  = _device->_renderPasses.access(renderPass);
     auto framebufferObj = _device->_framebuffers.access(framebuffer);
 

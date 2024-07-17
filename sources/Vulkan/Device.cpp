@@ -1664,12 +1664,12 @@ void Device::createImGui(Application* application) {
     io.DisplaySize = ImVec2{ float(_swapchainExtent.width), float(_swapchainExtent.height) };
 
     auto fs   = cmrc::gerium::resources::get_filesystem();
-    auto font = fs.open("resources/font-awesome.ttf");
+    auto font = fs.open("resources/OpenSans-Regular.ttf");
 
     // Add API to obtain DPI and other metrics
     // TODO: add calc density
-    auto density  = 1.5f;
-    auto fontSize = 12.0f;
+    auto density  = 1.0f;
+    auto fontSize = 24.0f;
     auto fontD    = 1.5f;
 #ifdef GERIUM_PLATFORM_ANDROID
     density  = 1.5f;
