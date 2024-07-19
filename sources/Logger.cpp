@@ -161,7 +161,7 @@ void gerium_logger_set_level_by_tag(gerium_utf8_t tag, gerium_logger_level_t lev
 
 void gerium_logger_print(gerium_logger_t logger, gerium_logger_level_t level, gerium_utf8_t message) {
     assert(logger);
-    GERIUM_ASSERT_ARG(level >= GERIUM_LOGGER_LEVEL_VERBOSE && level <= GERIUM_LOGGER_LEVEL_OFF);
-    GERIUM_ASSERT_ARG(message);
+    assert(level >= GERIUM_LOGGER_LEVEL_VERBOSE && level <= GERIUM_LOGGER_LEVEL_OFF);
+    assert(message);
     return alias_cast<Logger*>(logger)->print(level, message);
 }
