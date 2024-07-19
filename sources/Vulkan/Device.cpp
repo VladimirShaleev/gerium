@@ -1677,7 +1677,7 @@ void Device::createImGui(Application* application) {
     fontD    = 1.4f;
 #elif defined(GERIUM_PLATFORM_MAC_OS)
     density  = 1.0f;
-    fontSize = 12.0f;
+    fontSize = 16.0f;
     fontD    = 2.0f;
 #endif
 
