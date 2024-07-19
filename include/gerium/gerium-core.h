@@ -573,7 +573,9 @@ gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             gerium_uint32_t output_count,
                             const gerium_resource_output_t* outputs);
 
-// temp
+gerium_public void
+gerium_frame_graph_clear(gerium_frame_graph_t frame_graph);
+
 gerium_public gerium_result_t
 gerium_frame_graph_compile(gerium_frame_graph_t frame_graph);
 

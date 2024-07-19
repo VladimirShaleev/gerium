@@ -35,6 +35,8 @@ public:
     void destroyTexture(TextureHandle handle) noexcept;
     void destroyMaterial(MaterialHandle handle) noexcept;
     void destroyDescriptorSet(DescriptorSetHandle handle) noexcept;
+    void destroyRenderPass(RenderPassHandle handle) noexcept;
+    void destroyFramebuffer(FramebufferHandle handle) noexcept;
 
     bool newFrame();
     void render(const FrameGraph& frameGraph);
@@ -63,6 +65,8 @@ private:
     virtual void onDestroyTexture(TextureHandle handle) noexcept             = 0;
     virtual void onDestroyMaterial(MaterialHandle handle) noexcept           = 0;
     virtual void onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept = 0;
+    virtual void onDestroyRenderPass(RenderPassHandle handle) noexcept       = 0;
+    virtual void onDestroyFramebuffer(FramebufferHandle handle) noexcept     = 0;
 
     virtual bool onNewFrame()                           = 0;
     virtual void onRender(const FrameGraph& frameGraph) = 0;

@@ -61,6 +61,14 @@ void Renderer::destroyDescriptorSet(DescriptorSetHandle handle) noexcept {
     onDestroyDescriptorSet(handle);
 }
 
+void Renderer::destroyRenderPass(RenderPassHandle handle) noexcept {
+    onDestroyRenderPass(handle);
+}
+
+void Renderer::destroyFramebuffer(FramebufferHandle handle) noexcept {
+    onDestroyFramebuffer(handle);
+}
+
 bool Renderer::newFrame() {
     return onNewFrame();
 }

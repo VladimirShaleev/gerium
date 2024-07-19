@@ -72,6 +72,7 @@ struct FrameGraphResource {
 
 class FrameGraph : public _gerium_frame_graph {
 public:
+    ~FrameGraph() override;
     FrameGraph(Renderer* renderer);
 
     void addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data);
@@ -83,6 +84,9 @@ public:
                  gerium_uint32_t outputCount,
                  const gerium_resource_output_t* outputs);
 
+    void clear();
+    void compile();
+
     const FrameGraphResource* getResource(FrameGraphResourceHandle handle) const noexcept;
     const FrameGraphResource* getResource(gerium_utf8_t name) const noexcept;
 
@@ -90,10 +94,6 @@ public:
     const FrameGraphNode* getNode(gerium_uint32_t index) const noexcept;
     const FrameGraphNode* getNode(gerium_utf8_t name) const noexcept;
     const FrameGraphRenderPass* getPass(FrameGraphRenderPassHandle handle) const noexcept;
-
-    void compile() {
-        compileGraph();
-    }
 
 private:
     using NodeHashMap       = absl::flat_hash_map<gerium_uint64_t, FrameGraphNodeHandle>;
@@ -103,7 +103,6 @@ private:
     FrameGraphResourceHandle createNodeOutput(const gerium_resource_output_t& output, FrameGraphNodeHandle producer);
     FrameGraphResourceHandle createNodeInput(const gerium_resource_input_t& input);
 
-    void compileGraph();
     void computeEdges(FrameGraphNode* node);
     void clearGraph() noexcept;
 

@@ -37,6 +37,8 @@ private:
     void onDestroyTexture(TextureHandle handle) noexcept override;
     void onDestroyMaterial(MaterialHandle handle) noexcept override;
     void onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept override;
+    void onDestroyRenderPass(RenderPassHandle handle) noexcept override;
+    void onDestroyFramebuffer(FramebufferHandle handle) noexcept override;
 
     bool onNewFrame() override;
     void onRender(const FrameGraph& frameGraph) override;

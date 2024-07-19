@@ -280,6 +280,14 @@ void VkRenderer::onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept {
     _device->destroyDescriptorSet(handle);
 }
 
+void VkRenderer::onDestroyRenderPass(RenderPassHandle handle) noexcept {
+    _device->destroyRenderPass(handle);
+}
+
+void VkRenderer::onDestroyFramebuffer(FramebufferHandle handle) noexcept {
+    _device->destroyFramebuffer(handle);
+}
+
 bool VkRenderer::onNewFrame() {
     return _device->newFrame();
 }
