@@ -44,10 +44,11 @@ public:
               gerium_utf8_t name) noexcept;
 
     bool newFrame();
-    void render(const FrameGraph& frameGraph);
+    void render(FrameGraph& frameGraph);
     void present();
 
     Profiler* getProfiler() noexcept;
+    void getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept;
 
 protected:
     virtual void onInitialize(gerium_uint32_t version, bool debug) = 0;
@@ -78,11 +79,12 @@ private:
                         const FrameGraph& frameGraph,
                         gerium_utf8_t name) noexcept = 0;
 
-    virtual bool onNewFrame()                           = 0;
-    virtual void onRender(const FrameGraph& frameGraph) = 0;
-    virtual void onPresent()                            = 0;
+    virtual bool onNewFrame()                     = 0;
+    virtual void onRender(FrameGraph& frameGraph) = 0;
+    virtual void onPresent()                      = 0;
 
-    virtual Profiler* onGetProfiler() noexcept = 0;
+    virtual Profiler* onGetProfiler() noexcept                                                      = 0;
+    virtual void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept = 0;
 };
 
 } // namespace gerium

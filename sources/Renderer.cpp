@@ -80,7 +80,7 @@ bool Renderer::newFrame() {
     return onNewFrame();
 }
 
-void Renderer::render(const FrameGraph& frameGraph) {
+void Renderer::render(FrameGraph& frameGraph) {
     onRender(frameGraph);
 }
 
@@ -90,6 +90,10 @@ void Renderer::present() {
 
 Profiler* Renderer::getProfiler() noexcept {
     return onGetProfiler();
+}
+
+void Renderer::getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept {
+    onGetSwapchainSize(width, height);
 }
 
 } // namespace gerium

@@ -270,6 +270,49 @@ void FrameGraph::compile() {
     }
 }
 
+void FrameGraph::resize(gerium_uint16_t oldWidth,
+                        gerium_uint16_t newWidth,
+                        gerium_uint16_t oldHeight,
+                        gerium_uint16_t newHeight) {
+    auto scaleX = gerium_float64_t(newWidth) / oldWidth;
+    auto scaleY = gerium_float64_t(newHeight) / oldHeight;
+
+    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
+        auto node = _nodes.access(_nodeGraph[i]);
+
+        if (node->framebuffer != Undefined) {
+            _renderer->destroyFramebuffer(node->framebuffer);
+            node->framebuffer = Undefined;
+        }
+
+        if (node->renderPass != Undefined) {
+            _renderer->destroyRenderPass(node->renderPass);
+            node->renderPass = Undefined;
+        }
+
+        for (gerium_uint32_t j = 0; j < node->outputCount; ++j) {
+            auto resource = _resources.access(node->outputs[j]);
+
+            if (resource->external || resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+                continue;
+            }
+
+            if (resource->info.texture.auto_scale != 0) {
+                resource->info.texture.width = gerium_uint16_t(resource->info.texture.width * scaleX);
+                resource->info.texture.height = gerium_uint16_t(resource->info.texture.height * scaleY);
+
+                _renderer->destroyTexture(resource->info.texture.handle);
+                resource->info.texture.handle = Undefined;
+            }
+        }
+        
+        if (auto pass = _renderPasses.access(node->pass); pass->pass.resize) {
+            pass->pass.resize(this, _renderer, pass->data);
+        }
+    }
+    compile();
+}
+
 const FrameGraphResource* FrameGraph::getResource(FrameGraphResourceHandle handle) const noexcept {
     return _resources.access(handle);
 }
@@ -304,17 +347,19 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();
 
-    resource->name                   = intern(output.name);
-    resource->external               = output.external;
-    resource->producer               = Undefined;
-    resource->output                 = Undefined;
-    resource->info.type              = output.type;
-    resource->info.texture.format    = output.format;
-    resource->info.texture.width     = 800; // output.width;
-    resource->info.texture.height    = 600; // output.height;
-    resource->info.texture.depth     = 1;
-    resource->info.texture.operation = output.operation;
-    resource->info.texture.handle    = Undefined;
+    resource->name                    = intern(output.name);
+    resource->external                = output.external;
+    resource->producer                = Undefined;
+    resource->output                  = Undefined;
+    resource->info.type               = output.type;
+    resource->info.texture.format     = output.format;
+    resource->info.texture.width      = output.width;
+    resource->info.texture.height     = output.height;
+    resource->info.texture.depth      = 1;
+    resource->info.texture.auto_scale = output.auto_scale;
+    resource->info.texture.operation  = output.operation;
+    resource->info.texture.handle     = Undefined;
+    calcFramebufferSize(resource->info);
 
     if (output.type != GERIUM_RESOURCE_TYPE_REFERENCE) {
         resource->producer = producer;
@@ -360,12 +405,22 @@ void FrameGraph::computeEdges(FrameGraphNode* node) {
     }
 }
 
-void FrameGraph::clearGraph() noexcept {
-    _nodes.releaseAll();
-    _resources.releaseAll();
-    _nodeCache.clear();
-    _resourceCache.clear();
-    _nodeGraphCount = 0;
+void FrameGraph::calcFramebufferSize(FrameGraphResourceInfo& info) const noexcept {
+    gerium_uint16_t width, height;
+    _renderer->getSwapchainSize(width, height);
+
+    if (info.texture.width == 0) {
+        info.texture.width = width;
+    }
+
+    if (info.texture.height == 0) {
+        info.texture.height = height;
+    }
+
+    if (info.texture.auto_scale != 0.0f) {
+        info.texture.width  = gerium_uint16_t(info.texture.width * info.texture.auto_scale);
+        info.texture.height = gerium_uint16_t(info.texture.height * info.texture.auto_scale);
+    }
 }
 
 } // namespace gerium

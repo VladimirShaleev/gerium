@@ -53,6 +53,8 @@ gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
                                gerium_renderer_t renderer,
                                gerium_command_buffer_t command_buffer,
                                gerium_data_t data) {
+    gerium_renderer_bind_resource(renderer, descriptorSet1, 0, frame_graph, "color");
+
     gerium_command_buffer_bind_material(command_buffer, fullscreenMaterial);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet1, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
@@ -269,11 +271,11 @@ bool initialize(gerium_application_t application) {
             { GERIUM_RESOURCE_TYPE_ATTACHMENT,
              "color", 0,
              GERIUM_FORMAT_R8G8B8A8_UNORM,    0,
-             0, GERIUM_RENDER_PASS_OPERATION_CLEAR },
+             0, 1.0f, GERIUM_RENDER_PASS_OPERATION_CLEAR },
             { GERIUM_RESOURCE_TYPE_ATTACHMENT,
              "depth", 0,
              GERIUM_FORMAT_D24_UNORM_S8_UINT, 0,
-             0, GERIUM_RENDER_PASS_OPERATION_CLEAR }
+             0, 1.0f, GERIUM_RENDER_PASS_OPERATION_CLEAR }
         };
         check(gerium_frame_graph_add_node(
             frameGraph, "simple_pass", 0, nullptr, std::size(simpleOutputs), simpleOutputs));
@@ -374,8 +376,6 @@ bool initialize(gerium_application_t application) {
                                               std::size(fullscreenPipelines),
                                               fullscreenPipelines,
                                               &fullscreenMaterial));
-
-        gerium_renderer_bind_resource(renderer, descriptorSet1, 0, frameGraph, "color");
 
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());

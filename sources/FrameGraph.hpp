@@ -55,6 +55,7 @@ struct FrameGraphResourceInfo {
             gerium_uint16_t width;
             gerium_uint16_t height;
             gerium_uint16_t depth;
+            gerium_float32_t auto_scale;
             gerium_render_pass_operation_t operation;
             TextureHandle handle;
         } texture;
@@ -86,6 +87,10 @@ public:
 
     void clear();
     void compile();
+    void resize(gerium_uint16_t oldWidth,
+                gerium_uint16_t newWidth,
+                gerium_uint16_t oldHeight,
+                gerium_uint16_t newHeight);
 
     const FrameGraphResource* getResource(FrameGraphResourceHandle handle) const noexcept;
     const FrameGraphResource* getResource(gerium_utf8_t name) const noexcept;
@@ -104,7 +109,8 @@ private:
     FrameGraphResourceHandle createNodeInput(const gerium_resource_input_t& input);
 
     void computeEdges(FrameGraphNode* node);
-    void clearGraph() noexcept;
+
+    void calcFramebufferSize(FrameGraphResourceInfo& info) const noexcept;
 
     Renderer* _renderer;
 

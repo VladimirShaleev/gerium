@@ -6,6 +6,8 @@ namespace gerium::vulkan {
 VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noexcept :
     _application(application),
     _device(std::move(device)),
+    _width(0),
+    _height(0),
     _currentRenderPass(nullptr) {
     if (!application->isRunning()) {
         error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
@@ -308,7 +310,18 @@ bool VkRenderer::onNewFrame() {
     return _device->newFrame();
 }
 
-void VkRenderer::onRender(const FrameGraph& frameGraph) {
+void VkRenderer::onRender(FrameGraph& frameGraph) {
+    gerium_uint16_t width, height;
+    getSwapchainSize(width, height);
+
+    if (_width != width || _height != height) {
+        if (_width != 0 && _height != 0) {
+            frameGraph.resize(_width, width, _height, height);
+        }
+        _width  = width;
+        _height = height;
+    }
+
     auto cb = _device->getCommandBuffer(0);
     cb->bindRenderer(this);
     cb->pushMarker("total");
@@ -433,6 +446,12 @@ void VkRenderer::onPresent() {
 
 Profiler* VkRenderer::onGetProfiler() noexcept {
     return _device->profiler();
+}
+
+void VkRenderer::onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept {
+    const auto& size = _device->getSwapchainExtent();
+    width            = size.width;
+    height           = size.height;
 }
 
 } // namespace gerium::vulkan

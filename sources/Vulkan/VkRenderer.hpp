@@ -46,13 +46,16 @@ private:
                 gerium_utf8_t name) noexcept override;
 
     bool onNewFrame() override;
-    void onRender(const FrameGraph& frameGraph) override;
+    void onRender(FrameGraph& frameGraph) override;
     void onPresent() override;
 
     Profiler* onGetProfiler() noexcept override;
+    void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept override;
 
     ObjectPtr<Application> _application;
     ObjectPtr<Device> _device;
+    gerium_uint16_t _width;
+    gerium_uint16_t _height;
     gerium_utf8_t _currentRenderPass;
 
     MaterialPool _materials;

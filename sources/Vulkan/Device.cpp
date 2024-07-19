@@ -1244,6 +1244,8 @@ void Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayout
 
         auto& currestSet = descriptorSet->vkDescriptorSet[descriptorSet->currentFrame];
 
+        createDescriptorSet = currestSet == VK_NULL_HANDLE ? true : createDescriptorSet;
+
         if (createDescriptorSet) {
             VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
             allocInfo.descriptorPool     = _descriptorPool;
@@ -1251,6 +1253,7 @@ void Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayout
             allocInfo.pSetLayouts        = &layout->vkDescriptorSetLayout;
 
             check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &currestSet));
+            descriptorSet->layout = layoutHandle;
         }
 
         // descriptorSet->numResources = creation.numResources;

@@ -284,6 +284,7 @@ typedef struct
     gerium_format_t                format;
     gerium_uint16_t                width;
     gerium_uint16_t                height;
+    gerium_float32_t               auto_scale;
     gerium_render_pass_operation_t operation;
 } gerium_resource_output_t;
 
