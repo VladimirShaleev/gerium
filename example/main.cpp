@@ -8,9 +8,10 @@ static gerium_renderer_t renderer       = nullptr;
 static gerium_frame_graph_t frameGraph  = nullptr;
 static gerium_profiler_t profiler       = nullptr;
 
-static gerium_buffer_h vertices             = {};
-static gerium_material_h baseMaterial       = {};
-static gerium_material_h fullscreenMaterial = {};
+static gerium_buffer_h vertices               = {};
+static gerium_material_h baseMaterial         = {};
+static gerium_material_h fullscreenMaterial   = {};
+static gerium_descriptor_set_h descriptorSet1 = {};
 
 void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
@@ -67,6 +68,8 @@ bool initialize(gerium_application_t application) {
 #endif
 
         check(gerium_renderer_create(application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &renderer));
+        gerium_renderer_set_profiler_enable(renderer, 1);
+
         check(gerium_frame_graph_create(renderer, &frameGraph));
         check(gerium_profiler_create(renderer, &profiler));
 
@@ -82,6 +85,8 @@ bool initialize(gerium_application_t application) {
             { { -0.5, 0.5 },   { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } }
         };
         check(gerium_renderer_create_buffer_from_data(renderer, "vertices", vData, sizeof(Vertex) * 3, &vertices));
+
+        check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet1));
 
         /*gerium_render_pass_t gbufferPass{ 0, 0, gbufferRender };
         gerium_render_pass_t transparentPass{ 0, 0, transparentRender };
@@ -348,10 +353,12 @@ bool initialize(gerium_application_t application) {
                                     "\n"
                                     "layout(location = 0) in vec2 vTexCoord;\n"
 
+                                    "layout(binding = 0) uniform sampler2D texColor;\n"
+
                                     "layout(location = 0) out vec4 outColor;\n"
                                     "\n"
                                     "void main() {\n"
-                                    "    outColor = vec4(vTexCoord, 0.0, 1.0);\n"
+                                    "    outColor = texture(texColor, vTexCoord);\n"
                                     "}\n";
         fullscreenShaders[1].size = strlen(fullscreenShaders[1].data);
 
@@ -378,6 +385,13 @@ bool initialize(gerium_application_t application) {
 }
 
 void unitialize(gerium_application_t application) {
+    if (renderer) {
+        gerium_renderer_destroy_descriptor_set(renderer, descriptorSet1);
+        gerium_renderer_destroy_material(renderer, fullscreenMaterial);
+        gerium_renderer_destroy_material(renderer, baseMaterial);
+        gerium_renderer_destroy_buffer(renderer, vertices);
+    }
+
     gerium_profiler_destroy(profiler);
     gerium_frame_graph_destroy(frameGraph);
     gerium_renderer_destroy(renderer);

@@ -27,10 +27,14 @@ public:
                                   gerium_utf8_t name,
                                   gerium_uint32_t pipelineCount,
                                   const gerium_pipeline_t* pipelines);
+    DescriptorSetHandle createDescriptorSet();
     RenderPassHandle createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node);
     FramebufferHandle createFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node);
 
-    void destroyTexture(gerium_texture_h handle) noexcept;
+    void destroyBuffer(BufferHandle handle) noexcept;
+    void destroyTexture(TextureHandle handle) noexcept;
+    void destroyMaterial(MaterialHandle handle) noexcept;
+    void destroyDescriptorSet(DescriptorSetHandle handle) noexcept;
 
     bool newFrame();
     void render(const FrameGraph& frameGraph);
@@ -51,10 +55,14 @@ private:
                                             gerium_utf8_t name,
                                             gerium_uint32_t pipelineCount,
                                             const gerium_pipeline_t* pipelines)                             = 0;
+    virtual DescriptorSetHandle onCreateDescriptorSet()                                                     = 0;
     virtual RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node)   = 0;
     virtual FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) = 0;
 
-    virtual void onDestroyTexture(TextureHandle handle) noexcept = 0;
+    virtual void onDestroyBuffer(BufferHandle handle) noexcept               = 0;
+    virtual void onDestroyTexture(TextureHandle handle) noexcept             = 0;
+    virtual void onDestroyMaterial(MaterialHandle handle) noexcept           = 0;
+    virtual void onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept = 0;
 
     virtual bool onNewFrame()                           = 0;
     virtual void onRender(const FrameGraph& frameGraph) = 0;

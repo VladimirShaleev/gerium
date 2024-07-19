@@ -141,6 +141,10 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
     return handle;
 }
 
+DescriptorSetHandle VkRenderer::onCreateDescriptorSet() {
+    return DescriptorSetHandle();
+}
+
 RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) {
     RenderPassCreation creation{};
     creation.setName(node->name);
@@ -254,8 +258,26 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, 
     return _device->createFramebuffer(creation);
 }
 
+void VkRenderer::onDestroyBuffer(BufferHandle handle) noexcept {
+    _device->destroyBuffer(handle);
+}
+
 void VkRenderer::onDestroyTexture(TextureHandle handle) noexcept {
     _device->destroyTexture(handle);
+}
+
+void VkRenderer::onDestroyMaterial(MaterialHandle handle) noexcept {
+    auto meterial = _materials.access(handle);
+
+    for (gerium_uint32_t i = 0; i < meterial->passCount; ++i) {
+        _device->destroyPipeline(meterial->passes[i].pipeline);
+    }
+
+    _materials.release(handle);
+}
+
+void VkRenderer::onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept {
+    _device->destroyDescriptorSet(handle);
 }
 
 bool VkRenderer::onNewFrame() {

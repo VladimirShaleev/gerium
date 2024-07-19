@@ -23,6 +23,7 @@ GERIUM_TYPE(gerium_profiler)
 GERIUM_HANDLE(gerium_buffer)
 GERIUM_HANDLE(gerium_texture)
 GERIUM_HANDLE(gerium_material)
+GERIUM_HANDLE(gerium_descriptor_set)
 
 typedef enum
 {
@@ -470,6 +471,13 @@ gerium_renderer_reference(gerium_renderer_t renderer);
 gerium_public void
 gerium_renderer_destroy(gerium_renderer_t renderer);
 
+gerium_public gerium_bool_t
+gerium_renderer_get_profiler_enable(gerium_renderer_t renderer);
+
+gerium_public void
+gerium_renderer_set_profiler_enable(gerium_renderer_t renderer,
+                                    gerium_bool_t enable);
+
 gerium_public gerium_result_t
 gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,
                                         gerium_utf8_t name,
@@ -490,9 +498,25 @@ gerium_renderer_create_material(gerium_renderer_t renderer,
                                 const gerium_pipeline_t* pipelines,
                                 gerium_material_h* handle);
 
+gerium_public gerium_result_t
+gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
+                                      gerium_descriptor_set_h* handle);
+
+gerium_public void
+gerium_renderer_destroy_buffer(gerium_renderer_t renderer,
+                               gerium_buffer_h handle);
+
 gerium_public void
 gerium_renderer_destroy_texture(gerium_renderer_t renderer,
                                 gerium_texture_h handle);
+
+gerium_public void
+gerium_renderer_destroy_material(gerium_renderer_t renderer,
+                                 gerium_material_h handle);
+
+gerium_public void
+gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer,
+                                       gerium_descriptor_set_h handle);
 
 gerium_public gerium_result_t
 gerium_renderer_new_frame(gerium_renderer_t renderer);

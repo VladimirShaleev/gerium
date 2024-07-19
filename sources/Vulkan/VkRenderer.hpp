@@ -29,10 +29,14 @@ private:
                                     gerium_utf8_t name,
                                     gerium_uint32_t pipelineCount,
                                     const gerium_pipeline_t* pipelines) override;
+    DescriptorSetHandle onCreateDescriptorSet() override;
     RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
     FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
 
+    void onDestroyBuffer(BufferHandle handle) noexcept override;
     void onDestroyTexture(TextureHandle handle) noexcept override;
+    void onDestroyMaterial(MaterialHandle handle) noexcept override;
+    void onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept override;
 
     bool onNewFrame() override;
     void onRender(const FrameGraph& frameGraph) override;

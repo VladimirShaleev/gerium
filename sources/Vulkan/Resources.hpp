@@ -25,7 +25,6 @@ constexpr uint32_t kGlobalPoolElements      = 1024;
 constexpr uint32_t kDescriptorSetsPoolSize  = 1024;
 
 struct SamplerHandle : Handle {};
-struct DescriptorSetHandle : Handle {};
 struct DescriptorSetLayoutHandle : Handle {};
 struct ProgramHandle : Handle {};
 struct PipelineHandle : Handle {};

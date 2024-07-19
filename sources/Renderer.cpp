@@ -33,6 +33,10 @@ MaterialHandle Renderer::createMaterial(const FrameGraph& frameGraph,
     return onCreateMaterial(frameGraph, name, pipelineCount, pipelines);
 }
 
+DescriptorSetHandle Renderer::createDescriptorSet() {
+    return onCreateDescriptorSet();
+}
+
 RenderPassHandle Renderer::createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) {
     return onCreateRenderPass(frameGraph, node);
 }
@@ -41,8 +45,20 @@ FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph, cons
     return onCreateFramebuffer(frameGraph, node);
 }
 
-void Renderer::destroyTexture(gerium_texture_h handle) noexcept {
-    onDestroyTexture({ handle.unused });
+void Renderer::destroyBuffer(BufferHandle handle) noexcept {
+    onDestroyBuffer(handle);
+}
+
+void Renderer::destroyTexture(TextureHandle handle) noexcept {
+    onDestroyTexture(handle);
+}
+
+void Renderer::destroyMaterial(MaterialHandle handle) noexcept {
+    onDestroyMaterial(handle);
+}
+
+void Renderer::destroyDescriptorSet(DescriptorSetHandle handle) noexcept {
+    onDestroyDescriptorSet(handle);
 }
 
 bool Renderer::newFrame() {
@@ -146,9 +162,33 @@ gerium_result_t gerium_renderer_create_material(gerium_renderer_t renderer,
     GERIUM_END_SAFE_BLOCK
 }
 
+gerium_result_t gerium_renderer_create_descriptor_set(gerium_renderer_t renderer, gerium_descriptor_set_h* handle) {
+    assert(renderer);
+    GERIUM_ASSERT_ARG(handle);
+
+    GERIUM_BEGIN_SAFE_BLOCK
+        *handle = alias_cast<Renderer*>(renderer)->createDescriptorSet();
+    GERIUM_END_SAFE_BLOCK
+}
+
+void gerium_renderer_destroy_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->destroyBuffer({ handle.unused });
+}
+
 void gerium_renderer_destroy_texture(gerium_renderer_t renderer, gerium_texture_h handle) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->destroyTexture(handle);
+    return alias_cast<Renderer*>(renderer)->destroyTexture({ handle.unused });
+}
+
+void gerium_renderer_destroy_material(gerium_renderer_t renderer, gerium_material_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->destroyMaterial({ handle.unused });
+}
+
+void gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer, gerium_descriptor_set_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->destroyDescriptorSet({ handle.unused });
 }
 
 gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {

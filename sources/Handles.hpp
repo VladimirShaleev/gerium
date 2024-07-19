@@ -12,6 +12,8 @@ struct TextureHandle : Handle {};
 
 struct MaterialHandle : Handle {};
 
+struct DescriptorSetHandle : Handle {};
+
 struct RenderPassHandle : Handle {};
 
 struct FramebufferHandle : Handle {};
