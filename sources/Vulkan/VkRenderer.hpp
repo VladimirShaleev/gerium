@@ -20,6 +20,9 @@ protected:
     Application* application() noexcept;
 
 private:
+    bool onGetProfilerEnable() const noexcept override;
+    void onSetProfilerEnable(bool enable) noexcept override;
+
     BufferHandle onCreateBuffer(const BufferCreation& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
     MaterialHandle onCreateMaterial(const FrameGraph& frameGraph,

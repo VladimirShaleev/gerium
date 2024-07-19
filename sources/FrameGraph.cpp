@@ -378,9 +378,9 @@ gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                                             gerium_uint32_t output_count,
                                             const gerium_resource_output_t* outputs) {
     assert(frame_graph);
-    assert(name);
-    assert(input_count == 0 || (input_count > 0 && inputs));
-    assert(output_count == 0 || (output_count > 0 && outputs));
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_ASSERT_ARG(input_count == 0 || (input_count > 0 && inputs));
+    GERIUM_ASSERT_ARG(output_count == 0 || (output_count > 0 && outputs));
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<FrameGraph*>(frame_graph)->addNode(name, input_count, inputs, output_count, outputs);
     GERIUM_END_SAFE_BLOCK

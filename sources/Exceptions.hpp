@@ -21,6 +21,15 @@
     catch (...) {                  \
     }
 
+#ifdef NDEBUG
+# define GERIUM_ASSERT_ARG(expression) ((void) 0)
+#else
+# define GERIUM_ASSERT_ARG(expression)                \
+     if (!!(expression)) {                            \
+         return GERIUM_RESULT_ERROR_INVALID_ARGUMENT; \
+     }
+#endif
+
 namespace gerium {
 
 class Exception : public std::runtime_error {

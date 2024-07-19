@@ -1699,10 +1699,6 @@ void Device::resizeSwapchain() {
     if (oldSwapchain) {
         _vkTable.vkDestroySwapchainKHR(_device, oldSwapchain, getAllocCalls());
     }
-
-    // if (_profilerEnabled) {
-    //     _profilerReset = true;
-    // }
 }
 
 void Device::printValidationLayers() {

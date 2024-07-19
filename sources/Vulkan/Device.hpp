@@ -104,6 +104,16 @@ public:
         _profilerUI.draw(_profiler.get(), 100);
     }
 
+    bool isProfilerEnable() const noexcept {
+        return _profilerEnabled;
+    }
+
+    void setProfilerEnable(bool enable) noexcept {
+        if (_profilerSupported) {
+            _profilerEnabled = enable;
+        }
+    }
+
     static constexpr gerium_uint32_t MaxFrames = 2;
 
 protected:
@@ -204,7 +214,8 @@ private:
 
     std::vector<const char*> checkValidationLayers(const std::vector<const char*>& layers);
     std::vector<const char*> checkExtensions(const std::vector<std::pair<const char*, bool>>& extensions);
-    std::vector<const char*> checkDeviceExtensions(VkPhysicalDevice device, const std::vector<std::pair<const char*, bool>>& extensions);
+    std::vector<const char*> checkDeviceExtensions(VkPhysicalDevice device,
+                                                   const std::vector<std::pair<const char*, bool>>& extensions);
     bool checkPhysicalDeviceExtensions(VkPhysicalDevice device, const std::vector<const char*>& extensions);
 
     void debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

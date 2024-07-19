@@ -10,6 +10,14 @@ void Renderer::initialize(gerium_uint32_t version, bool debug) {
     onInitialize(version, debug);
 }
 
+bool Renderer::getProfilerEnable() const noexcept {
+    return onGetProfilerEnable();
+}
+
+void Renderer::setProfilerEnable(bool enable) noexcept {
+    onSetProfilerEnable(enable);
+}
+
 BufferHandle Renderer::createBuffer(const BufferCreation& creation) {
     return onCreateBuffer(creation);
 }
@@ -67,6 +75,16 @@ void gerium_renderer_destroy(gerium_renderer_t renderer) {
     if (renderer) {
         renderer->destroy();
     }
+}
+
+gerium_bool_t gerium_renderer_get_profiler_enable(gerium_renderer_t renderer) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->getProfilerEnable();
+}
+
+void gerium_renderer_set_profiler_enable(gerium_renderer_t renderer, gerium_bool_t enable) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->setProfilerEnable(enable);
 }
 
 gerium_result_t gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,

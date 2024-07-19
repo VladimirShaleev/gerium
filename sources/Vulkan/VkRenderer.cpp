@@ -33,6 +33,14 @@ Application* VkRenderer::application() noexcept {
     return _application.get();
 }
 
+bool VkRenderer::onGetProfilerEnable() const noexcept {
+    return _device->isProfilerEnable();
+}
+
+void VkRenderer::onSetProfilerEnable(bool enable) noexcept {
+    _device->setProfilerEnable(enable);
+}
+
 BufferHandle VkRenderer::onCreateBuffer(const BufferCreation& creation) {
     return _device->createBuffer(creation);
 }

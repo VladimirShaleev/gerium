@@ -18,6 +18,9 @@ public:
 
     void initialize(gerium_uint32_t version, bool debug);
 
+    bool getProfilerEnable() const noexcept;
+    void setProfilerEnable(bool enable) noexcept;
+
     BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
     MaterialHandle createMaterial(const FrameGraph& frameGraph,
@@ -39,6 +42,9 @@ protected:
     virtual void onInitialize(gerium_uint32_t version, bool debug) = 0;
 
 private:
+    virtual bool onGetProfilerEnable() const noexcept      = 0;
+    virtual void onSetProfilerEnable(bool enable) noexcept = 0;
+
     virtual BufferHandle onCreateBuffer(const BufferCreation& creation)                                     = 0;
     virtual TextureHandle onCreateTexture(const TextureCreation& creation)                                  = 0;
     virtual MaterialHandle onCreateMaterial(const FrameGraph& frameGraph,
