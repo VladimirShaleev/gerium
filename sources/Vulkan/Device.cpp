@@ -2570,8 +2570,4 @@ PFN_vkVoidFunction Device::imguiLoaderFunc(const char* functionName, void* userD
     return device->_vkTable.vkGetInstanceProcAddr(device->_instance, functionName);
 }
 
-void Device::error(gerium_result_t result) {
-    throw Exception(result);
-}
-
 } // namespace gerium::vulkan

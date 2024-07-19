@@ -118,6 +118,13 @@ private:
     T* _obj;
 };
 
+template <typename D, typename B, typename... Args>
+[[nodiscard]] gerium_inline ObjectPtr<B> createObjectPtr(Args&&... args) {
+    static_assert(std::is_base_of_v<B, D>, "D must inheritance from B");
+    auto obj = new D(args...);
+    return ObjectPtr(alias_cast<B*>(obj), false);
+}
+
 } // namespace gerium
 
 #endif

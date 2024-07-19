@@ -13,7 +13,7 @@
 
 namespace gerium::vulkan {
 
-class Device {
+class Device : public Object {
 public:
     virtual ~Device();
 
@@ -218,8 +218,6 @@ private:
                                 void* pUserData);
 
     static PFN_vkVoidFunction imguiLoaderFunc(const char* functionName, void* userData);
-
-    [[noreturn]] static void error(gerium_result_t result);
 
     virtual const char* onGetSurfaceExtension() const noexcept           = 0;
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;

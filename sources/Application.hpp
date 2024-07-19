@@ -19,10 +19,10 @@ public:
     void setFrameFunc(gerium_application_frame_func_t callback, gerium_data_t data) noexcept;
     void setStateFunc(gerium_application_state_func_t callback, gerium_data_t data) noexcept;
 
-    gerium_result_t getDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const noexcept;
+    void getDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const;
 
     bool isFullscreen() const noexcept;
-    gerium_result_t fullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) noexcept;
+    void fullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode);
 
     gerium_application_style_flags_t getStyle() const noexcept;
     void setStyle(gerium_application_style_flags_t style) noexcept;
@@ -40,7 +40,7 @@ public:
     bool getBackgroundWait() const noexcept;
     void setBackgroundWait(bool enable) noexcept;
 
-    gerium_result_t run() noexcept;
+    void run();
     void exit() noexcept;
 
     bool isRunning() const noexcept;

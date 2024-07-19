@@ -3,7 +3,7 @@
 namespace gerium::vulkan::windows {
 
 Win32VkRenderer::Win32VkRenderer(gerium::windows::Win32Application* application) :
-    VkRenderer(application, std::make_unique<Win32Device>()) {
+    VkRenderer(application, createObjectPtr<Win32Device, gerium::vulkan::Device>()) {
 }
 
 void Win32VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
@@ -24,5 +24,7 @@ gerium_result_t gerium_renderer_create(gerium_application_t application,
     if (result != GERIUM_RESULT_SUCCESS) {
         return result;
     }
-    return alias_cast<Win32VkRenderer*>(*renderer)->initialize(version, debug != 0);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<Win32VkRenderer*>(*renderer)->initialize(version, debug != 0);
+    GERIUM_END_SAFE_BLOCK
 }

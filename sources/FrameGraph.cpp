@@ -6,11 +6,11 @@ namespace gerium {
 FrameGraph::FrameGraph(Renderer* renderer) : _renderer(renderer), _nodeGraphCount(0) {
 }
 
-gerium_result_t FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data) {
+void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data) {
     const auto key = hash(name);
 
     if (_renderPassCache.contains(key)) {
-        return GERIUM_RESULT_ERROR_UNKNOWN; // TODO: add err GERIUM_RESULT_ERROR_EXISTS;
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_EXISTS;
     }
 
     auto [handle, pass] = _renderPasses.obtain_and_access();
@@ -20,30 +20,27 @@ gerium_result_t FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass
     pass->data = data;
 
     _renderPassCache.insert({ key, handle });
-
-    return GERIUM_RESULT_SUCCESS;
 }
 
-gerium_result_t FrameGraph::removePass(gerium_utf8_t name) {
+void FrameGraph::removePass(gerium_utf8_t name) {
     const auto key = hash(name);
 
     if (auto it = _renderPassCache.find(key); it != _renderPassCache.end()) {
         _renderPassCache.erase(it);
-        return GERIUM_RESULT_SUCCESS;
+    } else {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
     }
-
-    return GERIUM_RESULT_ERROR_UNKNOWN; // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
 }
 
-gerium_result_t FrameGraph::addNode(gerium_utf8_t name,
-                                    gerium_uint32_t inputCount,
-                                    const gerium_resource_input_t* inputs,
-                                    gerium_uint32_t outputCount,
-                                    const gerium_resource_output_t* outputs) {
+void FrameGraph::addNode(gerium_utf8_t name,
+                         gerium_uint32_t inputCount,
+                         const gerium_resource_input_t* inputs,
+                         gerium_uint32_t outputCount,
+                         const gerium_resource_output_t* outputs) {
     const auto key = hash(name);
 
     if (_nodeCache.contains(key)) {
-        return GERIUM_RESULT_ERROR_UNKNOWN; // TODO: add err GERIUM_RESULT_ERROR_EXISTS;
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_EXISTS;
     }
 
     auto [handle, node] = _nodes.obtain_and_access();
@@ -64,8 +61,6 @@ gerium_result_t FrameGraph::addNode(gerium_utf8_t name,
 
     _nodeGraph[_nodeGraphCount++] = handle;
     _nodeCache.insert({ key, handle });
-
-    return GERIUM_RESULT_SUCCESS;
 }
 
 const FrameGraphResource* FrameGraph::getResource(FrameGraphResourceHandle handle) const noexcept {
@@ -238,7 +233,7 @@ void FrameGraph::compileGraph() {
                         creation.setAlias(alias);
                     }
 
-                    error(_renderer->createTexture(creation, resource->info.texture.handle));
+                    resource->info.texture.handle = _renderer->createTexture(creation);
                 }
             }
         }
@@ -280,11 +275,11 @@ void FrameGraph::compileGraph() {
 
         if (node->outputCount) {
             if (node->renderPass == Undefined) {
-                error(_renderer->createRenderPass(*this, node, node->renderPass));
+                node->renderPass = _renderer->createRenderPass(*this, node);
             }
 
             if (node->framebuffer == Undefined) {
-                error(_renderer->createFramebuffer(*this, node, node->framebuffer));
+                node->framebuffer = _renderer->createFramebuffer(*this, node);
             }
         }
     }
@@ -363,13 +358,17 @@ gerium_result_t gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
     assert(frame_graph);
     assert(name);
     assert(render_pass);
-    return alias_cast<FrameGraph*>(frame_graph)->addPass(name, render_pass, data);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->addPass(name, render_pass, data);
+    GERIUM_END_SAFE_BLOCK
 }
 
 gerium_result_t gerium_frame_graph_remove_pass(gerium_frame_graph_t frame_graph, gerium_utf8_t name) {
     assert(frame_graph);
     assert(name);
-    return alias_cast<FrameGraph*>(frame_graph)->removePass(name);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->removePass(name);
+    GERIUM_END_SAFE_BLOCK
 }
 
 gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
@@ -382,10 +381,14 @@ gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
     assert(name);
     assert(input_count == 0 || (input_count > 0 && inputs));
     assert(output_count == 0 || (output_count > 0 && outputs));
-    return alias_cast<FrameGraph*>(frame_graph)->addNode(name, input_count, inputs, output_count, outputs);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->addNode(name, input_count, inputs, output_count, outputs);
+    GERIUM_END_SAFE_BLOCK
 }
 
 gerium_result_t gerium_frame_graph_compile(gerium_frame_graph_t frame_graph) {
     assert(frame_graph);
-    return alias_cast<FrameGraph*>(frame_graph)->compile();
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->compile();
+    GERIUM_END_SAFE_BLOCK
 }

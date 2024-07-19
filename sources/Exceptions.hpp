@@ -3,11 +3,29 @@
 
 #include "Gerium.hpp"
 
+#define GERIUM_BEGIN_SAFE_BLOCK try {
+#define GERIUM_END_SAFE_BLOCK                     \
+    }                                             \
+    catch (const Exception& exc) {                \
+        return exc.result();                      \
+    }                                             \
+    catch (const std::bad_alloc&) {               \
+        return GERIUM_RESULT_ERROR_OUT_OF_MEMORY; \
+    }                                             \
+    catch (...) {                                 \
+        return GERIUM_RESULT_ERROR_UNKNOWN;       \
+    }                                             \
+    return GERIUM_RESULT_SUCCESS;
+#define GERIUM_END_SAFE_VOID_BLOCK \
+    }                              \
+    catch (...) {                  \
+    }
+
 namespace gerium {
 
 class Exception : public std::runtime_error {
 public:
-    Exception(gerium_result_t result) : std::runtime_error(""), _result(result) {
+    Exception(gerium_result_t result) : std::runtime_error(gerium_result_to_string(result)), _result(result) {
     }
 
     gerium_result_t result() const noexcept {

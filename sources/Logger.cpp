@@ -59,9 +59,9 @@ void Logger::setLevel(gerium_utf8_t tag, gerium_logger_level_t level) noexcept {
 
 void Logger::print(gerium_logger_level_t level, gerium_utf8_t message) noexcept {
     if (level != GERIUM_LOGGER_LEVEL_OFF && level >= getLevelWithParent()) {
-        invoke<Logger>([this, level, message](auto obj) {
-            obj->onPrint(_tag, level, message);
-        });
+        GERIUM_BEGIN_SAFE_BLOCK
+            onPrint(_tag, level, message);
+        GERIUM_END_SAFE_VOID_BLOCK
     }
 }
 

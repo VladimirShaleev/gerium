@@ -40,25 +40,18 @@ void Application::setStateFunc(gerium_application_state_func_t callback, gerium_
     _stateData = data;
 }
 
-gerium_result_t Application::getDisplayInfo(gerium_uint32_t& displayCount,
-                                            gerium_display_info_t* displays) const noexcept {
-    return invoke<Application>([&displayCount, &displays](auto obj) {
-        obj->onGetDisplayInfo(displayCount, displays);
-    });
+void Application::getDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const {
+    onGetDisplayInfo(displayCount, displays);
 }
 
 bool Application::isFullscreen() const noexcept {
     return onIsFullscreen();
 }
 
-gerium_result_t Application::fullscreen(bool fullscreen,
-                                        gerium_uint32_t displayId,
-                                        const gerium_display_mode_t* mode) noexcept {
-    return invoke<Application>([fullscreen, displayId, mode](auto obj) {
-        if (fullscreen != obj->isFullscreen()) {
-            obj->onFullscreen(fullscreen, displayId, mode);
-        }
-    });
+void Application::fullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) {
+    if (fullscreen != isFullscreen()) {
+        onFullscreen(fullscreen, displayId, mode);
+    }
 }
 
 gerium_application_style_flags_t Application::getStyle() const noexcept {
@@ -109,10 +102,8 @@ void Application::setBackgroundWait(bool enable) noexcept {
     _backgroundWait = enable;
 }
 
-gerium_result_t Application::run() noexcept {
-    return invoke<Application>([](auto obj) {
-        obj->onRun();
-    });
+void Application::run() {
+    onRun();
 }
 
 void Application::exit() noexcept {
@@ -215,7 +206,9 @@ gerium_result_t gerium_application_get_display_info(gerium_application_t applica
                                                     gerium_uint32_t* display_count,
                                                     gerium_display_info_t* displays) {
     assert(application);
-    return alias_cast<Application*>(application)->getDisplayInfo(*display_count, displays);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<Application*>(application)->getDisplayInfo(*display_count, displays);
+    GERIUM_END_SAFE_BLOCK
 }
 
 gerium_bool_t gerium_application_is_fullscreen(gerium_application_t application) {
@@ -228,7 +221,9 @@ gerium_result_t gerium_application_fullscreen(gerium_application_t application,
                                               gerium_uint32_t display_id,
                                               const gerium_display_mode_t* mode) {
     assert(application);
-    return alias_cast<Application*>(application)->fullscreen(fullscreen, display_id, mode);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<Application*>(application)->fullscreen(fullscreen, display_id, mode);
+    GERIUM_END_SAFE_BLOCK
 }
 
 gerium_application_style_flags_t gerium_application_get_style(gerium_application_t application) {
@@ -297,7 +292,9 @@ void gerium_application_set_background_wait(gerium_application_t application, ge
 
 gerium_result_t gerium_application_run(gerium_application_t application) {
     assert(application);
-    return alias_cast<Application*>(application)->run();
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<Application*>(application)->run();
+    GERIUM_END_SAFE_BLOCK
 }
 
 void gerium_application_exit(gerium_application_t application) {

@@ -16,29 +16,22 @@ class Renderer : public _gerium_renderer {
 public:
     Renderer() noexcept;
 
-    gerium_result_t initialize(gerium_uint32_t version, bool debug) noexcept;
+    void initialize(gerium_uint32_t version, bool debug);
 
-    gerium_result_t createBuffer(const BufferCreation& creation, BufferHandle& handle) noexcept;
-    gerium_result_t createTexture(const TextureCreation& creation, TextureHandle& handle) noexcept;
-    gerium_result_t createMaterial(const FrameGraph& frameGraph,
-                                   gerium_utf8_t name,
-                                   gerium_uint32_t pipelineCount,
-                                   const gerium_pipeline_t* pipelines,
-                                   MaterialHandle& handle) noexcept;
-    gerium_result_t createRenderPass(const FrameGraph& frameGraph,
-                                     const FrameGraphNode* node,
-                                     RenderPassHandle& handle) noexcept;
-    gerium_result_t createFramebuffer(const FrameGraph& frameGraph,
-                                      const FrameGraphNode* node,
-                                      FramebufferHandle& handle) noexcept;
+    BufferHandle createBuffer(const BufferCreation& creation);
+    TextureHandle createTexture(const TextureCreation& creation);
+    MaterialHandle createMaterial(const FrameGraph& frameGraph,
+                                  gerium_utf8_t name,
+                                  gerium_uint32_t pipelineCount,
+                                  const gerium_pipeline_t* pipelines);
+    RenderPassHandle createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node);
+    FramebufferHandle createFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node);
 
     void destroyTexture(gerium_texture_h handle) noexcept;
 
-    gerium_result_t newFrame() noexcept;
-
-    gerium_result_t render(const FrameGraph& frameGraph) noexcept;
-
-    gerium_result_t present() noexcept;
+    bool newFrame();
+    void render(const FrameGraph& frameGraph);
+    void present();
 
     Profiler* getProfiler() noexcept;
 

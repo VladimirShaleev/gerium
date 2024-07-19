@@ -45,6 +45,7 @@ struct FrameGraphNode {
 
 struct FrameGraphResourceInfo {
     gerium_resource_type_t type;
+
     union {
         struct {
         } buffer;
@@ -73,14 +74,14 @@ class FrameGraph : public _gerium_frame_graph {
 public:
     FrameGraph(Renderer* renderer);
 
-    gerium_result_t addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data);
-    gerium_result_t removePass(gerium_utf8_t name);
+    void addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data);
+    void removePass(gerium_utf8_t name);
 
-    gerium_result_t addNode(gerium_utf8_t name,
-                            gerium_uint32_t inputCount,
-                            const gerium_resource_input_t* inputs,
-                            gerium_uint32_t outputCount,
-                            const gerium_resource_output_t* outputs);
+    void addNode(gerium_utf8_t name,
+                 gerium_uint32_t inputCount,
+                 const gerium_resource_input_t* inputs,
+                 gerium_uint32_t outputCount,
+                 const gerium_resource_output_t* outputs);
 
     const FrameGraphResource* getResource(FrameGraphResourceHandle handle) const noexcept;
     const FrameGraphResource* getResource(gerium_utf8_t name) const noexcept;
@@ -90,9 +91,8 @@ public:
     const FrameGraphNode* getNode(gerium_utf8_t name) const noexcept;
     const FrameGraphRenderPass* getPass(FrameGraphRenderPassHandle handle) const noexcept;
 
-    gerium_result_t compile() {
+    void compile() {
         compileGraph();
-        return GERIUM_RESULT_SUCCESS;
     }
 
 private:

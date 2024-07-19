@@ -3,7 +3,7 @@
 
 namespace gerium::vulkan {
 
-VkRenderer::VkRenderer(Application* application, std::unique_ptr<Device>&& device) noexcept :
+VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noexcept :
     _application(application),
     _device(std::move(device)),
     _currentRenderPass(nullptr) {

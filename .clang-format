@@ -148,8 +148,8 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 KeepEmptyLinesAtEOF: false
 LambdaBodyIndentation: OuterScope
 LineEnding:      LF
-MacroBlockBegin: 'GERIUM_BEGIN'
-MacroBlockEnd:   'GERIUM_END'
+MacroBlockBegin: 'GERIUM_BEGIN|GERIUM_BEGIN_SAFE_BLOCK'
+MacroBlockEnd:   'GERIUM_END|GERIUM_END_SAFE_BLOCK'
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
 ObjCBinPackProtocolList: Auto

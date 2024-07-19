@@ -144,8 +144,12 @@ gerium_inline gerium_uint64_t hash(const T& data, gerium_uint64_t seed = 0) noex
 }
 
 gerium_inline gerium_uint32_t align(gerium_uint32_t size, gerium_uint32_t alignment) noexcept {
-    const gerium_uint32_t mask = alignment - 1;
-    return (size + mask) & ~mask;
+    if (alignment) {
+        const gerium_uint32_t mask = alignment - 1;
+        return (size + mask) & ~mask;
+    } else {
+        return size;
+    }
 }
 
 } // namespace gerium

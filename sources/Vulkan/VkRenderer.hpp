@@ -10,7 +10,7 @@ namespace gerium::vulkan {
 
 class VkRenderer : public Renderer {
 public:
-    VkRenderer(Application* application, std::unique_ptr<Device>&& device) noexcept;
+    VkRenderer(Application* application, ObjectPtr<Device>&& device) noexcept;
 
     PipelineHandle getPipeline(MaterialHandle handle) const noexcept;
 
@@ -38,7 +38,7 @@ private:
     Profiler* onGetProfiler() noexcept override;
 
     ObjectPtr<Application> _application;
-    std::unique_ptr<Device> _device;
+    ObjectPtr<Device> _device;
     gerium_utf8_t _currentRenderPass;
 
     MaterialPool _materials;

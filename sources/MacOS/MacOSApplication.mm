@@ -214,10 +214,6 @@ float MacOSApplication::titlebarHeight() const noexcept {
     return frame.size.height - [controller.window contentRectForFrameRect:frame].size.height;
 }
 
-void MacOSApplication::error(gerium_result_t result) const {
-    Application::error(result);
-}
-
 const void* MacOSApplication::getView() const noexcept {
     return _view;
 }

@@ -36,8 +36,6 @@ public:
 
     float titlebarHeight() const noexcept;
 
-    [[noreturn]] void error(gerium_result_t result) const;
-
     const void* getView() const noexcept;
 
 private:
