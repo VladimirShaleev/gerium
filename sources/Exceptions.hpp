@@ -25,7 +25,7 @@
 # define GERIUM_ASSERT_ARG(expression) ((void) 0)
 #else
 # define GERIUM_ASSERT_ARG(expression)                \
-     if (!!(expression)) {                            \
+     if (!(expression)) {                             \
          return GERIUM_RESULT_ERROR_INVALID_ARGUMENT; \
      }
 #endif

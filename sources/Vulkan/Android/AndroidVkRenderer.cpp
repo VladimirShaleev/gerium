@@ -3,7 +3,7 @@
 namespace gerium::vulkan::android {
 
 AndroidVkRenderer::AndroidVkRenderer(gerium::android::AndroidApplication* application) :
-    VkRenderer(application, std::make_unique<AndroidDevice>()) {
+    VkRenderer(application, createObjectPtr<AndroidDevice, gerium::vulkan::Device>()) {
 }
 
 void AndroidVkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
@@ -24,5 +24,7 @@ gerium_result_t gerium_renderer_create(gerium_application_t application,
     if (result != GERIUM_RESULT_SUCCESS) {
         return result;
     }
-    return alias_cast<AndroidVkRenderer*>(*renderer)->initialize(version, debug != 0);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<AndroidVkRenderer*>(*renderer)->initialize(version, debug != 0);
+    GERIUM_END_SAFE_BLOCK
 }

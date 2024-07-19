@@ -2377,6 +2377,7 @@ VkPhysicalDevice Device::selectPhysicalDevice() {
 
     _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "failed to find a suitable GPU");
     error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    assert(!"unreachable code");
 }
 
 VkSurfaceFormatKHR Device::selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats) {

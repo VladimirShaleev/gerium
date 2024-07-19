@@ -17,7 +17,7 @@ public:
     static gerium_result_t create(T*& obj, Args&&... args) noexcept;
 
 protected:
-    [[noreturn]] static void error(gerium_result_t result);
+    static void error(gerium_result_t result);
 
 private:
     gerium_sint32_t _refCount;

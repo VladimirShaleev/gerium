@@ -78,7 +78,7 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 260));
     if (ImGui::Begin("GPU Profiler", nullptr, ImGuiWindowFlags_NoScrollbar)) {
-        ImGui::Text("GPU Memory Total %lluMB", totalMemoryUsed);
+        ImGui::Text("GPU Memory Total %uMB", totalMemoryUsed);
 
         ImGui::Separator();
 
