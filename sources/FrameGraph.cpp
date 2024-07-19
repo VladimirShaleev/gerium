@@ -335,7 +335,7 @@ using namespace gerium;
 
 gerium_result_t gerium_frame_graph_create(gerium_renderer_t renderer, gerium_frame_graph_t* frame_graph) {
     assert(renderer);
-    assert(frame_graph);
+    GERIUM_ASSERT_ARG(frame_graph);
     return Object::create<FrameGraph>(*frame_graph, alias_cast<Renderer*>(renderer));
 }
 
@@ -356,8 +356,8 @@ gerium_result_t gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
                                             const gerium_render_pass_t* render_pass,
                                             gerium_data_t* data) {
     assert(frame_graph);
-    assert(name);
-    assert(render_pass);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_ASSERT_ARG(render_pass);
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<FrameGraph*>(frame_graph)->addPass(name, render_pass, data);
     GERIUM_END_SAFE_BLOCK
@@ -365,7 +365,7 @@ gerium_result_t gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
 
 gerium_result_t gerium_frame_graph_remove_pass(gerium_frame_graph_t frame_graph, gerium_utf8_t name) {
     assert(frame_graph);
-    assert(name);
+    GERIUM_ASSERT_ARG(name);
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<FrameGraph*>(frame_graph)->removePass(name);
     GERIUM_END_SAFE_BLOCK

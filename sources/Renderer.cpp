@@ -93,8 +93,8 @@ gerium_result_t gerium_renderer_create_buffer_from_data(gerium_renderer_t render
                                                         gerium_uint32_t size,
                                                         gerium_buffer_h* handle) {
     assert(renderer);
-    assert(data);
-    assert(handle);
+    GERIUM_ASSERT_ARG(data);
+    GERIUM_ASSERT_ARG(handle);
 
     BufferCreation bc;
     bc.set(BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform,
@@ -112,8 +112,8 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
                                                const gerium_texture_creation_t* creation,
                                                gerium_texture_h* handle) {
     assert(renderer);
-    assert(creation);
-    assert(handle);
+    GERIUM_ASSERT_ARG(creation);
+    GERIUM_ASSERT_ARG(handle);
 
     TextureCreation tc;
     tc.setSize(creation->width, creation->height, creation->depth)
@@ -134,11 +134,11 @@ gerium_result_t gerium_renderer_create_material(gerium_renderer_t renderer,
                                                 const gerium_pipeline_t* pipelines,
                                                 gerium_material_h* handle) {
     assert(renderer);
-    assert(frame_graph);
-    assert(name);
-    assert(pipeline_count > 0);
-    assert(pipelines);
-    assert(handle);
+    GERIUM_ASSERT_ARG(frame_graph);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_ASSERT_ARG(pipeline_count > 0);
+    GERIUM_ASSERT_ARG(pipelines);
+    GERIUM_ASSERT_ARG(handle);
 
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createMaterial(
@@ -162,7 +162,7 @@ gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {
 
 gerium_result_t gerium_renderer_render(gerium_renderer_t renderer, gerium_frame_graph_t frame_graph) {
     assert(renderer);
-    assert(frame_graph);
+    GERIUM_ASSERT_ARG(frame_graph);
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<Renderer*>(renderer)->render(*alias_cast<FrameGraph*>(frame_graph));
     GERIUM_END_SAFE_BLOCK
