@@ -2344,7 +2344,7 @@ std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device)
         { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false },
     // { VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, false },
 #ifdef __APPLE__
-        "VK_KHR_portability_subset",
+        { "VK_KHR_portability_subset", true },
 #endif
     };
 

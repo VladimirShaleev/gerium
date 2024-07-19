@@ -3,7 +3,7 @@
 namespace gerium::vulkan::macos {
 
 MacOSVkRenderer::MacOSVkRenderer(gerium::macos::MacOSApplication* application) :
-    VkRenderer(application, std::make_unique<MacOSDevice>()) {
+    VkRenderer(application, createObjectPtr<MacOSDevice, gerium::vulkan::Device>()) {
 }
 
 void MacOSVkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
@@ -24,5 +24,7 @@ gerium_result_t gerium_renderer_create(gerium_application_t application,
     if (result != GERIUM_RESULT_SUCCESS) {
         return result;
     }
-    return alias_cast<MacOSVkRenderer*>(*renderer)->initialize(version, debug != 0);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<MacOSVkRenderer*>(*renderer)->initialize(version, debug != 0);
+    GERIUM_END_SAFE_BLOCK
 }
