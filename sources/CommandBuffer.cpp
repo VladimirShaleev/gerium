@@ -14,6 +14,10 @@ void CommandBuffer::bindVertexBuffer(BufferHandle handle, gerium_uint32_t bindin
     onBindVertexBuffer(handle, binding, offset);
 }
 
+void CommandBuffer::bindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
+    onBindDescriptorSet(handle, set);
+}
+
 void CommandBuffer::draw(gerium_uint32_t firstVertex,
                          gerium_uint32_t vertexCount,
                          gerium_uint32_t firstInstance,
@@ -40,6 +44,13 @@ void gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_bu
                                               gerium_uint32_t offset) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->bindVertexBuffer({ handle.unused }, binding, offset);
+}
+
+void gerium_command_buffer_bind_descriptor_set(gerium_command_buffer_t command_buffer,
+                                               gerium_descriptor_set_h handle,
+                                               gerium_uint32_t set) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->bindDescriptorSet({ handle.unused }, set);
 }
 
 void gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,

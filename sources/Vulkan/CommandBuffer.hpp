@@ -36,7 +36,6 @@ public:
     void setViewport(const Viewport* viewport);
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer);
     void bindPipeline(PipelineHandle pipeline);
-    void bindDescriptorSet(DescriptorSetHandle handle);
     void copyBuffer(BufferHandle src, BufferHandle dst);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
@@ -54,6 +53,7 @@ private:
 
     void onBindMaterial(MaterialHandle handle) noexcept override;
     void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept override;
+    void onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept override;
     void onDraw(gerium_uint32_t firstVertex,
                 gerium_uint32_t vertexCount,
                 gerium_uint32_t firstInstance,

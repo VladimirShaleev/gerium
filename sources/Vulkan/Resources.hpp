@@ -14,6 +14,7 @@ namespace gerium::vulkan {
 
 // clang-format off
 
+constexpr uint32_t kMaxFrames               = 2; // TODO: duplicated in Device
 constexpr uint8_t  kMaxImageOutputs         = 8;
 constexpr uint8_t  kMaxDescriptorSetLayouts = 8;
 constexpr uint8_t  kMaxDescriptorsPerSet    = 16;
@@ -499,14 +500,16 @@ struct RenderPass {
 };
 
 struct DescriptorSet {
-    VkDescriptorSet vkDescriptorSet;
-
-    Handle        resources[kMaxDescriptorsPerSet];
-    SamplerHandle samplers[kMaxDescriptorsPerSet];
-    uint16_t      bindings[kMaxDescriptorsPerSet];
-    uint32_t      numResources;
-
+    VkDescriptorSet           vkDescriptorSet[kMaxFrames];
     DescriptorSetLayoutHandle layout;
+    gerium_uint8_t            currentFrame;
+    gerium_uint8_t            dirty;
+
+    //gerium_uint8_t            numResources;
+
+    // Handle        resources[kMaxDescriptorsPerSet];
+    // SamplerHandle samplers[kMaxDescriptorsPerSet];
+    Handle bindings[kMaxDescriptorsPerSet];
 };
 
 struct DescriptorSetLayout {

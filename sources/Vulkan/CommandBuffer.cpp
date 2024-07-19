@@ -156,40 +156,6 @@ void CommandBuffer::bindPipeline(PipelineHandle pipeline) {
     }
 }
 
-void CommandBuffer::bindDescriptorSet(DescriptorSetHandle handle) {
-    uint32_t offsetsCache[kMaxDescriptorSetLayouts];
-    uint32_t numOffsets = 0;
-
-    const auto descriptorSet       = _device->_descriptorSets.access(handle);
-    const auto descriptorSetLayout = _device->_descriptorSetLayouts.access(descriptorSet->layout);
-
-    // Search for dynamic buffers
-    for (uint32_t i = 0; i < descriptorSetLayout->data.bindings.size(); ++i) {
-        const auto& rb = descriptorSetLayout->data.bindings[i];
-
-        if (rb.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-            rb.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-            // Search for the actual buffer offset
-            const uint32_t resourceIndex = descriptorSet->bindings[i];
-            auto bufferHandle            = descriptorSet->resources[i];
-            auto buffer                  = _device->_buffers.access(bufferHandle);
-
-            offsetsCache[numOffsets++] = buffer->globalOffset;
-        }
-    }
-
-    auto currentPipeline = _device->_pipelines.access(_currentPipeline);
-
-    _device->vkTable().vkCmdBindDescriptorSets(_commandBuffer,
-                                               currentPipeline->vkBindPoint,
-                                               currentPipeline->vkPipelineLayout,
-                                               descriptorSetLayout->data.setNumber,
-                                               1,
-                                               &descriptorSet->vkDescriptorSet,
-                                               numOffsets,
-                                               offsetsCache);
-}
-
 void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
     auto srcBuffer = _device->_buffers.access(src);
     auto dstBuffer = _device->_buffers.access(dst);
@@ -305,6 +271,16 @@ void CommandBuffer::onBindVertexBuffer(BufferHandle handle, gerium_uint32_t bind
         vkOffset          = buffer->globalOffset;
     }
     _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
+}
+
+void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
+    auto pipeline = _device->_pipelines.access(_currentPipeline);
+    auto descriptorSet = _device->_descriptorSets.access(handle);
+
+    _device->updateDescriptorSet(handle, pipeline->descriptorSetLayoutHandles[set]);
+    
+    _device->vkTable().vkCmdBindDescriptorSets(
+        _commandBuffer, pipeline->vkBindPoint, pipeline->vkPipelineLayout, set, 1, &descriptorSet->vkDescriptorSet[descriptorSet->currentFrame], 0, nullptr);
 }
 
 void CommandBuffer::onDraw(gerium_uint32_t firstVertex,

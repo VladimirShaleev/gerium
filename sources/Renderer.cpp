@@ -69,6 +69,13 @@ void Renderer::destroyFramebuffer(FramebufferHandle handle) noexcept {
     onDestroyFramebuffer(handle);
 }
 
+void Renderer::bind(DescriptorSetHandle handle,
+                    gerium_uint16_t binding,
+                    const FrameGraph& frameGraph,
+                    gerium_utf8_t name) noexcept {
+    onBind(handle, binding, frameGraph, name);
+}
+
 bool Renderer::newFrame() {
     return onNewFrame();
 }
@@ -197,6 +204,16 @@ void gerium_renderer_destroy_material(gerium_renderer_t renderer, gerium_materia
 void gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer, gerium_descriptor_set_h handle) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->destroyDescriptorSet({ handle.unused });
+}
+
+void gerium_renderer_bind_resource(gerium_renderer_t renderer,
+                                   gerium_descriptor_set_h handle,
+                                   gerium_uint16_t binding,
+                                   gerium_frame_graph_t frame_graph,
+                                   gerium_utf8_t name) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->bind(
+        { handle.unused }, binding, *alias_cast<FrameGraph*>(frame_graph), name);
 }
 
 gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {

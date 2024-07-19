@@ -16,6 +16,7 @@ public:
 
     void bindMaterial(MaterialHandle handle) noexcept;
     void bindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept;
+    void bindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept;
     void draw(gerium_uint32_t firstVertex,
               gerium_uint32_t vertexCount,
               gerium_uint32_t firstInstance,
@@ -25,14 +26,14 @@ protected:
     Renderer* getRenderer() noexcept;
 
 private:
-    virtual void onBindMaterial(MaterialHandle handle) noexcept      = 0;
-    virtual void onBindVertexBuffer(BufferHandle handle,
-                                    gerium_uint32_t binding,
-                                    gerium_uint32_t offset) noexcept = 0;
+    virtual void onBindMaterial(MaterialHandle handle) noexcept                                                    = 0;
+    virtual void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept = 0;
+    virtual void onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept                     = 0;
+
     virtual void onDraw(gerium_uint32_t firstVertex,
                         gerium_uint32_t vertexCount,
                         gerium_uint32_t firstInstance,
-                        gerium_uint32_t instanceCount) noexcept      = 0;
+                        gerium_uint32_t instanceCount) noexcept = 0;
 
     Renderer* _renderer{};
 };

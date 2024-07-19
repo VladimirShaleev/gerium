@@ -142,7 +142,8 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
 }
 
 DescriptorSetHandle VkRenderer::onCreateDescriptorSet() {
-    return DescriptorSetHandle();
+    DescriptorSetCreation creation{};
+    return _device->createDescriptorSet(creation);
 }
 
 RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) {
@@ -282,6 +283,21 @@ void VkRenderer::onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept {
 
 void VkRenderer::onDestroyRenderPass(RenderPassHandle handle) noexcept {
     _device->destroyRenderPass(handle);
+}
+
+void VkRenderer::onBind(DescriptorSetHandle handle,
+                        gerium_uint16_t binding,
+                        const FrameGraph& frameGraph,
+                        gerium_utf8_t name) noexcept {
+    auto resource = frameGraph.getResource(name);
+
+    if (resource) {
+        _device->bind(handle,
+                      binding,
+                      resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ? Undefined : resource->info.texture.handle);
+    } else {
+        _device->bind(handle, binding, Undefined);
+    }
 }
 
 void VkRenderer::onDestroyFramebuffer(FramebufferHandle handle) noexcept {

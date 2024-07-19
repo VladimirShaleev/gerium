@@ -440,8 +440,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     buffer->name         = intern(creation.name);
     buffer->parent       = Undefined;
 
-    constexpr auto dynamicBufferFlags =
-        BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform;
+    constexpr auto dynamicBufferFlags = BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform;
 
     const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
@@ -527,9 +526,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
             }
         } else {
             BufferCreation stagingCreation{};
-            stagingCreation.set(dynamicBufferFlags,
-                                ResourceUsageType::Dynamic,
-                                buffer->size);
+            stagingCreation.set(dynamicBufferFlags, ResourceUsageType::Dynamic, buffer->size);
             auto stagingBuffer = createBuffer(stagingCreation);
 
             auto ptr = mapBuffer(stagingBuffer, 0, buffer->size);
@@ -743,32 +740,38 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& creation) {
     auto [handle, descriptorSet] = _descriptorSets.obtain_and_access();
 
-    auto descriptorSetLayout = _descriptorSetLayouts.access(creation.layout);
-
-    VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-    allocInfo.descriptorPool     = _descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts        = &descriptorSetLayout->vkDescriptorSetLayout;
-
-    check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
-
-    descriptorSet->numResources = creation.numResources;
-    descriptorSet->layout       = creation.layout;
-
-    for (uint32_t i = 0; i < creation.numResources; ++i) {
-        descriptorSet->resources[i] = creation.resources[i];
-        descriptorSet->samplers[i]  = creation.samplers[i];
-        descriptorSet->bindings[i]  = creation.bindings[i];
+    for (auto& binding : descriptorSet->bindings) {
+        binding = Undefined;
     }
+    descriptorSet->layout = Undefined;
+    descriptorSet->dirty  = true;
 
-    VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
-    VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
-    VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
+    // auto descriptorSetLayout = _descriptorSetLayouts.access(creation.layout);
 
-    const uint32_t num =
-        fillWriteDescriptorSets(*descriptorSetLayout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
+    // VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    // allocInfo.descriptorPool     = _descriptorPool;
+    // allocInfo.descriptorSetCount = 1;
+    // allocInfo.pSetLayouts        = &descriptorSetLayout->vkDescriptorSetLayout;
 
-    _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
+    // check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
+
+    // descriptorSet->numResources = creation.numResources;
+    // descriptorSet->layout       = creation.layout;
+
+    // for (uint32_t i = 0; i < creation.numResources; ++i) {
+    //     descriptorSet->resources[i] = creation.resources[i];
+    //     descriptorSet->samplers[i]  = creation.samplers[i];
+    //     descriptorSet->bindings[i]  = creation.bindings[i];
+    // }
+
+    // VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
+    // VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
+    // VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
+
+    // const uint32_t num =
+    //     fillWriteDescriptorSets(*descriptorSetLayout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
+
+    // _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
 
     return handle;
 }
@@ -1214,6 +1217,62 @@ void Device::unmapBuffer(BufferHandle handle) {
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
+void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource) {
+    auto descriptorSet = _descriptorSets.access(handle);
+
+    if (descriptorSet->bindings[binding] != resource) {
+        descriptorSet->bindings[binding] = resource;
+        descriptorSet->dirty             = true;
+    }
+}
+
+void Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle) {
+    auto descriptorSet = _descriptorSets.access(handle);
+
+    if (descriptorSet->dirty) {
+        descriptorSet->dirty = false;
+
+        auto layout              = _descriptorSetLayouts.access(layoutHandle);
+        bool createDescriptorSet = descriptorSet->layout == Undefined;
+
+        if (!createDescriptorSet && descriptorSet->layout != layoutHandle) {
+            auto descriptorLayout = _descriptorSetLayouts.access(descriptorSet->layout);
+            // createDescriptorSet = descriptorLayout->data.bindings != pipelineLayout->data.bindings;
+        }
+
+        descriptorSet->currentFrame = (descriptorSet->currentFrame + 1) % MaxFrames;
+
+        auto& currestSet = descriptorSet->vkDescriptorSet[descriptorSet->currentFrame];
+
+        if (createDescriptorSet) {
+            VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+            allocInfo.descriptorPool     = _descriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts        = &layout->vkDescriptorSetLayout;
+
+            check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &currestSet));
+        }
+
+        // descriptorSet->numResources = creation.numResources;
+        // descriptorSet->layout       = creation.layout;
+
+        // for (uint32_t i = 0; i < creation.numResources; ++i) {
+        //     descriptorSet->resources[i] = creation.resources[i];
+        //     descriptorSet->samplers[i]  = creation.samplers[i];
+        //     descriptorSet->bindings[i]  = creation.bindings[i];
+        // }
+
+        VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
+        VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
+        VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
+
+        const uint32_t num =
+            fillWriteDescriptorSets(*layout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
+
+        _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
+    }
+}
+
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
     return _commandBufferManager.getCommandBuffer(_currentFrame, thread, profile);
 }
@@ -1602,7 +1661,8 @@ void Device::createSwapchain(Application* application) {
         _textures.release(colorHandle);
         // _textures.release(depthHandle);
 
-        commandBuffer->addImageBarrier(colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1, false, false);
+        commandBuffer->addImageBarrier(
+            colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1, false, false);
     }
 
     commandBuffer->submit(QueueType::Graphics);
@@ -1803,13 +1863,17 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
 
     auto defaultSampler = _samplers.access(_defaultSampler)->vkSampler;
 
-    for (uint32_t r = 0; r < descriptorSet.numResources; ++r) {
-        uint32_t layoutBindingIndex = descriptorSet.bindings[r];
+    for (uint32_t b = 0; b < kMaxDescriptorsPerSet; ++b) {
+        auto resource = descriptorSet.bindings[b];
+
+        if (resource == Undefined) {
+            continue;
+        }
 
         auto it = std::find_if(descriptorSetLayout.data.bindings.cbegin(),
                                descriptorSetLayout.data.bindings.cend(),
-                               [layoutBindingIndex](const auto& binding) {
-            return binding.binding == layoutBindingIndex;
+                               [b](const auto& binding) {
+            return binding.binding == b;
         });
 
         if (it == descriptorSetLayout.data.bindings.cend()) {
@@ -1821,8 +1885,8 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
         auto i = usedResources++;
 
         descriptorWrite[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite[i].dstSet          = descriptorSet.vkDescriptorSet;
-        descriptorWrite[i].dstBinding      = binding.binding;
+        descriptorWrite[i].dstSet          = descriptorSet.vkDescriptorSet[descriptorSet.currentFrame];
+        descriptorWrite[i].dstBinding      = b;
         descriptorWrite[i].dstArrayElement = 0;
         descriptorWrite[i].descriptorCount = binding.descriptorCount;
 
@@ -1830,15 +1894,15 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-                auto texture = _textures.access(descriptorSet.resources[r]);
+                auto texture = _textures.access(resource);
 
                 imageInfo[i].sampler =
                     texture->sampler != Undefined ? _samplers.access(texture->sampler)->vkSampler : defaultSampler;
 
-                if (descriptorSet.samplers[r] != Undefined) {
-                    auto sampler         = _samplers.access(descriptorSet.samplers[r]);
-                    imageInfo[i].sampler = sampler->vkSampler;
-                }
+                // if (descriptorSet.samplers[r] != Undefined) {
+                //     auto sampler         = _samplers.access(descriptorSet.samplers[r]);
+                //     imageInfo[i].sampler = sampler->vkSampler;
+                // }
 
                 imageInfo[i].imageLayout = hasDepthOrStencil(texture->vkFormat)
                                                ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
@@ -1852,7 +1916,7 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
-                auto texture = _textures.access(descriptorSet.resources[r]);
+                auto texture = _textures.access(resource);
 
                 imageInfo[i].sampler     = VK_NULL_HANDLE;
                 imageInfo[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -1863,7 +1927,7 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
             }
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
-                auto buffer = _buffers.access(descriptorSet.resources[r]);
+                auto buffer = _buffers.access(resource);
 
                 descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
                                                         ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
@@ -1884,7 +1948,7 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
-                auto buffer = _buffers.access(descriptorSet.resources[r]);
+                auto buffer = _buffers.access(resource);
 
                 if (buffer->parent != Undefined) {
                     bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
@@ -2344,7 +2408,7 @@ std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device)
         { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false },
     // { VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, false },
 #ifdef __APPLE__
-        { "VK_KHR_portability_subset", true },
+        { "VK_KHR_portability_subset",         true  },
 #endif
     };
 

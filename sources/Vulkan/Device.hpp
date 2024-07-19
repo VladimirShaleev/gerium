@@ -46,6 +46,9 @@ public:
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
+    void bind(DescriptorSetHandle handle, uint16_t binding, Handle resource);
+    void updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle);
+
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
 
     uint32_t totalMemoryUsed();

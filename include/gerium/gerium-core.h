@@ -518,6 +518,13 @@ gerium_public void
 gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer,
                                        gerium_descriptor_set_h handle);
 
+gerium_public void
+gerium_renderer_bind_resource(gerium_renderer_t renderer,
+                              gerium_descriptor_set_h handle,
+                              gerium_uint16_t binding,
+                              gerium_frame_graph_t frame_graph,
+                              gerium_utf8_t name);
+
 gerium_public gerium_result_t
 gerium_renderer_new_frame(gerium_renderer_t renderer);
 
@@ -541,6 +548,11 @@ gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_buffer,
                                          gerium_buffer_h handle,
                                          gerium_uint32_t binding,
                                          gerium_uint32_t offset);
+
+gerium_public void
+gerium_command_buffer_bind_descriptor_set(gerium_command_buffer_t command_buffer,
+                                          gerium_descriptor_set_h handle,
+                                          gerium_uint32_t set);
 
 gerium_public void
 gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,

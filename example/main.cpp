@@ -54,6 +54,7 @@ gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
                                gerium_command_buffer_t command_buffer,
                                gerium_data_t data) {
     gerium_command_buffer_bind_material(command_buffer, fullscreenMaterial);
+    gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet1, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
     return 1;
 }
@@ -373,6 +374,8 @@ bool initialize(gerium_application_t application) {
                                               std::size(fullscreenPipelines),
                                               fullscreenPipelines,
                                               &fullscreenMaterial));
+
+        gerium_renderer_bind_resource(renderer, descriptorSet1, 0, frameGraph, "color");
 
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());

@@ -40,6 +40,11 @@ private:
     void onDestroyRenderPass(RenderPassHandle handle) noexcept override;
     void onDestroyFramebuffer(FramebufferHandle handle) noexcept override;
 
+    void onBind(DescriptorSetHandle handle,
+                gerium_uint16_t binding,
+                const FrameGraph& frameGraph,
+                gerium_utf8_t name) noexcept override;
+
     bool onNewFrame() override;
     void onRender(const FrameGraph& frameGraph) override;
     void onPresent() override;

@@ -38,6 +38,11 @@ public:
     void destroyRenderPass(RenderPassHandle handle) noexcept;
     void destroyFramebuffer(FramebufferHandle handle) noexcept;
 
+    void bind(DescriptorSetHandle handle,
+              gerium_uint16_t binding,
+              const FrameGraph& frameGraph,
+              gerium_utf8_t name) noexcept;
+
     bool newFrame();
     void render(const FrameGraph& frameGraph);
     void present();
@@ -67,6 +72,11 @@ private:
     virtual void onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept = 0;
     virtual void onDestroyRenderPass(RenderPassHandle handle) noexcept       = 0;
     virtual void onDestroyFramebuffer(FramebufferHandle handle) noexcept     = 0;
+
+    virtual void onBind(DescriptorSetHandle handle,
+                        gerium_uint16_t binding,
+                        const FrameGraph& frameGraph,
+                        gerium_utf8_t name) noexcept = 0;
 
     virtual bool onNewFrame()                           = 0;
     virtual void onRender(const FrameGraph& frameGraph) = 0;
