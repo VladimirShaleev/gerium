@@ -157,6 +157,15 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_BUFFER_USAGE_VERTEX   = 1,
+    GERIUM_BUFFER_USAGE_INDEX    = 2,
+    GERIUM_BUFFER_USAGE_UNIFORM  = 4,
+    GERIUM_BUFFER_USAGE_MAX_ENUM = 0x7FFFFFFF
+} gerium_buffer_usage_flags_t;
+GERIUM_FLAGS(gerium_buffer_usage_flags_t)
+
+typedef enum
+{
     GERIUM_TEXTURE_TYPE_1D         = 0,
     GERIUM_TEXTURE_TYPE_2D         = 1,
     GERIUM_TEXTURE_TYPE_3D         = 2,
@@ -480,11 +489,13 @@ gerium_renderer_set_profiler_enable(gerium_renderer_t renderer,
                                     gerium_bool_t enable);
 
 gerium_public gerium_result_t
-gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,
-                                        gerium_utf8_t name,
-                                        gerium_cdata_t data,
-                                        gerium_uint32_t size,
-                                        gerium_buffer_h* handle);
+gerium_renderer_create_buffer(gerium_renderer_t renderer,
+                              gerium_buffer_usage_flags_t buffer_usage,
+                              gerium_bool_t dynamic,
+                              gerium_utf8_t name,
+                              gerium_cdata_t data,
+                              gerium_uint32_t size,
+                              gerium_buffer_h* handle);
 
 gerium_public gerium_result_t
 gerium_renderer_create_texture(gerium_renderer_t renderer,
@@ -520,11 +531,27 @@ gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer,
                                        gerium_descriptor_set_h handle);
 
 gerium_public void
+gerium_renderer_bind_buffer(gerium_renderer_t renderer,
+                            gerium_descriptor_set_h handle,
+                            gerium_uint16_t binding,
+                            gerium_buffer_h buffer);
+
+gerium_public void
 gerium_renderer_bind_resource(gerium_renderer_t renderer,
                               gerium_descriptor_set_h handle,
                               gerium_uint16_t binding,
                               gerium_frame_graph_t frame_graph,
                               gerium_utf8_t name);
+
+gerium_public gerium_data_t
+gerium_renderer_map_buffer(gerium_renderer_t renderer,
+                           gerium_buffer_h handle,
+                           gerium_uint32_t offset,
+                           gerium_uint32_t size);
+
+gerium_public void
+gerium_renderer_unmap_buffer(gerium_renderer_t renderer,
+                             gerium_buffer_h handle);
 
 gerium_public gerium_result_t
 gerium_renderer_new_frame(gerium_renderer_t renderer);

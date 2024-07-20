@@ -287,6 +287,10 @@ void VkRenderer::onDestroyRenderPass(RenderPassHandle handle) noexcept {
     _device->destroyRenderPass(handle);
 }
 
+void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept {
+    _device->bind(handle, binding, buffer);
+}
+
 void VkRenderer::onBind(DescriptorSetHandle handle,
                         gerium_uint16_t binding,
                         const FrameGraph& frameGraph,
@@ -300,6 +304,14 @@ void VkRenderer::onBind(DescriptorSetHandle handle,
     } else {
         _device->bind(handle, binding, Undefined);
     }
+}
+
+gerium_data_t VkRenderer::onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept {
+    return _device->mapBuffer(handle, offset, size);
+}
+
+void VkRenderer::onUnmapBuffer(BufferHandle handle) noexcept {
+    _device->unmapBuffer(handle);
 }
 
 void VkRenderer::onDestroyFramebuffer(FramebufferHandle handle) noexcept {

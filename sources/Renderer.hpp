@@ -38,10 +38,14 @@ public:
     void destroyRenderPass(RenderPassHandle handle) noexcept;
     void destroyFramebuffer(FramebufferHandle handle) noexcept;
 
+    void bind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept;
     void bind(DescriptorSetHandle handle,
               gerium_uint16_t binding,
               const FrameGraph& frameGraph,
               gerium_utf8_t name) noexcept;
+
+    gerium_data_t mapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept;
+    void unmapBuffer(BufferHandle handle) noexcept;
 
     bool newFrame();
     void render(FrameGraph& frameGraph);
@@ -74,10 +78,14 @@ private:
     virtual void onDestroyRenderPass(RenderPassHandle handle) noexcept       = 0;
     virtual void onDestroyFramebuffer(FramebufferHandle handle) noexcept     = 0;
 
+    virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept = 0;
     virtual void onBind(DescriptorSetHandle handle,
                         gerium_uint16_t binding,
                         const FrameGraph& frameGraph,
-                        gerium_utf8_t name) noexcept = 0;
+                        gerium_utf8_t name) noexcept                                                       = 0;
+
+    virtual gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept = 0;
+    virtual void onUnmapBuffer(BufferHandle handle) noexcept                                                      = 0;
 
     virtual bool onNewFrame()                     = 0;
     virtual void onRender(FrameGraph& frameGraph) = 0;

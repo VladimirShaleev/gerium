@@ -69,11 +69,23 @@ void Renderer::destroyFramebuffer(FramebufferHandle handle) noexcept {
     onDestroyFramebuffer(handle);
 }
 
+void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept {
+    onBind(handle, binding, buffer);
+}
+
 void Renderer::bind(DescriptorSetHandle handle,
                     gerium_uint16_t binding,
                     const FrameGraph& frameGraph,
                     gerium_utf8_t name) noexcept {
     onBind(handle, binding, frameGraph, name);
+}
+
+gerium_data_t Renderer::mapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept {
+    return onMapBuffer(handle, offset, size);
+}
+
+void Renderer::unmapBuffer(BufferHandle handle) noexcept {
+    onUnmapBuffer(handle);
 }
 
 bool Renderer::newFrame() {
@@ -122,19 +134,18 @@ void gerium_renderer_set_profiler_enable(gerium_renderer_t renderer, gerium_bool
     return alias_cast<Renderer*>(renderer)->setProfilerEnable(enable);
 }
 
-gerium_result_t gerium_renderer_create_buffer_from_data(gerium_renderer_t renderer,
-                                                        gerium_utf8_t name,
-                                                        gerium_cdata_t data,
-                                                        gerium_uint32_t size,
-                                                        gerium_buffer_h* handle) {
+gerium_result_t gerium_renderer_create_buffer(gerium_renderer_t renderer,
+                                              gerium_buffer_usage_flags_t buffer_usage,
+                                              gerium_bool_t dynamic,
+                                              gerium_utf8_t name,
+                                              gerium_cdata_t data,
+                                              gerium_uint32_t size,
+                                              gerium_buffer_h* handle) {
     assert(renderer);
-    GERIUM_ASSERT_ARG(data);
     GERIUM_ASSERT_ARG(handle);
 
     BufferCreation bc;
-    bc.set(BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform,
-           ResourceUsageType::Immutable,
-           size)
+    bc.set(buffer_usage, dynamic ? ResourceUsageType::Dynamic : ResourceUsageType::Immutable, size)
         .setName(name)
         .setInitialData((void*) data);
 
@@ -210,6 +221,14 @@ void gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer, gerium_d
     return alias_cast<Renderer*>(renderer)->destroyDescriptorSet({ handle.unused });
 }
 
+void gerium_renderer_bind_buffer(gerium_renderer_t renderer,
+                                 gerium_descriptor_set_h handle,
+                                 gerium_uint16_t binding,
+                                 gerium_buffer_h buffer) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, BufferHandle{ buffer.unused });
+}
+
 void gerium_renderer_bind_resource(gerium_renderer_t renderer,
                                    gerium_descriptor_set_h handle,
                                    gerium_uint16_t binding,
@@ -218,6 +237,19 @@ void gerium_renderer_bind_resource(gerium_renderer_t renderer,
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->bind(
         { handle.unused }, binding, *alias_cast<FrameGraph*>(frame_graph), name);
+}
+
+gerium_data_t gerium_renderer_map_buffer(gerium_renderer_t renderer,
+                                         gerium_buffer_h handle,
+                                         gerium_uint32_t offset,
+                                         gerium_uint32_t size) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->mapBuffer({ handle.unused }, offset, size);
+}
+
+void gerium_renderer_unmap_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
+    assert(renderer);
+    alias_cast<Renderer*>(renderer)->unmapBuffer({ handle.unused });
 }
 
 gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {

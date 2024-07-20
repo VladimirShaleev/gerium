@@ -278,9 +278,21 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
     auto descriptorSet = _device->_descriptorSets.access(handle);
 
     _device->updateDescriptorSet(handle, pipeline->descriptorSetLayoutHandles[set]);
-    
+
+    auto layout = _device->_descriptorSetLayouts.access(descriptorSet->layout);
+
+    uint32_t offsets[kMaxDescriptorsPerSet];
+    gerium_uint32_t bufferCount = 0;
+
+    for (const auto& binding : layout->data.bindings) {
+        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
+            offsets[bufferCount] = _device->_buffers.access(descriptorSet->bindings[bufferCount])->globalOffset;
+            ++bufferCount;
+        }
+    }
+
     _device->vkTable().vkCmdBindDescriptorSets(
-        _commandBuffer, pipeline->vkBindPoint, pipeline->vkPipelineLayout, set, 1, &descriptorSet->vkDescriptorSet[descriptorSet->currentFrame], 0, nullptr);
+        _commandBuffer, pipeline->vkBindPoint, pipeline->vkPipelineLayout, set, 1, &descriptorSet->vkDescriptorSet[descriptorSet->currentFrame], bufferCount, offsets);
 }
 
 void CommandBuffer::onDraw(gerium_uint32_t firstVertex,

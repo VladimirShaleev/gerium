@@ -536,7 +536,7 @@ struct Pipeline {
     VkPipelineBindPoint vkBindPoint;
 
     ProgramHandle program;
-    RenderPassHandle renderPass; // ???
+    RenderPassHandle renderPass;
 
     // const DescriptorSetLayout* descriptorSetLayout[k_max_descriptor_set_layouts];
     DescriptorSetLayoutHandle descriptorSetLayoutHandles[kMaxDescriptorSetLayouts];

@@ -7,6 +7,7 @@ else()
     add_executable(cpp-example ${GERIUM_EXAMPLE})
 endif()
 target_link_libraries(cpp-example PRIVATE gerium::gerium)
+target_link_libraries(cpp-example PRIVATE glm::glm-header-only)
 
 target_compile_features(cpp-example PRIVATE cxx_std_20)
 set_target_properties(cpp-example PROPERTIES

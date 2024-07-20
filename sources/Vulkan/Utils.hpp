@@ -140,18 +140,18 @@ gerium_inline VkFormat toVkFormat(gerium_format_t format) noexcept {
     }
 }
 
-gerium_inline VkBufferUsageFlags toVkBufferUsageFlags(BufferUsageFlags flags) noexcept {
+gerium_inline VkBufferUsageFlags toVkBufferUsageFlags(gerium_buffer_usage_flags_t flags) noexcept {
     VkBufferUsageFlags result{};
 
-    if ((flags & BufferUsageFlags::Vertex) == BufferUsageFlags::Vertex) {
+    if ((flags & GERIUM_BUFFER_USAGE_VERTEX) == GERIUM_BUFFER_USAGE_VERTEX) {
         result |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     }
 
-    if ((flags & BufferUsageFlags::Index) == BufferUsageFlags::Index) {
+    if ((flags & GERIUM_BUFFER_USAGE_INDEX) == GERIUM_BUFFER_USAGE_INDEX) {
         result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
     }
 
-    if ((flags & BufferUsageFlags::Uniform) == BufferUsageFlags::Uniform) {
+    if ((flags & GERIUM_BUFFER_USAGE_UNIFORM) == GERIUM_BUFFER_USAGE_UNIFORM) {
         result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     }
 

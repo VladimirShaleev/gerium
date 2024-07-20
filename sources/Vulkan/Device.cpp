@@ -123,7 +123,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createImGui(application);
 
     // TODO: For current testing only, delete later
-    const char vs[] = "#version 450\n"
+    /* const char vs[] = "#version 450\n"
                       "\n"
                       "layout(location = 0) in vec2 inPosition;\n"
                       "layout(location = 1) in vec3 inColor;\n"
@@ -214,26 +214,26 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
 
     BufferCreation vc;
     vc.reset()
-        .set(BufferUsageFlags::Vertex, ResourceUsageType::Immutable, sizeof(Vertex) * 3)
+        .set(GERIUM_BUFFER_USAGE_VERTEX, ResourceUsageType::Immutable, sizeof(Vertex) * 3)
         .setName("vertices")
         .setInitialData((void*) vertices);
     _vertices = createBuffer(vc);
 
     BufferCreation bc;
     bc.reset()
-        .set(BufferUsageFlags::Uniform, ResourceUsageType::Dynamic, sizeof(UniformBufferObject))
+        .set(GERIUM_BUFFER_USAGE_UNIFORM, ResourceUsageType::Dynamic, sizeof(UniformBufferObject))
         .setName("mesh_data");
     _ubo = createBuffer(bc);
 
     BufferCreation bc1;
     bc1.reset()
-        .set(BufferUsageFlags::Uniform, ResourceUsageType::Dynamic, sizeof(UniformBufferObject1))
+        .set(GERIUM_BUFFER_USAGE_UNIFORM, ResourceUsageType::Dynamic, sizeof(UniformBufferObject1))
         .setName("ubo1");
     _obj1 = createBuffer(bc1);
 
     BufferCreation bc2;
     bc2.reset()
-        .set(BufferUsageFlags::Uniform, ResourceUsageType::Dynamic, sizeof(UniformBufferObject2))
+        .set(GERIUM_BUFFER_USAGE_UNIFORM, ResourceUsageType::Dynamic, sizeof(UniformBufferObject2))
         .setName("ubo2");
     _obj2 = createBuffer(bc2);
 
@@ -246,7 +246,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     dsc1.buffer(_obj1, 2).setLayout(pipelineObj->descriptorSetLayoutHandles[1]);
 
     _descriptorSet0 = createDescriptorSet(dsc);
-    _descriptorSet1 = createDescriptorSet(dsc1);
+    _descriptorSet1 = createDescriptorSet(dsc1); */
 }
 
 bool Device::newFrame() {
@@ -311,7 +311,7 @@ void Device::present() {
 
     // TODO: For current testing only, delete later
     //
-    static float f1 = 1.0f;
+    /*static float f1 = 1.0f;
     static float f2 = 0.5f;
     static float d1 = -0.001f;
     static float d2 = 0.001f;
@@ -347,7 +347,7 @@ void Device::present() {
 
     auto data2 = (UniformBufferObject2*) mapBuffer(_obj2, 0, 0);
     data2->f   = f2;
-    unmapBuffer(_obj2);
+    unmapBuffer(_obj2);*/
 
     // auto cb = getCommandBuffer(0);
     // cb->pushMarker("total");
@@ -440,7 +440,8 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     buffer->name         = intern(creation.name);
     buffer->parent       = Undefined;
 
-    constexpr auto dynamicBufferFlags = BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform;
+    constexpr auto dynamicBufferFlags =
+        GERIUM_BUFFER_USAGE_VERTEX | GERIUM_BUFFER_USAGE_INDEX | GERIUM_BUFFER_USAGE_UNIFORM;
 
     const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
@@ -1269,8 +1270,7 @@ void Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayout
         VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
         VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
 
-        const uint32_t num =
-            fillWriteDescriptorSets(*layout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
+        const uint32_t num = fillWriteDescriptorSets(*layout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
 
         _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
     }
@@ -1528,7 +1528,7 @@ void Device::createDynamicBuffer() {
     _dynamicBufferSize = 1024 * 1024 * 10;
 
     BufferCreation bc;
-    bc.set(BufferUsageFlags::Vertex | BufferUsageFlags::Index | BufferUsageFlags::Uniform,
+    bc.set(GERIUM_BUFFER_USAGE_VERTEX | GERIUM_BUFFER_USAGE_INDEX | GERIUM_BUFFER_USAGE_UNIFORM,
            ResourceUsageType::Staging,
            _dynamicBufferSize * MaxFrames)
         .setPersistent(true)

@@ -24,13 +24,6 @@ enum class ResourceUsageType {
     Staging
 };
 
-enum class BufferUsageFlags {
-    Vertex  = 1,
-    Index   = 2,
-    Uniform = 4
-};
-GERIUM_FLAGS(BufferUsageFlags)
-
 enum class TextureFlags {
     None         = 0,
     RenderTarget = 1,
@@ -39,12 +32,12 @@ enum class TextureFlags {
 GERIUM_FLAGS(TextureFlags)
 
 struct BufferCreation {
-    BufferUsageFlags usageFlags = {};
-    ResourceUsageType usage     = ResourceUsageType::Immutable;
-    uint32_t size               = 0;
-    bool persistent             = false;
-    void* initialData           = nullptr;
-    const char* name            = nullptr;
+    gerium_buffer_usage_flags_t usageFlags = {};
+    ResourceUsageType usage                = ResourceUsageType::Immutable;
+    uint32_t size                          = 0;
+    bool persistent                        = false;
+    void* initialData                      = nullptr;
+    const char* name                       = nullptr;
 
     BufferCreation& reset() {
         usageFlags  = {};
@@ -56,7 +49,7 @@ struct BufferCreation {
         return *this;
     }
 
-    BufferCreation& set(BufferUsageFlags flags, ResourceUsageType usage, uint32_t size) noexcept {
+    BufferCreation& set(gerium_buffer_usage_flags_t flags, ResourceUsageType usage, uint32_t size) noexcept {
         this->usageFlags = flags;
         this->usage      = usage;
         this->size       = size;
