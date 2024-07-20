@@ -303,37 +303,8 @@ private:
     bool _imageAliasingSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
-    std::vector<VmaBudget> _vmaBudget{};
-
-    // TODO: For current testing only, delete later
-    // struct UniformBufferObject {
-    //     glm::mat4 model;
-    //     glm::mat4 view;
-    //     glm::mat4 proj;
-    // };
-
-    // struct UniformBufferObject1 {
-    //     float f;
-    // };
-
-    // struct UniformBufferObject2 {
-    //     float f;
-    // };
-
-    // struct Vertex {
-    //     glm::vec2 position;
-    //     glm::vec3 color;
-    //     glm::vec2 texcoord;
-    // };
-
-    // PipelineHandle _pipeline{};
-    // BufferHandle _vertices{};
-    // BufferHandle _ubo{};
-    // BufferHandle _obj1{};
-    // BufferHandle _obj2{};
-    // DescriptorSetHandle _descriptorSet0{};
-    // DescriptorSetHandle _descriptorSet1{};
     ProfilerUI _profilerUI{};
+    std::vector<VmaBudget> _vmaBudget{};
 };
 
 } // namespace gerium::vulkan
