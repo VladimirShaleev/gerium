@@ -238,6 +238,14 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_RENDER_PASS_OP_DONT_CARE = 0,
+    GERIUM_RENDER_PASS_OP_LOAD      = 1,
+    GERIUM_RENDER_PASS_OP_CLEAR     = 2,
+    GERIUM_RENDER_PASS_OP_MAX_ENUM  = 0x7FFFFFFF
+} gerium_render_pass_op_t;
+
+typedef enum
+{
     GERIUM_BLEND_FACTOR_ZERO                     = 0,
     GERIUM_BLEND_FACTOR_ONE                      = 1,
     GERIUM_BLEND_FACTOR_SRC_COLOR                = 2,
@@ -299,14 +307,6 @@ typedef enum
     GERIUM_RESOURCE_TYPE_MAX_ENUM   = 0x7FFFFFFF
 } gerium_resource_type_t;
 
-typedef enum
-{
-    GERIUM_RENDER_PASS_OPERATION_DONT_CARE = 0,
-    GERIUM_RENDER_PASS_OPERATION_LOAD      = 1,
-    GERIUM_RENDER_PASS_OPERATION_CLEAR     = 2,
-    GERIUM_RENDER_PASS_OPERATION_MAX_ENUM  = 0x7FFFFFFF
-} gerium_render_pass_operation_t;
-
 typedef enum {
     GERIUM_VERTEX_RATE_PER_VERTEX   = 0,
     GERIUM_VERTEX_RATE_PER_INSTANCE = 1,
@@ -364,11 +364,6 @@ typedef struct
 
 typedef struct
 {
-    gerium_utf8_t         name;
-} gerium_buffer_creation_t;
-
-typedef struct
-{
     gerium_uint16_t       width;
     gerium_uint16_t       height;
     gerium_uint16_t       depth;
@@ -393,24 +388,6 @@ typedef struct
     gerium_frame_graph_resize_func_t  resize;
     gerium_frame_graph_render_func_t  render;
 } gerium_render_pass_t;
-
-typedef struct
-{
-    gerium_resource_type_t         type;
-    gerium_utf8_t                  name;
-} gerium_resource_input_t;
-
-typedef struct
-{
-    gerium_resource_type_t         type;
-    gerium_utf8_t                  name;
-    gerium_bool_t                  external;
-    gerium_format_t                format;
-    gerium_uint16_t                width;
-    gerium_uint16_t                height;
-    gerium_float32_t               auto_scale;
-    gerium_render_pass_operation_t operation;
-} gerium_resource_output_t;
 
 typedef struct
 {
@@ -490,6 +467,24 @@ typedef struct
     gerium_utf8_t        data;
     gerium_uint32_t      size;
 } gerium_shader_t;
+
+typedef struct
+{
+    gerium_resource_type_t         type;
+    gerium_utf8_t                  name;
+} gerium_resource_input_t;
+
+typedef struct
+{
+    gerium_resource_type_t  type;
+    gerium_utf8_t           name;
+    gerium_bool_t           external;
+    gerium_format_t         format;
+    gerium_uint16_t         width;
+    gerium_uint16_t         height;
+    gerium_float32_t        auto_scale;
+    gerium_render_pass_op_t render_pass_op;
+} gerium_resource_output_t;
 
 typedef struct
 {

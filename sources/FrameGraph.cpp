@@ -357,7 +357,7 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
     resource->info.texture.height     = output.height;
     resource->info.texture.depth      = 1;
     resource->info.texture.auto_scale = output.auto_scale;
-    resource->info.texture.operation  = output.operation;
+    resource->info.texture.operation  = output.render_pass_op;
     resource->info.texture.handle     = Undefined;
     calcFramebufferSize(resource->info);
 

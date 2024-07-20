@@ -1424,9 +1424,9 @@ void Device::createSwapchain(Application* application) {
     if (_swapchainRenderPass == Undefined) {
         RenderPassCreation rc{};
         rc.setName("SwapchainRenderPass");
-        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
+        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OP_CLEAR);
         rc.output.depth(VK_FORMAT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-        rc.output.setDepthStencilOperations(GERIUM_RENDER_PASS_OPERATION_CLEAR, GERIUM_RENDER_PASS_OPERATION_CLEAR);
+        rc.output.setDepthStencilOperations(GERIUM_RENDER_PASS_OP_CLEAR, GERIUM_RENDER_PASS_OP_CLEAR);
         _swapchainRenderPass = createRenderPass(rc);
     }
 
@@ -1855,15 +1855,15 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     VkImageLayout depthInitial;
 
     switch (output.depthOperation) {
-        case GERIUM_RENDER_PASS_OPERATION_DONT_CARE:
+        case GERIUM_RENDER_PASS_OP_DONT_CARE:
             depthOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
             break;
-        case GERIUM_RENDER_PASS_OPERATION_LOAD:
+        case GERIUM_RENDER_PASS_OP_LOAD:
             depthOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
             depthInitial = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             break;
-        case GERIUM_RENDER_PASS_OPERATION_CLEAR:
+        case GERIUM_RENDER_PASS_OP_CLEAR:
             depthOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
             depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
             break;
@@ -1873,13 +1873,13 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     }
 
     switch (output.stencilOperation) {
-        case GERIUM_RENDER_PASS_OPERATION_DONT_CARE:
+        case GERIUM_RENDER_PASS_OP_DONT_CARE:
             stencilOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             break;
-        case GERIUM_RENDER_PASS_OPERATION_LOAD:
+        case GERIUM_RENDER_PASS_OP_LOAD:
             stencilOp = VK_ATTACHMENT_LOAD_OP_LOAD;
             break;
-        case GERIUM_RENDER_PASS_OPERATION_CLEAR:
+        case GERIUM_RENDER_PASS_OP_CLEAR:
             stencilOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             break;
         default:
@@ -1892,15 +1892,15 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
         VkAttachmentLoadOp colorOp;
         VkImageLayout colorInitial;
         switch (output.colorOperations[attachmentCount]) {
-            case GERIUM_RENDER_PASS_OPERATION_DONT_CARE:
+            case GERIUM_RENDER_PASS_OP_DONT_CARE:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
-            case GERIUM_RENDER_PASS_OPERATION_LOAD:
+            case GERIUM_RENDER_PASS_OP_LOAD:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
                 colorInitial = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 break;
-            case GERIUM_RENDER_PASS_OPERATION_CLEAR:
+            case GERIUM_RENDER_PASS_OP_CLEAR:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
                 colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;

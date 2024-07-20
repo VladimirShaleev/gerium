@@ -84,17 +84,17 @@ struct SamplerCreation {
 };
 
 struct RenderPassOutput {
-    uint32_t                       numColorFormats;
-    VkFormat                       colorFormats[kMaxImageOutputs];
-    VkImageLayout                  colorFinalLayouts[kMaxImageOutputs];
-    gerium_render_pass_operation_t colorOperations[kMaxImageOutputs];
+    uint32_t                numColorFormats;
+    VkFormat                colorFormats[kMaxImageOutputs];
+    VkImageLayout           colorFinalLayouts[kMaxImageOutputs];
+    gerium_render_pass_op_t colorOperations[kMaxImageOutputs];
 
-    VkFormat                       depthStencilFormat;
-    VkImageLayout                  depthStencilFinalLayout;
-    gerium_render_pass_operation_t depthOperation;
-    gerium_render_pass_operation_t stencilOperation;
+    VkFormat                depthStencilFormat;
+    VkImageLayout           depthStencilFinalLayout;
+    gerium_render_pass_op_t depthOperation;
+    gerium_render_pass_op_t stencilOperation;
 
-    RenderPassOutput& color(VkFormat format, VkImageLayout layout, gerium_render_pass_operation_t loadOp) {
+    RenderPassOutput& color(VkFormat format, VkImageLayout layout, gerium_render_pass_op_t loadOp) {
         assert(numColorFormats < kMaxImageOutputs);
         colorFormats[numColorFormats]      = format;
         colorFinalLayouts[numColorFormats] = layout;
@@ -109,7 +109,7 @@ struct RenderPassOutput {
         return *this;
     }
 
-    RenderPassOutput& setDepthStencilOperations(gerium_render_pass_operation_t depth, gerium_render_pass_operation_t stencil) {
+    RenderPassOutput& setDepthStencilOperations(gerium_render_pass_op_t depth, gerium_render_pass_op_t stencil) {
         depthOperation   = depth;
         stencilOperation = stencil;
         return *this;

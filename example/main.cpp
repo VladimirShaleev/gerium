@@ -319,12 +319,12 @@ bool initialize(gerium_application_t application) {
              "color", 0,
              GERIUM_FORMAT_R8G8B8A8_UNORM,    0,
              0, 1.0f,
-             GERIUM_RENDER_PASS_OPERATION_CLEAR },
+             GERIUM_RENDER_PASS_OP_CLEAR },
             { GERIUM_RESOURCE_TYPE_ATTACHMENT,
              "depth", 0,
              GERIUM_FORMAT_D24_UNORM_S8_UINT, 0,
              0, 1.0f,
-             GERIUM_RENDER_PASS_OPERATION_CLEAR }
+             GERIUM_RENDER_PASS_OP_CLEAR }
         };
         check(gerium_frame_graph_add_node(
             frameGraph, "simple_pass", 0, nullptr, std::size(simpleOutputs), simpleOutputs));

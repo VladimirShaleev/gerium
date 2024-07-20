@@ -56,7 +56,7 @@ struct FrameGraphResourceInfo {
             gerium_uint16_t height;
             gerium_uint16_t depth;
             gerium_float32_t auto_scale;
-            gerium_render_pass_operation_t operation;
+            gerium_render_pass_op_t operation;
             TextureHandle handle;
         } texture;
     };
