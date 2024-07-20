@@ -61,8 +61,6 @@ gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
                            gerium_renderer_t renderer,
                            gerium_command_buffer_t command_buffer,
                            gerium_data_t data) {
-    gerium_renderer_bind_buffer(renderer, descriptorSet0, 0, meshData);
-
     gerium_command_buffer_bind_material(command_buffer, baseMaterial);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet0, 0);
     gerium_command_buffer_bind_vertex_buffer(command_buffer, vertices, 0, 0);
@@ -116,6 +114,8 @@ bool initialize(gerium_application_t application) {
 
         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet0));
         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet1));
+
+        gerium_renderer_bind_buffer(renderer, descriptorSet0, 0, meshData);
 
         /*gerium_render_pass_t gbufferPass{ 0, 0, gbufferRender };
         gerium_render_pass_t transparentPass{ 0, 0, transparentRender };
