@@ -286,7 +286,7 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
 
     for (const auto& binding : layout->data.bindings) {
         if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-            offsets[bufferCount] = _device->_buffers.access(descriptorSet->bindings[bufferCount])->globalOffset;
+            offsets[bufferCount] = _device->_buffers.access(descriptorSet->bindings[binding.binding])->globalOffset;
             ++bufferCount;
         }
     }

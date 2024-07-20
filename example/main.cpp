@@ -18,17 +18,28 @@ static gerium_renderer_t renderer       = nullptr;
 static gerium_frame_graph_t frameGraph  = nullptr;
 static gerium_profiler_t profiler       = nullptr;
 
-static gerium_buffer_h vertices               = {};
-static gerium_buffer_h meshData               = {};
-static gerium_material_h baseMaterial         = {};
-static gerium_material_h fullscreenMaterial   = {};
-static gerium_descriptor_set_h descriptorSet0 = {};
-static gerium_descriptor_set_h descriptorSet1 = {};
+static gerium_buffer_h vertices                 = {};
+static gerium_buffer_h meshData                 = {};
+static gerium_buffer_h uniform1                 = {};
+static gerium_buffer_h uniform2                 = {};
+static gerium_material_h baseMaterial           = {};
+static gerium_material_h fullscreenMaterial     = {};
+static gerium_descriptor_set_h descriptorSet0   = {};
+static gerium_descriptor_set_h descriptorSet0_1 = {};
+static gerium_descriptor_set_h descriptorSet1   = {};
 
 struct UniformBufferObject {
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 proj;
+};
+
+struct UniformBufferObject1 {
+    float f;
+};
+
+struct UniformBufferObject2 {
+    float f;
 };
 
 void check(gerium_result_t result) {
@@ -63,6 +74,7 @@ gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
                            gerium_data_t data) {
     gerium_command_buffer_bind_material(command_buffer, baseMaterial);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet0, 0);
+    gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet0_1, 1);
     gerium_command_buffer_bind_vertex_buffer(command_buffer, vertices, 0, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
     return 1;
@@ -112,10 +124,19 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create_buffer(
             renderer, GERIUM_BUFFER_USAGE_UNIFORM, 1, "mesh_data", nullptr, sizeof(UniformBufferObject), &meshData));
 
+        check(gerium_renderer_create_buffer(
+            renderer, GERIUM_BUFFER_USAGE_UNIFORM, 1, "uniform1", nullptr, sizeof(UniformBufferObject1), &uniform1));
+
+        check(gerium_renderer_create_buffer(
+            renderer, GERIUM_BUFFER_USAGE_UNIFORM, 1, "uniform2", nullptr, sizeof(UniformBufferObject2), &uniform2));
+
         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet0));
+        check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet0_1));
         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet1));
 
         gerium_renderer_bind_buffer(renderer, descriptorSet0, 0, meshData);
+        gerium_renderer_bind_buffer(renderer, descriptorSet0, 2, uniform2);
+        gerium_renderer_bind_buffer(renderer, descriptorSet0_1, 2, uniform1);
 
         /*gerium_render_pass_t gbufferPass{ 0, 0, gbufferRender };
         gerium_render_pass_t transparentPass{ 0, 0, transparentRender };
@@ -353,8 +374,16 @@ bool initialize(gerium_application_t application) {
 
                               "layout(location = 0) out vec4 outColor;\n"
                               "\n"
+                              "layout(set = 1, binding = 2) uniform UniformBufferObject1 {\n"
+                              "    float f;\n"
+                              "} test;\n"
+                              "\n"
+                              "layout(set = 0, binding = 2) uniform UniformBufferObject2 {\n"
+                              "    float f;\n"
+                              "} test2;\n"
+                              "\n"
                               "void main() {\n"
-                              "    outColor = vec4(inColor, 1.0);\n"
+                              "    outColor = vec4(inColor.r * test.f, inColor.g * test2.f, inColor.b, 1.0);\n"
                               "}\n";
         baseShaders[1].size = strlen(baseShaders[1].data);
 
@@ -424,9 +453,12 @@ bool initialize(gerium_application_t application) {
 void unitialize(gerium_application_t application) {
     if (renderer) {
         gerium_renderer_destroy_descriptor_set(renderer, descriptorSet1);
+        gerium_renderer_destroy_descriptor_set(renderer, descriptorSet0_1);
         gerium_renderer_destroy_descriptor_set(renderer, descriptorSet0);
         gerium_renderer_destroy_material(renderer, fullscreenMaterial);
         gerium_renderer_destroy_material(renderer, baseMaterial);
+        gerium_renderer_destroy_buffer(renderer, uniform2);
+        gerium_renderer_destroy_buffer(renderer, uniform1);
         gerium_renderer_destroy_buffer(renderer, meshData);
         gerium_renderer_destroy_buffer(renderer, vertices);
     }
@@ -454,6 +486,14 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     transforms->view  = glm::translate(glm::vec3(0.0f, 0.0f, -2.0f * f1));
     transforms->proj  = glm::perspective(glm::radians(60.0f), float(width) / height, 0.1f, 1000.0f);
     gerium_renderer_unmap_buffer(renderer, meshData);
+
+    auto data1 = (UniformBufferObject1*) gerium_renderer_map_buffer(renderer, uniform1, 0, 0);
+    data1->f   = f1;
+    gerium_renderer_unmap_buffer(renderer, uniform1);
+
+    auto data2 = (UniformBufferObject2*) gerium_renderer_map_buffer(renderer, uniform2, 0, 0);
+    data2->f   = f2;
+    gerium_renderer_unmap_buffer(renderer, uniform2);
 
     gerium_renderer_render(renderer, frameGraph);
     gerium_renderer_present(renderer);
