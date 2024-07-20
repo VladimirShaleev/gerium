@@ -63,7 +63,8 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
     for (gerium_uint32_t i = 0; i < pipelineCount; ++i) {
         PipelineCreation pc{};
         pc.rasterization = pipelines[i].rasterization;
-        pc.depthStencil = pipelines[i].depth_stencil;
+        pc.depthStencil  = pipelines[i].depth_stencil;
+        pc.colorBlend    = pipelines[i].color_blend;
         // pc.program                       = ;
         pc.viewport = &viewport;
         pc.name     = pipelines[i].render_pass;

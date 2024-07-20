@@ -172,6 +172,16 @@ gerium_inline VkStencilOp toVkStencilOp(gerium_stencil_op_t stencilOp) noexcept 
     return stencils[int(stencilOp)];
 }
 
+gerium_inline VkLogicOp toVkLogicOp(gerium_logic_op_t logicOp) noexcept {
+    constexpr VkLogicOp logics[] = { VK_LOGIC_OP_CLEAR,       VK_LOGIC_OP_SET,           VK_LOGIC_OP_NO_OP,
+                                     VK_LOGIC_OP_COPY,        VK_LOGIC_OP_COPY_INVERTED, VK_LOGIC_OP_AND,
+                                     VK_LOGIC_OP_AND_REVERSE, VK_LOGIC_OP_AND_INVERTED,  VK_LOGIC_OP_NAND,
+                                     VK_LOGIC_OP_OR,          VK_LOGIC_OP_OR_REVERSE,    VK_LOGIC_OP_OR_INVERTED,
+                                     VK_LOGIC_OP_NOR,         VK_LOGIC_OP_XOR,           VK_LOGIC_OP_EQUIVALENT,
+                                     VK_LOGIC_OP_INVERT };
+    return logics[int(logicOp)];
+}
+
 gerium_inline VkFrontFace toVkFrontFace(gerium_front_face_t frontFace) noexcept {
     constexpr VkFrontFace faces[] = { VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FRONT_FACE_CLOCKWISE };
     return faces[int(frontFace)];

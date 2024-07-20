@@ -890,15 +890,15 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         }
 
         VkPipelineColorBlendStateCreateInfo colorBlending{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-        colorBlending.logicOpEnable = VK_FALSE;
-        colorBlending.logicOp       = VK_LOGIC_OP_COPY;
+        colorBlending.logicOpEnable = creation.colorBlend->logic_op_enable;
+        colorBlending.logicOp       = toVkLogicOp(creation.colorBlend->logic_op);
         colorBlending.attachmentCount =
             creation.blendState.activeStates ? creation.blendState.activeStates : creation.renderPass.numColorFormats;
         colorBlending.pAttachments      = colorBlendAttachment;
-        colorBlending.blendConstants[0] = 0.0f;
-        colorBlending.blendConstants[1] = 0.0f;
-        colorBlending.blendConstants[2] = 0.0f;
-        colorBlending.blendConstants[3] = 0.0f;
+        colorBlending.blendConstants[0] = creation.colorBlend->blend_constants[0];
+        colorBlending.blendConstants[1] = creation.colorBlend->blend_constants[1];
+        colorBlending.blendConstants[2] = creation.colorBlend->blend_constants[2];
+        colorBlending.blendConstants[3] = creation.colorBlend->blend_constants[3];
 
         VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 

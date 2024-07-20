@@ -207,6 +207,27 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_LOGIC_OP_CLEAR         = 0,
+    GERIUM_LOGIC_OP_SET           = 1,
+    GERIUM_LOGIC_OP_NO_OP         = 2,
+    GERIUM_LOGIC_OP_COPY          = 3,
+    GERIUM_LOGIC_OP_COPY_INVERTED = 4,
+    GERIUM_LOGIC_OP_AND           = 5,
+    GERIUM_LOGIC_OP_AND_REVERSE   = 6,
+    GERIUM_LOGIC_OP_AND_INVERTED  = 7,
+    GERIUM_LOGIC_OP_NAND          = 8,
+    GERIUM_LOGIC_OP_OR            = 9,
+    GERIUM_LOGIC_OP_OR_REVERSE    = 10,
+    GERIUM_LOGIC_OP_OR_INVERTED   = 11,
+    GERIUM_LOGIC_OP_NOR           = 12,
+    GERIUM_LOGIC_OP_XOR           = 13,
+    GERIUM_LOGIC_OP_EQUIVALENT    = 14,
+    GERIUM_LOGIC_OP_INVERT        = 15,
+    GERIUM_LOGIC_OP_MAX_ENUM      = 0X7FFFFFFF
+} gerium_logic_op_t;
+
+typedef enum
+{
     GERIUM_BUFFER_USAGE_VERTEX   = 1,
     GERIUM_BUFFER_USAGE_INDEX    = 2,
     GERIUM_BUFFER_USAGE_UNIFORM  = 4,
@@ -386,6 +407,13 @@ typedef struct
 
 typedef struct
 {
+    gerium_bool_t     logic_op_enable;
+    gerium_logic_op_t logic_op;
+    gerium_float32_t  blend_constants[4];
+} gerium_color_blend_state_t;
+
+typedef struct
+{
     gerium_uint16_t location;
     gerium_uint16_t binding;
     gerium_uint32_t offset;
@@ -412,8 +440,7 @@ typedef struct
     gerium_utf8_t                       render_pass;
     const gerium_rasterization_state_t* rasterization;
     const gerium_depth_stencil_state_t* depth_stencil;
-    // TODO: add rasterization info
-    // TODO: add ...
+    const gerium_color_blend_state_t*   color_blend;
     gerium_uint32_t                     vertex_attribute_count;
     const gerium_vertex_attribute_t*    vertex_attributes;
     gerium_uint32_t                     vertex_binding_count;

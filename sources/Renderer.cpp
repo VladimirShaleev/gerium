@@ -188,6 +188,7 @@ gerium_result_t gerium_renderer_create_material(gerium_renderer_t renderer,
     for (gerium_uint32_t i = 0; i < pipeline_count; ++i) {
         GERIUM_ASSERT_ARG(pipelines[i].rasterization);
         GERIUM_ASSERT_ARG(pipelines[i].depth_stencil);
+        GERIUM_ASSERT_ARG(pipelines[i].color_blend);
     }
 
     GERIUM_BEGIN_SAFE_BLOCK

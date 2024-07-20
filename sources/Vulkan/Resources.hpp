@@ -327,6 +327,7 @@ struct ViewportState {
 struct PipelineCreation {
     const gerium_rasterization_state_t* rasterization;
     const gerium_depth_stencil_state_t* depthStencil;
+    const gerium_color_blend_state_t*   colorBlend;
     BlendStateCreation    blendState;
     VertexInputCreation   vertexInput;
     ProgramCreation       program;
