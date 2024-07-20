@@ -435,14 +435,13 @@ typedef struct
 
 typedef struct
 {
-    gerium_bool_t                  blend_enable;
-    gerium_blend_factor_t          src_color_blend_factor;
-    gerium_blend_factor_t          dst_color_blend_factor;
-    gerium_blend_op_t              color_blend_op;
-    gerium_blend_factor_t          src_alpha_blend_factor;
-    gerium_blend_factor_t          dst_alpha_blend_factor;
-    gerium_blend_op_t              alpha_blend_op;
-    gerium_color_component_flags_t color_write_mask;
+    gerium_bool_t         blend_enable;
+    gerium_blend_factor_t src_color_blend_factor;
+    gerium_blend_factor_t dst_color_blend_factor;
+    gerium_blend_op_t     color_blend_op;
+    gerium_blend_factor_t src_alpha_blend_factor;
+    gerium_blend_factor_t dst_alpha_blend_factor;
+    gerium_blend_op_t     alpha_blend_op;
 } gerium_color_blend_attachment_state_t;
 
 typedef struct
@@ -476,14 +475,16 @@ typedef struct
 
 typedef struct
 {
-    gerium_resource_type_t  type;
-    gerium_utf8_t           name;
-    gerium_bool_t           external;
-    gerium_format_t         format;
-    gerium_uint16_t         width;
-    gerium_uint16_t         height;
-    gerium_float32_t        auto_scale;
-    gerium_render_pass_op_t render_pass_op;
+    gerium_resource_type_t                type;
+    gerium_utf8_t                         name;
+    gerium_bool_t                         external;
+    gerium_format_t                       format;
+    gerium_uint16_t                       width;
+    gerium_uint16_t                       height;
+    gerium_float32_t                      auto_scale;
+    gerium_render_pass_op_t               render_pass_op;
+    gerium_color_component_flags_t        color_write_mask;
+    gerium_color_blend_attachment_state_t color_blend_attachment;
 } gerium_resource_output_t;
 
 typedef struct

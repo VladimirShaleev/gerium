@@ -65,9 +65,18 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
         pc.rasterization = pipelines[i].rasterization;
         pc.depthStencil  = pipelines[i].depth_stencil;
         pc.colorBlend    = pipelines[i].color_blend;
-        // pc.program                       = ;
-        pc.viewport = &viewport;
-        pc.name     = pipelines[i].render_pass;
+        pc.viewport      = &viewport;
+        pc.name          = pipelines[i].render_pass;
+
+        if (auto node = frameGraph.getNode(pipelines[i].render_pass); node) {
+            for (auto j = 0; j < node->outputCount; ++j) {
+                auto& info = frameGraph.getResource(node->outputs[j])->info;
+                if (info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT &&
+                    !hasDepthOrStencil(toVkFormat(info.texture.format))) {
+                    pc.blendState.addBlendState(info.texture.colorWriteMask, info.texture.colorBlend);
+                }
+            }
+        }
 
         for (gerium_uint32_t j = 0; j < pipelines[i].shader_count; ++j) {
             const auto& shader = pipelines[i].shaders[j];
@@ -171,8 +180,7 @@ RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, co
                 creation.output.depth(format, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
                 creation.output.setDepthStencilOperations(info.texture.operation, GERIUM_RENDER_PASS_OP_LOAD);
             } else {
-                creation.output.color(
-                    format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, GERIUM_RENDER_PASS_OP_LOAD);
+                creation.output.color(format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, GERIUM_RENDER_PASS_OP_LOAD);
             }
         }
     }

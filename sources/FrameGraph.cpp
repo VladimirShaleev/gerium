@@ -297,15 +297,15 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
                 continue;
             }
 
-            if (resource->info.texture.auto_scale != 0) {
-                resource->info.texture.width = gerium_uint16_t(resource->info.texture.width * scaleX);
+            if (resource->info.texture.autoScale != 0) {
+                resource->info.texture.width  = gerium_uint16_t(resource->info.texture.width * scaleX);
                 resource->info.texture.height = gerium_uint16_t(resource->info.texture.height * scaleY);
 
                 _renderer->destroyTexture(resource->info.texture.handle);
                 resource->info.texture.handle = Undefined;
             }
         }
-        
+
         if (auto pass = _renderPasses.access(node->pass); pass->pass.resize) {
             pass->pass.resize(this, _renderer, pass->data);
         }
@@ -347,18 +347,20 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();
 
-    resource->name                    = intern(output.name);
-    resource->external                = output.external;
-    resource->producer                = Undefined;
-    resource->output                  = Undefined;
-    resource->info.type               = output.type;
-    resource->info.texture.format     = output.format;
-    resource->info.texture.width      = output.width;
-    resource->info.texture.height     = output.height;
-    resource->info.texture.depth      = 1;
-    resource->info.texture.auto_scale = output.auto_scale;
-    resource->info.texture.operation  = output.render_pass_op;
-    resource->info.texture.handle     = Undefined;
+    resource->name                        = intern(output.name);
+    resource->external                    = output.external;
+    resource->producer                    = Undefined;
+    resource->output                      = Undefined;
+    resource->info.type                   = output.type;
+    resource->info.texture.format         = output.format;
+    resource->info.texture.width          = output.width;
+    resource->info.texture.height         = output.height;
+    resource->info.texture.depth          = 1;
+    resource->info.texture.autoScale      = output.auto_scale;
+    resource->info.texture.operation      = output.render_pass_op;
+    resource->info.texture.colorWriteMask = output.color_write_mask;
+    resource->info.texture.colorBlend     = output.color_blend_attachment;
+    resource->info.texture.handle         = Undefined;
     calcFramebufferSize(resource->info);
 
     if (output.type != GERIUM_RESOURCE_TYPE_REFERENCE) {
@@ -417,9 +419,9 @@ void FrameGraph::calcFramebufferSize(FrameGraphResourceInfo& info) const noexcep
         info.texture.height = height;
     }
 
-    if (info.texture.auto_scale != 0.0f) {
-        info.texture.width  = gerium_uint16_t(info.texture.width * info.texture.auto_scale);
-        info.texture.height = gerium_uint16_t(info.texture.height * info.texture.auto_scale);
+    if (info.texture.autoScale != 0.0f) {
+        info.texture.width  = gerium_uint16_t(info.texture.width * info.texture.autoScale);
+        info.texture.height = gerium_uint16_t(info.texture.height * info.texture.autoScale);
     }
 }
 

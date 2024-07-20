@@ -317,9 +317,10 @@ bool initialize(gerium_application_t application) {
         gerium_resource_output_t simpleOutputs[] = {
             { GERIUM_RESOURCE_TYPE_ATTACHMENT,
              "color", 0,
-             GERIUM_FORMAT_R8G8B8A8_UNORM,    0,
+             GERIUM_FORMAT_R8G8B8A8_UNORM, 0,
              0, 1.0f,
-             GERIUM_RENDER_PASS_OP_CLEAR },
+             GERIUM_RENDER_PASS_OP_CLEAR, GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT | GERIUM_COLOR_COMPONENT_B_BIT |
+                  GERIUM_COLOR_COMPONENT_A_BIT },
             { GERIUM_RESOURCE_TYPE_ATTACHMENT,
              "depth", 0,
              GERIUM_FORMAT_D24_UNORM_S8_UINT, 0,

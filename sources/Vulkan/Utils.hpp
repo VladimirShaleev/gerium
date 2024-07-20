@@ -212,6 +212,10 @@ gerium_inline VkBlendFactor toVkBlendFactor(gerium_blend_factor_t blendFactor) n
     return factors[int(blendFactor)];
 }
 
+gerium_inline VkColorComponentFlags toVkColorComponent(gerium_color_component_flags_t colorComponentFlags) noexcept {
+    return (VkColorComponentFlags) colorComponentFlags;
+}
+
 gerium_inline VkFrontFace toVkFrontFace(gerium_front_face_t frontFace) noexcept {
     constexpr VkFrontFace faces[] = { VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FRONT_FACE_CLOCKWISE };
     return faces[int(frontFace)];

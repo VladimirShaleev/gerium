@@ -174,57 +174,20 @@ struct DepthStencilCreation {
     }
 };
 
-struct BlendState {
-    VkBlendFactor sourceColor      = VK_BLEND_FACTOR_ONE;
-    VkBlendFactor destinationColor = VK_BLEND_FACTOR_ONE;
-    VkBlendOp     colorOperation   = VK_BLEND_OP_ADD;
-
-    VkBlendFactor sourceAlpha      = VK_BLEND_FACTOR_ONE;
-    VkBlendFactor destinationAlpha = VK_BLEND_FACTOR_ONE;
-    VkBlendOp     alphaOperation   = VK_BLEND_OP_ADD;
-
-    ColorWriteEnabled colorWriteMask = ColorWriteEnabled::All;
-
-    uint8_t blendEnabled  : 1;
-    uint8_t separateBlend : 1;
-    uint8_t pad           : 6;
-
-    BlendState() : blendEnabled(0), separateBlend(0) {
-    }
-
-    BlendState& setColor(VkBlendFactor sourceColor, VkBlendFactor destinationColor, VkBlendOp colorOperation) {
-        this->sourceColor      = sourceColor;
-        this->destinationColor = destinationColor;
-        this->colorOperation   = colorOperation;
-        this->blendEnabled     = 1;
-        return *this;
-    }
-
-    BlendState& setAlpha(VkBlendFactor sourceAlpha, VkBlendFactor destinationAlpha, VkBlendOp alphaOperation) {
-        sourceAlpha      = sourceAlpha;
-        destinationAlpha = destinationAlpha;
-        alphaOperation   = alphaOperation;
-        separateBlend    = 1;
-        return *this;
-    }
-
-    BlendState& setColorWriteMask(ColorWriteEnabled value) {
-        colorWriteMask = value;
-        return *this;
-    }
-};
-
 struct BlendStateCreation {
-    BlendState blendStates[kMaxImageOutputs];
-    uint32_t   activeStates = 0;
+    gerium_color_component_flags_t writeMasks[kMaxImageOutputs];
+    gerium_color_blend_attachment_state_t blendStates[kMaxImageOutputs];
+    uint32_t activeStates = 0;
 
     BlendStateCreation& reset() {
         activeStates = 0;
         return *this;
     }
 
-    BlendState& addBlendState() {
-        return blendStates[activeStates++];
+    BlendStateCreation& addBlendState(gerium_color_component_flags_t writeMask, const gerium_color_blend_attachment_state_t& state) {
+        writeMasks[activeStates] = writeMask;
+        blendStates[activeStates++] = state;
+        return *this;
     }
 };
 

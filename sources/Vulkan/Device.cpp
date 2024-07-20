@@ -861,24 +861,17 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         if (creation.blendState.activeStates) {
             assert(creation.blendState.activeStates == creation.renderPass.numColorFormats);
             for (uint32_t i = 0; i < creation.blendState.activeStates; i++) {
-                const BlendState& blendState = creation.blendState.blendStates[i];
+                const auto& writeMask = creation.blendState.writeMasks[i];
+                const auto& blendState = creation.blendState.blendStates[i];
 
-                colorBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                                                         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-                colorBlendAttachment[i].blendEnable         = blendState.blendEnabled ? VK_TRUE : VK_FALSE;
-                colorBlendAttachment[i].srcColorBlendFactor = blendState.sourceColor;
-                colorBlendAttachment[i].dstColorBlendFactor = blendState.destinationColor;
-                colorBlendAttachment[i].colorBlendOp        = blendState.colorOperation;
-
-                if (blendState.separateBlend) {
-                    colorBlendAttachment[i].srcAlphaBlendFactor = blendState.sourceAlpha;
-                    colorBlendAttachment[i].dstAlphaBlendFactor = blendState.destinationAlpha;
-                    colorBlendAttachment[i].alphaBlendOp        = blendState.alphaOperation;
-                } else {
-                    colorBlendAttachment[i].srcAlphaBlendFactor = blendState.sourceColor;
-                    colorBlendAttachment[i].dstAlphaBlendFactor = blendState.destinationColor;
-                    colorBlendAttachment[i].alphaBlendOp        = blendState.colorOperation;
-                }
+                colorBlendAttachment[i].blendEnable         = blendState.blend_enable;
+                colorBlendAttachment[i].srcColorBlendFactor = toVkBlendFactor(blendState.src_color_blend_factor);
+                colorBlendAttachment[i].dstColorBlendFactor = toVkBlendFactor(blendState.dst_color_blend_factor);
+                colorBlendAttachment[i].colorBlendOp        = toVkBlendOp(blendState.color_blend_op);
+                colorBlendAttachment[i].srcAlphaBlendFactor = toVkBlendFactor(blendState.src_alpha_blend_factor);
+                colorBlendAttachment[i].dstAlphaBlendFactor = toVkBlendFactor(blendState.dst_alpha_blend_factor);
+                colorBlendAttachment[i].alphaBlendOp        = toVkBlendOp(blendState.alpha_blend_op);
+                colorBlendAttachment[i].colorWriteMask      = toVkColorComponent(writeMask);
             }
         } else {
             for (uint32_t i = 0; i < creation.renderPass.numColorFormats; ++i) {
