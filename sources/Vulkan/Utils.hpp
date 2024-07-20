@@ -182,6 +182,36 @@ gerium_inline VkLogicOp toVkLogicOp(gerium_logic_op_t logicOp) noexcept {
     return logics[int(logicOp)];
 }
 
+gerium_inline VkBlendOp toVkBlendOp(gerium_blend_op_t blendOp) noexcept {
+    constexpr VkBlendOp blends[] = {
+        VK_BLEND_OP_ADD, VK_BLEND_OP_SUBTRACT, VK_BLEND_OP_REVERSE_SUBTRACT, VK_BLEND_OP_MIN, VK_BLEND_OP_MAX
+    };
+    return blends[int(blendOp)];
+}
+
+gerium_inline VkBlendFactor toVkBlendFactor(gerium_blend_factor_t blendFactor) noexcept {
+    constexpr VkBlendFactor factors[] = { VK_BLEND_FACTOR_ZERO,
+                                          VK_BLEND_FACTOR_ONE,
+                                          VK_BLEND_FACTOR_SRC_COLOR,
+                                          VK_BLEND_FACTOR_SRC_ALPHA,
+                                          VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,
+                                          VK_BLEND_FACTOR_DST_COLOR,
+                                          VK_BLEND_FACTOR_DST_ALPHA,
+                                          VK_BLEND_FACTOR_CONSTANT_COLOR,
+                                          VK_BLEND_FACTOR_CONSTANT_ALPHA,
+                                          VK_BLEND_FACTOR_SRC1_COLOR,
+                                          VK_BLEND_FACTOR_SRC1_ALPHA,
+                                          VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+                                          VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                                          VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+                                          VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+                                          VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR,
+                                          VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA,
+                                          VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR,
+                                          VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA };
+    return factors[int(blendFactor)];
+}
+
 gerium_inline VkFrontFace toVkFrontFace(gerium_front_face_t frontFace) noexcept {
     constexpr VkFrontFace faces[] = { VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FRONT_FACE_CLOCKWISE };
     return faces[int(frontFace)];

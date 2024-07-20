@@ -228,6 +228,50 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_BLEND_OP_ADD              = 0,
+    GERIUM_BLEND_OP_SUBTRACT         = 1,
+    GERIUM_BLEND_OP_REVERSE_SUBTRACT = 2,
+    GERIUM_BLEND_OP_MIN              = 3,
+    GERIUM_BLEND_OP_MAX              = 4,
+    GERIUM_BLEND_OP_MAX_ENUM         = 0X7FFFFFFF
+} gerium_blend_op_t;
+
+typedef enum
+{
+    GERIUM_BLEND_FACTOR_ZERO                     = 0,
+    GERIUM_BLEND_FACTOR_ONE                      = 1,
+    GERIUM_BLEND_FACTOR_SRC_COLOR                = 2,
+    GERIUM_BLEND_FACTOR_SRC_ALPHA                = 3,
+    GERIUM_BLEND_FACTOR_SRC_ALPHA_SATURATE       = 4,
+    GERIUM_BLEND_FACTOR_DST_COLOR                = 5,
+    GERIUM_BLEND_FACTOR_DST_ALPHA                = 6,
+    GERIUM_BLEND_FACTOR_CONSTANT_COLOR           = 7,
+    GERIUM_BLEND_FACTOR_CONSTANT_ALPHA           = 8,
+    GERIUM_BLEND_FACTOR_SRC1_COLOR               = 9,
+    GERIUM_BLEND_FACTOR_SRC1_ALPHA               = 10,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC_COLOR      = 11,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA      = 12,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_DST_COLOR      = 13,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_DST_ALPHA      = 14,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR = 15,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA = 16,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR     = 17,
+    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA     = 18,
+    GERIUM_BLEND_FACTOR_MAX_ENUM = 0X7FFFFFFF
+} gerium_blend_factor_t;
+
+typedef enum
+{
+    GERIUM_COLOR_COMPONENT_R_BIT    = 1,
+    GERIUM_COLOR_COMPONENT_G_BIT    = 2,
+    GERIUM_COLOR_COMPONENT_B_BIT    = 4,
+    GERIUM_COLOR_COMPONENT_A_BIT    = 8,
+    GERIUM_COLOR_COMPONENT_MAX_ENUM = 0X7FFFFFFF
+} gerium_color_component_flags_t;
+GERIUM_FLAGS(gerium_color_component_flags_t)
+
+typedef enum
+{
     GERIUM_BUFFER_USAGE_VERTEX   = 1,
     GERIUM_BUFFER_USAGE_INDEX    = 2,
     GERIUM_BUFFER_USAGE_UNIFORM  = 4,
@@ -411,6 +455,18 @@ typedef struct
     gerium_logic_op_t logic_op;
     gerium_float32_t  blend_constants[4];
 } gerium_color_blend_state_t;
+
+typedef struct
+{
+    gerium_bool_t                  blend_enable;
+    gerium_blend_factor_t          src_color_blend_factor;
+    gerium_blend_factor_t          dst_color_blend_factor;
+    gerium_blend_op_t              color_blend_op;
+    gerium_blend_factor_t          src_alpha_blend_factor;
+    gerium_blend_factor_t          dst_alpha_blend_factor;
+    gerium_blend_op_t              alpha_blend_op;
+    gerium_color_component_flags_t color_write_mask;
+} gerium_color_blend_attachment_state_t;
 
 typedef struct
 {
