@@ -140,6 +140,23 @@ gerium_inline VkFormat toVkFormat(gerium_format_t format) noexcept {
     }
 }
 
+gerium_inline VkPolygonMode toVkPolygonMode(gerium_polygon_mode_t polygonMode) noexcept {
+    constexpr VkPolygonMode modes[] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
+    return modes[int(polygonMode)];
+}
+
+gerium_inline VkCullModeFlags toVkCullMode(gerium_cull_mode_t cullMode) noexcept {
+    constexpr VkCullModeFlags modes[] = {
+        VK_CULL_MODE_NONE, VK_CULL_MODE_FRONT_BIT, VK_CULL_MODE_BACK_BIT, VK_CULL_MODE_FRONT_AND_BACK
+    };
+    return modes[int(cullMode)];
+}
+
+gerium_inline VkFrontFace toVkFrontFace(gerium_front_face_t frontFace) noexcept {
+    constexpr VkFrontFace faces[] = { VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FRONT_FACE_CLOCKWISE };
+    return faces[int(frontFace)];
+}
+
 gerium_inline VkBufferUsageFlags toVkBufferUsageFlags(gerium_buffer_usage_flags_t flags) noexcept {
     VkBufferUsageFlags result{};
 
@@ -186,22 +203,22 @@ gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type) noex
 }
 
 gerium_inline VkFormat toVkVertexFormat(VertexComponentFormat value) {
-    constexpr VkFormat sVkVertexFormats[] = {VK_FORMAT_R32_SFLOAT,
-                                                VK_FORMAT_R32G32_SFLOAT,
-                                                VK_FORMAT_R32G32B32_SFLOAT,
-                                                VK_FORMAT_R32G32B32A32_SFLOAT,
-                                                /*MAT4 TODO*/ VK_FORMAT_R32G32B32A32_SFLOAT,
-                                                VK_FORMAT_R8_SINT,
-                                                VK_FORMAT_R8G8B8A8_SNORM,
-                                                VK_FORMAT_R8_UINT,
-                                                VK_FORMAT_R8G8B8A8_UINT,
-                                                VK_FORMAT_R16G16_SINT,
-                                                VK_FORMAT_R16G16_SNORM,
-                                                VK_FORMAT_R16G16B16A16_SINT,
-                                                VK_FORMAT_R16G16B16A16_SNORM,
-                                                VK_FORMAT_R32_UINT,
-                                                VK_FORMAT_R32G32_UINT,
-                                                VK_FORMAT_R32G32B32A32_UINT};
+    constexpr VkFormat sVkVertexFormats[] = { VK_FORMAT_R32_SFLOAT,
+                                              VK_FORMAT_R32G32_SFLOAT,
+                                              VK_FORMAT_R32G32B32_SFLOAT,
+                                              VK_FORMAT_R32G32B32A32_SFLOAT,
+                                              /*MAT4 TODO*/ VK_FORMAT_R32G32B32A32_SFLOAT,
+                                              VK_FORMAT_R8_SINT,
+                                              VK_FORMAT_R8G8B8A8_SNORM,
+                                              VK_FORMAT_R8_UINT,
+                                              VK_FORMAT_R8G8B8A8_UINT,
+                                              VK_FORMAT_R16G16_SINT,
+                                              VK_FORMAT_R16G16_SNORM,
+                                              VK_FORMAT_R16G16B16A16_SINT,
+                                              VK_FORMAT_R16G16B16A16_SNORM,
+                                              VK_FORMAT_R32_UINT,
+                                              VK_FORMAT_R32G32_UINT,
+                                              VK_FORMAT_R32G32B32A32_UINT };
 
     return sVkVertexFormats[(int) value];
 }

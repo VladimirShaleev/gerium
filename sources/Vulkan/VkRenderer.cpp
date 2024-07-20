@@ -62,9 +62,7 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
 
     for (gerium_uint32_t i = 0; i < pipelineCount; ++i) {
         PipelineCreation pc{};
-        pc.rasterization.cullMode = VK_CULL_MODE_NONE;
-        pc.rasterization.front    = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        pc.rasterization.fill     = FillMode::Solid;
+        pc.rasterization = pipelines[i].rasterization;
         // pc.depthStencil.front            = ;
         // pc.depthStencil.back             = ;
         pc.depthStencil.depthComparison  = VK_COMPARE_OP_ALWAYS;

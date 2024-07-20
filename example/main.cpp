@@ -387,8 +387,20 @@ bool initialize(gerium_application_t application) {
                               "}\n";
         baseShaders[1].size = strlen(baseShaders[1].data);
 
-        gerium_pipeline_t basePipelines[1];
+        gerium_rasterization_t rasterization{};
+        rasterization.polygon_mode               = GERIUM_POLYGON_MODE_FILL;
+        rasterization.cull_mode                  = GERIUM_CULL_MODE_NONE;
+        rasterization.front_face                 = GERIUM_FRONT_FACE_COUNTER_CLOCKWISE;
+        rasterization.depth_clamp_enable         = 0;
+        rasterization.depth_bias_enable          = 0;
+        rasterization.depth_bias_constant_factor = 0.0f;
+        rasterization.depth_bias_clamp           = 0.0f;
+        rasterization.depth_bias_slope_factor    = 0.0f;
+        rasterization.line_width                 = 1.0f;
+
+        gerium_pipeline_t basePipelines[1]{};
         basePipelines[0].render_pass            = "simple_pass";
+        basePipelines[0].rasterization          = &rasterization;
         basePipelines[0].vertex_attribute_count = std::size(vertexAttributes);
         basePipelines[0].vertex_attributes      = vertexAttributes;
         basePipelines[0].vertex_binding_count   = std::size(vertexBindings);
@@ -429,9 +441,10 @@ bool initialize(gerium_application_t application) {
         fullscreenShaders[1].size = strlen(fullscreenShaders[1].data);
 
         gerium_pipeline_t fullscreenPipelines[1]{};
-        fullscreenPipelines[0].render_pass  = "present_pass";
-        fullscreenPipelines[0].shader_count = std::size(fullscreenShaders);
-        fullscreenPipelines[0].shaders      = fullscreenShaders;
+        fullscreenPipelines[0].render_pass   = "present_pass";
+        fullscreenPipelines[0].rasterization = &rasterization;
+        fullscreenPipelines[0].shader_count  = std::size(fullscreenShaders);
+        fullscreenPipelines[0].shaders       = fullscreenShaders;
 
         check(gerium_renderer_create_material(renderer,
                                               frameGraph,

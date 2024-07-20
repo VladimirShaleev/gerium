@@ -813,16 +813,16 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         viewportState.pScissors     = &scissor;
 
         VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-        rasterizer.depthClampEnable        = VK_FALSE;
+        rasterizer.depthClampEnable        = creation.rasterization->depth_clamp_enable;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
-        rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth               = 1.0f;
-        rasterizer.cullMode                = creation.rasterization.cullMode;
-        rasterizer.frontFace               = creation.rasterization.front;
-        rasterizer.depthBiasEnable         = VK_FALSE;
-        rasterizer.depthBiasConstantFactor = 0.0f;
-        rasterizer.depthBiasClamp          = 0.0f;
-        rasterizer.depthBiasSlopeFactor    = 0.0f;
+        rasterizer.polygonMode             = toVkPolygonMode(creation.rasterization->polygon_mode);
+        rasterizer.lineWidth               = creation.rasterization->line_width;
+        rasterizer.cullMode                = toVkCullMode(creation.rasterization->cull_mode);
+        rasterizer.frontFace               = toVkFrontFace(creation.rasterization->front_face);
+        rasterizer.depthBiasEnable         = creation.rasterization->depth_bias_enable;
+        rasterizer.depthBiasConstantFactor = creation.rasterization->depth_bias_constant_factor;
+        rasterizer.depthBiasClamp          = creation.rasterization->depth_bias_clamp;
+        rasterizer.depthBiasSlopeFactor    = creation.rasterization->depth_bias_slope_factor;
 
         VkPipelineMultisampleStateCreateInfo multisampling{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
         multisampling.sampleShadingEnable   = VK_FALSE;

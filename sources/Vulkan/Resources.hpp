@@ -143,12 +143,6 @@ struct DescriptorSetLayoutCreation {
     }
 };
 
-struct RasterizationCreation {
-    VkCullModeFlagBits cullMode = VK_CULL_MODE_NONE;
-    VkFrontFace        front    = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    FillMode           fill     = FillMode::Solid;
-};
-
 struct StencilOperationState {
     VkStencilOp fail        = VK_STENCIL_OP_KEEP;
     VkStencilOp pass        = VK_STENCIL_OP_KEEP;
@@ -331,7 +325,7 @@ struct ViewportState {
 };
 
 struct PipelineCreation {
-    RasterizationCreation rasterization;
+    const gerium_rasterization_t* rasterization;
     DepthStencilCreation  depthStencil;
     BlendStateCreation    blendState;
     VertexInputCreation   vertexInput;
@@ -544,7 +538,7 @@ struct Pipeline {
 
     DepthStencilCreation  depthStencil;
     BlendStateCreation    blendState;
-    RasterizationCreation rasterization;
+    // RasterizationCreation rasterization;
 
     PipelineHandle handle;
     bool           graphicsPipeline;

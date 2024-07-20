@@ -185,6 +185,9 @@ gerium_result_t gerium_renderer_create_material(gerium_renderer_t renderer,
     GERIUM_ASSERT_ARG(pipeline_count > 0);
     GERIUM_ASSERT_ARG(pipelines);
     GERIUM_ASSERT_ARG(handle);
+    for (gerium_uint32_t i = 0; i < pipeline_count; ++i) {
+        GERIUM_ASSERT_ARG(pipelines[i].rasterization);
+    }
 
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createMaterial(

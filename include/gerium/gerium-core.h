@@ -157,6 +157,30 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_POLYGON_MODE_FILL     = 0,
+    GERIUM_POLYGON_MODE_LINE     = 1,
+    GERIUM_POLYGON_MODE_POINT    = 2,
+    GERIUM_POLYGON_MODE_MAX_ENUM = 0x7FFFFFFF
+} gerium_polygon_mode_t;
+
+typedef enum
+{
+    GERIUM_CULL_MODE_NONE           = 0,
+    GERIUM_CULL_MODE_FRONT          = 1,
+    GERIUM_CULL_MODE_BACK           = 2,
+    GERIUM_CULL_MODE_FRONT_AND_BACK = 3,
+    GERIUM_CULL_MODE_MAX_ENUM       = 0x7FFFFFFF
+} gerium_cull_mode_t;
+
+typedef enum
+{
+    GERIUM_FRONT_FACE_COUNTER_CLOCKWISE = 0,
+    GERIUM_FRONT_FACE_CLOCKWISE         = 1,
+    GERIUM_FRONT_FACE_MAX_ENUM          = 0x7FFFFFFF
+} gerium_front_face_t;
+
+typedef enum
+{
     GERIUM_BUFFER_USAGE_VERTEX   = 1,
     GERIUM_BUFFER_USAGE_INDEX    = 2,
     GERIUM_BUFFER_USAGE_UNIFORM  = 4,
@@ -297,20 +321,36 @@ typedef struct
     gerium_render_pass_operation_t operation;
 } gerium_resource_output_t;
 
-typedef struct {
+typedef struct
+{
+    gerium_polygon_mode_t polygon_mode;
+    gerium_cull_mode_t    cull_mode;
+    gerium_front_face_t   front_face;
+    gerium_bool_t         depth_clamp_enable;
+    gerium_bool_t         depth_bias_enable;
+    gerium_float32_t      depth_bias_constant_factor;
+    gerium_float32_t      depth_bias_clamp;
+    gerium_float32_t      depth_bias_slope_factor;
+    gerium_float32_t      line_width;
+} gerium_rasterization_t;
+
+typedef struct
+{
     gerium_uint16_t location;
     gerium_uint16_t binding;
     gerium_uint32_t offset;
     gerium_format_t format;
 } gerium_vertex_attribute_t;
 
-typedef struct {
+typedef struct
+{
     gerium_uint16_t             binding;
     gerium_uint16_t             stride;
     gerium_vertex_rate_t inputRate;
 } gerium_vertex_binding_t;
 
-typedef struct {
+typedef struct
+{
     gerium_shader_type_t type;
     gerium_utf8_t        name;
     gerium_utf8_t        data;
@@ -320,6 +360,7 @@ typedef struct {
 typedef struct
 {
     gerium_utf8_t                    render_pass;
+    const gerium_rasterization_t*    rasterization;
     // TODO: add rasterization info
     // TODO: add ...
     gerium_uint32_t                  vertex_attribute_count;

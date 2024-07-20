@@ -34,12 +34,6 @@ enum class QueueType {
     CopyTransfer
 };
 
-enum class FillMode {
-    Wireframe,
-    Solid,
-    Point
-};
-
 enum class ColorWriteEnabled {
     Red   = 0,
     Green = 1,
