@@ -181,6 +181,32 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_COMPARE_OP_NEVER            = 0,
+    GERIUM_COMPARE_OP_ALWAYS           = 1,
+    GERIUM_COMPARE_OP_LESS             = 2,
+    GERIUM_COMPARE_OP_LESS_OR_EQUAL    = 3,
+    GERIUM_COMPARE_OP_GREATER          = 4,
+    GERIUM_COMPARE_OP_GREATER_OR_EQUAL = 5,
+    GERIUM_COMPARE_OP_EQUAL            = 6,
+    GERIUM_COMPARE_OP_NOT_EQUAL        = 7,
+    GERIUM_COMPARE_OP_MAX_ENUM         = 0X7FFFFFFF
+} gerium_compare_op_t;
+
+typedef enum
+{
+    GERIUM_STENCIL_OP_KEEP                = 0,
+    GERIUM_STENCIL_OP_ZERO                = 1,
+    GERIUM_STENCIL_OP_REPLACE             = 2,
+    GERIUM_STENCIL_OP_INVERT              = 3,
+    GERIUM_STENCIL_OP_INCREMENT_AND_CLAMP = 4,
+    GERIUM_STENCIL_OP_DECREMENT_AND_CLAMP = 5,
+    GERIUM_STENCIL_OP_INCREMENT_AND_WRAP  = 6,
+    GERIUM_STENCIL_OP_DECREMENT_AND_WRAP  = 7,
+    GERIUM_STENCIL_OP_MAX_ENUM            = 0X7FFFFFFF
+} gerium_stencil_op_t;
+
+typedef enum
+{
     GERIUM_BUFFER_USAGE_VERTEX   = 1,
     GERIUM_BUFFER_USAGE_INDEX    = 2,
     GERIUM_BUFFER_USAGE_UNIFORM  = 4,
@@ -332,7 +358,31 @@ typedef struct
     gerium_float32_t      depth_bias_clamp;
     gerium_float32_t      depth_bias_slope_factor;
     gerium_float32_t      line_width;
-} gerium_rasterization_t;
+} gerium_rasterization_state_t;
+
+typedef struct
+{
+    gerium_stencil_op_t fail_op;
+    gerium_stencil_op_t pass_op;
+    gerium_stencil_op_t depth_fail_op;
+    gerium_compare_op_t compare_op;
+    gerium_uint32_t     compare_mask;
+    gerium_uint32_t     write_mask;
+    gerium_uint32_t     reference;
+} gerium_stencil_op_state_t;
+
+typedef struct
+{
+    gerium_bool_t             depth_test_enable;
+    gerium_bool_t             depth_write_enable;
+    gerium_bool_t             depth_bounds_test_enable;
+    gerium_bool_t             stencil_test_enable;
+    gerium_compare_op_t       depth_compare_op;
+    gerium_stencil_op_state_t front;
+    gerium_stencil_op_state_t back;
+    gerium_float32_t          min_depth_bounds;
+    gerium_float32_t          max_depth_bounds;
+} gerium_depth_stencil_state_t;
 
 typedef struct
 {
@@ -359,16 +409,17 @@ typedef struct
 
 typedef struct
 {
-    gerium_utf8_t                    render_pass;
-    const gerium_rasterization_t*    rasterization;
+    gerium_utf8_t                       render_pass;
+    const gerium_rasterization_state_t* rasterization;
+    const gerium_depth_stencil_state_t* depth_stencil;
     // TODO: add rasterization info
     // TODO: add ...
-    gerium_uint32_t                  vertex_attribute_count;
-    const gerium_vertex_attribute_t* vertex_attributes;
-    gerium_uint32_t                  vertex_binding_count;
-    const gerium_vertex_binding_t*   vertex_bindings;
-    gerium_uint32_t                  shader_count;
-    const gerium_shader_t*           shaders;
+    gerium_uint32_t                     vertex_attribute_count;
+    const gerium_vertex_attribute_t*    vertex_attributes;
+    gerium_uint32_t                     vertex_binding_count;
+    const gerium_vertex_binding_t*      vertex_bindings;
+    gerium_uint32_t                     shader_count;
+    const gerium_shader_t*              shaders;
 } gerium_pipeline_t;
 
 gerium_public gerium_uint32_t

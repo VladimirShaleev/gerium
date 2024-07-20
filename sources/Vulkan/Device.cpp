@@ -835,14 +835,27 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         VkPipelineDepthStencilStateCreateInfo depthStencil{
             VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
         };
-        depthStencil.depthWriteEnable  = creation.depthStencil.depthWriteEnable ? VK_TRUE : VK_FALSE;
-        depthStencil.stencilTestEnable = creation.depthStencil.stencilEnable ? VK_TRUE : VK_FALSE;
-        depthStencil.depthTestEnable   = creation.depthStencil.depthEnable ? VK_TRUE : VK_FALSE;
-        depthStencil.depthCompareOp    = creation.depthStencil.depthComparison;
-        if (creation.depthStencil.stencilEnable) {
-            // TODO: add stencil
-            assert(false);
-        }
+        depthStencil.depthTestEnable       = creation.depthStencil->depth_test_enable;
+        depthStencil.depthWriteEnable      = creation.depthStencil->depth_write_enable;
+        depthStencil.depthCompareOp        = toVkCompareOp(creation.depthStencil->depth_compare_op);
+        depthStencil.depthBoundsTestEnable = creation.depthStencil->depth_bounds_test_enable;
+        depthStencil.stencilTestEnable     = creation.depthStencil->stencil_test_enable;
+        depthStencil.front.failOp          = toVkStencilOp(creation.depthStencil->front.fail_op);
+        depthStencil.front.passOp          = toVkStencilOp(creation.depthStencil->front.pass_op);
+        depthStencil.front.depthFailOp     = toVkStencilOp(creation.depthStencil->front.depth_fail_op);
+        depthStencil.front.compareOp       = toVkCompareOp(creation.depthStencil->front.compare_op);
+        depthStencil.front.compareMask     = creation.depthStencil->front.compare_mask;
+        depthStencil.front.writeMask       = creation.depthStencil->front.write_mask;
+        depthStencil.front.reference       = creation.depthStencil->front.reference;
+        depthStencil.back.failOp           = toVkStencilOp(creation.depthStencil->back.fail_op);
+        depthStencil.back.passOp           = toVkStencilOp(creation.depthStencil->back.pass_op);
+        depthStencil.back.depthFailOp      = toVkStencilOp(creation.depthStencil->back.depth_fail_op);
+        depthStencil.back.compareOp        = toVkCompareOp(creation.depthStencil->back.compare_op);
+        depthStencil.back.compareMask      = creation.depthStencil->back.compare_mask;
+        depthStencil.back.writeMask        = creation.depthStencil->back.write_mask;
+        depthStencil.back.reference        = creation.depthStencil->back.reference;
+        depthStencil.minDepthBounds        = creation.depthStencil->min_depth_bounds;
+        depthStencil.maxDepthBounds        = creation.depthStencil->max_depth_bounds;
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment[kMaxImageOutputs];
         if (creation.blendState.activeStates) {

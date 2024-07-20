@@ -325,8 +325,8 @@ struct ViewportState {
 };
 
 struct PipelineCreation {
-    const gerium_rasterization_t* rasterization;
-    DepthStencilCreation  depthStencil;
+    const gerium_rasterization_state_t* rasterization;
+    const gerium_depth_stencil_state_t* depthStencil;
     BlendStateCreation    blendState;
     VertexInputCreation   vertexInput;
     ProgramCreation       program;
@@ -536,8 +536,8 @@ struct Pipeline {
     DescriptorSetLayoutHandle descriptorSetLayoutHandles[kMaxDescriptorSetLayouts];
     uint32_t                  numActiveLayouts;
 
-    DepthStencilCreation  depthStencil;
-    BlendStateCreation    blendState;
+    // DepthStencilCreation  depthStencil;
+    // BlendStateCreation    blendState;
     // RasterizationCreation rasterization;
 
     PipelineHandle handle;

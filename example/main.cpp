@@ -387,7 +387,7 @@ bool initialize(gerium_application_t application) {
                               "}\n";
         baseShaders[1].size = strlen(baseShaders[1].data);
 
-        gerium_rasterization_t rasterization{};
+        gerium_rasterization_state_t rasterization{};
         rasterization.polygon_mode               = GERIUM_POLYGON_MODE_FILL;
         rasterization.cull_mode                  = GERIUM_CULL_MODE_NONE;
         rasterization.front_face                 = GERIUM_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -398,9 +398,12 @@ bool initialize(gerium_application_t application) {
         rasterization.depth_bias_slope_factor    = 0.0f;
         rasterization.line_width                 = 1.0f;
 
+        gerium_depth_stencil_state_t depthStencil{};
+
         gerium_pipeline_t basePipelines[1]{};
         basePipelines[0].render_pass            = "simple_pass";
         basePipelines[0].rasterization          = &rasterization;
+        basePipelines[0].depth_stencil          = &depthStencil;
         basePipelines[0].vertex_attribute_count = std::size(vertexAttributes);
         basePipelines[0].vertex_attributes      = vertexAttributes;
         basePipelines[0].vertex_binding_count   = std::size(vertexBindings);
@@ -443,6 +446,7 @@ bool initialize(gerium_application_t application) {
         gerium_pipeline_t fullscreenPipelines[1]{};
         fullscreenPipelines[0].render_pass   = "present_pass";
         fullscreenPipelines[0].rasterization = &rasterization;
+        fullscreenPipelines[0].depth_stencil = &depthStencil;
         fullscreenPipelines[0].shader_count  = std::size(fullscreenShaders);
         fullscreenPipelines[0].shaders       = fullscreenShaders;
 

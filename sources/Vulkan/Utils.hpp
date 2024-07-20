@@ -152,6 +152,26 @@ gerium_inline VkCullModeFlags toVkCullMode(gerium_cull_mode_t cullMode) noexcept
     return modes[int(cullMode)];
 }
 
+gerium_inline VkCompareOp toVkCompareOp(gerium_compare_op_t compareOp) noexcept {
+    constexpr VkCompareOp compares[] = { VK_COMPARE_OP_NEVER,   VK_COMPARE_OP_ALWAYS,
+                                         VK_COMPARE_OP_LESS,    VK_COMPARE_OP_LESS_OR_EQUAL,
+                                         VK_COMPARE_OP_GREATER, VK_COMPARE_OP_GREATER_OR_EQUAL,
+                                         VK_COMPARE_OP_EQUAL,   VK_COMPARE_OP_NOT_EQUAL };
+    return compares[int(compareOp)];
+}
+
+gerium_inline VkStencilOp toVkStencilOp(gerium_stencil_op_t stencilOp) noexcept {
+    constexpr VkStencilOp stencils[] = { VK_STENCIL_OP_KEEP,
+                                         VK_STENCIL_OP_ZERO,
+                                         VK_STENCIL_OP_REPLACE,
+                                         VK_STENCIL_OP_INVERT,
+                                         VK_STENCIL_OP_INCREMENT_AND_CLAMP,
+                                         VK_STENCIL_OP_DECREMENT_AND_CLAMP,
+                                         VK_STENCIL_OP_INCREMENT_AND_WRAP,
+                                         VK_STENCIL_OP_DECREMENT_AND_WRAP };
+    return stencils[int(stencilOp)];
+}
+
 gerium_inline VkFrontFace toVkFrontFace(gerium_front_face_t frontFace) noexcept {
     constexpr VkFrontFace faces[] = { VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FRONT_FACE_CLOCKWISE };
     return faces[int(frontFace)];
