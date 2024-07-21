@@ -49,56 +49,6 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void CommandBuffer::setScissor(const Rect2DInt* rect) {
-    VkRect2D vk_scissor;
-
-    if (rect) {
-        vk_scissor.offset.x      = rect->x;
-        vk_scissor.offset.y      = rect->y;
-        vk_scissor.extent.width  = rect->width;
-        vk_scissor.extent.height = rect->height;
-    } else {
-        vk_scissor.offset.x      = 0;
-        vk_scissor.offset.y      = 0;
-        vk_scissor.extent.width  = _device->_swapchainExtent.width;
-        vk_scissor.extent.height = _device->_swapchainExtent.height;
-    }
-
-    _device->vkTable().vkCmdSetScissor(_commandBuffer, 0, 1, &vk_scissor);
-}
-
-void CommandBuffer::setViewport(const Viewport* viewport) {
-    VkViewport vk_viewport{};
-
-    if (viewport) {
-        vk_viewport.x        = viewport->rect.x * 1.f;
-        vk_viewport.width    = viewport->rect.width * 1.f;
-        vk_viewport.y        = viewport->rect.height * 1.f - viewport->rect.y;
-        vk_viewport.height   = -viewport->rect.height * 1.f;
-        vk_viewport.minDepth = viewport->min_depth;
-        vk_viewport.maxDepth = viewport->max_depth;
-    } else {
-        vk_viewport.x = 0.f;
-
-        if (_currentRenderPass != Undefined && _currentFramebuffer != Undefined) {
-            auto framebuffer  = _device->_framebuffers.access(_currentFramebuffer);
-            vk_viewport.width = framebuffer->width * 1.f;
-            // Invert Y with negative height and proper offset - Vulkan has unique Clipping Y.
-            vk_viewport.y      = framebuffer->height * 1.f;
-            vk_viewport.height = -framebuffer->height * 1.f;
-        } else {
-            vk_viewport.width = _device->_swapchainExtent.width * 1.f;
-            // Invert Y with negative height and proper offset - Vulkan has unique Clipping Y.
-            vk_viewport.y      = _device->_swapchainExtent.height * 1.f;
-            vk_viewport.height = -_device->_swapchainExtent.height * 1.f;
-        }
-        vk_viewport.minDepth = 0.0f;
-        vk_viewport.maxDepth = 1.0f;
-    }
-
-    _device->vkTable().vkCmdSetViewport(_commandBuffer, 0, 1, &vk_viewport);
-}
-
 void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
     auto renderPassObj  = _device->_renderPasses.access(renderPass);
     auto framebufferObj = _device->_framebuffers.access(framebuffer);
@@ -251,6 +201,31 @@ void CommandBuffer::onClearColor(gerium_uint32_t index,
 
 void CommandBuffer::onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept {
     _clearDepthStencil.depthStencil = { depth, value };
+}
+
+void CommandBuffer::onSetViewport(gerium_uint16_t x,
+                                  gerium_uint16_t y,
+                                  gerium_uint16_t width,
+                                  gerium_uint16_t height,
+                                  gerium_float32_t minDepth,
+                                  gerium_float32_t maxDepth) noexcept {
+    VkViewport viewport{};
+    viewport.x        = float(x);
+    viewport.width    = float(width);
+    viewport.y        = float(gerium_sint32_t(_framebufferHeight) - gerium_sint32_t(y));
+    viewport.height   = -float(height);
+    viewport.minDepth = minDepth;
+    viewport.maxDepth = maxDepth;
+
+    _device->vkTable().vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
+}
+
+void CommandBuffer::onSetScissor(gerium_uint16_t x,
+                                 gerium_uint16_t y,
+                                 gerium_uint16_t width,
+                                 gerium_uint16_t height) noexcept {
+    VkRect2D scissor{ x, gerium_sint32_t(_framebufferHeight - height) - gerium_sint32_t(y), width, height };
+    _device->vkTable().vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
 }
 
 void CommandBuffer::onBindMaterial(MaterialHandle handle) noexcept {

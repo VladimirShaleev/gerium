@@ -755,6 +755,22 @@ gerium_frame_graph_create(gerium_renderer_t renderer,
                           gerium_frame_graph_t* frame_graph);
 
 gerium_public void
+gerium_command_buffer_set_viewport(gerium_command_buffer_t command_buffer,
+                                   gerium_uint16_t x,
+                                   gerium_uint16_t y,
+                                   gerium_uint16_t width,
+                                   gerium_uint16_t height,
+                                   gerium_float32_t min_depth,
+                                   gerium_float32_t max_depth);
+
+gerium_public void
+gerium_command_buffer_set_scissor(gerium_command_buffer_t command_buffer,
+                                  gerium_uint16_t x,
+                                  gerium_uint16_t y,
+                                  gerium_uint16_t width,
+                                  gerium_uint16_t height);
+
+gerium_public void
 gerium_command_buffer_bind_material(gerium_command_buffer_t command_buffer,
                                     gerium_material_h handle);
 

@@ -338,7 +338,7 @@ bool initialize(gerium_application_t application) {
         simpleOutputs[0].render_pass_op   = GERIUM_RENDER_PASS_OP_CLEAR;
         simpleOutputs[0].color_write_mask = GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT |
                                             GERIUM_COLOR_COMPONENT_B_BIT | GERIUM_COLOR_COMPONENT_A_BIT;
-                                            
+
         simpleOutputs[1].type           = GERIUM_RESOURCE_TYPE_ATTACHMENT;
         simpleOutputs[1].name           = "depth";
         simpleOutputs[1].format         = GERIUM_FORMAT_D24_UNORM_S8_UINT;

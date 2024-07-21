@@ -418,14 +418,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             framebuffer = _device->getSwapchainFramebuffer();
         }
 
-        Rect2DInt scissor{ 0, 0, width, height };
-        Viewport viewport{};
-        viewport.rect      = { 0, 0, width, height };
-        viewport.min_depth = 0.0f;
-        viewport.max_depth = 1.0f;
-
-        cb->setScissor(&scissor);
-        cb->setViewport(&viewport);
+        cb->setFramebufferHeight(height);
+        cb->setViewport(0, 0, width, height, 0.0f, 1.0f);
+        cb->setScissor(0, 0, width, height);
 
         if (pass->pass.prepare) {
             pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);

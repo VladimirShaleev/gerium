@@ -20,6 +20,22 @@ void CommandBuffer::clearDepthStencil(gerium_float32_t depth, gerium_uint32_t va
     onClearDepthStencil(depth, value);
 }
 
+void CommandBuffer::setViewport(gerium_uint16_t x,
+                                gerium_uint16_t y,
+                                gerium_uint16_t width,
+                                gerium_uint16_t height,
+                                gerium_float32_t minDepth,
+                                gerium_float32_t maxDepth) noexcept {
+    onSetViewport(x, y, width, height, minDepth, maxDepth);
+}
+
+void CommandBuffer::setScissor(gerium_uint16_t x,
+                               gerium_uint16_t y,
+                               gerium_uint16_t width,
+                               gerium_uint16_t height) noexcept {
+    onSetScissor(x, y, width, height);
+}
+
 void CommandBuffer::bindMaterial(MaterialHandle handle) noexcept {
     onBindMaterial(handle);
 }
@@ -51,6 +67,26 @@ Renderer* CommandBuffer::getRenderer() noexcept {
 } // namespace gerium
 
 using namespace gerium;
+
+void gerium_command_buffer_set_viewport(gerium_command_buffer_t command_buffer,
+                                        gerium_uint16_t x,
+                                        gerium_uint16_t y,
+                                        gerium_uint16_t width,
+                                        gerium_uint16_t height,
+                                        gerium_float32_t min_depth,
+                                        gerium_float32_t max_depth) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->setViewport(x, y, width, height, min_depth, max_depth);
+}
+
+void gerium_command_buffer_set_scissor(gerium_command_buffer_t command_buffer,
+                                       gerium_uint16_t x,
+                                       gerium_uint16_t y,
+                                       gerium_uint16_t width,
+                                       gerium_uint16_t height) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->setScissor(x, y, width, height);
+}
 
 void gerium_command_buffer_bind_material(gerium_command_buffer_t command_buffer, gerium_material_h handle) {
     assert(command_buffer);

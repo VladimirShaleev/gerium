@@ -20,6 +20,13 @@ public:
                     gerium_float32_t blue,
                     gerium_float32_t alpha) noexcept;
     void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
+    void setViewport(gerium_uint16_t x,
+                     gerium_uint16_t y,
+                     gerium_uint16_t width,
+                     gerium_uint16_t height,
+                     gerium_float32_t minDepth,
+                     gerium_float32_t maxDepth) noexcept;
+    void setScissor(gerium_uint16_t x, gerium_uint16_t y, gerium_uint16_t width, gerium_uint16_t height) noexcept;
     void bindMaterial(MaterialHandle handle) noexcept;
     void bindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept;
     void bindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept;
@@ -39,6 +46,17 @@ private:
                               gerium_float32_t blue,
                               gerium_float32_t alpha) noexcept                               = 0;
     virtual void onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept = 0;
+
+    virtual void onSetViewport(gerium_uint16_t x,
+                               gerium_uint16_t y,
+                               gerium_uint16_t width,
+                               gerium_uint16_t height,
+                               gerium_float32_t minDepth,
+                               gerium_float32_t maxDepth) noexcept = 0;
+    virtual void onSetScissor(gerium_uint16_t x,
+                              gerium_uint16_t y,
+                              gerium_uint16_t width,
+                              gerium_uint16_t height) noexcept     = 0;
 
     virtual void onBindMaterial(MaterialHandle handle) noexcept                                                    = 0;
     virtual void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept = 0;

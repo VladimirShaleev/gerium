@@ -30,8 +30,6 @@ public:
                          gerium_uint32_t mipCount,
                          bool isDepth,
                          bool isStencil);
-    void setScissor(const Rect2DInt* rect);
-    void setViewport(const Viewport* viewport);
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer);
     void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
@@ -45,6 +43,10 @@ public:
         return _commandBuffer;
     }
 
+    void setFramebufferHeight(gerium_uint16_t framebufferHeight) noexcept {
+        _framebufferHeight = framebufferHeight;
+    }
+
 private:
     friend Device;
     friend CommandBufferManager;
@@ -55,6 +57,17 @@ private:
                       gerium_float32_t blue,
                       gerium_float32_t alpha) noexcept override;
     void onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept override;
+
+    void onSetViewport(gerium_uint16_t x,
+                       gerium_uint16_t y,
+                       gerium_uint16_t width,
+                       gerium_uint16_t height,
+                       gerium_float32_t minDepth,
+                       gerium_float32_t maxDepth) noexcept override;
+    void onSetScissor(gerium_uint16_t x,
+                      gerium_uint16_t y,
+                      gerium_uint16_t width,
+                      gerium_uint16_t height) noexcept override;
 
     void onBindMaterial(MaterialHandle handle) noexcept override;
     void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept override;
@@ -77,6 +90,7 @@ private:
     PipelineHandle _currentPipeline;
     VkClearValue _clearColors[kMaxImageOutputs]{};
     VkClearValue _clearDepthStencil{};
+    gerium_uint16_t _framebufferHeight{};
 };
 
 class CommandBufferManager final {
