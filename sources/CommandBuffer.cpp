@@ -1,4 +1,6 @@
 #include "CommandBuffer.hpp"
+#include "ProfilerUI.hpp"
+#include "Renderer.hpp"
 
 namespace gerium {
 
@@ -23,6 +25,11 @@ void CommandBuffer::draw(gerium_uint32_t firstVertex,
                          gerium_uint32_t firstInstance,
                          gerium_uint32_t instanceCount) noexcept {
     onDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+}
+
+void CommandBuffer::drawProfiler(bool* show) noexcept {
+    static ProfilerUI profilerUI;
+    profilerUI.draw(getRenderer()->getProfiler(), show, 100);
 }
 
 Renderer* CommandBuffer::getRenderer() noexcept {
@@ -60,4 +67,14 @@ void gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                                 gerium_uint32_t instance_count) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->draw(first_vertex, vertex_count, first_instance, instance_count);
+}
+
+void gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer, gerium_bool_t* show) {
+    assert(command_buffer);
+    bool bShow = show ? *show : true;
+    bool* pShow = show ? &bShow : nullptr;
+    alias_cast<CommandBuffer*>(command_buffer)->drawProfiler(pShow);
+    if (show) {
+        *show = bShow;
+    }
 }

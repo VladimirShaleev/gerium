@@ -89,6 +89,7 @@ gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
     gerium_command_buffer_bind_material(command_buffer, fullscreenMaterial);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet1, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
+    gerium_command_buffer_draw_profiler(command_buffer, nullptr);
     return 1;
 }
 

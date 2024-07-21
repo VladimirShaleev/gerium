@@ -4,7 +4,6 @@
 #include "../Application.hpp"
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
-#include "../ProfilerUI.hpp"
 #include "../StringPool.hpp"
 #include "CommandBuffer.hpp"
 #include "Resources.hpp"
@@ -101,10 +100,6 @@ public:
 
     const RenderPassOutput& getRenderPassOutput(RenderPassHandle handle) const noexcept {
         return _renderPasses.access(handle)->output;
-    }
-
-    void drawProfiler() {
-        _profilerUI.draw(_profiler.get(), 100);
     }
 
     bool isProfilerEnable() const noexcept {
@@ -303,7 +298,6 @@ private:
     bool _imageAliasingSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
-    ProfilerUI _profilerUI{};
     std::vector<VmaBudget> _vmaBudget{};
 };
 

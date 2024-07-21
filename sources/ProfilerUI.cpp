@@ -24,7 +24,7 @@ static uint32_t get_distinct_color(uint32_t index) {
     return k_distinct_colors[index % 64];
 }
 
-void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
+void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
     if (timestamps.empty()) {
         timestamps.resize(maxFrames * 32);
         colors.resize(maxFrames * 32);
@@ -77,7 +77,7 @@ void ProfilerUI::draw(Profiler* profiler, uint32_t maxFrames) {
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 260));
-    if (ImGui::Begin("GPU Profiler", nullptr, ImGuiWindowFlags_NoScrollbar)) {
+    if (ImGui::Begin("GPU Profiler", show, ImGuiWindowFlags_NoScrollbar)) {
         ImGui::Text("GPU Memory Total %uMB", totalMemoryUsed);
 
         ImGui::Separator();

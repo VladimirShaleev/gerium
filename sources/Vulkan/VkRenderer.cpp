@@ -445,7 +445,6 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
     cb->pushMarker("imgui");
     cb->bindPass(_device->getSwapchainPass(), _device->getSwapchainFramebuffer());
-    _device->drawProfiler();
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->vkCommandBuffer());
     cb->popMarker();

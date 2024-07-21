@@ -7,7 +7,7 @@ namespace gerium {
 
 class ProfilerUI final {
 public:
-    void draw(Profiler* profiler, uint32_t maxFrames);
+    void draw(Profiler* profiler, bool* show, uint32_t maxFrames);
 
 private:
     std::vector<gerium_gpu_timestamp_t> timestamps;

@@ -21,6 +21,7 @@ public:
               gerium_uint32_t vertexCount,
               gerium_uint32_t firstInstance,
               gerium_uint32_t instanceCount) noexcept;
+    void drawProfiler(bool* show) noexcept;
 
 protected:
     Renderer* getRenderer() noexcept;

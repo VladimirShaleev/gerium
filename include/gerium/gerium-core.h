@@ -760,6 +760,10 @@ gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                            gerium_uint32_t first_instance,
                            gerium_uint32_t instance_count);
 
+gerium_public void
+gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,
+                                    gerium_bool_t* show);
+
 gerium_public gerium_frame_graph_t
 gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);
 
