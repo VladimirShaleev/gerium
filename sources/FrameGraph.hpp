@@ -115,6 +115,7 @@ private:
     void calcFramebufferSize(FrameGraphResourceInfo& info) const noexcept;
 
     Renderer* _renderer;
+    bool _hasChanges;
 
     FrameGraphNodePool _nodes;
     FrameGraphResourcePool _resources;

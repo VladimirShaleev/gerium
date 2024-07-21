@@ -7,7 +7,10 @@ FrameGraph::~FrameGraph() {
     clear();
 }
 
-FrameGraph::FrameGraph(Renderer* renderer) : _renderer(renderer), _nodeGraphCount(0) {
+FrameGraph::FrameGraph(Renderer* renderer) :
+    _renderer(renderer),
+    _hasChanges(false),
+    _nodeGraphCount(0) {
 }
 
 void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data) {
@@ -24,6 +27,8 @@ void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderP
     pass->data = data;
 
     _renderPassCache.insert({ key, handle });
+
+    _hasChanges = true;
 }
 
 void FrameGraph::removePass(gerium_utf8_t name) {
@@ -34,6 +39,8 @@ void FrameGraph::removePass(gerium_utf8_t name) {
     } else {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
     }
+
+    _hasChanges = true;
 }
 
 void FrameGraph::addNode(gerium_utf8_t name,
@@ -65,9 +72,13 @@ void FrameGraph::addNode(gerium_utf8_t name,
 
     _nodeGraph[_nodeGraphCount++] = handle;
     _nodeCache.insert({ key, handle });
+
+    _hasChanges = true;
 }
 
 void FrameGraph::clear() {
+    _hasChanges = false;
+
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
 
@@ -103,6 +114,10 @@ void FrameGraph::clear() {
 }
 
 void FrameGraph::compile() {
+    if (!_hasChanges) {
+        return;
+    }
+
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
         if (node->enabled) {
@@ -204,7 +219,9 @@ void FrameGraph::compile() {
                         creation.setAlias(alias);
                     }
 
-                    resource->info.texture.handle = _renderer->createTexture(creation);
+                    if (resource->info.texture.handle == Undefined) {
+                        resource->info.texture.handle = _renderer->createTexture(creation);
+                    }
                 }
             }
         }
@@ -283,11 +300,15 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
         if (node->framebuffer != Undefined) {
             _renderer->destroyFramebuffer(node->framebuffer);
             node->framebuffer = Undefined;
+
+            _hasChanges = true;
         }
 
         if (node->renderPass != Undefined) {
             _renderer->destroyRenderPass(node->renderPass);
             node->renderPass = Undefined;
+
+            _hasChanges = true;
         }
 
         for (gerium_uint32_t j = 0; j < node->outputCount; ++j) {
@@ -298,16 +319,27 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
             }
 
             if (resource->info.texture.autoScale != 0) {
-                resource->info.texture.width  = gerium_uint16_t(resource->info.texture.width * scaleX);
-                resource->info.texture.height = gerium_uint16_t(resource->info.texture.height * scaleY);
+                const auto newResourceWidth  = gerium_uint16_t(resource->info.texture.width * scaleX);
+                const auto newResourceHeight = gerium_uint16_t(resource->info.texture.height * scaleY);
 
-                _renderer->destroyTexture(resource->info.texture.handle);
-                resource->info.texture.handle = Undefined;
+                if (newResourceWidth != resource->info.texture.width ||
+                    newResourceHeight != resource->info.texture.height) {
+                    resource->info.texture.width  = newResourceWidth;
+                    resource->info.texture.height = newResourceHeight;
+
+                    _renderer->destroyTexture(resource->info.texture.handle);
+                    resource->info.texture.handle = Undefined;
+
+                    _hasChanges = true;
+                }
             }
         }
 
         if (auto pass = _renderPasses.access(node->pass); pass->pass.resize) {
-            pass->pass.resize(this, _renderer, pass->data);
+            if (!pass->pass.resize(this, _renderer, pass->data)) {
+                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            }
+            _hasChanges = true;
         }
     }
     compile();
