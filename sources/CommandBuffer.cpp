@@ -8,6 +8,18 @@ void CommandBuffer::bindRenderer(Renderer* renderer) noexcept {
     _renderer = renderer;
 }
 
+void CommandBuffer::clearColor(gerium_uint32_t index,
+                               gerium_float32_t red,
+                               gerium_float32_t green,
+                               gerium_float32_t blue,
+                               gerium_float32_t alpha) noexcept {
+    onClearColor(index, red, green, blue, alpha);
+}
+
+void CommandBuffer::clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept {
+    onClearDepthStencil(depth, value);
+}
+
 void CommandBuffer::bindMaterial(MaterialHandle handle) noexcept {
     onBindMaterial(handle);
 }
@@ -71,7 +83,7 @@ void gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
 
 void gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer, gerium_bool_t* show) {
     assert(command_buffer);
-    bool bShow = show ? *show : true;
+    bool bShow  = show ? *show : true;
     bool* pShow = show ? &bShow : nullptr;
     alias_cast<CommandBuffer*>(command_buffer)->drawProfiler(pShow);
     if (show) {

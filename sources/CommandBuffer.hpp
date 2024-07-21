@@ -14,6 +14,12 @@ class CommandBuffer : public _gerium_command_buffer {
 public:
     void bindRenderer(Renderer* renderer) noexcept;
 
+    void clearColor(gerium_uint32_t index,
+                    gerium_float32_t red,
+                    gerium_float32_t green,
+                    gerium_float32_t blue,
+                    gerium_float32_t alpha) noexcept;
+    void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
     void bindMaterial(MaterialHandle handle) noexcept;
     void bindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept;
     void bindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept;
@@ -27,6 +33,13 @@ protected:
     Renderer* getRenderer() noexcept;
 
 private:
+    virtual void onClearColor(gerium_uint32_t index,
+                              gerium_float32_t red,
+                              gerium_float32_t green,
+                              gerium_float32_t blue,
+                              gerium_float32_t alpha) noexcept                               = 0;
+    virtual void onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept = 0;
+
     virtual void onBindMaterial(MaterialHandle handle) noexcept                                                    = 0;
     virtual void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept = 0;
     virtual void onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept                     = 0;

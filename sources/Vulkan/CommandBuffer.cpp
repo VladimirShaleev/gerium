@@ -49,15 +49,6 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void CommandBuffer::clearColor(float red, float green, float blue, float alpha) {
-    _clears[0].color = { red, green, blue, alpha };
-}
-
-void CommandBuffer::clearDepthStencil(float depth, float value) {
-    _clears[1].depthStencil.depth   = depth;
-    _clears[1].depthStencil.stencil = value;
-}
-
 void CommandBuffer::setScissor(const Rect2DInt* rect) {
     VkRect2D vk_scissor;
 
@@ -120,13 +111,13 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle fram
 
         for (uint32_t o = 0; o < renderPassObj->output.numColorFormats; ++o) {
             if (renderPassObj->output.colorOperations[o] == GERIUM_RENDER_PASS_OP_CLEAR) {
-                clearValues[clearValuesCount++] = _clears[0];
+                clearValues[clearValuesCount++] = _clearColors[o];
             }
         }
 
         if (renderPassObj->output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
             if (renderPassObj->output.depthOperation == GERIUM_RENDER_PASS_OP_CLEAR) {
-                clearValues[clearValuesCount++] = _clears[1];
+                clearValues[clearValuesCount++] = _clearDepthStencil;
             }
         }
 
@@ -250,6 +241,18 @@ void CommandBuffer::endCurrentRenderPass() {
     }
 }
 
+void CommandBuffer::onClearColor(gerium_uint32_t index,
+                                 gerium_float32_t red,
+                                 gerium_float32_t green,
+                                 gerium_float32_t blue,
+                                 gerium_float32_t alpha) noexcept {
+    _clearColors[index].color = { red, green, blue, alpha };
+}
+
+void CommandBuffer::onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept {
+    _clearDepthStencil.depthStencil = { depth, value };
+}
+
 void CommandBuffer::onBindMaterial(MaterialHandle handle) noexcept {
     auto pipeline = alias_cast<VkRenderer*>(getRenderer())->getPipeline(handle);
 
@@ -274,7 +277,7 @@ void CommandBuffer::onBindVertexBuffer(BufferHandle handle, gerium_uint32_t bind
 }
 
 void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
-    auto pipeline = _device->_pipelines.access(_currentPipeline);
+    auto pipeline      = _device->_pipelines.access(_currentPipeline);
     auto descriptorSet = _device->_descriptorSets.access(handle);
 
     _device->updateDescriptorSet(handle, pipeline->descriptorSetLayoutHandles[set]);
@@ -291,8 +294,14 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
         }
     }
 
-    _device->vkTable().vkCmdBindDescriptorSets(
-        _commandBuffer, pipeline->vkBindPoint, pipeline->vkPipelineLayout, set, 1, &descriptorSet->vkDescriptorSet[descriptorSet->currentFrame], bufferCount, offsets);
+    _device->vkTable().vkCmdBindDescriptorSets(_commandBuffer,
+                                               pipeline->vkBindPoint,
+                                               pipeline->vkPipelineLayout,
+                                               set,
+                                               1,
+                                               &descriptorSet->vkDescriptorSet[descriptorSet->currentFrame],
+                                               bufferCount,
+                                               offsets);
 }
 
 void CommandBuffer::onDraw(gerium_uint32_t firstVertex,

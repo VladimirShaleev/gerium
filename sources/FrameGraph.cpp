@@ -7,10 +7,7 @@ FrameGraph::~FrameGraph() {
     clear();
 }
 
-FrameGraph::FrameGraph(Renderer* renderer) :
-    _renderer(renderer),
-    _hasChanges(false),
-    _nodeGraphCount(0) {
+FrameGraph::FrameGraph(Renderer* renderer) : _renderer(renderer), _hasChanges(false), _nodeGraphCount(0) {
 }
 
 void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data) {
@@ -379,20 +376,22 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();
 
-    resource->name                        = intern(output.name);
-    resource->external                    = output.external;
-    resource->producer                    = Undefined;
-    resource->output                      = Undefined;
-    resource->info.type                   = output.type;
-    resource->info.texture.format         = output.format;
-    resource->info.texture.width          = output.width;
-    resource->info.texture.height         = output.height;
-    resource->info.texture.depth          = 1;
-    resource->info.texture.autoScale      = output.auto_scale;
-    resource->info.texture.operation      = output.render_pass_op;
-    resource->info.texture.colorWriteMask = output.color_write_mask;
-    resource->info.texture.colorBlend     = output.color_blend_attachment;
-    resource->info.texture.handle         = Undefined;
+    resource->name                           = intern(output.name);
+    resource->external                       = output.external;
+    resource->producer                       = Undefined;
+    resource->output                         = Undefined;
+    resource->info.type                      = output.type;
+    resource->info.texture.format            = output.format;
+    resource->info.texture.width             = output.width;
+    resource->info.texture.height            = output.height;
+    resource->info.texture.depth             = 1;
+    resource->info.texture.autoScale         = output.auto_scale;
+    resource->info.texture.operation         = output.render_pass_op;
+    resource->info.texture.colorWriteMask    = output.color_write_mask;
+    resource->info.texture.colorBlend        = output.color_blend_attachment;
+    resource->info.texture.clearColor        = output.clear_color_attachment;
+    resource->info.texture.clearDepthStencil = output.clear_depth_stencil_attachment;
+    resource->info.texture.handle            = Undefined;
     calcFramebufferSize(resource->info);
 
     if (output.type != GERIUM_RESOURCE_TYPE_REFERENCE) {

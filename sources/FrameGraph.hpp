@@ -59,6 +59,8 @@ struct FrameGraphResourceInfo {
             gerium_render_pass_op_t operation;
             gerium_color_component_flags_t colorWriteMask;
             gerium_color_blend_attachment_state_t colorBlend;
+            gerium_clear_color_attachment_state_t clearColor;
+            gerium_clear_depth_stencil_attachment_state_t clearDepthStencil;
             TextureHandle handle;
         } texture;
     };

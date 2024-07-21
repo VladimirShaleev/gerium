@@ -251,7 +251,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     buffer->parent       = Undefined;
 
     constexpr auto dynamicBufferFlags =
-        GERIUM_BUFFER_USAGE_VERTEX | GERIUM_BUFFER_USAGE_INDEX | GERIUM_BUFFER_USAGE_UNIFORM;
+        GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT;
 
     const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
@@ -1344,7 +1344,7 @@ void Device::createDynamicBuffer() {
     _dynamicBufferSize = 1024 * 1024 * 10;
 
     BufferCreation bc;
-    bc.set(GERIUM_BUFFER_USAGE_VERTEX | GERIUM_BUFFER_USAGE_INDEX | GERIUM_BUFFER_USAGE_UNIFORM,
+    bc.set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,
            ResourceUsageType::Staging,
            _dynamicBufferSize * MaxFrames)
         .setPersistent(true)

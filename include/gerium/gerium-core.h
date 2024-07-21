@@ -280,10 +280,10 @@ GERIUM_FLAGS(gerium_color_component_flags_t)
 
 typedef enum
 {
-    GERIUM_BUFFER_USAGE_VERTEX   = 1,
-    GERIUM_BUFFER_USAGE_INDEX    = 2,
-    GERIUM_BUFFER_USAGE_UNIFORM  = 4,
-    GERIUM_BUFFER_USAGE_MAX_ENUM = 0x7FFFFFFF
+    GERIUM_BUFFER_USAGE_VERTEX_BIT  = 1,
+    GERIUM_BUFFER_USAGE_INDEX_BIT   = 2,
+    GERIUM_BUFFER_USAGE_UNIFORM_BIT = 4,
+    GERIUM_BUFFER_USAGE_MAX_ENUM    = 0x7FFFFFFF
 } gerium_buffer_usage_flags_t;
 GERIUM_FLAGS(gerium_buffer_usage_flags_t)
 
@@ -446,6 +446,20 @@ typedef struct
 
 typedef struct
 {
+    gerium_float32_t red;
+    gerium_float32_t green;
+    gerium_float32_t blue;
+    gerium_float32_t alpha;
+} gerium_clear_color_attachment_state_t;
+
+typedef struct
+{
+    gerium_float32_t depth;
+    gerium_uint32_t  value;
+} gerium_clear_depth_stencil_attachment_state_t;
+
+typedef struct
+{
     gerium_uint16_t location;
     gerium_uint16_t binding;
     gerium_uint32_t offset;
@@ -475,16 +489,18 @@ typedef struct
 
 typedef struct
 {
-    gerium_resource_type_t                type;
-    gerium_utf8_t                         name;
-    gerium_bool_t                         external;
-    gerium_format_t                       format;
-    gerium_uint16_t                       width;
-    gerium_uint16_t                       height;
-    gerium_float32_t                      auto_scale;
-    gerium_render_pass_op_t               render_pass_op;
-    gerium_color_component_flags_t        color_write_mask;
-    gerium_color_blend_attachment_state_t color_blend_attachment;
+    gerium_resource_type_t                        type;
+    gerium_utf8_t                                 name;
+    gerium_bool_t                                 external;
+    gerium_format_t                               format;
+    gerium_uint16_t                               width;
+    gerium_uint16_t                               height;
+    gerium_float32_t                              auto_scale;
+    gerium_render_pass_op_t                       render_pass_op;
+    gerium_color_component_flags_t                color_write_mask;
+    gerium_color_blend_attachment_state_t         color_blend_attachment;
+    gerium_clear_color_attachment_state_t         clear_color_attachment;
+    gerium_clear_depth_stencil_attachment_state_t clear_depth_stencil_attachment;
 } gerium_resource_output_t;
 
 typedef struct

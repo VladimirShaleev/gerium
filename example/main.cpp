@@ -120,16 +120,31 @@ bool initialize(gerium_application_t application) {
             { { -0.5, 0.5 },   { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } }
         };
         check(gerium_renderer_create_buffer(
-            renderer, GERIUM_BUFFER_USAGE_VERTEX, 0, "vertices", vData, sizeof(Vertex) * 3, &vertices));
+            renderer, GERIUM_BUFFER_USAGE_VERTEX_BIT, 0, "vertices", vData, sizeof(Vertex) * 3, &vertices));
 
-        check(gerium_renderer_create_buffer(
-            renderer, GERIUM_BUFFER_USAGE_UNIFORM, 1, "mesh_data", nullptr, sizeof(UniformBufferObject), &meshData));
+        check(gerium_renderer_create_buffer(renderer,
+                                            GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                            1,
+                                            "mesh_data",
+                                            nullptr,
+                                            sizeof(UniformBufferObject),
+                                            &meshData));
 
-        check(gerium_renderer_create_buffer(
-            renderer, GERIUM_BUFFER_USAGE_UNIFORM, 1, "uniform1", nullptr, sizeof(UniformBufferObject1), &uniform1));
+        check(gerium_renderer_create_buffer(renderer,
+                                            GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                            1,
+                                            "uniform1",
+                                            nullptr,
+                                            sizeof(UniformBufferObject1),
+                                            &uniform1));
 
-        check(gerium_renderer_create_buffer(
-            renderer, GERIUM_BUFFER_USAGE_UNIFORM, 1, "uniform2", nullptr, sizeof(UniformBufferObject2), &uniform2));
+        check(gerium_renderer_create_buffer(renderer,
+                                            GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                            1,
+                                            "uniform2",
+                                            nullptr,
+                                            sizeof(UniformBufferObject2),
+                                            &uniform2));
 
         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet0));
         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet0_1));
@@ -315,19 +330,24 @@ bool initialize(gerium_application_t application) {
         check(gerium_frame_graph_add_node(
             frameGraph, "present_pass", std::size(fullscreenInputs), fullscreenInputs, 0, nullptr));
 
-        gerium_resource_output_t simpleOutputs[] = {
-            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
-             "color", 0,
-             GERIUM_FORMAT_R8G8B8A8_UNORM, 0,
-             0, 1.0f,
-             GERIUM_RENDER_PASS_OP_CLEAR, GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT | GERIUM_COLOR_COMPONENT_B_BIT |
-                  GERIUM_COLOR_COMPONENT_A_BIT },
-            { GERIUM_RESOURCE_TYPE_ATTACHMENT,
-             "depth", 0,
-             GERIUM_FORMAT_D24_UNORM_S8_UINT, 0,
-             0, 1.0f,
-             GERIUM_RENDER_PASS_OP_CLEAR }
-        };
+        gerium_resource_output_t simpleOutputs[2]{};
+        simpleOutputs[0].type             = GERIUM_RESOURCE_TYPE_ATTACHMENT;
+        simpleOutputs[0].name             = "color";
+        simpleOutputs[0].format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
+        simpleOutputs[0].auto_scale       = 1.0f;
+        simpleOutputs[0].render_pass_op   = GERIUM_RENDER_PASS_OP_CLEAR;
+        simpleOutputs[0].color_write_mask = GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT |
+                                            GERIUM_COLOR_COMPONENT_B_BIT | GERIUM_COLOR_COMPONENT_A_BIT;
+                                            
+        simpleOutputs[1].type           = GERIUM_RESOURCE_TYPE_ATTACHMENT;
+        simpleOutputs[1].name           = "depth";
+        simpleOutputs[1].format         = GERIUM_FORMAT_D24_UNORM_S8_UINT;
+        simpleOutputs[1].auto_scale     = 1.0f;
+        simpleOutputs[1].render_pass_op = GERIUM_RENDER_PASS_OP_CLEAR;
+
+        simpleOutputs[0].clear_color_attachment         = { 1.0f, 0.0f, 1.0f, 1.0f };
+        simpleOutputs[1].clear_depth_stencil_attachment = { 1.0f, 0 };
+
         check(gerium_frame_graph_add_node(
             frameGraph, "simple_pass", 0, nullptr, std::size(simpleOutputs), simpleOutputs));
 

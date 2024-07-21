@@ -224,15 +224,15 @@ gerium_inline VkFrontFace toVkFrontFace(gerium_front_face_t frontFace) noexcept 
 gerium_inline VkBufferUsageFlags toVkBufferUsageFlags(gerium_buffer_usage_flags_t flags) noexcept {
     VkBufferUsageFlags result{};
 
-    if ((flags & GERIUM_BUFFER_USAGE_VERTEX) == GERIUM_BUFFER_USAGE_VERTEX) {
+    if ((flags & GERIUM_BUFFER_USAGE_VERTEX_BIT) == GERIUM_BUFFER_USAGE_VERTEX_BIT) {
         result |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     }
 
-    if ((flags & GERIUM_BUFFER_USAGE_INDEX) == GERIUM_BUFFER_USAGE_INDEX) {
+    if ((flags & GERIUM_BUFFER_USAGE_INDEX_BIT) == GERIUM_BUFFER_USAGE_INDEX_BIT) {
         result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
     }
 
-    if ((flags & GERIUM_BUFFER_USAGE_UNIFORM) == GERIUM_BUFFER_USAGE_UNIFORM) {
+    if ((flags & GERIUM_BUFFER_USAGE_UNIFORM_BIT) == GERIUM_BUFFER_USAGE_UNIFORM_BIT) {
         result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     }
 

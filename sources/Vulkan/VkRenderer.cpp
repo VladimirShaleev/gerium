@@ -354,10 +354,6 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
         cb->pushMarker(node->name);
 
-        // TODO: remove
-        cb->clearColor(1.0f, 0.0f, 1.0f, 1.0f);
-        cb->clearDepthStencil(1.0f, 0.0f);
-
         gerium_uint16_t width;
         gerium_uint16_t height;
 
@@ -385,14 +381,18 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
 
-                if (hasDepthOrStencil(toVkFormat(resource->info.texture.format))) {
+                const auto format = toVkFormat(resource->info.texture.format);
+
+                if (hasDepthOrStencil(format)) {
                     cb->addImageBarrier(resource->info.texture.handle,
                                         ResourceState::Undefined,
                                         ResourceState::DepthWrite,
                                         0,
                                         1,
                                         true,
-                                        hasStencil(toVkFormat(resource->info.texture.format)));
+                                        hasStencil(format));
+                    cb->clearDepthStencil(resource->info.texture.clearDepthStencil.depth,
+                                          resource->info.texture.clearDepthStencil.value);
                 } else {
                     cb->addImageBarrier(resource->info.texture.handle,
                                         ResourceState::Undefined,
@@ -401,6 +401,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                                         1,
                                         false,
                                         false);
+
+                    const auto& clear = resource->info.texture.clearColor;
+                    cb->clearColor(i, clear.red, clear.green, clear.blue, clear.alpha);
                 }
             }
         }
