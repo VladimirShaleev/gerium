@@ -30,6 +30,12 @@ public:
                          gerium_uint32_t mipCount,
                          bool isDepth,
                          bool isStencil);
+    void clearColor(gerium_uint32_t index,
+                    gerium_float32_t red,
+                    gerium_float32_t green,
+                    gerium_float32_t blue,
+                    gerium_float32_t alpha) noexcept;
+    void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer);
     void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
@@ -50,13 +56,6 @@ public:
 private:
     friend Device;
     friend CommandBufferManager;
-
-    void onClearColor(gerium_uint32_t index,
-                      gerium_float32_t red,
-                      gerium_float32_t green,
-                      gerium_float32_t blue,
-                      gerium_float32_t alpha) noexcept override;
-    void onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept override;
 
     void onSetViewport(gerium_uint16_t x,
                        gerium_uint16_t y,

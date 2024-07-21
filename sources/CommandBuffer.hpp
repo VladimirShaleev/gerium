@@ -14,12 +14,6 @@ class CommandBuffer : public _gerium_command_buffer {
 public:
     void bindRenderer(Renderer* renderer) noexcept;
 
-    void clearColor(gerium_uint32_t index,
-                    gerium_float32_t red,
-                    gerium_float32_t green,
-                    gerium_float32_t blue,
-                    gerium_float32_t alpha) noexcept;
-    void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
     void setViewport(gerium_uint16_t x,
                      gerium_uint16_t y,
                      gerium_uint16_t width,
@@ -40,13 +34,6 @@ protected:
     Renderer* getRenderer() noexcept;
 
 private:
-    virtual void onClearColor(gerium_uint32_t index,
-                              gerium_float32_t red,
-                              gerium_float32_t green,
-                              gerium_float32_t blue,
-                              gerium_float32_t alpha) noexcept                               = 0;
-    virtual void onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept = 0;
-
     virtual void onSetViewport(gerium_uint16_t x,
                                gerium_uint16_t y,
                                gerium_uint16_t width,

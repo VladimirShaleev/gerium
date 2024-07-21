@@ -49,6 +49,18 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
+void CommandBuffer::clearColor(gerium_uint32_t index,
+                               gerium_float32_t red,
+                               gerium_float32_t green,
+                               gerium_float32_t blue,
+                               gerium_float32_t alpha) noexcept {
+    _clearColors[index].color = { red, green, blue, alpha };
+}
+
+void CommandBuffer::clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept {
+    _clearDepthStencil.depthStencil = { depth, value };
+}
+
 void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
     auto renderPassObj  = _device->_renderPasses.access(renderPass);
     auto framebufferObj = _device->_framebuffers.access(framebuffer);
@@ -189,18 +201,6 @@ void CommandBuffer::endCurrentRenderPass() {
         _currentRenderPass  = Undefined;
         _currentFramebuffer = Undefined;
     }
-}
-
-void CommandBuffer::onClearColor(gerium_uint32_t index,
-                                 gerium_float32_t red,
-                                 gerium_float32_t green,
-                                 gerium_float32_t blue,
-                                 gerium_float32_t alpha) noexcept {
-    _clearColors[index].color = { red, green, blue, alpha };
-}
-
-void CommandBuffer::onClearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept {
-    _clearDepthStencil.depthStencil = { depth, value };
 }
 
 void CommandBuffer::onSetViewport(gerium_uint16_t x,
