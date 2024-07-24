@@ -14,6 +14,7 @@
 GERIUM_BEGIN
 
 GERIUM_TYPE(gerium_logger)
+GERIUM_TYPE(gerium_file)
 GERIUM_TYPE(gerium_application)
 GERIUM_TYPE(gerium_renderer)
 GERIUM_TYPE(gerium_command_buffer)
@@ -551,6 +552,39 @@ gerium_public void
 gerium_logger_print(gerium_logger_t logger,
                     gerium_logger_level_t level,
                     gerium_utf8_t message);
+
+gerium_public gerium_utf8_t
+gerium_file_get_cache_dir(void);
+
+gerium_public gerium_utf8_t
+gerium_file_get_app_dir(void);
+
+gerium_public gerium_bool_t
+gerium_file_exists_file(gerium_utf8_t path);
+
+gerium_public gerium_bool_t
+gerium_file_exists_dir(gerium_utf8_t path);
+
+gerium_public void
+gerium_file_delete_file(gerium_utf8_t path);
+
+gerium_public gerium_result_t
+gerium_file_create(gerium_utf8_t path,
+                   gerium_uint32_t size,
+                   gerium_file_t* file);
+
+gerium_public gerium_result_t
+gerium_file_create_temp(gerium_uint32_t size,
+                        gerium_file_t* file);
+
+gerium_public gerium_file_t
+gerium_file_reference(gerium_file_t file);
+
+gerium_public void
+gerium_file_destroy(gerium_file_t file);
+
+gerium_public gerium_uint32_t
+gerium_file_get_size(gerium_file_t file);
 
 gerium_public gerium_result_t
 gerium_application_create(gerium_utf8_t title,
