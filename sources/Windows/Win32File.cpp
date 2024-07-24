@@ -8,7 +8,11 @@ namespace gerium::windows {
 Win32File::Win32File(gerium_uint32_t size) : Win32File(getTempFileName().c_str(), size) {
 }
 
-Win32File::Win32File(gerium_utf8_t path, gerium_uint32_t size) : _file(INVALID_HANDLE_VALUE) {
+Win32File::Win32File(gerium_utf8_t path, gerium_uint32_t size) :
+    _file(INVALID_HANDLE_VALUE),
+    _map(INVALID_HANDLE_VALUE),
+    _data(nullptr),
+    _readOnly(false) {
     const auto file = gerium::windows::wideString(path);
 
     _file =
@@ -29,10 +33,70 @@ Win32File::Win32File(gerium_utf8_t path, gerium_uint32_t size) : _file(INVALID_H
     }
 }
 
+Win32File::Win32File(gerium_utf8_t path, bool readOnly) :
+    _file(INVALID_HANDLE_VALUE),
+    _map(INVALID_HANDLE_VALUE),
+    _data(nullptr),
+    _readOnly(readOnly) {
+    const auto file = gerium::windows::wideString(path);
+
+    auto flags = GENERIC_READ;
+
+    if (!readOnly) {
+        flags |= GENERIC_WRITE;
+    }
+
+    _file = CreateFileW(file.c_str(), flags, 0, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
+    if (_file == INVALID_HANDLE_VALUE) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+}
+
 Win32File::~Win32File() {
+    if (_data) {
+        UnmapViewOfFile(_data);
+    }
+
+    if (_map != INVALID_HANDLE_VALUE) {
+        CloseHandle(_map);
+    }
+
     if (_file != INVALID_HANDLE_VALUE) {
         CloseHandle(_file);
     }
+}
+
+gerium_uint32_t Win32File::onGetSize() noexcept {
+    return {};
+}
+
+void Win32File::onWrite(gerium_cdata_t data, gerium_uint32_t size) {
+}
+
+gerium_uint32_t Win32File::onRead(gerium_data_t data, gerium_uint32_t size) noexcept {
+    return {};
+}
+
+gerium_data_t Win32File::onMap() noexcept {
+    if (!_data) {
+        _map = CreateFileMappingW(_file, NULL, _readOnly ? PAGE_READONLY : PAGE_READWRITE, 0, 0, nullptr);
+        if (_map == INVALID_HANDLE_VALUE) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+
+        DWORD flags = FILE_MAP_READ;
+        if (!_readOnly) {
+            flags |= FILE_MAP_WRITE;
+        }
+
+        _data = MapViewOfFile(_map, flags, 0, 0, 0);
+
+        if (!_data) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    }
+    return _data;
 }
 
 std::string Win32File::getTempFileName() {
@@ -105,6 +169,12 @@ gerium_bool_t gerium_file_exists_dir(gerium_utf8_t path) {
 void gerium_file_delete_file(gerium_utf8_t path) {
     const auto file = gerium::windows::wideString(path);
     DeleteFileW(file.c_str());
+}
+
+gerium_result_t gerium_file_open(gerium_utf8_t path, gerium_bool_t read_only, gerium_file_t* file) {
+    using namespace gerium;
+    using namespace gerium::windows;
+    return Object::create<Win32File>(*file, path, read_only != 0);
 }
 
 gerium_result_t gerium_file_create(gerium_utf8_t path, gerium_uint32_t size, gerium_file_t* file) {

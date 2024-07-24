@@ -569,6 +569,11 @@ gerium_public void
 gerium_file_delete_file(gerium_utf8_t path);
 
 gerium_public gerium_result_t
+gerium_file_open(gerium_utf8_t path,
+                 gerium_bool_t read_only,
+                 gerium_file_t* file);
+
+gerium_public gerium_result_t
 gerium_file_create(gerium_utf8_t path,
                    gerium_uint32_t size,
                    gerium_file_t* file);
@@ -585,6 +590,19 @@ gerium_file_destroy(gerium_file_t file);
 
 gerium_public gerium_uint32_t
 gerium_file_get_size(gerium_file_t file);
+
+gerium_public gerium_result_t
+gerium_file_write(gerium_file_t file,
+                  gerium_cdata_t data,
+                  gerium_uint32_t size);
+
+gerium_public gerium_uint32_t
+gerium_file_read(gerium_file_t file,
+                 gerium_data_t data,
+                 gerium_uint32_t size);
+
+gerium_public gerium_data_t
+gerium_file_map(gerium_file_t file);
 
 gerium_public gerium_result_t
 gerium_application_create(gerium_utf8_t title,
