@@ -24,7 +24,20 @@ if(MSVC)
         set_target_properties(cpp-example PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif()
+    set_target_properties(cpp-example PROPERTIES
+        WIN32_EXECUTABLE ON)
 elseif(APPLE)
+    set_target_properties(cpp-example PROPERTIES
+        MACOSX_BUNDLE ON
+        MACOSX_RPATH ON
+        MACOSX_BUNDLE_BUNDLE_NAME "cpp-example"
+        MACOSX_BUNDLE_BUNDLE_VERSION 1
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.vladimirshaleev.gerium"
+        MACOSX_BUNDLE_INFO_STRING "Cpp Example"
+        MACOSX_BUNDLE_LONG_VERSION_STRING "1.0.0"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
+        XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@loader_path/Libraries"
+        XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME ON)
 elseif(NOT APPLE)
     target_compile_options(cpp-example PUBLIC -fno-rtti)
 endif()
