@@ -20,11 +20,17 @@ public:
     static bool exists(gerium_utf8_t path, bool isDir) noexcept;
 
 private:
+    static std::string getTempFile();
+    static NSString* appendBundleId(NSString* path);
+    
     gerium_uint64_t onGetSize() noexcept override;
     void onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept override;
     void onWrite(gerium_cdata_t data, gerium_uint32_t size) override;
     gerium_uint32_t onRead(gerium_data_t data, gerium_uint32_t size) noexcept override;
     gerium_data_t onMap() noexcept override;
+    
+    int _file;
+    gerium_data_t _data;
 };
 
 } // namespace gerium::macos
