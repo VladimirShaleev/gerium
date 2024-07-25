@@ -609,6 +609,33 @@ gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium
 }
 
 int main() {
+    // Testing file
+    const auto a1 = gerium_file_get_cache_dir();
+    const auto a2 = gerium_file_get_app_dir();
+    const auto b1 = gerium_file_exists_file("/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
+    const auto b2 = gerium_file_exists_file("/storage/emulated/0/Pictures");
+    const auto b3 = gerium_file_exists_dir("/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
+    const auto b4 = gerium_file_exists_dir("/storage/emulated/0/Pictures");
+
+    gerium_file_t file;
+    gerium_file_create_temp(1024 * 1024 * 4, &file);
+
+    const auto size = gerium_file_get_size(file);
+
+    char* data = (char*) gerium_file_map(file);
+    *data++ = 'a';
+    *data++ = 'b';
+    *data++ = 'c';
+    *data++ = 'd';
+
+    gerium_file_write(file, "12", 2);
+    gerium_file_seek(file, 0, GERIUM_FILE_SEEK_BEGIN);
+
+    char result[5]{};
+    auto s = gerium_file_read(file, result, 4);
+
+    gerium_file_destroy(file);
+
     check(gerium_logger_create("app", &logger));
 
     try {
