@@ -11,7 +11,7 @@ public:
     Win32File(gerium_utf8_t path, gerium_uint64_t size);
     Win32File(gerium_utf8_t path, bool readOnly);
 
-    ~Win32File();
+    ~Win32File() override;
 
 private:
     gerium_uint64_t onGetSize() noexcept override;

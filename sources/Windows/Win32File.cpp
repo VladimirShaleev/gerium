@@ -80,11 +80,9 @@ void Win32File::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept
         case GERIUM_FILE_SEEK_BEGIN:
             move = FILE_BEGIN;
             break;
-
         case GERIUM_FILE_SEEK_CURRENT:
             move = FILE_CURRENT;
             break;
-
         case GERIUM_FILE_SEEK_END:
             move = FILE_END;
             break;
