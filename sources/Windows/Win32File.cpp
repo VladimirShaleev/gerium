@@ -5,10 +5,10 @@
 
 namespace gerium::windows {
 
-Win32File::Win32File(gerium_uint32_t size) : Win32File(getTempFileName().c_str(), size) {
+Win32File::Win32File(gerium_uint64_t size) : Win32File(getTempFileName().c_str(), size) {
 }
 
-Win32File::Win32File(gerium_utf8_t path, gerium_uint32_t size) :
+Win32File::Win32File(gerium_utf8_t path, gerium_uint64_t size) :
     _file(INVALID_HANDLE_VALUE),
     _map(INVALID_HANDLE_VALUE),
     _data(nullptr),
@@ -23,13 +23,11 @@ Win32File::Win32File(gerium_utf8_t path, gerium_uint32_t size) :
     }
 
     if (size) {
-        if (SetFilePointer(_file, size, nullptr, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-        }
+        onSeek(size, GERIUM_FILE_SEEK_BEGIN);
         if (!SetEndOfFile(_file)) {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
-        SetFilePointer(_file, 0, 0, FILE_BEGIN);
+        onSeek(0, GERIUM_FILE_SEEK_BEGIN);
     }
 }
 
@@ -67,15 +65,40 @@ Win32File::~Win32File() {
     }
 }
 
-gerium_uint32_t Win32File::onGetSize() noexcept {
-    return {};
+gerium_uint64_t Win32File::onGetSize() noexcept {
+    DWORD high  = 0;
+    auto result = gerium_uint64_t(GetFileSize(_file, &high));
+    return (gerium_uint64_t(high) << 32) | result;
+}
+
+void Win32File::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept {
+    LONG high = (LONG) (offset >> 32);
+    DWORD move;
+    switch (seek) {
+        case GERIUM_FILE_SEEK_BEGIN:
+            move = FILE_BEGIN;
+            break;
+
+        case GERIUM_FILE_SEEK_CURRENT:
+            move = FILE_CURRENT;
+            break;
+
+        case GERIUM_FILE_SEEK_END:
+            move = FILE_END;
+            break;
+    }
+    SetFilePointer(_file, (LONG) offset, &high, move);
 }
 
 void Win32File::onWrite(gerium_cdata_t data, gerium_uint32_t size) {
+    DWORD writen = 0;
+    WriteFile(_file, (LPCVOID) data, (DWORD) size, &writen, nullptr);
 }
 
 gerium_uint32_t Win32File::onRead(gerium_data_t data, gerium_uint32_t size) noexcept {
-    return {};
+    DWORD writen = 0;
+    ReadFile(_file, (LPVOID) data, (DWORD) size, &writen, nullptr);
+    return gerium_uint32_t(writen);
 }
 
 gerium_data_t Win32File::onMap() noexcept {
@@ -177,13 +200,13 @@ gerium_result_t gerium_file_open(gerium_utf8_t path, gerium_bool_t read_only, ge
     return Object::create<Win32File>(*file, path, read_only != 0);
 }
 
-gerium_result_t gerium_file_create(gerium_utf8_t path, gerium_uint32_t size, gerium_file_t* file) {
+gerium_result_t gerium_file_create(gerium_utf8_t path, gerium_uint64_t size, gerium_file_t* file) {
     using namespace gerium;
     using namespace gerium::windows;
     return Object::create<Win32File>(*file, path, size);
 }
 
-gerium_result_t gerium_file_create_temp(gerium_uint32_t size, gerium_file_t* file) {
+gerium_result_t gerium_file_create_temp(gerium_uint64_t size, gerium_file_t* file) {
     using namespace gerium;
     using namespace gerium::windows;
     return Object::create<Win32File>(*file, size);

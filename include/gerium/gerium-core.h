@@ -44,6 +44,14 @@ typedef enum
     GERIUM_RESULT_MAX_ENUM                          = 0x7FFFFFFF
 } gerium_result_t;
 
+typedef enum
+{
+    GERIUM_FILE_SEEK_BEGIN    = 0,
+    GERIUM_FILE_SEEK_CURRENT  = 1,
+    GERIUM_FILE_SEEK_END      = 2,
+    GERIUM_FILE_SEEK_MAX_ENUM = 0x7FFFFFFF
+} gerium_file_seek_t;
+
 typedef enum {
     GERIUM_LOGGER_LEVEL_VERBOSE  = 0,
     GERIUM_LOGGER_LEVEL_DEBUG    = 1,
@@ -575,11 +583,11 @@ gerium_file_open(gerium_utf8_t path,
 
 gerium_public gerium_result_t
 gerium_file_create(gerium_utf8_t path,
-                   gerium_uint32_t size,
+                   gerium_uint64_t size,
                    gerium_file_t* file);
 
 gerium_public gerium_result_t
-gerium_file_create_temp(gerium_uint32_t size,
+gerium_file_create_temp(gerium_uint64_t size,
                         gerium_file_t* file);
 
 gerium_public gerium_file_t
@@ -588,8 +596,13 @@ gerium_file_reference(gerium_file_t file);
 gerium_public void
 gerium_file_destroy(gerium_file_t file);
 
-gerium_public gerium_uint32_t
+gerium_public gerium_uint64_t
 gerium_file_get_size(gerium_file_t file);
+
+gerium_public void
+gerium_file_seek(gerium_file_t file,
+                 gerium_uint64_t offset,
+                 gerium_file_seek_t seek);
 
 gerium_public gerium_result_t
 gerium_file_write(gerium_file_t file,
