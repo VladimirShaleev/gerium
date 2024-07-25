@@ -608,7 +608,11 @@ gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium
     return 1;
 }
 
+#ifdef GERIUM_PLATFORM_WINDOWS
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+#else
 int main() {
+#endif
     // Testing file
     const auto a1 = gerium_file_get_cache_dir();
     const auto a2 = gerium_file_get_app_dir();
@@ -623,10 +627,10 @@ int main() {
     const auto size = gerium_file_get_size(file);
 
     char* data = (char*) gerium_file_map(file);
-    *data++ = 'a';
-    *data++ = 'b';
-    *data++ = 'c';
-    *data++ = 'd';
+    *data++    = 'a';
+    *data++    = 'b';
+    *data++    = 'c';
+    *data++    = 'd';
 
     gerium_file_write(file, "12", 2);
     gerium_file_seek(file, 0, GERIUM_FILE_SEEK_BEGIN);
