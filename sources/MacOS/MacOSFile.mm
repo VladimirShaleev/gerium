@@ -30,6 +30,13 @@ std::string MacOSFile::getPath(NSSearchPathDirectory directory) noexcept {
     return dir;
 }
 
+bool MacOSFile::exists(gerium_utf8_t path, bool isDir) noexcept {
+    NSString* file = [NSString stringWithUTF8String:path];
+    BOOL isDirResult = NO;
+    BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:file isDirectory:&isDirResult];
+    return exists && (isDirResult != NO) == isDir;
+}
+
 gerium_uint64_t MacOSFile::onGetSize() noexcept {
 }
 
@@ -58,9 +65,11 @@ gerium_utf8_t File::getAppDir() noexcept {
 }
 
 bool File::existsFile(gerium_utf8_t path) noexcept {
+    return macos::MacOSFile::exists(path, false);
 }
 
 bool File::existsDir(gerium_utf8_t path) noexcept {
+    return macos::MacOSFile::exists(path, true);
 }
 
 void File::deleteFile(gerium_utf8_t path) noexcept {

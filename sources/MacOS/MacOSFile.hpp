@@ -17,6 +17,7 @@ public:
     ~MacOSFile() override;
 
     static std::string getPath(NSSearchPathDirectory directory) noexcept;
+    static bool exists(gerium_utf8_t path, bool isDir) noexcept;
 
 private:
     gerium_uint64_t onGetSize() noexcept override;
