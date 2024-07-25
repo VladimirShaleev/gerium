@@ -3,8 +3,8 @@
 
 #include "../File.hpp"
 
-#import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
+#import <Foundation/Foundation.h>
 
 namespace gerium::macos {
 
@@ -15,9 +15,9 @@ public:
     MacOSFile(gerium_utf8_t path, bool readOnly);
 
     ~MacOSFile() override;
-    
+
     static std::string getPath(NSSearchPathDirectory directory) noexcept;
-    
+
 private:
     gerium_uint64_t onGetSize() noexcept override;
     void onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept override;
