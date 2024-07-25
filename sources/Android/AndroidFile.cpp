@@ -1,16 +1,18 @@
 #include "AndroidFile.hpp"
 
 #include <fcntl.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
-namespace gerium::android {
+namespace gerium {
+
+namespace android {
 
 AndroidFile::AndroidFile(gerium_uint64_t size) : AndroidFile(getTempFile().c_str(), size) {
 }
 
-AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : _file(-1), _data(nullptr), _readOnly(false) {
+AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _file(-1), _data(nullptr) {
     _file = ::open(path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
     if (_file < 0) {
@@ -24,7 +26,7 @@ AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : _file(-1), 
     }
 }
 
-AndroidFile::AndroidFile(gerium_utf8_t path, bool readOnly) : _file(-1), _data(nullptr), _readOnly(readOnly) {
+AndroidFile::AndroidFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1), _data(nullptr) {
     _file = ::open(path, (readOnly ? O_RDONLY : O_RDWR) | O_CREAT, S_IRUSR | (readOnly ? 0 : S_IWUSR));
 
     if (_file < 0) {
@@ -42,24 +44,20 @@ AndroidFile::~AndroidFile() {
     }
 }
 
-gerium_utf8_t AndroidFile::getCacheDir() {
+gerium_utf8_t AndroidFile::getCacheDirFromContext() {
     initialize();
     return _cacheDir.c_str();
-}
-
-gerium_utf8_t AndroidFile::getAppDir() noexcept {
-    return AndroidApplication::instance()->activity->internalDataPath;
 }
 
 std::string AndroidFile::getTempFile() {
     initialize();
 
     auto vm = AndroidApplication::instance()->activity->vm;
-    if (JNIEnv* env; vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+    if (JNIEnv * env; vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
         auto prefix = env->NewStringUTF("gerium");
 
         auto file = env->CallStaticObjectMethod(_fileClass, _createTempFile, prefix, (jstring) nullptr);
-        auto dir = (jstring) env->CallObjectMethod(file, _getAbsolutePath);
+        auto dir  = (jstring) env->CallObjectMethod(file, _getAbsolutePath);
 
         auto dirLength = env->GetStringUTFLength(dir);
         std::string name;
@@ -77,24 +75,9 @@ std::string AndroidFile::getTempFile() {
     return "";
 }
 
-bool AndroidFile::existsFile(gerium_utf8_t path) {
-    std::filesystem::path file = path;
-    return std::filesystem::exists(file) && !std::filesystem::is_directory(file);
-}
-
-bool AndroidFile::existsDir(gerium_utf8_t path) {
-    std::filesystem::path dir = path;
-    return std::filesystem::exists(dir) && std::filesystem::is_directory(dir);
-}
-
-void AndroidFile::deleteFile(gerium_utf8_t path) {
-    if (existsFile(path)) {
-        std::filesystem::remove(path);
-    }
-}
-
 gerium_uint64_t AndroidFile::onGetSize() noexcept {
-    struct stat64 stat{};
+    struct stat64 stat {};
+
     ::fstat64(_file, &stat);
     return (gerium_uint64_t) stat.st_size;
 }
@@ -105,11 +88,9 @@ void AndroidFile::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexce
         case GERIUM_FILE_SEEK_BEGIN:
             whence = SEEK_SET;
             break;
-
         case GERIUM_FILE_SEEK_CURRENT:
             whence = SEEK_CUR;
             break;
-
         case GERIUM_FILE_SEEK_END:
             whence = SEEK_END;
             break;
@@ -122,45 +103,47 @@ void AndroidFile::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexce
 }
 
 void AndroidFile::onWrite(gerium_cdata_t data, gerium_uint32_t size) {
-    if (!_readOnly) {
-        if (::write(_file, (const void*) data, (size_t) size) < 0) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-        }
-    } else {
+    if (::write(_file, (const void*) data, (size_t) size) < 0) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 }
 
 gerium_uint32_t AndroidFile::onRead(gerium_data_t data, gerium_uint32_t size) noexcept {
-    return (gerium_uint32_t) ::read(_file, (void*) data, (size_t) size);
+    return (gerium_uint32_t)::read(_file, (void*) data, (size_t) size);
 }
 
 gerium_data_t AndroidFile::onMap() noexcept {
     if (!_data) {
-        _data = ::mmap64(nullptr, onGetSize(), PROT_READ | (_readOnly ? 0 : PROT_WRITE),
-                         _readOnly ? MAP_PRIVATE : MAP_SHARED, _file, 0);
+        _data = ::mmap64(nullptr,
+                         onGetSize(),
+                         PROT_READ | (isReadOnly() ? 0 : PROT_WRITE),
+                         isReadOnly() ? MAP_PRIVATE : MAP_SHARED,
+                         _file,
+                         0);
     }
     return _data;
 }
 
 void AndroidFile::initialize() {
     if (_cacheDir.empty()) {
-        auto app = AndroidApplication::instance();
+        auto app      = AndroidApplication::instance();
         auto activity = app->activity;
 
-        if (JNIEnv* env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+        if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
             auto activityClazz = activity->clazz;
 
             auto contextClass = env->FindClass("android/content/Context");
-            auto getCacheDir = env->GetMethodID(contextClass, "getCacheDir", "()Ljava/io/File;");
+            auto getCacheDir  = env->GetMethodID(contextClass, "getCacheDir", "()Ljava/io/File;");
 
-            _fileClass = (jclass) env->NewGlobalRef(env->FindClass("java/io/File"));
+            _fileClass       = (jclass) env->NewGlobalRef(env->FindClass("java/io/File"));
             _getAbsolutePath = env->GetMethodID(_fileClass, "getAbsolutePath", "()Ljava/lang/String;");
-            _createTempFile = env->GetStaticMethodID(_fileClass, "createTempFile", "(Ljava/lang/String;Ljava/lang/String;)Ljava/io/File;");
+            _createTempFile  = env->GetStaticMethodID(
+                _fileClass, "createTempFile", "(Ljava/lang/String;Ljava/lang/String;)Ljava/io/File;");
             _deleteOnExit = env->GetMethodID(_fileClass, "deleteOnExit", "()V");
+
             auto file = env->CallObjectMethod(activityClazz, getCacheDir);
 
-            auto dir = (jstring) env->CallObjectMethod(file, _getAbsolutePath);
+            auto dir       = (jstring) env->CallObjectMethod(file, _getAbsolutePath);
             auto dirLength = env->GetStringUTFLength(dir);
             _cacheDir.resize(dirLength + 1);
             env->GetStringUTFRegion(dir, 0, dirLength, _cacheDir.data());
@@ -184,30 +167,36 @@ jmethodID AndroidFile::_deleteOnExit = nullptr;
 
 std::string AndroidFile::_cacheDir;
 
-} // namespace gerium::android
+} // namespace android
+
+gerium_utf8_t File::getCacheDir() noexcept {
+    return android::AndroidFile::getCacheDirFromContext();
+}
+
+gerium_utf8_t File::getAppDir() noexcept {
+    return android::AndroidApplication::instance()->activity->internalDataPath;
+}
+
+bool File::existsFile(gerium_utf8_t path) noexcept {
+    std::filesystem::path file = path;
+    return std::filesystem::exists(file) && !std::filesystem::is_directory(file);
+}
+
+bool File::existsDir(gerium_utf8_t path) noexcept {
+    std::filesystem::path dir = path;
+    return std::filesystem::exists(dir) && std::filesystem::is_directory(dir);
+}
+
+void File::deleteFile(gerium_utf8_t path) noexcept {
+    if (existsFile(path)) {
+        std::filesystem::remove(path);
+    }
+}
+
+} // namespace gerium
 
 using namespace gerium;
 using namespace gerium::android;
-
-gerium_utf8_t gerium_file_get_cache_dir() {
-    return AndroidFile::getCacheDir();
-}
-
-gerium_utf8_t gerium_file_get_app_dir() {
-    return AndroidFile::getAppDir();
-}
-
-gerium_bool_t gerium_file_exists_file(gerium_utf8_t path) {
-    return AndroidFile::existsFile(path);
-}
-
-gerium_bool_t gerium_file_exists_dir(gerium_utf8_t path) {
-    return AndroidFile::existsDir(path);
-}
-
-void gerium_file_delete_file(gerium_utf8_t path) {
-    AndroidFile::deleteFile(path);
-}
 
 gerium_result_t gerium_file_open(gerium_utf8_t path, gerium_bool_t read_only, gerium_file_t* file) {
     return Object::create<AndroidFile>(*file, path, read_only != 0);

@@ -3,16 +3,18 @@
 
 #include <shlobj.h>
 
-namespace gerium::windows {
+namespace gerium {
+
+namespace windows {
 
 Win32File::Win32File(gerium_uint64_t size) : Win32File(getTempFileName().c_str(), size) {
 }
 
 Win32File::Win32File(gerium_utf8_t path, gerium_uint64_t size) :
+    File(false),
     _file(INVALID_HANDLE_VALUE),
     _map(INVALID_HANDLE_VALUE),
-    _data(nullptr),
-    _readOnly(false) {
+    _data(nullptr) {
     const auto file = gerium::windows::wideString(path);
 
     _file =
@@ -32,10 +34,10 @@ Win32File::Win32File(gerium_utf8_t path, gerium_uint64_t size) :
 }
 
 Win32File::Win32File(gerium_utf8_t path, bool readOnly) :
+    File(readOnly),
     _file(INVALID_HANDLE_VALUE),
     _map(INVALID_HANDLE_VALUE),
-    _data(nullptr),
-    _readOnly(readOnly) {
+    _data(nullptr) {
     const auto file = gerium::windows::wideString(path);
 
     auto flags = GENERIC_READ;
@@ -95,12 +97,8 @@ void Win32File::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept
 }
 
 void Win32File::onWrite(gerium_cdata_t data, gerium_uint32_t size) {
-    if (!_readOnly) {
-        DWORD writen = 0;
-        if (!WriteFile(_file, (LPCVOID) data, (DWORD) size, &writen, nullptr)) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-        }
-    } else {
+    DWORD writen = 0;
+    if (!WriteFile(_file, (LPCVOID) data, (DWORD) size, &writen, nullptr)) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 }
@@ -113,13 +111,13 @@ gerium_uint32_t Win32File::onRead(gerium_data_t data, gerium_uint32_t size) noex
 
 gerium_data_t Win32File::onMap() noexcept { // TODO: add errors?..
     if (!_data) {
-        _map = CreateFileMappingW(_file, NULL, _readOnly ? PAGE_READONLY : PAGE_READWRITE, 0, 0, nullptr);
+        _map = CreateFileMappingW(_file, NULL, isReadOnly() ? PAGE_READONLY : PAGE_READWRITE, 0, 0, nullptr);
         if (_map == INVALID_HANDLE_VALUE) {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
 
         DWORD flags = FILE_MAP_READ;
-        if (!_readOnly) {
+        if (!isReadOnly()) {
             flags |= FILE_MAP_WRITE;
         }
 
@@ -149,11 +147,10 @@ std::string Win32File::getTempFileName() {
     return utf8String(tempFile);
 }
 
-} // namespace gerium::windows
+} // namespace windows
 
-gerium_utf8_t gerium_file_get_cache_dir(void) {
+gerium_utf8_t File::getCacheDir() noexcept {
     static std::string dir;
-
     if (dir.empty()) {
         wchar_t path[MAX_PATH];
         HRESULT result = SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, SHGFP_TYPE_CURRENT, path);
@@ -165,13 +162,11 @@ gerium_utf8_t gerium_file_get_cache_dir(void) {
 
         dir = gerium::windows::utf8String(path);
     }
-
     return dir.c_str();
 }
 
-gerium_utf8_t gerium_file_get_app_dir(void) {
+gerium_utf8_t File::getAppDir() noexcept {
     static std::string dir;
-
     if (dir.empty()) {
         wchar_t path[512];
         HRESULT result = GetModuleFileNameW(GetModuleHandleW(nullptr), path, 512);
@@ -183,26 +178,27 @@ gerium_utf8_t gerium_file_get_app_dir(void) {
 
         dir = gerium::windows::utf8String(std::filesystem::path(path).parent_path().wstring());
     }
-
     return dir.c_str();
 }
 
-gerium_bool_t gerium_file_exists_file(gerium_utf8_t path) {
+bool File::existsFile(gerium_utf8_t path) noexcept {
     const auto file  = gerium::windows::wideString(path);
     const auto attrs = GetFileAttributesW(file.c_str());
     return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY;
 }
 
-gerium_bool_t gerium_file_exists_dir(gerium_utf8_t path) {
+bool File::existsDir(gerium_utf8_t path) noexcept {
     const auto file  = gerium::windows::wideString(path);
     const auto attrs = GetFileAttributesW(file.c_str());
     return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY;
 }
 
-void gerium_file_delete_file(gerium_utf8_t path) {
+void File::deleteFile(gerium_utf8_t path) noexcept {
     const auto file = gerium::windows::wideString(path);
     DeleteFileW(file.c_str());
 }
+
+} // namespace gerium
 
 gerium_result_t gerium_file_open(gerium_utf8_t path, gerium_bool_t read_only, gerium_file_t* file) {
     using namespace gerium;

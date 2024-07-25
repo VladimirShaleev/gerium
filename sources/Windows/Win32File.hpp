@@ -25,7 +25,6 @@ private:
     HANDLE _file;
     HANDLE _map;
     gerium_data_t _data;
-    bool _readOnly;
 };
 
 } // namespace gerium::windows

@@ -9,17 +9,23 @@ namespace gerium {
 
 class File : public _gerium_file {
 public:
-    gerium_uint64_t getSize() noexcept;
+    explicit File(bool readOnly) noexcept;
+
+    [[nodiscard]] bool isReadOnly() const noexcept;
+    [[nodiscard]] gerium_uint64_t getSize() noexcept;
     void seek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept;
     void write(gerium_cdata_t data, gerium_uint32_t size);
     gerium_uint32_t read(gerium_data_t data, gerium_uint32_t size) noexcept;
-    gerium_data_t map() noexcept;
+    [[nodiscard]] gerium_data_t map() noexcept;
 
-    static ObjectPtr<File> open(gerium_utf8_t path, bool readOnly);
-    static ObjectPtr<File> create(gerium_utf8_t path, gerium_uint32_t size);
+    [[nodiscard]] static ObjectPtr<File> open(gerium_utf8_t path, bool readOnly);
+    [[nodiscard]] static ObjectPtr<File> create(gerium_utf8_t path, gerium_uint32_t size);
 
-    static bool existsFile(gerium_utf8_t path) noexcept;
-    static bool existsDir(gerium_utf8_t path) noexcept;
+    [[nodiscard]] static gerium_utf8_t getCacheDir() noexcept;
+    [[nodiscard]] static gerium_utf8_t getAppDir() noexcept;
+
+    [[nodiscard]] static bool existsFile(gerium_utf8_t path) noexcept;
+    [[nodiscard]] static bool existsDir(gerium_utf8_t path) noexcept;
     static void deleteFile(gerium_utf8_t path) noexcept;
 
 private:
@@ -28,6 +34,8 @@ private:
     virtual void onWrite(gerium_cdata_t data, gerium_uint32_t size)                   = 0;
     virtual gerium_uint32_t onRead(gerium_data_t data, gerium_uint32_t size) noexcept = 0;
     virtual gerium_data_t onMap() noexcept                                            = 0;
+
+    bool _readOnly;
 };
 
 } // namespace gerium

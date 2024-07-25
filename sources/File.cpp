@@ -2,6 +2,13 @@
 
 namespace gerium {
 
+File::File(bool readOnly) noexcept : _readOnly(readOnly) {
+}
+
+bool File::isReadOnly() const noexcept {
+    return _readOnly;
+}
+
 gerium_uint64_t File::getSize() noexcept {
     return onGetSize();
 }
@@ -11,7 +18,11 @@ void File::seek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept {
 }
 
 void File::write(gerium_cdata_t data, gerium_uint32_t size) {
-    onWrite(data, size);
+    if (!_readOnly) {
+        onWrite(data, size);
+    } else {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
 }
 
 gerium_uint32_t File::read(gerium_data_t data, gerium_uint32_t size) noexcept {
@@ -27,7 +38,7 @@ ObjectPtr<File> File::open(gerium_utf8_t path, bool readOnly) {
     if (auto result = gerium_file_open(path, readOnly, &file); result != GERIUM_RESULT_SUCCESS) {
         error(result);
     }
-    return ObjectPtr(alias_cast<File*>(file), false);
+    return {alias_cast<File*>(file), false};
 }
 
 ObjectPtr<File> File::create(gerium_utf8_t path, gerium_uint32_t size) {
@@ -35,24 +46,32 @@ ObjectPtr<File> File::create(gerium_utf8_t path, gerium_uint32_t size) {
     if (auto result = gerium_file_create(path, size, &file); result != GERIUM_RESULT_SUCCESS) {
         error(result);
     }
-    return ObjectPtr(alias_cast<File*>(file), false);
-}
-
-bool File::existsFile(gerium_utf8_t path) noexcept {
-    return gerium_file_exists_file(path);
-}
-
-bool File::existsDir(gerium_utf8_t path) noexcept {
-    return gerium_file_exists_dir(path);
-}
-
-void File::deleteFile(gerium_utf8_t path) noexcept {
-    return gerium_file_delete_file(path);
+    return {alias_cast<File*>(file), false};
 }
 
 } // namespace gerium
 
 using namespace gerium;
+
+gerium_utf8_t gerium_file_get_cache_dir() {
+    return File::getCacheDir();
+}
+
+gerium_utf8_t gerium_file_get_app_dir() {
+    return File::getAppDir();
+}
+
+gerium_bool_t gerium_file_exists_file(gerium_utf8_t path) {
+    return File::existsFile(path);
+}
+
+gerium_bool_t gerium_file_exists_dir(gerium_utf8_t path) {
+    return File::existsDir(path);
+}
+
+void gerium_file_delete_file(gerium_utf8_t path) {
+    File::deleteFile(path);
+}
 
 gerium_file_t gerium_file_reference(gerium_file_t file) {
     assert(file);

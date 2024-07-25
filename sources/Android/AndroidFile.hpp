@@ -12,17 +12,13 @@ public:
     AndroidFile(gerium_utf8_t path, gerium_uint64_t size);
     AndroidFile(gerium_utf8_t path, bool readOnly);
 
-    ~AndroidFile();
+    ~AndroidFile() override;
 
-    static gerium_utf8_t getCacheDir();
-    static gerium_utf8_t getAppDir() noexcept;
-    static std::string getTempFile();
-
-    static bool existsFile(gerium_utf8_t path);
-    static bool existsDir(gerium_utf8_t path);
-    static void deleteFile(gerium_utf8_t path);
+    static gerium_utf8_t getCacheDirFromContext();
 
 private:
+    static std::string getTempFile();
+
     gerium_uint64_t onGetSize() noexcept override;
     void onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept override;
     void onWrite(gerium_cdata_t data, gerium_uint32_t size) override;
@@ -39,7 +35,6 @@ private:
 
     int _file;
     gerium_data_t _data;
-    bool _readOnly;
 };
 
 } // namespace gerium::android
