@@ -86,13 +86,23 @@ void Win32File::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept
         case GERIUM_FILE_SEEK_END:
             move = FILE_END;
             break;
+        default:
+            assert(!"unreachable code");
+            move = FILE_BEGIN;
+            break;
     }
     SetFilePointer(_file, (LONG) offset, &high, move);
 }
 
 void Win32File::onWrite(gerium_cdata_t data, gerium_uint32_t size) {
-    DWORD writen = 0;
-    WriteFile(_file, (LPCVOID) data, (DWORD) size, &writen, nullptr);
+    if (!_readOnly) {
+        DWORD writen = 0;
+        if (!WriteFile(_file, (LPCVOID) data, (DWORD) size, &writen, nullptr)) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    } else {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
 }
 
 gerium_uint32_t Win32File::onRead(gerium_data_t data, gerium_uint32_t size) noexcept {
@@ -101,7 +111,7 @@ gerium_uint32_t Win32File::onRead(gerium_data_t data, gerium_uint32_t size) noex
     return gerium_uint32_t(writen);
 }
 
-gerium_data_t Win32File::onMap() noexcept {
+gerium_data_t Win32File::onMap() noexcept { // TODO: add errors?..
     if (!_data) {
         _map = CreateFileMappingW(_file, NULL, _readOnly ? PAGE_READONLY : PAGE_READWRITE, 0, 0, nullptr);
         if (_map == INVALID_HANDLE_VALUE) {

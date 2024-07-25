@@ -81,6 +81,10 @@ ANativeWindow* AndroidApplication::nativeWindow() noexcept {
     return _application->window;
 }
 
+android_app* AndroidApplication::instance() noexcept {
+    return app;
+}
+
 gerium_runtime_platform_t AndroidApplication::onGetPlatform() const noexcept {
     return GERIUM_RUNTIME_PLATFORM_ANDROID;
 }

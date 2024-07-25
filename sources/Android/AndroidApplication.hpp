@@ -13,6 +13,8 @@ public:
 
     ANativeWindow* nativeWindow() noexcept;
 
+    static android_app* instance() noexcept;
+
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 

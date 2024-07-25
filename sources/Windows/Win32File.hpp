@@ -7,7 +7,7 @@ namespace gerium::windows {
 
 class Win32File final : public File {
 public:
-    Win32File(gerium_uint64_t size);
+    explicit Win32File(gerium_uint64_t size);
     Win32File(gerium_utf8_t path, gerium_uint64_t size);
     Win32File(gerium_utf8_t path, bool readOnly);
 
