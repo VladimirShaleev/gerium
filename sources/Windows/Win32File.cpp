@@ -1,6 +1,7 @@
 #include "Win32File.hpp"
 #include "Unicode.hpp"
 
+#include <Psapi.h>
 #include <shlobj.h>
 
 namespace gerium {
@@ -65,6 +66,16 @@ Win32File::~Win32File() {
     if (_file != INVALID_HANDLE_VALUE) {
         CloseHandle(_file);
     }
+}
+
+const std::filesystem::path& Win32File::getAppName() {
+    static std::filesystem::path path;
+    if (path.empty()) {
+        wchar_t name[MAX_PATH + 1]{};
+        auto len = (size_t) GetProcessImageFileNameW(GetCurrentProcess(), name, MAX_PATH);
+        path     = std::filesystem::path(std::wstring(name, len)).replace_extension().filename();
+    }
+    return path;
 }
 
 gerium_uint64_t Win32File::onGetSize() noexcept {
@@ -158,7 +169,9 @@ gerium_utf8_t File::getCacheDir() noexcept {
             return "";
         }
 
-        dir = gerium::windows::utf8String(path);
+        const auto fullPath = std::filesystem::path(path) / gerium::windows::Win32File::getAppName();
+
+        dir = gerium::windows::utf8String(fullPath.wstring());
     }
     return dir.c_str();
 }

@@ -13,6 +13,8 @@ public:
 
     ~Win32File() override;
 
+    static const std::filesystem::path& getAppName();
+    
 private:
     gerium_uint64_t onGetSize() noexcept override;
     void onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept override;
