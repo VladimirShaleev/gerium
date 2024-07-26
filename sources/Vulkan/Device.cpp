@@ -597,7 +597,7 @@ DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetL
     return handle;
 }
 
-ProgramHandle Device::createProgram(const ProgramCreation& creation) {
+ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSpirv) {
     auto [handle, program] = _programs.obtain_and_access();
 
     // VkPipelineShaderStageCreateInfo shaderStageInfo[kMaxShaderStages];
@@ -628,7 +628,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
             shaderInfo.codeSize = stage.size;
             shaderInfo.pCode    = reinterpret_cast<const uint32_t*>(stage.data);
 
-            spirv = std::vector(shaderInfo.pCode, shaderInfo.pCode + shaderInfo.codeSize / 4);
+            if (saveSpirv) {
+                spirv = std::vector(shaderInfo.pCode, shaderInfo.pCode + shaderInfo.codeSize / 4);
+            }
         } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL) {
             spirv = compileGLSL((const char*) stage.data, stage.size, stageType, creation.name);
 
@@ -648,7 +650,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
             _device, &shaderInfo, getAllocCalls(), &program->shaderStageInfo[program->activeShaders].module));
 
         SpvReflectShaderModule module{};
-        if (spvReflectCreateShaderModule(spirv.size() * 4, (void*) spirv.data(), &module) != SPV_REFLECT_RESULT_SUCCESS) {
+        if (spvReflectCreateShaderModule(shaderInfo.codeSize, (void*) shaderInfo.pCode, &module) != SPV_REFLECT_RESULT_SUCCESS) {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
 
@@ -767,7 +769,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     VkPipelineCache pipelineCache;
     check(_vkTable.vkCreatePipelineCache(_device, &cacheInfo, getAllocCalls(), &pipelineCache));
 
-    auto programHandle = createProgram(*programCreation);
+    auto programHandle = createProgram(*programCreation, !cacheExists);
     auto program       = _programs.access(programHandle);
 
     // pipeline->program = programHandle;

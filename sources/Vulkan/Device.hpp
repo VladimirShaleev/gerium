@@ -29,7 +29,7 @@ public:
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
     DescriptorSetHandle createDescriptorSet(const DescriptorSetCreation& creation);
     DescriptorSetLayoutHandle createDescriptorSetLayout(const DescriptorSetLayoutCreation& creation);
-    ProgramHandle createProgram(const ProgramCreation& creation);
+    ProgramHandle createProgram(const ProgramCreation& creation, bool saveSpirv);
     PipelineHandle createPipeline(const PipelineCreation& creation);
 
     void destroyBuffer(BufferHandle handle);
