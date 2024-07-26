@@ -711,31 +711,63 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
 
     auto cacheExists = File::existsFile(cachePathStr.c_str());
     ObjectPtr<File> cacheFile;
+    const gerium_uint8_t* cacheData = nullptr;
 
     VkPipelineCacheCreateInfo cacheInfo{ VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
 
+    ProgramCreation cacheProgram{};
+    const ProgramCreation* programCreation = &creation.program;
+
     if (cacheExists) {
         cacheFile = File::open(cachePathStr.c_str(), true);
+        cacheData = (const gerium_uint8_t*) cacheFile->map();
 
-        const auto size     = cacheFile->getSize();
-        gerium_cdata_t data = cacheFile->map();
+        const auto size = *((gerium_uint32_t*) cacheData);
+        cacheData += 4;
 
-        auto header = (const VkPipelineCacheHeaderVersionOne*) data;
+        auto header = (const VkPipelineCacheHeaderVersionOne*) cacheData;
 
         if (size >= sizeof(VkPipelineCacheHeaderVersionOne) && header->deviceID == _deviceProperties.deviceID &&
             header->vendorID == _deviceProperties.vendorID &&
             memcmp(header->pipelineCacheUUID, _deviceProperties.pipelineCacheUUID, VK_UUID_SIZE) == 0) {
+            programCreation = &cacheProgram;
+
             cacheInfo.initialDataSize = size;
-            cacheInfo.pInitialData    = data;
+            cacheInfo.pInitialData    = (const void*) cacheData;
+
+            cacheData += size;
+
+            auto stages = *cacheData;
+            cacheData += 1;
+
+            for (gerium_uint8_t i = 0; i < stages; ++i) {
+                auto size = *((gerium_uint32_t*) cacheData);
+                cacheData += 4;
+
+                auto type = (gerium_shader_type_t) *cacheData;
+                ++cacheData;
+                
+                gerium_shader_t shader;
+                shader.type = type;
+                shader.lang = GERIUM_SHADER_LANGUAGE_SPIRV;
+                shader.name = nullptr;
+                shader.data = (gerium_cdata_t) cacheData;
+                shader.size = size;
+                cacheProgram.addStage(shader);
+
+                cacheData += size;
+            }
+            
         } else {
             cacheExists = false;
+            cacheData = nullptr;
         }
     }
 
     VkPipelineCache pipelineCache;
     check(_vkTable.vkCreatePipelineCache(_device, &cacheInfo, getAllocCalls(), &pipelineCache));
 
-    auto programHandle = createProgram(creation.program);
+    auto programHandle = createProgram(*programCreation);
     auto program       = _programs.access(programHandle);
 
     // pipeline->program = programHandle;
@@ -972,13 +1004,43 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     }
 
     if (!cacheExists) {
+        gerium_uint32_t totalCacheSize = 4;
+
         size_t cacheSize = 0;
         check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, nullptr));
+        totalCacheSize += (gerium_uint32_t) cacheSize;
 
-        auto saveCache = File::create(cachePathStr.c_str(), cacheSize);
-        auto data      = saveCache->map();
+        const auto stages = (gerium_uint8_t) program->activeShaders;
+        totalCacheSize += 1;
 
+        gerium_uint32_t stageSizes[kMaxShaderStages]{};
+
+        for (gerium_uint8_t i = 0; i < stages; ++i) {
+            stageSizes[i] = program->spirv[i].size() * 4;
+            totalCacheSize += 5 + stageSizes[i];
+        }
+
+        auto saveCache = File::create(cachePathStr.c_str(), totalCacheSize);
+        auto data      = (gerium_uint8_t*) saveCache->map();
+
+        *(gerium_uint32_t*)(data) = (gerium_uint32_t) cacheSize;
+        data += 4;
         check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, (void*) data));
+
+        data += cacheSize;
+        *data = stages;
+        ++data;
+
+        for (gerium_uint8_t i = 0; i < stages; ++i) {
+            *(gerium_uint32_t*)(data) = stageSizes[i];
+            data += 4;
+
+            *data = (gerium_uint8_t)(program->shaderStageInfo[i].stage == VK_SHADER_STAGE_VERTEX_BIT ? GERIUM_SHADER_TYPE_VERTEX : GERIUM_SHADER_TYPE_FRAGMENT); // TODO
+            ++data;
+
+            memcpy((void*) data, (const void*) program->spirv[i].data(), stageSizes[i]);
+            data += stageSizes[i];
+        }
     }
 
     _vkTable.vkDestroyPipelineCache(_device, pipelineCache, getAllocCalls());
