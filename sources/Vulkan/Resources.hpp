@@ -175,8 +175,8 @@ struct DepthStencilCreation {
 };
 
 struct BlendStateCreation {
-    gerium_color_component_flags_t writeMasks[kMaxImageOutputs];
-    gerium_color_blend_attachment_state_t blendStates[kMaxImageOutputs];
+    gerium_color_component_flags_t writeMasks[kMaxImageOutputs]{};
+    gerium_color_blend_attachment_state_t blendStates[kMaxImageOutputs]{};
     uint32_t activeStates = 0;
 
     BlendStateCreation& reset() {
@@ -208,8 +208,8 @@ struct VertexInputCreation {
     uint32_t numVertexStreams    = 0;
     uint32_t numVertexAttributes = 0;
 
-    VertexStream    vertexStreams[kMaxVertexStreams];
-    VertexAttribute vertexAttributes[kMaxVertexAttributes];
+    VertexStream    vertexStreams[kMaxVertexStreams]{};
+    VertexAttribute vertexAttributes[kMaxVertexAttributes]{};
 
     VertexInputCreation& reset() {
         numVertexStreams = numVertexAttributes = 0;
@@ -227,77 +227,62 @@ struct VertexInputCreation {
     }
 };
 
-struct ShaderStage {
-    const char*           code     = nullptr;
-    uint32_t              codeSize = 0;
-    VkShaderStageFlagBits type     = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
-};
-
 struct ProgramCreation {
-    ShaderStage stages[kMaxShaderStages];
-
-    const char* name = nullptr;
-
     uint32_t stagesCount = 0;
-    uint32_t spvInput    = 0;
+    gerium_shader_t stages[kMaxShaderStages]{};
+
+    gerium_utf8_t name = nullptr;
 
     // Building helpers
     ProgramCreation& reset() {
         stagesCount = 0;
+        name = nullptr;
         return *this;
     }
 
-    ProgramCreation& setName(const char* name) {
+    ProgramCreation& addStage(const gerium_shader_t& stage) {
+        stages[stagesCount++] = stage;
+        return *this;
+    }
+
+    ProgramCreation& setName(const gerium_utf8_t name) {
         this->name = name;
         return *this;
     }
-
-    ProgramCreation& addStage(const char* code, size_t codeSize, VkShaderStageFlagBits type) {
-        stages[stagesCount].code     = code;
-        stages[stagesCount].codeSize = (uint32_t) codeSize;
-        stages[stagesCount].type     = type;
-        ++stagesCount;
-        return *this;
-    }
-
-    ProgramCreation& setSpvInput(bool value) {
-        spvInput = value;
-        return *this;
-    }
 };
 
-struct Rect2DInt {
-    int16_t  x      = 0;
-    int16_t  y      = 0;
-    uint16_t width  = 0;
-    uint16_t height = 0;
-};
+// struct Rect2DInt {
+//     int16_t  x      = 0;
+//     int16_t  y      = 0;
+//     uint16_t width  = 0;
+//     uint16_t height = 0;
+// };
 
-struct Viewport {
-    Rect2DInt rect;
-    float     min_depth = 0.0f;
-    float     max_depth = 0.0f;
-};
+// struct Viewport {
+//     Rect2DInt rect;
+//     float     min_depth = 0.0f;
+//     float     max_depth = 0.0f;
+// };
 
-struct ViewportState {
-    uint32_t num_viewports = 0;
-    uint32_t num_scissors  = 0;
-
-    Viewport*  viewport = nullptr;
-    Rect2DInt* scissors = nullptr;
-};
+// struct ViewportState {
+//     uint32_t num_viewports = 0;
+//     uint32_t num_scissors  = 0;
+// 
+//     Viewport*  viewport = nullptr;
+//     Rect2DInt* scissors = nullptr;
+// };
 
 struct PipelineCreation {
-    const gerium_rasterization_state_t* rasterization;
-    const gerium_depth_stencil_state_t* depthStencil;
-    const gerium_color_blend_state_t*   colorBlend;
-    BlendStateCreation    blendState;
-    VertexInputCreation   vertexInput;
-    ProgramCreation       program;
+    const gerium_rasterization_state_t* rasterization = {};
+    const gerium_depth_stencil_state_t* depthStencil = {};
+    const gerium_color_blend_state_t*   colorBlend = {};
+    BlendStateCreation    blendState = {};
+    VertexInputCreation   vertexInput = {};
+    ProgramCreation       program = {};
 
-    RenderPassOutput          renderPass;
+    RenderPassOutput          renderPass = {};
     //DescriptorSetLayoutHandle descriptorSetLayout[kMaxDescriptorSetLayouts];
-    const ViewportState*      viewport = nullptr;
+    //const ViewportState*      viewport = nullptr;
 
     //uint32_t numActiveLayouts = 0;
 

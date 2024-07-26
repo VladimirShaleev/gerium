@@ -287,6 +287,17 @@ gerium_inline VkFormat toVkVertexFormat(VertexComponentFormat value) {
     return sVkVertexFormats[(int) value];
 }
 
+gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) noexcept {
+    switch (type) {
+        case GERIUM_SHADER_TYPE_VERTEX:
+            return VK_SHADER_STAGE_VERTEX_BIT;
+        case GERIUM_SHADER_TYPE_FRAGMENT:
+            return VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    assert(!"TODO");
+    return {};
+}
+
 gerium_inline VkAccessFlags toVkAccessFlags(ResourceState state) noexcept {
     VkAccessFlags ret = 0;
     if ((state & ResourceState::CopySource) == ResourceState::CopySource) {

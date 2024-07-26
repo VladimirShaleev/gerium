@@ -18,6 +18,9 @@ Win32File::Win32File(gerium_utf8_t path, gerium_uint64_t size) :
     _data(nullptr) {
     const auto file = gerium::windows::wideString(path);
 
+    const auto dirs = std::filesystem::path(file).parent_path().wstring();
+    SHCreateDirectoryExW(nullptr, dirs.c_str(), nullptr);
+
     _file =
         CreateFileW(file.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 
@@ -40,6 +43,9 @@ Win32File::Win32File(gerium_utf8_t path, bool readOnly) :
     _map(INVALID_HANDLE_VALUE),
     _data(nullptr) {
     const auto file = gerium::windows::wideString(path);
+
+    const auto dirs = std::filesystem::path(file).parent_path().wstring();
+    SHCreateDirectoryExW(nullptr, dirs.c_str(), nullptr);
 
     auto flags = GENERIC_READ;
 

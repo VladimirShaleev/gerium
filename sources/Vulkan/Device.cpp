@@ -613,22 +613,33 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
             program->graphicsPipeline = false;
         }
 
+        auto lang = stage.lang;
+        if (lang == GERIUM_SHADER_LANGUAGE_UNKNOWN) {
+            // TODO: calc lang
+        }
+
+        const auto stageType = toVkShaderStage(stage.type);
+
         VkShaderModuleCreateInfo shaderInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 
         std::vector<uint32_t> code;
-        if (creation.spvInput) {
-            shaderInfo.codeSize = stage.codeSize;
-            shaderInfo.pCode    = reinterpret_cast<const uint32_t*>(stage.code);
-        } else {
-            code                = compileGLSL(stage.code, stage.codeSize, stage.type, creation.name);
+        if (lang == GERIUM_SHADER_LANGUAGE_SPIRV) {
+            shaderInfo.codeSize = stage.type;
+            shaderInfo.pCode    = reinterpret_cast<const uint32_t*>(stage.data);
+        } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL) {
+            code = compileGLSL((const char*) stage.data, stage.size, stageType, creation.name);
             shaderInfo.codeSize = code.size() * 4;
             shaderInfo.pCode    = code.data();
+        } else if (lang == GERIUM_SHADER_LANGUAGE_HLSL) {
+            error(GERIUM_RESULT_ERROR_NOT_IMPLEMENTED);
+        } else {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
 
         VkPipelineShaderStageCreateInfo& shaderStageInfo = program->shaderStageInfo[program->activeShaders];
         shaderStageInfo.sType                            = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStageInfo.pName                            = "main";
-        shaderStageInfo.stage                            = stage.type;
+        shaderStageInfo.stage                            = stageType;
         check(_vkTable.vkCreateShaderModule(
             _device, &shaderInfo, getAllocCalls(), &program->shaderStageInfo[program->activeShaders].module));
 
@@ -681,7 +692,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
 
         setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
                       (uint64_t) program->shaderStageInfo[program->activeShaders].module,
-                      creation.name);
+                      stage.name);
     }
 
     return handle;
@@ -690,23 +701,31 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
 PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     auto [handle, pipeline] = _pipelines.obtain_and_access();
 
+    const auto filename     = "pipeline-"s + std::to_string(calcPipelineHash(creation)) + ".cache"s;
+    const auto cachePath    = std::filesystem::path(File::getCacheDir()) / filename;
+    const auto cachePathStr = cachePath.string();
+
+    auto cacheExists = File::existsFile(cachePathStr.c_str());
+    ObjectPtr<File> cacheFile;
+
     VkPipelineCacheCreateInfo cacheInfo{ VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
 
-    auto cacheExists = false;
-
     if (cacheExists) {
-        // auto binary = foundation::fileRead(cachePath);
+        cacheFile = File::open(cachePathStr.c_str(), true);
 
-        // VkPipelineCacheHeaderVersionOne* header = (VkPipelineCacheHeaderVersionOne*) binary.data();
+        const auto size     = cacheFile->getSize();
+        gerium_cdata_t data = cacheFile->map();
 
-        // if (binary.size() >= sizeof(VkPipelineCacheHeaderVersionOne) &&
-        //     header->deviceID == _deviceProperties.deviceID && header->vendorID == _deviceProperties.vendorID &&
-        //     memcmp(header->pipelineCacheUUID, _deviceProperties.pipelineCacheUUID, VK_UUID_SIZE) == 0) {
-        //     cacheInfo.initialDataSize = binary.size();
-        //     cacheInfo.pInitialData    = binary.data();
-        // } else {
-        //     cacheExists = false;
-        // }
+        auto header = (const VkPipelineCacheHeaderVersionOne*) data;
+
+        if (size >= sizeof(VkPipelineCacheHeaderVersionOne) && header->deviceID == _deviceProperties.deviceID &&
+            header->vendorID == _deviceProperties.vendorID &&
+            memcmp(header->pipelineCacheUUID, _deviceProperties.pipelineCacheUUID, VK_UUID_SIZE) == 0) {
+            cacheInfo.initialDataSize = size;
+            cacheInfo.pInitialData    = data;
+        } else {
+            cacheExists = false;
+        }
     }
 
     VkPipelineCache pipelineCache;
@@ -861,7 +880,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         if (creation.blendState.activeStates) {
             assert(creation.blendState.activeStates == creation.renderPass.numColorFormats);
             for (uint32_t i = 0; i < creation.blendState.activeStates; i++) {
-                const auto& writeMask = creation.blendState.writeMasks[i];
+                const auto& writeMask  = creation.blendState.writeMasks[i];
                 const auto& blendState = creation.blendState.blendStates[i];
 
                 colorBlendAttachment[i].blendEnable         = blendState.blend_enable;
@@ -948,16 +967,15 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
     }
 
-    // if (cachePath != nullptr && !cacheExists) {
-    //     size_t cacheSize = 0;
-    //     check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, nullptr));
+    if (!cacheExists) {
+        size_t cacheSize = 0;
+        check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, nullptr));
 
-    //     std::vector<uint8_t> cacheData;
-    //     cacheData.resize(cacheSize);
-    //     check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, (void*) cacheData.data()));
+        auto saveCache = File::create(cachePathStr.c_str(), cacheSize);
+        auto data      = saveCache->map();
 
-    //     foundation::fileWrite(cachePath, (void*) cacheData.data(), cacheData.size());
-    // }
+        check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, (void*) data));
+    }
 
     _vkTable.vkDestroyPipelineCache(_device, pipelineCache, getAllocCalls());
 
@@ -2435,6 +2453,17 @@ void Device::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverit
         stream << " mess id name '"sv << (data->pMessageIdName ? data->pMessageIdName : "<none>")
                << "', mess id num '"sv << data->messageIdNumber << "', mess '"sv << data->pMessage << '\'';
     });
+}
+
+gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexcept {
+    gerium_uint64_t seed = hash(*creation.rasterization);
+    seed                 = hash(*creation.depthStencil, seed);
+    seed                 = hash(*creation.colorBlend, seed);
+    seed                 = hash(creation.blendState, seed);
+    seed                 = hash(creation.vertexInput, seed);
+    // seed                 = hash(creation.program, seed);
+    seed                 = hash(creation.renderPass, seed);
+    return seed;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL

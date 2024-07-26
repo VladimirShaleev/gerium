@@ -58,14 +58,14 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
     auto [handle, material] = _materials.obtain_and_access();
     material->name          = intern(name);
 
-    ViewportState viewport{};
+    // ViewportState viewport{};
 
     for (gerium_uint32_t i = 0; i < pipelineCount; ++i) {
         PipelineCreation pc{};
         pc.rasterization = pipelines[i].rasterization;
         pc.depthStencil  = pipelines[i].depth_stencil;
         pc.colorBlend    = pipelines[i].color_blend;
-        pc.viewport      = &viewport;
+        // pc.viewport      = &viewport;
         pc.name          = pipelines[i].render_pass;
 
         if (auto node = frameGraph.getNode(pipelines[i].render_pass); node) {
@@ -79,13 +79,9 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
         }
 
         for (gerium_uint32_t j = 0; j < pipelines[i].shader_count; ++j) {
-            const auto& shader = pipelines[i].shaders[j];
-            pc.program.addStage(shader.data,
-                                shader.size,
-                                shader.type == GERIUM_SHADER_TYPE_VERTEX ? VK_SHADER_STAGE_VERTEX_BIT
-                                                                         : VK_SHADER_STAGE_FRAGMENT_BIT);
-            pc.program.setName("simple");
+            pc.program.addStage(pipelines[i].shaders[j]);
         }
+        pc.program.setName(pipelines[i].render_pass);
 
         for (gerium_uint32_t j = 0; j < pipelines[i].vertex_attribute_count; ++j) {
             const auto& attribute = pipelines[i].vertex_attributes[j];

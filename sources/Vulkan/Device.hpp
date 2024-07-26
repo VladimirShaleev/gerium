@@ -220,6 +220,8 @@ private:
                        VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData);
 
+    static gerium_uint64_t calcPipelineHash(const PipelineCreation& creation) noexcept;
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL
     debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                 VkDebugUtilsMessageTypeFlagsEXT messageTypes,

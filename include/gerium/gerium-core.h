@@ -328,6 +328,14 @@ typedef enum {
     GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_shader_type_t;
 
+typedef enum {
+    GERIUM_SHADER_LANGUAGE_UNKNOWN = 0,
+    GERIUM_SHADER_LANGUAGE_SPIRV   = 1,
+    GERIUM_SHADER_LANGUAGE_GLSL    = 2,
+    GERIUM_SHADER_LANGUAGE_HLSL    = 2,
+    GERIUM_SHADER_LANGUAGE_MAX_ENUM = 0x7FFFFFFF
+} gerium_shader_languge_t;
+
 typedef gerium_bool_t
 (*gerium_application_frame_func_t)(gerium_application_t application,
                                    gerium_data_t data,
@@ -484,10 +492,11 @@ typedef struct
 
 typedef struct
 {
-    gerium_shader_type_t type;
-    gerium_utf8_t        name;
-    gerium_utf8_t        data;
-    gerium_uint32_t      size;
+    gerium_shader_type_t    type;
+    gerium_shader_languge_t lang;
+    gerium_utf8_t           name;
+    gerium_cdata_t          data;
+    gerium_uint32_t         size;
 } gerium_shader_t;
 
 typedef struct

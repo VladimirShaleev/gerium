@@ -3,6 +3,7 @@
 
 #include "Gerium.hpp"
 #include "ResourcePool.hpp"
+#include "File.hpp"
 
 namespace gerium {
 

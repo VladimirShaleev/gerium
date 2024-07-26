@@ -365,6 +365,7 @@ bool initialize(gerium_application_t application) {
 
         gerium_shader_t baseShaders[2]{};
         baseShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
+        baseShaders[0].lang = GERIUM_SHADER_LANGUAGE_GLSL;
         baseShaders[0].name = "base.vert.glsl";
         baseShaders[0].data = "#version 450\n"
                               "\n"
@@ -386,9 +387,10 @@ bool initialize(gerium_application_t application) {
                               "    outColor = inColor;\n"
                               "    outTexCoord = inTexCoord;\n"
                               "}\n";
-        baseShaders[0].size = strlen(baseShaders[0].data);
+        baseShaders[0].size = strlen((const char*) baseShaders[0].data);
 
         baseShaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
+        baseShaders[1].lang = GERIUM_SHADER_LANGUAGE_GLSL;
         baseShaders[1].name = "base.frag.glsl";
         baseShaders[1].data = "#version 450\n"
                               "\n"
@@ -407,7 +409,7 @@ bool initialize(gerium_application_t application) {
                               "void main() {\n"
                               "    outColor = vec4(inColor.r * test.f, inColor.g * test2.f, inColor.b, 1.0);\n"
                               "}\n";
-        baseShaders[1].size = strlen(baseShaders[1].data);
+        baseShaders[1].size = strlen((const char*) baseShaders[1].data);
 
         gerium_color_blend_state_t colorBlend{};
         gerium_depth_stencil_state_t depthStencil{};
@@ -439,6 +441,7 @@ bool initialize(gerium_application_t application) {
 
         gerium_shader_t fullscreenShaders[2];
         fullscreenShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
+        fullscreenShaders[0].lang = GERIUM_SHADER_LANGUAGE_GLSL;
         fullscreenShaders[0].name = "fullscreen.vert.glsl";
         fullscreenShaders[0].data = "#version 450\n"
                                     "\n"
@@ -449,9 +452,10 @@ bool initialize(gerium_application_t application) {
                                     "    gl_Position = vec4(vTexCoord.xy * 2.0f - 1.0f, 0.0f, 1.0f);\n"
                                     "    gl_Position.y = -gl_Position.y;\n"
                                     "}\n";
-        fullscreenShaders[0].size = strlen(fullscreenShaders[0].data);
+        fullscreenShaders[0].size = strlen((const char*) fullscreenShaders[0].data);
 
         fullscreenShaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
+        fullscreenShaders[1].lang = GERIUM_SHADER_LANGUAGE_GLSL;
         fullscreenShaders[1].name = "fullscreen.frag.glsl";
         fullscreenShaders[1].data = "#version 450\n"
                                     "\n"
@@ -464,7 +468,7 @@ bool initialize(gerium_application_t application) {
                                     "void main() {\n"
                                     "    outColor = texture(texColor, vTexCoord);\n"
                                     "}\n";
-        fullscreenShaders[1].size = strlen(fullscreenShaders[1].data);
+        fullscreenShaders[1].size = strlen((const char*) fullscreenShaders[1].data);
 
         gerium_pipeline_t fullscreenPipelines[1]{};
         fullscreenPipelines[0].render_pass   = "present_pass";
@@ -614,31 +618,31 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 int main() {
 #endif
     // Testing file
-    const auto a1 = gerium_file_get_cache_dir();
-    const auto a2 = gerium_file_get_app_dir();
-    const auto b1 = gerium_file_exists_file("/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
-    const auto b2 = gerium_file_exists_file("/storage/emulated/0/Pictures");
-    const auto b3 = gerium_file_exists_dir("/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
-    const auto b4 = gerium_file_exists_dir("/storage/emulated/0/Pictures");
+    // const auto a1 = gerium_file_get_cache_dir();
+    // const auto a2 = gerium_file_get_app_dir();
+    // const auto b1 = gerium_file_exists_file("D:\\Development\\Projects\\gerium\\example\\main.cpp"); // "/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
+    // const auto b2 = gerium_file_exists_file("D:\\Development\\Projects\\gerium\\example"); // ""/storage/emulated/0/Pictures");
+    // const auto b3 = gerium_file_exists_dir("D:\\Development\\Projects\\gerium\\example\\main.cpp"); // ""/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
+    // const auto b4 = gerium_file_exists_dir("D:\\Development\\Projects\\gerium\\example\\"); // ""/storage/emulated/0/Pictures");
 
-    gerium_file_t file;
-    gerium_file_create_temp(1024 * 1024 * 4, &file);
+    // gerium_file_t file;
+    // gerium_file_create_temp(1024 * 1024 * 4, &file);
 
-    const auto size = gerium_file_get_size(file);
+    // const auto size = gerium_file_get_size(file);
 
-    char* data = (char*) gerium_file_map(file);
-    *data++    = 'a';
-    *data++    = 'b';
-    *data++    = 'c';
-    *data++    = 'd';
+    // char* data = (char*) gerium_file_map(file);
+    // *data++    = 'a';
+    // *data++    = 'b';
+    // *data++    = 'c';
+    // *data++    = 'd';
 
-    gerium_file_write(file, "12", 2);
-    gerium_file_seek(file, 0, GERIUM_FILE_SEEK_BEGIN);
+    // gerium_file_write(file, "12", 2);
+    // gerium_file_seek(file, 0, GERIUM_FILE_SEEK_BEGIN);
 
-    char result[5]{};
-    auto s = gerium_file_read(file, result, 4);
+    // char result[5]{};
+    // auto s = gerium_file_read(file, result, 4);
 
-    gerium_file_destroy(file);
+    // gerium_file_destroy(file);
 
     check(gerium_logger_create("app", &logger));
 
