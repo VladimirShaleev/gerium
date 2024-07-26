@@ -620,16 +620,20 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
 
         const auto stageType = toVkShaderStage(stage.type);
 
+        auto& spirv = program->spirv[program->activeShaders];
+
         VkShaderModuleCreateInfo shaderInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
 
-        std::vector<uint32_t> code;
         if (lang == GERIUM_SHADER_LANGUAGE_SPIRV) {
-            shaderInfo.codeSize = stage.type;
+            shaderInfo.codeSize = stage.size;
             shaderInfo.pCode    = reinterpret_cast<const uint32_t*>(stage.data);
+
+            spirv = std::vector(shaderInfo.pCode, shaderInfo.pCode + shaderInfo.codeSize / 4);
         } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL) {
-            code = compileGLSL((const char*) stage.data, stage.size, stageType, creation.name);
-            shaderInfo.codeSize = code.size() * 4;
-            shaderInfo.pCode    = code.data();
+            spirv = compileGLSL((const char*) stage.data, stage.size, stageType, creation.name);
+
+            shaderInfo.codeSize = spirv.size() * 4;
+            shaderInfo.pCode    = spirv.data();
         } else if (lang == GERIUM_SHADER_LANGUAGE_HLSL) {
             error(GERIUM_RESULT_ERROR_NOT_IMPLEMENTED);
         } else {
@@ -644,7 +648,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation) {
             _device, &shaderInfo, getAllocCalls(), &program->shaderStageInfo[program->activeShaders].module));
 
         SpvReflectShaderModule module{};
-        if (spvReflectCreateShaderModule(code.size() * 4, (void*) code.data(), &module) != SPV_REFLECT_RESULT_SUCCESS) {
+        if (spvReflectCreateShaderModule(spirv.size() * 4, (void*) spirv.data(), &module) != SPV_REFLECT_RESULT_SUCCESS) {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
 
@@ -734,7 +738,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     auto programHandle = createProgram(creation.program);
     auto program       = _programs.access(programHandle);
 
-    pipeline->program = programHandle;
+    // pipeline->program = programHandle;
 
     VkDescriptorSetLayout vkLayouts[kMaxDescriptorSetLayouts];
     uint32_t numActiveLayouts = 0; // shader.parseResult->setCount;
@@ -978,6 +982,8 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     }
 
     _vkTable.vkDestroyPipelineCache(_device, pipelineCache, getAllocCalls());
+
+    destroyProgram(programHandle);
 
     // for (uint32_t i = 0; i < shader.activeShaders; ++i) {
     //     _vkTable.vkDestroyShaderModule(_device, shader.shaderStageInfo[i].module, getAllocCalls());
@@ -2081,7 +2087,7 @@ void Device::deleteResources(bool forceDelete) {
                     for (uint32_t i = 0; i < pipeline->numActiveLayouts; ++i) {
                         destroyDescriptorSetLayout(pipeline->descriptorSetLayoutHandles[i]);
                     }
-                    destroyProgram(pipeline->program);
+                    // destroyProgram(pipeline->program);
                     destroyRenderPass(pipeline->renderPass);
                 }
                 _pipelines.release(resource.handle);
@@ -2456,13 +2462,21 @@ void Device::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverit
 }
 
 gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexcept {
-    gerium_uint64_t seed = hash(*creation.rasterization);
-    seed                 = hash(*creation.depthStencil, seed);
-    seed                 = hash(*creation.colorBlend, seed);
-    seed                 = hash(creation.blendState, seed);
-    seed                 = hash(creation.vertexInput, seed);
-    // seed                 = hash(creation.program, seed);
-    seed                 = hash(creation.renderPass, seed);
+    gerium_uint64_t seed = hash(GERIUM_VERSION);
+
+    seed = hash(*creation.rasterization, seed);
+    seed = hash(*creation.depthStencil, seed);
+    seed = hash(*creation.colorBlend, seed);
+    seed = hash(creation.blendState, seed);
+    seed = hash(creation.vertexInput, seed);
+    seed = hash(creation.renderPass, seed);
+
+    for (gerium_uint32_t i = 0; i < creation.program.stagesCount; ++i) {
+        const auto& stage = creation.program.stages[i];
+
+        seed = hash(stage.data, stage.size, seed);
+    }
+
     return seed;
 }
 

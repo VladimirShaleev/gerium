@@ -143,6 +143,10 @@ gerium_inline gerium_uint64_t hash(const T& data, gerium_uint64_t seed = 0) noex
     return wyhash(&data, sizeof(T), seed, _wyp);
 }
 
+gerium_inline gerium_uint64_t hash(gerium_cdata_t data, gerium_uint32_t size, gerium_uint64_t seed = 0) noexcept {
+    return wyhash(data, size, seed, _wyp);
+}
+
 gerium_inline gerium_uint32_t align(gerium_uint32_t size, gerium_uint32_t alignment) noexcept {
     if (alignment) {
         const gerium_uint32_t mask = alignment - 1;

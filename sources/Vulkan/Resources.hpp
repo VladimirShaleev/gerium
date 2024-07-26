@@ -469,6 +469,8 @@ struct Program {
     uint32_t activeShaders;
     bool     graphicsPipeline;
 
+    std::vector<uint32_t> spirv[kMaxShaderStages];
+
     absl::flat_hash_map<uint32_t, DescriptorSetLayoutData> descriptorSets;
 };
 
@@ -478,7 +480,7 @@ struct Pipeline {
 
     VkPipelineBindPoint vkBindPoint;
 
-    ProgramHandle program;
+    // ProgramHandle program;
     RenderPassHandle renderPass;
 
     // const DescriptorSetLayout* descriptorSetLayout[k_max_descriptor_set_layouts];
