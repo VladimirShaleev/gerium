@@ -609,9 +609,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
     for (; program->activeShaders < creation.stagesCount; ++program->activeShaders) {
         const auto& stage = creation.stages[program->activeShaders];
 
-        if (stage.type == VK_SHADER_STAGE_COMPUTE_BIT) {
-            program->graphicsPipeline = false;
-        }
+        // if (stage.type == VK_SHADER_STAGE_COMPUTE_BIT) {
+        //     program->graphicsPipeline = false;
+        // }
 
         auto lang = stage.lang;
         if (lang == GERIUM_SHADER_LANGUAGE_UNKNOWN) {
@@ -724,26 +724,26 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         cacheFile = File::open(cachePathStr.c_str(), true);
         cacheData = (const gerium_uint8_t*) cacheFile->map();
 
-        const auto size = *((gerium_uint32_t*) cacheData);
+        const auto pipelineSize = *((gerium_uint32_t*) cacheData);
         cacheData += 4;
 
         auto header = (const VkPipelineCacheHeaderVersionOne*) cacheData;
 
-        if (size >= sizeof(VkPipelineCacheHeaderVersionOne) && header->deviceID == _deviceProperties.deviceID &&
+        if (pipelineSize >= sizeof(VkPipelineCacheHeaderVersionOne) && header->deviceID == _deviceProperties.deviceID &&
             header->vendorID == _deviceProperties.vendorID &&
             memcmp(header->pipelineCacheUUID, _deviceProperties.pipelineCacheUUID, VK_UUID_SIZE) == 0) {
             programCreation = &cacheProgram;
 
-            cacheInfo.initialDataSize = size;
+            cacheInfo.initialDataSize = pipelineSize;
             cacheInfo.pInitialData    = (const void*) cacheData;
 
-            cacheData += size;
+            cacheData += pipelineSize;
 
             auto stages = *cacheData;
             cacheData += 1;
 
             for (gerium_uint8_t i = 0; i < stages; ++i) {
-                auto size = *((gerium_uint32_t*) cacheData);
+                auto spirvSize = *((gerium_uint32_t*) cacheData);
                 cacheData += 4;
 
                 auto type = (gerium_shader_type_t) *cacheData;
@@ -754,10 +754,10 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
                 shader.lang = GERIUM_SHADER_LANGUAGE_SPIRV;
                 shader.name = nullptr;
                 shader.data = (gerium_cdata_t) cacheData;
-                shader.size = size;
+                shader.size = spirvSize;
                 cacheProgram.addStage(shader);
 
-                cacheData += size;
+                cacheData += spirvSize;
             }
             
         } else {
