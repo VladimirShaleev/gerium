@@ -45,7 +45,7 @@ public:
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
-    void bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t frameGraphResource = nullptr);
+    void bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput = nullptr);
     VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle, FrameGraph* frameGraph);
 
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);

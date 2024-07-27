@@ -827,7 +827,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
             for (uint32_t i = 0; i < creation.vertexInput.numVertexBindings; ++i) {
                 const auto& vertexBinding = creation.vertexInput.vertexBindings[i];
 
-                VkVertexInputRate vertexRate = vertexBinding.inputRate == GERIUM_VERTEX_RATE_PER_VERTEX
+                VkVertexInputRate vertexRate = vertexBinding.input_rate == GERIUM_VERTEX_RATE_PER_VERTEX
                                                    ? VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX
                                                    : VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE;
 
@@ -1093,18 +1093,18 @@ void Device::unmapBuffer(BufferHandle handle) {
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
-void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t frameGraphResource) {
+void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput) {
     auto descriptorSet = _descriptorSets.access(handle);
 
     if (descriptorSet->bindings[binding] != resource) {
         descriptorSet->bindings[binding]  = resource;
-        descriptorSet->resources[binding] = frameGraphResource; // intern(frameGraphResource);
+        descriptorSet->resources[binding] = resourceInput; // intern(resourceInput);
         descriptorSet->dirty              = true;
-    } else if (resource == Undefined && frameGraphResource) {
-        descriptorSet->resources[binding] = intern(frameGraphResource);
+    } else if (resource == Undefined && resourceInput) {
+        descriptorSet->resources[binding] = intern(resourceInput);
     }
 
-    descriptorSet->hasResources = descriptorSet->hasResources != 0 || frameGraphResource != nullptr;
+    descriptorSet->hasResources = descriptorSet->hasResources != 0 || resourceInput != nullptr;
 }
 
 VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle, FrameGraph* frameGraph) {

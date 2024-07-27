@@ -41,7 +41,7 @@ private:
     void onDestroyFramebuffer(FramebufferHandle handle) noexcept override;
 
     void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept override;
-    void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t name) noexcept override;
+    void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept override;
 
     gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept override;
     void onUnmapBuffer(BufferHandle handle) noexcept override;

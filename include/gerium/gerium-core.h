@@ -487,7 +487,7 @@ typedef struct
 {
     gerium_uint16_t      binding;
     gerium_uint16_t      stride;
-    gerium_vertex_rate_t inputRate;
+    gerium_vertex_rate_t input_rate;
 } gerium_vertex_binding_t;
 
 typedef struct
@@ -501,8 +501,8 @@ typedef struct
 
 typedef struct
 {
-    gerium_resource_type_t         type;
-    gerium_utf8_t                  name;
+    gerium_resource_type_t type;
+    gerium_utf8_t          name;
 } gerium_resource_input_t;
 
 typedef struct
@@ -801,7 +801,7 @@ gerium_public void
 gerium_renderer_bind_resource(gerium_renderer_t renderer,
                               gerium_descriptor_set_h handle,
                               gerium_uint16_t binding,
-                              gerium_utf8_t name);
+                              gerium_utf8_t resource_input);
 
 gerium_public gerium_data_t
 gerium_renderer_map_buffer(gerium_renderer_t renderer,
