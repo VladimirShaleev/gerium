@@ -650,7 +650,8 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             _device, &shaderInfo, getAllocCalls(), &program->shaderStageInfo[program->activeShaders].module));
 
         SpvReflectShaderModule module{};
-        if (spvReflectCreateShaderModule(shaderInfo.codeSize, (void*) shaderInfo.pCode, &module) != SPV_REFLECT_RESULT_SUCCESS) {
+        if (spvReflectCreateShaderModule(shaderInfo.codeSize, (void*) shaderInfo.pCode, &module) !=
+            SPV_REFLECT_RESULT_SUCCESS) {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
 
@@ -721,6 +722,18 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     const ProgramCreation* programCreation = &creation.program;
 
     if (cacheExists) {
+        /**
+         * Cache format:
+         *
+         * uint32 - pipeline cache size
+         * [...]  - pipeline cache data
+         * uint8  - shader stage count
+         * [
+         *     uint32 - spirv size
+         *     [...]  - spirv data
+         * ]
+         **/
+
         cacheFile = File::open(cachePathStr.c_str(), true);
         cacheData = (const gerium_uint8_t*) cacheFile->map();
 
@@ -748,7 +761,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
 
                 auto type = (gerium_shader_type_t) *cacheData;
                 ++cacheData;
-                
+
                 gerium_shader_t shader;
                 shader.type = type;
                 shader.lang = GERIUM_SHADER_LANGUAGE_SPIRV;
@@ -759,10 +772,10 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
 
                 cacheData += spirvSize;
             }
-            
+
         } else {
             cacheExists = false;
-            cacheData = nullptr;
+            cacheData   = nullptr;
         }
     }
 
@@ -1025,7 +1038,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         auto saveCache = File::create(cachePathStr.c_str(), totalCacheSize);
         auto data      = (gerium_uint8_t*) saveCache->map();
 
-        *(gerium_uint32_t*)(data) = (gerium_uint32_t) cacheSize;
+        *(gerium_uint32_t*) (data) = (gerium_uint32_t) cacheSize;
         data += 4;
         check(_vkTable.vkGetPipelineCacheData(_device, pipelineCache, &cacheSize, (void*) data));
 
@@ -1034,10 +1047,12 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         ++data;
 
         for (gerium_uint8_t i = 0; i < stages; ++i) {
-            *(gerium_uint32_t*)(data) = stageSizes[i];
+            *(gerium_uint32_t*) (data) = stageSizes[i];
             data += 4;
 
-            *data = (gerium_uint8_t)(program->shaderStageInfo[i].stage == VK_SHADER_STAGE_VERTEX_BIT ? GERIUM_SHADER_TYPE_VERTEX : GERIUM_SHADER_TYPE_FRAGMENT); // TODO
+            *data = (gerium_uint8_t) (program->shaderStageInfo[i].stage == VK_SHADER_STAGE_VERTEX_BIT
+                                          ? GERIUM_SHADER_TYPE_VERTEX
+                                          : GERIUM_SHADER_TYPE_FRAGMENT); // TODO
             ++data;
 
             memcpy((void*) data, (const void*) program->spirv[i].data(), stageSizes[i]);
