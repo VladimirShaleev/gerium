@@ -554,7 +554,7 @@ DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& cre
     for (auto& binding : descriptorSet->bindings) {
         binding = Undefined;
     }
-    descriptorSet->layout = Undefined;
+    // descriptorSet->layout = Undefined;
     descriptorSet->dirty  = true;
 
     // auto descriptorSetLayout = _descriptorSetLayouts.access(creation.layout);
@@ -671,6 +671,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             DescriptorSetLayoutData& layout = program->descriptorSets[reflSet.set];
             auto& uniqueBinding             = uniqueBindings[reflSet.set];
 
+            layout.hash = 0;
             for (uint32_t binding = 0; binding < reflSet.binding_count; ++binding) {
                 const SpvReflectDescriptorBinding& reflBinding = *(reflSet.bindings[binding]);
                 layout.bindings.push_back({});
@@ -690,6 +691,11 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                     error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
                 }
                 uniqueBinding.insert(reflBinding.binding);
+
+                layout.hash = hash(layoutBinding.binding, layout.hash);
+                layout.hash = hash(layoutBinding.descriptorType, layout.hash);
+                layout.hash = hash(layoutBinding.descriptorCount, layout.hash);
+                layout.hash = hash(layoutBinding.stageFlags, layout.hash);
             }
             layout.setNumber               = reflSet.set;
             layout.createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1124,34 +1130,24 @@ void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource)
     }
 }
 
-void Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle) {
+VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle) {
     auto descriptorSet = _descriptorSets.access(handle);
+    auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
+    auto& descriptors = descriptorSet->descriptors[pipelineLayout->data.hash];
 
     if (descriptorSet->dirty) {
         descriptorSet->dirty = false;
 
-        auto layout              = _descriptorSetLayouts.access(layoutHandle);
-        bool createDescriptorSet = descriptorSet->layout == Undefined;
+        descriptors.current = (descriptors.current + 1) % MaxFrames;
+        auto& vkDescriptorSet = descriptors.vkDescriptorSet[descriptors.current];
 
-        if (!createDescriptorSet && descriptorSet->layout != layoutHandle) {
-            auto descriptorLayout = _descriptorSetLayouts.access(descriptorSet->layout);
-            // createDescriptorSet = descriptorLayout->data.bindings != pipelineLayout->data.bindings;
-        }
-
-        descriptorSet->currentFrame = (descriptorSet->currentFrame + 1) % MaxFrames;
-
-        auto& currestSet = descriptorSet->vkDescriptorSet[descriptorSet->currentFrame];
-
-        createDescriptorSet = currestSet == VK_NULL_HANDLE ? true : createDescriptorSet;
-
-        if (createDescriptorSet) {
+        if (vkDescriptorSet == VK_NULL_HANDLE) {
             VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
             allocInfo.descriptorPool     = _descriptorPool;
             allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts        = &layout->vkDescriptorSetLayout;
+            allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
 
-            check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &currestSet));
-            descriptorSet->layout = layoutHandle;
+            check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &vkDescriptorSet));
         }
 
         // descriptorSet->numResources = creation.numResources;
@@ -1167,10 +1163,12 @@ void Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayout
         VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
         VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
 
-        const uint32_t num = fillWriteDescriptorSets(*layout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
+        const uint32_t num = fillWriteDescriptorSets(*pipelineLayout, *descriptorSet, vkDescriptorSet, descriptorWrite, bufferInfo, imageInfo);
 
         _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
     }
+
+    return descriptors.vkDescriptorSet[descriptors.current];
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
@@ -1756,6 +1754,7 @@ void Device::printPhysicalDevices() {
 
 uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
                                          const DescriptorSet& descriptorSet,
+                                         VkDescriptorSet vkDescriptorSet,
                                          VkWriteDescriptorSet* descriptorWrite,
                                          VkDescriptorBufferInfo* bufferInfo,
                                          VkDescriptorImageInfo* imageInfo) {
@@ -1785,7 +1784,7 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
         auto i = usedResources++;
 
         descriptorWrite[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite[i].dstSet          = descriptorSet.vkDescriptorSet[descriptorSet.currentFrame];
+        descriptorWrite[i].dstSet          = vkDescriptorSet;
         descriptorWrite[i].dstBinding      = b;
         descriptorWrite[i].dstArrayElement = 0;
         descriptorWrite[i].descriptorCount = binding.descriptorCount;

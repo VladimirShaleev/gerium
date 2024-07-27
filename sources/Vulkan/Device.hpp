@@ -46,7 +46,7 @@ public:
     void unmapBuffer(BufferHandle handle);
 
     void bind(DescriptorSetHandle handle, uint16_t binding, Handle resource);
-    void updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle);
+    VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle);
 
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
 
@@ -190,6 +190,7 @@ private:
 
     uint32_t fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
                                      const DescriptorSet& descriptorSet,
+                                     VkDescriptorSet vkDescriptorSet,
                                      VkWriteDescriptorSet* descriptorWrite,
                                      VkDescriptorBufferInfo* bufferInfo,
                                      VkDescriptorImageInfo* imageInfo);

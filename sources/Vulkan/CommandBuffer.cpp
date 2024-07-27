@@ -254,10 +254,10 @@ void CommandBuffer::onBindVertexBuffer(BufferHandle handle, gerium_uint32_t bind
 void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
     auto pipeline      = _device->_pipelines.access(_currentPipeline);
     auto descriptorSet = _device->_descriptorSets.access(handle);
+    auto layoutHandle  = pipeline->descriptorSetLayoutHandles[set];
+    auto layout        = _device->_descriptorSetLayouts.access(layoutHandle);
 
-    _device->updateDescriptorSet(handle, pipeline->descriptorSetLayoutHandles[set]);
-
-    auto layout = _device->_descriptorSetLayouts.access(descriptorSet->layout);
+    auto vkDescriptorSet = _device->updateDescriptorSet(handle, layoutHandle);
 
     uint32_t offsets[kMaxDescriptorsPerSet];
     gerium_uint32_t bufferCount = 0;
@@ -274,7 +274,7 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
                                                pipeline->vkPipelineLayout,
                                                set,
                                                1,
-                                               &descriptorSet->vkDescriptorSet[descriptorSet->currentFrame],
+                                               &vkDescriptorSet,
                                                bufferCount,
                                                offsets);
 }

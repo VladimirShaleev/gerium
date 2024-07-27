@@ -128,6 +128,7 @@ struct RenderPassCreation {
 
 struct DescriptorSetLayoutData {
     uint32_t setNumber;
+    gerium_uint64_t hash;
     VkDescriptorSetLayoutCreateInfo createInfo;
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 };
@@ -410,16 +411,21 @@ struct RenderPass {
 };
 
 struct DescriptorSet {
-    VkDescriptorSet           vkDescriptorSet[kMaxFrames];
-    DescriptorSetLayoutHandle layout;
-    gerium_uint8_t            currentFrame;
-    gerium_uint8_t            dirty;
+    struct Descriptors {
+        VkDescriptorSet vkDescriptorSet[kMaxFrames];
+        gerium_uint8_t  current;
+    };
+
+    absl::flat_hash_map<gerium_uint64_t, Descriptors> descriptors;
+
+    // DescriptorSetLayoutHandle layout;
 
     //gerium_uint8_t            numResources;
 
     // Handle        resources[kMaxDescriptorsPerSet];
     // SamplerHandle samplers[kMaxDescriptorsPerSet];
     Handle bindings[kMaxDescriptorsPerSet];
+    gerium_uint8_t dirty;
 };
 
 struct DescriptorSetLayout {
