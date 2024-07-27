@@ -785,10 +785,8 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     auto programHandle = createProgram(*programCreation, !cacheExists);
     auto program       = _programs.access(programHandle);
 
-    // pipeline->program = programHandle;
-
     VkDescriptorSetLayout vkLayouts[kMaxDescriptorSetLayouts];
-    uint32_t numActiveLayouts = 0; // shader.parseResult->setCount;
+    uint32_t numActiveLayouts = 0;
 
     std::vector<uint32_t> sets;
     sets.reserve(program->descriptorSets.size());
@@ -818,8 +816,13 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     pipeline->vkPipelineLayout = pipelineLayout;
     pipeline->numActiveLayouts = numActiveLayouts;
 
-    // Create full pipeline
     if (program->graphicsPipeline) {
+        RenderPassCreation rc{};
+        rc.output             = creation.renderPass;
+        rc.name               = creation.name;
+        pipeline->renderPass  = createRenderPass(rc);
+        pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
         VkPipelineVertexInputStateCreateInfo vertexInput{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
         VkVertexInputAttributeDescription vertexAttributes[kMaxVertexAttributes];
         VkVertexInputBindingDescription vertexBindings[kMaxVertexBindings];
@@ -847,8 +850,8 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
                 const auto& vertexBinding = creation.vertexInput.vertexBindings[i];
 
                 VkVertexInputRate vertexRate = vertexBinding.inputRate == GERIUM_VERTEX_RATE_PER_VERTEX
-                                                    ? VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX
-                                                    : VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE;
+                                                   ? VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX
+                                                   : VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE;
 
                 vertexBindings[i] = { vertexBinding.binding, vertexBinding.stride, vertexRate };
             }
@@ -981,41 +984,21 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         pipelineInfo.pColorBlendState    = &colorBlending;
         pipelineInfo.pDynamicState       = &dynamicState;
         pipelineInfo.layout              = pipelineLayout;
-
-        //// Render Pass
-        //  VkPipelineRenderingCreateInfoKHR pipeline_rendering_create_info{
-        //     VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR};
-        //  if (dynamic_rendering_extension_present) {
-        //      pipeline_rendering_create_info.viewMask             = 0;
-        //      pipeline_rendering_create_info.colorAttachmentCount = creation.render_pass.num_color_formats;
-        //      pipeline_rendering_create_info.pColorAttachmentFormats =
-        //          creation.render_pass.num_color_formats > 0 ? creation.render_pass.color_formats : nullptr;
-        //      pipeline_rendering_create_info.depthAttachmentFormat   = creation.render_pass.depth_stencil_format;
-        //      pipeline_rendering_create_info.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
-        //      pipeline_info.pNext = &pipeline_rendering_create_info;
-        //  } else {
-
-        RenderPassCreation rc{};
-        rc.output               = creation.renderPass;
-        rc.name                 = creation.name;
-        pipeline->renderPass    = createRenderPass(rc);
-        pipelineInfo.renderPass = _renderPasses.access(pipeline->renderPass)->vkRenderPass;
-        //}
+        pipelineInfo.renderPass          = _renderPasses.access(pipeline->renderPass)->vkRenderPass;
 
         check(_vkTable.vkCreateGraphicsPipelines(
             _device, pipelineCache, 1, &pipelineInfo, getAllocCalls(), &pipeline->vkPipeline));
 
-        pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     } else {
+        pipeline->renderPass  = Undefined;
+        pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+
         VkComputePipelineCreateInfo pipelineInfo{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
         pipelineInfo.stage  = program->shaderStageInfo[0];
         pipelineInfo.layout = pipelineLayout;
 
         check(_vkTable.vkCreateComputePipelines(
             _device, pipelineCache, 1, &pipelineInfo, getAllocCalls(), &pipeline->vkPipeline));
-
-        pipeline->renderPass  = Undefined;
-        pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
     }
 
     if (!cacheExists) {
@@ -1063,11 +1046,6 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     _vkTable.vkDestroyPipelineCache(_device, pipelineCache, getAllocCalls());
 
     destroyProgram(programHandle);
-
-    // for (uint32_t i = 0; i < shader.activeShaders; ++i) {
-    //     _vkTable.vkDestroyShaderModule(_device, shader.shaderStageInfo[i].module, getAllocCalls());
-    //     shader.shaderStageInfo[i].module = VK_NULL_HANDLE;
-    // }
 
     return handle;
 }
