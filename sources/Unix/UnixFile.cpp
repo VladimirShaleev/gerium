@@ -7,7 +7,7 @@
 
 namespace gerium::unix {
 
-UnixFile::UnixFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _file(-1), _data(nullptr) {
+UnixFile::UnixFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _file(-1), _data(nullptr), _dataSize(0) {
     createDirs(path);
 
     _file = ::open(path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
@@ -19,7 +19,7 @@ UnixFile::UnixFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _fil
     reserveSpace(size);
 }
 
-UnixFile::UnixFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1), _data(nullptr) {
+UnixFile::UnixFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1), _data(nullptr), _dataSize(0) {
     createDirs(path);
 
     _file = ::open(path, (readOnly ? O_RDONLY : O_RDWR) | O_CREAT, S_IRUSR | (readOnly ? 0 : S_IWUSR));
@@ -31,7 +31,7 @@ UnixFile::UnixFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1
 
 UnixFile::~UnixFile() {
     if (_data) {
-        ::munmap(_data, UnixFile::onGetSize());
+        ::munmap(_data, _dataSize);
     }
 
     if (_file >= 0) {
@@ -64,13 +64,13 @@ void UnixFile::createDirs(gerium_utf8_t path) {
 
 gerium_uint64_t UnixFile::onGetSize() noexcept {
 #ifdef __APPLE__
-    struct stat64 stat {};
-
-    ::fstat64(_file, &stat);
-#else
     struct stat stat {};
 
     ::fstat(_file, &stat);
+#else
+    struct stat64 stat {};
+
+    ::fstat64(_file, &stat);
 #endif
     return (gerium_uint64_t) stat.st_size;
 }
@@ -111,12 +111,19 @@ gerium_uint32_t UnixFile::onRead(gerium_data_t data, gerium_uint32_t size) noexc
 
 gerium_data_t UnixFile::onMap() noexcept {
     if (!_data) {
-        _data = ::mmap64(nullptr,
-                         onGetSize(),
-                         PROT_READ | (isReadOnly() ? 0 : PROT_WRITE),
-                         isReadOnly() ? MAP_PRIVATE : MAP_SHARED,
-                         _file,
-                         0);
+        _dataSize = onGetSize();
+#ifdef __APPLE__
+#define os_mmap ::mmap
+#else
+#define os_mmap ::mmap64
+#endif
+        _data = os_mmap(nullptr,
+                        _dataSize,
+                        PROT_READ | (isReadOnly() ? 0 : PROT_WRITE),
+                        isReadOnly() ? MAP_PRIVATE : MAP_SHARED,
+                        _file,
+                        0);
+#undef os_mmap
     }
     return _data;
 }
