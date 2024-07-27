@@ -33,7 +33,7 @@ Ultimately the plan is to implement the following platforms and graphics APIs so
 | MacOS            | `yes` (MoltenVK*) |   `no` |                   `no` (ANGLE*) |
 | Android          |             `yes` |   `no` |                            `no` |
 | iOS              |              `no` |   `no` |                            `no` |
-| Web (Emscripten) |              `no` |   `no` |                   `no` (WebGPU) |
+| Web (Emscripten) |              `no` |   `no` |                    `no` (WebGL) |
 
 - [MoltenVK*](https://github.com/KhronosGroup/MoltenVK)
 - [ANGLE*](https://github.com/google/angle)
