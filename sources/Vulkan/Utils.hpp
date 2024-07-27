@@ -293,9 +293,10 @@ gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) n
             return VK_SHADER_STAGE_VERTEX_BIT;
         case GERIUM_SHADER_TYPE_FRAGMENT:
             return VK_SHADER_STAGE_FRAGMENT_BIT;
+        default:
+            assert(!"TODO");
+            return {};
     }
-    assert(!"TODO");
-    return {};
 }
 
 gerium_inline VkAccessFlags toVkAccessFlags(ResourceState state) noexcept {

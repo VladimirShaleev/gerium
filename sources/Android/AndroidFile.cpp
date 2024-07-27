@@ -13,6 +13,9 @@ AndroidFile::AndroidFile(gerium_uint64_t size) : AndroidFile(getTempFile().c_str
 }
 
 AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _file(-1), _data(nullptr) {
+    const auto dirs = std::filesystem::path(path).parent_path().string();
+    ::mkdir(dirs.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
     _file = ::open(path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
     if (_file < 0) {
@@ -27,6 +30,9 @@ AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : File(false)
 }
 
 AndroidFile::AndroidFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1), _data(nullptr) {
+    const auto dirs = std::filesystem::path(path).parent_path().string();
+    ::mkdir(dirs.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
     _file = ::open(path, (readOnly ? O_RDONLY : O_RDWR) | O_CREAT, S_IRUSR | (readOnly ? 0 : S_IWUSR));
 
     if (_file < 0) {
