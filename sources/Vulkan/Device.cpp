@@ -554,35 +554,7 @@ DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& cre
     for (auto& binding : descriptorSet->bindings) {
         binding = Undefined;
     }
-    // descriptorSet->layout = Undefined;
-    descriptorSet->dirty  = true;
-
-    // auto descriptorSetLayout = _descriptorSetLayouts.access(creation.layout);
-
-    // VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-    // allocInfo.descriptorPool     = _descriptorPool;
-    // allocInfo.descriptorSetCount = 1;
-    // allocInfo.pSetLayouts        = &descriptorSetLayout->vkDescriptorSetLayout;
-
-    // check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
-
-    // descriptorSet->numResources = creation.numResources;
-    // descriptorSet->layout       = creation.layout;
-
-    // for (uint32_t i = 0; i < creation.numResources; ++i) {
-    //     descriptorSet->resources[i] = creation.resources[i];
-    //     descriptorSet->samplers[i]  = creation.samplers[i];
-    //     descriptorSet->bindings[i]  = creation.bindings[i];
-    // }
-
-    // VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
-    // VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
-    // VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
-
-    // const uint32_t num =
-    //     fillWriteDescriptorSets(*descriptorSetLayout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
-
-    // _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
+    descriptorSet->dirty = true;
 
     return handle;
 }
@@ -1131,14 +1103,14 @@ void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource)
 }
 
 VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle) {
-    auto descriptorSet = _descriptorSets.access(handle);
+    auto descriptorSet  = _descriptorSets.access(handle);
     auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
-    auto& descriptors = descriptorSet->descriptors[pipelineLayout->data.hash];
+    auto& descriptors   = descriptorSet->descriptors[pipelineLayout->data.hash];
 
     if (descriptorSet->dirty) {
         descriptorSet->dirty = false;
 
-        descriptors.current = (descriptors.current + 1) % MaxFrames;
+        descriptors.current   = (descriptors.current + 1) % MaxFrames;
         auto& vkDescriptorSet = descriptors.vkDescriptorSet[descriptors.current];
 
         if (vkDescriptorSet == VK_NULL_HANDLE) {
@@ -1163,7 +1135,8 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, Descript
         VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
         VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
 
-        const uint32_t num = fillWriteDescriptorSets(*pipelineLayout, *descriptorSet, vkDescriptorSet, descriptorWrite, bufferInfo, imageInfo);
+        const uint32_t num = fillWriteDescriptorSets(
+            *pipelineLayout, *descriptorSet, vkDescriptorSet, descriptorWrite, bufferInfo, imageInfo);
 
         _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
     }
