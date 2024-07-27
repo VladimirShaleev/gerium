@@ -18,7 +18,7 @@ constexpr uint32_t kMaxFrames               = 2; // TODO: duplicated in Device
 constexpr uint8_t  kMaxImageOutputs         = 8;
 constexpr uint8_t  kMaxDescriptorSetLayouts = 8;
 constexpr uint8_t  kMaxDescriptorsPerSet    = 16;
-constexpr uint8_t  kMaxVertexStreams        = 16;
+constexpr uint8_t  kMaxVertexBindings       = 16;
 constexpr uint8_t  kMaxVertexAttributes     = 16;
 constexpr uint8_t  kMaxShaderStages         = 5;
 constexpr uint8_t  kMaxMaterialPasses       = 20;
@@ -191,37 +191,25 @@ struct BlendStateCreation {
     }
 };
 
-struct VertexStream {
-    uint16_t        binding   = 0;
-    uint16_t        stride    = 0;
-    VertexInputRate inputRate = {}; // TODO:
-};
-
-struct VertexAttribute {
-    uint16_t              location = 0;
-    uint16_t              binding  = 0;
-    uint32_t              offset   = 0;
-    VertexComponentFormat format   = {}; // TODO:
-};
-
 struct VertexInputCreation {
-    uint32_t numVertexStreams    = 0;
-    uint32_t numVertexAttributes = 0;
+    gerium_uint32_t numVertexBindings   = 0;
+    gerium_uint32_t numVertexAttributes = 0;
 
-    VertexStream    vertexStreams[kMaxVertexStreams]{};
-    VertexAttribute vertexAttributes[kMaxVertexAttributes]{};
+    gerium_vertex_binding_t   vertexBindings[kMaxVertexBindings]{};
+    gerium_vertex_attribute_t vertexAttributes[kMaxVertexAttributes]{};
 
     VertexInputCreation& reset() {
-        numVertexStreams = numVertexAttributes = 0;
+        numVertexBindings = 0;
+        numVertexAttributes = 0;
         return *this;
     }
 
-    VertexInputCreation& addVertexStream(const VertexStream& stream) {
-        vertexStreams[numVertexStreams++] = stream;
+    VertexInputCreation& addVertexBinding(const gerium_vertex_binding_t& binding) {
+        vertexBindings[numVertexBindings++] = binding;
         return *this;
     }
 
-    VertexInputCreation& addVertexAttribute(const VertexAttribute& attribute) {
+    VertexInputCreation& addVertexAttribute(const gerium_vertex_attribute_t& attribute) {
         vertexAttributes[numVertexAttributes++] = attribute;
         return *this;
     }
@@ -250,27 +238,6 @@ struct ProgramCreation {
         return *this;
     }
 };
-
-// struct Rect2DInt {
-//     int16_t  x      = 0;
-//     int16_t  y      = 0;
-//     uint16_t width  = 0;
-//     uint16_t height = 0;
-// };
-
-// struct Viewport {
-//     Rect2DInt rect;
-//     float     min_depth = 0.0f;
-//     float     max_depth = 0.0f;
-// };
-
-// struct ViewportState {
-//     uint32_t num_viewports = 0;
-//     uint32_t num_scissors  = 0;
-// 
-//     Viewport*  viewport = nullptr;
-//     Rect2DInt* scissors = nullptr;
-// };
 
 struct PipelineCreation {
     const gerium_rasterization_state_t* rasterization = {};

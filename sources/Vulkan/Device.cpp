@@ -822,7 +822,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     if (program->graphicsPipeline) {
         VkPipelineVertexInputStateCreateInfo vertexInput{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
         VkVertexInputAttributeDescription vertexAttributes[kMaxVertexAttributes];
-        VkVertexInputBindingDescription vertexBindings[kMaxVertexStreams];
+        VkVertexInputBindingDescription vertexBindings[kMaxVertexBindings];
 
         if (creation.vertexInput.numVertexAttributes) {
             for (uint32_t i = 0; i < creation.vertexInput.numVertexAttributes; ++i) {
@@ -830,7 +830,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
 
                 vertexAttributes[i] = { vertexAttribute.location,
                                         vertexAttribute.binding,
-                                        toVkVertexFormat(vertexAttribute.format),
+                                        toVkFormat(vertexAttribute.format),
                                         vertexAttribute.offset };
             }
             vertexInput.vertexAttributeDescriptionCount = creation.vertexInput.numVertexAttributes;
@@ -840,17 +840,17 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
             vertexInput.pVertexAttributeDescriptions    = nullptr;
         }
 
-        if (creation.vertexInput.numVertexStreams) {
-            vertexInput.vertexBindingDescriptionCount = creation.vertexInput.numVertexStreams;
+        if (creation.vertexInput.numVertexBindings) {
+            vertexInput.vertexBindingDescriptionCount = creation.vertexInput.numVertexBindings;
 
-            for (uint32_t i = 0; i < creation.vertexInput.numVertexStreams; ++i) {
-                const auto& vertex_stream = creation.vertexInput.vertexStreams[i];
+            for (uint32_t i = 0; i < creation.vertexInput.numVertexBindings; ++i) {
+                const auto& vertexBinding = creation.vertexInput.vertexBindings[i];
 
-                VkVertexInputRate vertex_rate = vertex_stream.inputRate == VertexInputRate::PerVertex
+                VkVertexInputRate vertexRate = vertexBinding.inputRate == GERIUM_VERTEX_RATE_PER_VERTEX
                                                     ? VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX
                                                     : VkVertexInputRate::VK_VERTEX_INPUT_RATE_INSTANCE;
 
-                vertexBindings[i] = { vertex_stream.binding, vertex_stream.stride, vertex_rate };
+                vertexBindings[i] = { vertexBinding.binding, vertexBinding.stride, vertexRate };
             }
             vertexInput.pVertexBindingDescriptions = vertexBindings;
         } else {

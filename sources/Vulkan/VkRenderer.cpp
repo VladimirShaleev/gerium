@@ -85,43 +85,12 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
 
         for (gerium_uint32_t j = 0; j < pipelines[i].vertex_attribute_count; ++j) {
             const auto& attribute = pipelines[i].vertex_attributes[j];
-            VertexAttribute a{};
-            a.location = attribute.location;
-            a.binding  = attribute.binding;
-            a.offset   = attribute.offset;
-            switch (attribute.format) {
-                case GERIUM_FORMAT_R32G32_SFLOAT:
-                    a.format = VertexComponentFormat::Float2;
-                    break;
-
-                case GERIUM_FORMAT_R32G32B32_SFLOAT:
-                    a.format = VertexComponentFormat::Float3;
-                    break;
-
-                default:
-                    break;
-            }
-            pc.vertexInput.addVertexAttribute(a);
+            pc.vertexInput.addVertexAttribute(attribute);
         }
 
         for (gerium_uint32_t j = 0; j < pipelines[i].vertex_binding_count; ++j) {
             const auto& binding = pipelines[i].vertex_bindings[j];
-            VertexStream s{};
-            s.binding = binding.binding;
-            s.stride  = binding.stride;
-            switch (binding.inputRate) {
-                case GERIUM_VERTEX_RATE_PER_VERTEX:
-                    s.inputRate = VertexInputRate::PerVertex;
-                    break;
-
-                case GERIUM_VERTEX_RATE_PER_INSTANCE:
-                    s.inputRate = VertexInputRate::PerInstance;
-                    break;
-
-                default:
-                    break;
-            }
-            pc.vertexInput.addVertexStream(s);
+            pc.vertexInput.addVertexBinding(binding);
         }
 
         if (auto node = frameGraph.getNode(pipelines[i].render_pass); node && node->renderPass != Undefined) {

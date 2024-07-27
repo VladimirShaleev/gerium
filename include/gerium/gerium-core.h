@@ -485,8 +485,8 @@ typedef struct
 
 typedef struct
 {
-    gerium_uint16_t             binding;
-    gerium_uint16_t             stride;
+    gerium_uint16_t      binding;
+    gerium_uint16_t      stride;
     gerium_vertex_rate_t inputRate;
 } gerium_vertex_binding_t;
 

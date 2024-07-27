@@ -266,27 +266,6 @@ gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type) noex
     return types[(int) type];
 }
 
-gerium_inline VkFormat toVkVertexFormat(VertexComponentFormat value) {
-    constexpr VkFormat sVkVertexFormats[] = { VK_FORMAT_R32_SFLOAT,
-                                              VK_FORMAT_R32G32_SFLOAT,
-                                              VK_FORMAT_R32G32B32_SFLOAT,
-                                              VK_FORMAT_R32G32B32A32_SFLOAT,
-                                              /*MAT4 TODO*/ VK_FORMAT_R32G32B32A32_SFLOAT,
-                                              VK_FORMAT_R8_SINT,
-                                              VK_FORMAT_R8G8B8A8_SNORM,
-                                              VK_FORMAT_R8_UINT,
-                                              VK_FORMAT_R8G8B8A8_UINT,
-                                              VK_FORMAT_R16G16_SINT,
-                                              VK_FORMAT_R16G16_SNORM,
-                                              VK_FORMAT_R16G16B16A16_SINT,
-                                              VK_FORMAT_R16G16B16A16_SNORM,
-                                              VK_FORMAT_R32_UINT,
-                                              VK_FORMAT_R32G32_UINT,
-                                              VK_FORMAT_R32G32B32A32_UINT };
-
-    return sVkVertexFormats[(int) value];
-}
-
 gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) noexcept {
     switch (type) {
         case GERIUM_SHADER_TYPE_VERTEX:

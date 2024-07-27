@@ -113,9 +113,9 @@ gerium_data_t UnixFile::onMap() noexcept {
     if (!_data) {
         _dataSize = onGetSize();
 #ifdef __APPLE__
-#define os_mmap ::mmap
+# define os_mmap ::mmap
 #else
-#define os_mmap ::mmap64
+# define os_mmap ::mmap64
 #endif
         _data = os_mmap(nullptr,
                         _dataSize,
