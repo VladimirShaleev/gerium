@@ -84,8 +84,6 @@ gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
                                gerium_renderer_t renderer,
                                gerium_command_buffer_t command_buffer,
                                gerium_data_t data) {
-    gerium_renderer_bind_resource(renderer, descriptorSet1, 0, frame_graph, "color");
-
     gerium_command_buffer_bind_material(command_buffer, fullscreenMaterial);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet1, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
@@ -153,6 +151,7 @@ bool initialize(gerium_application_t application) {
         gerium_renderer_bind_buffer(renderer, descriptorSet0, 0, meshData);
         gerium_renderer_bind_buffer(renderer, descriptorSet0, 2, uniform2);
         gerium_renderer_bind_buffer(renderer, descriptorSet0_1, 2, uniform1);
+        gerium_renderer_bind_resource(renderer, descriptorSet1, 0, "color");
 
         /*gerium_render_pass_t gbufferPass{ 0, 0, gbufferRender };
         gerium_render_pass_t transparentPass{ 0, 0, transparentRender };

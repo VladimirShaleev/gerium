@@ -425,7 +425,9 @@ struct DescriptorSet {
     // Handle        resources[kMaxDescriptorsPerSet];
     // SamplerHandle samplers[kMaxDescriptorsPerSet];
     Handle bindings[kMaxDescriptorsPerSet];
+    gerium_utf8_t resources[kMaxDescriptorsPerSet];
     gerium_uint8_t dirty;
+    gerium_uint8_t hasResources;
 };
 
 struct DescriptorSetLayout {

@@ -1093,19 +1093,35 @@ void Device::unmapBuffer(BufferHandle handle) {
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
-void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource) {
+void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t frameGraphResource) {
     auto descriptorSet = _descriptorSets.access(handle);
 
     if (descriptorSet->bindings[binding] != resource) {
-        descriptorSet->bindings[binding] = resource;
-        descriptorSet->dirty             = true;
+        descriptorSet->bindings[binding]  = resource;
+        descriptorSet->resources[binding] = frameGraphResource; // intern(frameGraphResource);
+        descriptorSet->dirty              = true;
+    } else if (resource == Undefined && frameGraphResource) {
+        descriptorSet->resources[binding] = intern(frameGraphResource);
     }
+
+    descriptorSet->hasResources = descriptorSet->hasResources != 0 || frameGraphResource != nullptr;
 }
 
-VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle) {
+VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle, FrameGraph* frameGraph) {
     auto descriptorSet  = _descriptorSets.access(handle);
     auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
     auto& descriptors   = descriptorSet->descriptors[pipelineLayout->data.hash];
+
+    if (descriptorSet->hasResources) {
+        for (gerium_uint16_t binding = 0; binding < kMaxDescriptorsPerSet; ++binding) {
+            const auto name = descriptorSet->resources[binding];
+            if (name != nullptr) {
+                auto resource = frameGraph->getResource(name);
+                auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ? Undefined : resource->info.texture.handle;
+                bind(handle, binding, resourceHandle, resource->name);
+            }
+        }
+    }
 
     if (descriptorSet->dirty) {
         descriptorSet->dirty = false;

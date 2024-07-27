@@ -801,7 +801,6 @@ gerium_public void
 gerium_renderer_bind_resource(gerium_renderer_t renderer,
                               gerium_descriptor_set_h handle,
                               gerium_uint16_t binding,
-                              gerium_frame_graph_t frame_graph,
                               gerium_utf8_t name);
 
 gerium_public gerium_data_t

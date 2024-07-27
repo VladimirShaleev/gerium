@@ -8,6 +8,7 @@
 
 #include "../CommandBuffer.hpp"
 #include "../Gerium.hpp"
+#include "../FrameGraph.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
 #include "VkProfiler.hpp"
@@ -53,6 +54,10 @@ public:
         _framebufferHeight = framebufferHeight;
     }
 
+    void setFrameGraph(FrameGraph* frameGraph) noexcept {
+        _currentFrameGraph = frameGraph;
+    }
+
 private:
     friend Device;
     friend CommandBufferManager;
@@ -83,6 +88,7 @@ private:
     void end();
 
     Device* _device;
+    FrameGraph* _currentFrameGraph{};
     VkCommandBuffer _commandBuffer;
     RenderPassHandle _currentRenderPass;
     FramebufferHandle _currentFramebuffer;

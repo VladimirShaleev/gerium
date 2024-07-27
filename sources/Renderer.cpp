@@ -73,11 +73,8 @@ void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferH
     onBind(handle, binding, buffer);
 }
 
-void Renderer::bind(DescriptorSetHandle handle,
-                    gerium_uint16_t binding,
-                    const FrameGraph& frameGraph,
-                    gerium_utf8_t name) noexcept {
-    onBind(handle, binding, frameGraph, name);
+void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t name) noexcept {
+    onBind(handle, binding, name);
 }
 
 gerium_data_t Renderer::mapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept {
@@ -237,11 +234,9 @@ void gerium_renderer_bind_buffer(gerium_renderer_t renderer,
 void gerium_renderer_bind_resource(gerium_renderer_t renderer,
                                    gerium_descriptor_set_h handle,
                                    gerium_uint16_t binding,
-                                   gerium_frame_graph_t frame_graph,
                                    gerium_utf8_t name) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->bind(
-        { handle.unused }, binding, *alias_cast<FrameGraph*>(frame_graph), name);
+    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, name);
 }
 
 gerium_data_t gerium_renderer_map_buffer(gerium_renderer_t renderer,

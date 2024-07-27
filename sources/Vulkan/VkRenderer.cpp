@@ -58,14 +58,11 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
     auto [handle, material] = _materials.obtain_and_access();
     material->name          = intern(name);
 
-    // ViewportState viewport{};
-
     for (gerium_uint32_t i = 0; i < pipelineCount; ++i) {
         PipelineCreation pc{};
         pc.rasterization = pipelines[i].rasterization;
         pc.depthStencil  = pipelines[i].depth_stencil;
         pc.colorBlend    = pipelines[i].color_blend;
-        // pc.viewport      = &viewport;
         pc.name          = pipelines[i].render_pass;
 
         if (auto node = frameGraph.getNode(pipelines[i].render_pass); node) {
@@ -258,19 +255,8 @@ void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, Buf
     _device->bind(handle, binding, buffer);
 }
 
-void VkRenderer::onBind(DescriptorSetHandle handle,
-                        gerium_uint16_t binding,
-                        const FrameGraph& frameGraph,
-                        gerium_utf8_t name) noexcept {
-    auto resource = frameGraph.getResource(name);
-
-    if (resource) {
-        _device->bind(handle,
-                      binding,
-                      resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ? Undefined : resource->info.texture.handle);
-    } else {
-        _device->bind(handle, binding, Undefined);
-    }
+void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t name) noexcept {
+    _device->bind(handle, binding, Undefined, name);
 }
 
 gerium_data_t VkRenderer::onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept {
@@ -386,6 +372,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         cb->setFramebufferHeight(height);
         cb->setViewport(0, 0, width, height, 0.0f, 1.0f);
         cb->setScissor(0, 0, width, height);
+        cb->setFrameGraph(&frameGraph);
 
         if (pass->pass.prepare) {
             pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);

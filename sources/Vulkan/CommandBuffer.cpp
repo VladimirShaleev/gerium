@@ -257,7 +257,7 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
     auto layoutHandle  = pipeline->descriptorSetLayoutHandles[set];
     auto layout        = _device->_descriptorSetLayouts.access(layoutHandle);
 
-    auto vkDescriptorSet = _device->updateDescriptorSet(handle, layoutHandle);
+    auto vkDescriptorSet = _device->updateDescriptorSet(handle, layoutHandle, _currentFrameGraph);
 
     uint32_t offsets[kMaxDescriptorsPerSet];
     gerium_uint32_t bufferCount = 0;
