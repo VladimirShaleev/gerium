@@ -106,6 +106,7 @@ if(WIN32)
     list(APPEND IMGUI_SOURCES "${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp")
 elseif(ANDROID)
     file(GLOB GERIUM_ANDROID_SOURCES
+        "sources/Unix/*.hpp" "sources/Unix/*.cpp"
         "sources/Android/*.hpp" "sources/Android/*.cpp"
         "sources/Vulkan/Android/*.hpp" "sources/Vulkan/Android/*.cpp")
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_ANDROID_SOURCES})
@@ -115,6 +116,7 @@ elseif(IOS)
 elseif(APPLE)
     enable_language(OBJCXX)
     file(GLOB GERIUM_MACOS_SOURCES 
+        "sources/Unix/*.hpp" "sources/Unix/*.cpp"
         "sources/MacOS/*.hpp" "sources/MacOS/*.cpp" "sources/MacOS/*.mm"
         "sources/Vulkan/MacOS/*.hpp" "sources/Vulkan/MacOS/*.cpp" "sources/Vulkan/MacOS/*.mm")
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_MACOS_SOURCES})
