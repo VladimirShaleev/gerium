@@ -59,10 +59,7 @@ find_package(glm CONFIG REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
-include(CTest)
 
-cmake_dependent_option(GERIUM_BUILD_TESTS "Build tests" ON
-    "BUILD_TESTING;CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
@@ -205,10 +202,6 @@ elseif(NOT APPLE)
     if (ANDROID)
         target_link_libraries(gerium PRIVATE android log)
     endif()
-endif()
-
-if(GERIUM_BUILD_TESTS)
-    add_subdirectory(tests)
 endif()
 
 if(GERIUM_BUILD_SAMPLE)

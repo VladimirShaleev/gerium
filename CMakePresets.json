@@ -182,59 +182,6 @@
         }
     ],
     "testPresets": [
-        {
-            "name": "test-base",
-            "hidden": true,
-            "output": {
-                "outputOnFailure": true
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": false
-            }
-        },
-        {
-            "name": "win64-debug",
-            "configurePreset": "win64-debug",
-            "inherits": [
-                "test-base"
-            ]
-        },
-        {
-            "name": "win64-release",
-            "configurePreset": "win64-release",
-            "inherits": [
-                "test-base"
-            ]
-        },
-        {
-            "name": "linux-debug",
-            "configurePreset": "linux-debug",
-            "inherits": [
-                "test-base"
-            ]
-        },
-        {
-            "name": "linux-release",
-            "configurePreset": "linux-release",
-            "inherits": [
-                "test-base"
-            ]
-        },
-        {
-            "name": "osx-debug",
-            "configurePreset": "osx-debug",
-            "inherits": [
-                "test-base"
-            ]
-        },
-        {
-            "name": "osx-release",
-            "configurePreset": "osx-release",
-            "inherits": [
-                "test-base"
-            ]
-        }
     ],
     "workflowPresets": [
         {

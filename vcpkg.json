@@ -13,8 +13,7 @@
     "vulkan-memory-allocator",
     "shaderc",
     "spirv-reflect",
-    "glm",
-    "gtest"
+    "glm"
   ],
   "overrides": [
     { "name": "wyhash", "version": "2023-01-25" }
