@@ -99,6 +99,14 @@ CMRC_DECLARE(gerium::resources);
 // SPIRV-Reflect
 #include <spirv-reflect/spirv_reflect.h>
 
+// marl
+#include "marl/defer.h"
+#include "marl/event.h"
+#include "marl/scheduler.h"
+#include "marl/thread.h"
+#include "marl/ticket.h"
+#include "marl/waitgroup.h"
+
 // GLM
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE

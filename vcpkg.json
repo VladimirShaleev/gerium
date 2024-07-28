@@ -13,6 +13,7 @@
     "vulkan-memory-allocator",
     "shaderc",
     "spirv-reflect",
+    "marl",
     "glm"
   ],
   "overrides": [
