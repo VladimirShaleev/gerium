@@ -1912,6 +1912,49 @@ std::vector<uint32_t> Device::compile(const char* code,
         options.AddMacroDefinition(macro.name, macro.value);
     }
 
+    class Includer : public shaderc::CompileOptions::IncluderInterface {
+    public:
+        shaderc_include_result* GetInclude(const char* requested_source,
+                                           shaderc_include_type type,
+                                           const char* requesting_source,
+                                           size_t include_depth) override {
+            auto result = new shaderc_include_result{};
+
+            const auto path = std::filesystem::path(File::getAppDir()) / requested_source;
+            strings.push_back(path.string());
+
+            result->source_name = "";
+            result->content = "Include file not found";
+            result->content_length = 22;
+
+            if (File::existsFile(strings.back().c_str())) {
+                result->source_name = strings.back().c_str();
+                result->source_name_length = strings.back().length();
+
+                auto file = File::open(result->source_name, true);
+                const auto size = file->getSize();
+
+                data.push_back({});
+                auto& content = data.back();
+
+                content.resize(size);
+                file->read((gerium_data_t) content.data(), (gerium_uint32_t) size);
+
+                result->content = content.data();
+                result->content_length = content.length();
+            }
+            
+            return result;
+        }
+
+        void ReleaseInclude(shaderc_include_result* data) override {
+            delete data;
+        }
+
+        std::vector<std::string> strings;
+        std::vector<std::string> data;
+    };
+
     options.SetSourceLanguage(sourceLang);
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
     options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
@@ -1921,6 +1964,7 @@ std::vector<uint32_t> Device::compile(const char* code,
     options.SetAutoMapLocations(true);
     options.SetAutoBindUniforms(true);
     options.SetAutoSampledTextures(true);
+    options.SetIncluder(std::make_unique<Includer>());
 
     auto result = compiler.CompileGlslToSpv(code, size, kind, name, "main", options);
 
