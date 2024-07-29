@@ -604,7 +604,8 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 spirv = std::vector(shaderInfo.pCode, shaderInfo.pCode + shaderInfo.codeSize / 4);
             }
         } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL) {
-            spirv = compileGLSL((const char*) stage.data, stage.size, stageType, creation.name);
+            spirv = compileGLSL(
+                (const char*) stage.data, stage.size, stageType, creation.name, stage.macro_count, stage.macros);
 
             shaderInfo.codeSize = spirv.size() * 4;
             shaderInfo.pCode    = spirv.data();
@@ -1864,7 +1865,9 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
 std::vector<uint32_t> Device::compileGLSL(const char* code,
                                           size_t size,
                                           VkShaderStageFlagBits stage,
-                                          const char* name) {
+                                          const char* name,
+                                          gerium_uint32_t numMacros,
+                                          const gerium_macro_definition_t* macros) {
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
 
@@ -1887,7 +1890,14 @@ std::vector<uint32_t> Device::compileGLSL(const char* code,
             throw std::runtime_error("Not supported shader type");
     }
 
+    for (gerium_uint32_t i = 0; i < numMacros; ++i) {
+        const auto& macro = macros[i];
+        options.AddMacroDefinition(macro.name, macro.value);
+    }
+
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
+    options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
+    options.SetTargetSpirv(shaderc_spirv_version_1_2);
     options.SetWarningsAsErrors();
     options.SetPreserveBindings(true);
     options.SetAutoMapLocations(true);
@@ -2521,6 +2531,13 @@ gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexc
         const auto& stage = creation.program.stages[i];
 
         seed = hash(stage.data, stage.size, seed);
+
+        for (gerium_uint32_t m = 0; m < stage.macro_count; ++m) {
+            const auto& macro = stage.macros[m];
+
+            seed = hash(macro.name, seed);
+            seed = hash(macro.value, seed);
+        }
     }
 
     return seed;

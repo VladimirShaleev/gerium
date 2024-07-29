@@ -438,7 +438,7 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create_technique(
             renderer, frameGraph, "base", std::size(basePipelines), basePipelines, &baseTechnique));
 
-        gerium_shader_t fullscreenShaders[2];
+        gerium_shader_t fullscreenShaders[2]{};
         fullscreenShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
         fullscreenShaders[0].lang = GERIUM_SHADER_LANGUAGE_GLSL;
         fullscreenShaders[0].name = "fullscreen.vert.glsl";

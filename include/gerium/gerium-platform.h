@@ -61,6 +61,7 @@
 # include <stdint.h>
 #endif
 
+typedef char        gerium_char_t;   
 typedef int32_t     gerium_bool_t;   
 typedef int8_t      gerium_sint8_t;  
 typedef uint8_t     gerium_uint8_t;  

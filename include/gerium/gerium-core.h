@@ -492,11 +492,19 @@ typedef struct
 
 typedef struct
 {
-    gerium_shader_type_t    type;
-    gerium_shader_languge_t lang;
-    gerium_utf8_t           name;
-    gerium_cdata_t          data;
-    gerium_uint32_t         size;
+    gerium_char_t name[128];
+    gerium_char_t value[128];
+} gerium_macro_definition_t;
+
+typedef struct
+{
+    gerium_shader_type_t             type;
+    gerium_shader_languge_t          lang;
+    gerium_utf8_t                    name;
+    gerium_cdata_t                   data;
+    gerium_uint32_t                  size;
+    gerium_uint32_t                  macro_count;
+    const gerium_macro_definition_t* macros;
 } gerium_shader_t;
 
 typedef struct

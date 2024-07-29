@@ -46,7 +46,9 @@ public:
     void unmapBuffer(BufferHandle handle);
 
     void bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput = nullptr);
-    VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle, FrameGraph* frameGraph);
+    VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle,
+                                        DescriptorSetLayoutHandle layoutHandle,
+                                        FrameGraph* frameGraph);
 
     CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
 
@@ -194,7 +196,12 @@ private:
                                      VkWriteDescriptorSet* descriptorWrite,
                                      VkDescriptorBufferInfo* bufferInfo,
                                      VkDescriptorImageInfo* imageInfo);
-    std::vector<uint32_t> compileGLSL(const char* code, size_t size, VkShaderStageFlagBits stage, const char* name);
+    std::vector<uint32_t> compileGLSL(const char* code,
+                                      size_t size,
+                                      VkShaderStageFlagBits stage,
+                                      const char* name,
+                                      gerium_uint32_t numMacros,
+                                      const gerium_macro_definition_t* macros);
     VkRenderPass vkCreateRenderPass(const RenderPassOutput& output, const char* name);
     void deleteResources(bool forceDelete = false);
     void setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name);
