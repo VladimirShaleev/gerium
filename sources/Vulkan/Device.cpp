@@ -759,9 +759,11 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
 
     VkPipelineCache pipelineCache;
     check(_vkTable.vkCreatePipelineCache(_device, &cacheInfo, getAllocCalls(), &pipelineCache));
+    defer(_vkTable.vkDestroyPipelineCache(_device, pipelineCache, getAllocCalls()));
 
     auto programHandle = createProgram(*programCreation, !cacheExists);
     auto program       = _programs.access(programHandle);
+    defer(destroyProgram(programHandle));
 
     VkDescriptorSetLayout vkLayouts[kMaxDescriptorSetLayouts];
     uint32_t numActiveLayouts = 0;
@@ -1021,10 +1023,6 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         }
     }
 
-    _vkTable.vkDestroyPipelineCache(_device, pipelineCache, getAllocCalls());
-
-    destroyProgram(programHandle);
-
     return handle;
 }
 
@@ -1107,7 +1105,9 @@ void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource,
     descriptorSet->hasResources = descriptorSet->hasResources != 0 || resourceInput != nullptr;
 }
 
-VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, DescriptorSetLayoutHandle layoutHandle, FrameGraph* frameGraph) {
+VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
+                                            DescriptorSetLayoutHandle layoutHandle,
+                                            FrameGraph* frameGraph) {
     auto descriptorSet  = _descriptorSets.access(handle);
     auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
     auto& descriptors   = descriptorSet->descriptors[pipelineLayout->data.hash];
@@ -1117,7 +1117,8 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle, Descript
             const auto name = descriptorSet->resources[binding];
             if (name != nullptr) {
                 auto resource = frameGraph->getResource(name);
-                auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ? Undefined : resource->info.texture.handle;
+                auto resourceHandle =
+                    resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ? Undefined : resource->info.texture.handle;
                 bind(handle, binding, resourceHandle, resource->name);
             }
         }
