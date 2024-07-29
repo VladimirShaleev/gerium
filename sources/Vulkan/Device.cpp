@@ -587,7 +587,13 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
 
         auto lang = stage.lang;
         if (lang == GERIUM_SHADER_LANGUAGE_UNKNOWN) {
-            // TODO: calc lang
+            if (ctre::search<"#version 450">((const char*) stage.data)) {
+                lang = GERIUM_SHADER_LANGUAGE_GLSL;
+            } else if (ctre::search<"(SV_\\w+)">((const char*) stage.data)) {
+                lang = GERIUM_SHADER_LANGUAGE_HLSL;
+            } else {
+                error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            }
         }
 
         const auto stageType = toVkShaderStage(stage.type);
@@ -604,13 +610,8 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 spirv = std::vector(shaderInfo.pCode, shaderInfo.pCode + shaderInfo.codeSize / 4);
             }
         } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL || lang == GERIUM_SHADER_LANGUAGE_HLSL) {
-            spirv = compile((const char*) stage.data,
-                            stage.size,
-                            lang,
-                            stageType,
-                            creation.name,
-                            stage.macro_count,
-                            stage.macros);
+            spirv = compile(
+                (const char*) stage.data, stage.size, lang, stageType, creation.name, stage.macro_count, stage.macros);
 
             shaderInfo.codeSize = spirv.size() * 4;
             shaderInfo.pCode    = spirv.data();
