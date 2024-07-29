@@ -440,16 +440,31 @@ bool initialize(gerium_application_t application) {
 
         gerium_shader_t fullscreenShaders[2]{};
         fullscreenShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
-        fullscreenShaders[0].lang = GERIUM_SHADER_LANGUAGE_GLSL;
-        fullscreenShaders[0].name = "fullscreen.vert.glsl";
-        fullscreenShaders[0].data = "#version 450\n"
+        fullscreenShaders[0].lang = GERIUM_SHADER_LANGUAGE_HLSL;
+        fullscreenShaders[0].name = "fullscreen.vert.hlsl";
+        // fullscreenShaders[0].data = "#version 450\n"
+        //                             "\n"
+        //                             "layout(location = 0) out vec2 vTexCoord;"
+        //                             "\n"
+        //                             "void main() {\n"
+        //                             "    vTexCoord.xy = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
+        //                             "    gl_Position = vec4(vTexCoord.xy * 2.0f - 1.0f, 0.0f, 1.0f);\n"
+        //                             "    gl_Position.y = -gl_Position.y;\n"
+        //                             "}\n";
+        fullscreenShaders[0].data = "struct Output {\n"
+                                    "    float4 pos : SV_POSITION;\n"
+                                    "    float2 uv  : TEXCOORD0;\n"
+                                    "};\n"
                                     "\n"
-                                    "layout(location = 0) out vec2 vTexCoord;"
-                                    "\n"
-                                    "void main() {\n"
-                                    "    vTexCoord.xy = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
-                                    "    gl_Position = vec4(vTexCoord.xy * 2.0f - 1.0f, 0.0f, 1.0f);\n"
-                                    "    gl_Position.y = -gl_Position.y;\n"
+                                    "Output main(uint id : SV_VertexID) {\n"
+                                    "    Output output;\n"
+                                    "    output.uv.x = float((id << 1) & 2);\n"
+                                    "    output.uv.y = float(id & 2);\n"
+                                    "    output.pos.xy = output.uv.xy * 2.0f - 1.0f;\n"
+                                    "    output.pos.z = 0.0f;\n"
+                                    "    output.pos.w = 1.0f;\n"
+                                    "    output.pos.y = -output.pos.y;\n"
+                                    "    return output;\n"
                                     "}\n";
         fullscreenShaders[0].size = strlen((const char*) fullscreenShaders[0].data);
 

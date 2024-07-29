@@ -603,14 +603,17 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             if (saveSpirv) {
                 spirv = std::vector(shaderInfo.pCode, shaderInfo.pCode + shaderInfo.codeSize / 4);
             }
-        } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL) {
-            spirv = compileGLSL(
-                (const char*) stage.data, stage.size, stageType, creation.name, stage.macro_count, stage.macros);
+        } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL || lang == GERIUM_SHADER_LANGUAGE_HLSL) {
+            spirv = compile((const char*) stage.data,
+                            stage.size,
+                            lang,
+                            stageType,
+                            creation.name,
+                            stage.macro_count,
+                            stage.macros);
 
             shaderInfo.codeSize = spirv.size() * 4;
             shaderInfo.pCode    = spirv.data();
-        } else if (lang == GERIUM_SHADER_LANGUAGE_HLSL) {
-            error(GERIUM_RESULT_ERROR_NOT_IMPLEMENTED);
         } else {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
@@ -1862,16 +1865,29 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
     return usedResources;
 }
 
-std::vector<uint32_t> Device::compileGLSL(const char* code,
-                                          size_t size,
-                                          VkShaderStageFlagBits stage,
-                                          const char* name,
-                                          gerium_uint32_t numMacros,
-                                          const gerium_macro_definition_t* macros) {
+std::vector<uint32_t> Device::compile(const char* code,
+                                      size_t size,
+                                      gerium_shader_languge_t lang,
+                                      VkShaderStageFlagBits stage,
+                                      const char* name,
+                                      gerium_uint32_t numMacros,
+                                      const gerium_macro_definition_t* macros) {
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
 
+    shaderc_source_language sourceLang;
     shaderc_shader_kind kind;
+
+    switch (lang) {
+        case GERIUM_SHADER_LANGUAGE_GLSL:
+            sourceLang = shaderc_source_language_glsl;
+            break;
+        case GERIUM_SHADER_LANGUAGE_HLSL:
+            sourceLang = shaderc_source_language_hlsl;
+            break;
+        default:
+            throw std::runtime_error("Not supported language");
+    }
 
     switch (stage) {
         case VK_SHADER_STAGE_VERTEX_BIT:
@@ -1895,6 +1911,7 @@ std::vector<uint32_t> Device::compileGLSL(const char* code,
         options.AddMacroDefinition(macro.name, macro.value);
     }
 
+    options.SetSourceLanguage(sourceLang);
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
     options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
     options.SetTargetSpirv(shaderc_spirv_version_1_2);

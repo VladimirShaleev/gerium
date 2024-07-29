@@ -196,12 +196,13 @@ private:
                                      VkWriteDescriptorSet* descriptorWrite,
                                      VkDescriptorBufferInfo* bufferInfo,
                                      VkDescriptorImageInfo* imageInfo);
-    std::vector<uint32_t> compileGLSL(const char* code,
-                                      size_t size,
-                                      VkShaderStageFlagBits stage,
-                                      const char* name,
-                                      gerium_uint32_t numMacros,
-                                      const gerium_macro_definition_t* macros);
+    std::vector<uint32_t> compile(const char* code,
+                                  size_t size,
+                                  gerium_shader_languge_t lang,
+                                  VkShaderStageFlagBits stage,
+                                  const char* name,
+                                  gerium_uint32_t numMacros,
+                                  const gerium_macro_definition_t* macros);
     VkRenderPass vkCreateRenderPass(const RenderPassOutput& output, const char* name);
     void deleteResources(bool forceDelete = false);
     void setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name);
