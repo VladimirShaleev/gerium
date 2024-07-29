@@ -11,7 +11,7 @@ struct BufferHandle : Handle {};
 
 struct TextureHandle : Handle {};
 
-struct MaterialHandle : Handle {};
+struct TechniqueHandle : Handle {};
 
 struct DescriptorSetHandle : Handle {};
 

@@ -26,11 +26,11 @@ TextureHandle Renderer::createTexture(const TextureCreation& creation) {
     return onCreateTexture(creation);
 }
 
-MaterialHandle Renderer::createMaterial(const FrameGraph& frameGraph,
-                                        gerium_utf8_t name,
-                                        gerium_uint32_t pipelineCount,
-                                        const gerium_pipeline_t* pipelines) {
-    return onCreateMaterial(frameGraph, name, pipelineCount, pipelines);
+TechniqueHandle Renderer::createTechnique(const FrameGraph& frameGraph,
+                                          gerium_utf8_t name,
+                                          gerium_uint32_t pipelineCount,
+                                          const gerium_pipeline_t* pipelines) {
+    return onCreateTechnique(frameGraph, name, pipelineCount, pipelines);
 }
 
 DescriptorSetHandle Renderer::createDescriptorSet() {
@@ -53,8 +53,8 @@ void Renderer::destroyTexture(TextureHandle handle) noexcept {
     onDestroyTexture(handle);
 }
 
-void Renderer::destroyMaterial(MaterialHandle handle) noexcept {
-    onDestroyMaterial(handle);
+void Renderer::destroyTechnique(TechniqueHandle handle) noexcept {
+    onDestroyTechnique(handle);
 }
 
 void Renderer::destroyDescriptorSet(DescriptorSetHandle handle) noexcept {
@@ -170,12 +170,12 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
     GERIUM_END_SAFE_BLOCK
 }
 
-gerium_result_t gerium_renderer_create_material(gerium_renderer_t renderer,
-                                                gerium_frame_graph_t frame_graph,
-                                                gerium_utf8_t name,
-                                                gerium_uint32_t pipeline_count,
-                                                const gerium_pipeline_t* pipelines,
-                                                gerium_material_h* handle) {
+gerium_result_t gerium_renderer_create_technique(gerium_renderer_t renderer,
+                                                 gerium_frame_graph_t frame_graph,
+                                                 gerium_utf8_t name,
+                                                 gerium_uint32_t pipeline_count,
+                                                 const gerium_pipeline_t* pipelines,
+                                                 gerium_technique_h* handle) {
     assert(renderer);
     GERIUM_ASSERT_ARG(frame_graph);
     GERIUM_ASSERT_ARG(name);
@@ -189,7 +189,7 @@ gerium_result_t gerium_renderer_create_material(gerium_renderer_t renderer,
     }
 
     GERIUM_BEGIN_SAFE_BLOCK
-        *handle = alias_cast<Renderer*>(renderer)->createMaterial(
+        *handle = alias_cast<Renderer*>(renderer)->createTechnique(
             *alias_cast<FrameGraph*>(frame_graph), name, pipeline_count, pipelines);
     GERIUM_END_SAFE_BLOCK
 }
@@ -213,9 +213,9 @@ void gerium_renderer_destroy_texture(gerium_renderer_t renderer, gerium_texture_
     return alias_cast<Renderer*>(renderer)->destroyTexture({ handle.unused });
 }
 
-void gerium_renderer_destroy_material(gerium_renderer_t renderer, gerium_material_h handle) {
+void gerium_renderer_destroy_technique(gerium_renderer_t renderer, gerium_technique_h handle) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->destroyMaterial({ handle.unused });
+    return alias_cast<Renderer*>(renderer)->destroyTechnique({ handle.unused });
 }
 
 void gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer, gerium_descriptor_set_h handle) {

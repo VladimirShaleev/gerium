@@ -12,7 +12,7 @@ class VkRenderer : public Renderer {
 public:
     VkRenderer(Application* application, ObjectPtr<Device>&& device) noexcept;
 
-    PipelineHandle getPipeline(MaterialHandle handle) const noexcept;
+    PipelineHandle getPipeline(TechniqueHandle handle) const noexcept;
 
 protected:
     void onInitialize(gerium_uint32_t version, bool debug) override;
@@ -25,17 +25,17 @@ private:
 
     BufferHandle onCreateBuffer(const BufferCreation& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
-    MaterialHandle onCreateMaterial(const FrameGraph& frameGraph,
-                                    gerium_utf8_t name,
-                                    gerium_uint32_t pipelineCount,
-                                    const gerium_pipeline_t* pipelines) override;
+    TechniqueHandle onCreateTechnique(const FrameGraph& frameGraph,
+                                      gerium_utf8_t name,
+                                      gerium_uint32_t pipelineCount,
+                                      const gerium_pipeline_t* pipelines) override;
     DescriptorSetHandle onCreateDescriptorSet() override;
     RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
     FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
 
     void onDestroyBuffer(BufferHandle handle) noexcept override;
     void onDestroyTexture(TextureHandle handle) noexcept override;
-    void onDestroyMaterial(MaterialHandle handle) noexcept override;
+    void onDestroyTechnique(TechniqueHandle handle) noexcept override;
     void onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept override;
     void onDestroyRenderPass(RenderPassHandle handle) noexcept override;
     void onDestroyFramebuffer(FramebufferHandle handle) noexcept override;
@@ -59,7 +59,7 @@ private:
     gerium_uint16_t _height;
     gerium_utf8_t _currentRenderPass;
 
-    MaterialPool _materials;
+    TechniquePool _techniques;
 };
 
 } // namespace gerium::vulkan

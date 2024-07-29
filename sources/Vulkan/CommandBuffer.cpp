@@ -228,7 +228,7 @@ void CommandBuffer::onSetScissor(gerium_uint16_t x,
     _device->vkTable().vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
 }
 
-void CommandBuffer::onBindMaterial(MaterialHandle handle) noexcept {
+void CommandBuffer::onBindTechnique(TechniqueHandle handle) noexcept {
     auto pipeline = alias_cast<VkRenderer*>(getRenderer())->getPipeline(handle);
 
     if (_currentPipeline != pipeline) {

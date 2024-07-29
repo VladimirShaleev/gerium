@@ -24,8 +24,8 @@ void CommandBuffer::setScissor(gerium_uint16_t x,
     onSetScissor(x, y, width, height);
 }
 
-void CommandBuffer::bindMaterial(MaterialHandle handle) noexcept {
-    onBindMaterial(handle);
+void CommandBuffer::bindTechnique(TechniqueHandle handle) noexcept {
+    onBindTechnique(handle);
 }
 
 void CommandBuffer::bindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept {
@@ -76,9 +76,9 @@ void gerium_command_buffer_set_scissor(gerium_command_buffer_t command_buffer,
     alias_cast<CommandBuffer*>(command_buffer)->setScissor(x, y, width, height);
 }
 
-void gerium_command_buffer_bind_material(gerium_command_buffer_t command_buffer, gerium_material_h handle) {
+void gerium_command_buffer_bind_technique(gerium_command_buffer_t command_buffer, gerium_technique_h handle) {
     assert(command_buffer);
-    alias_cast<CommandBuffer*>(command_buffer)->bindMaterial({ handle.unused });
+    alias_cast<CommandBuffer*>(command_buffer)->bindTechnique({ handle.unused });
 }
 
 void gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_buffer,

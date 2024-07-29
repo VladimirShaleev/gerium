@@ -14,17 +14,17 @@ VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noe
     }
 }
 
-PipelineHandle VkRenderer::getPipeline(MaterialHandle handle) const noexcept {
-    auto material = _materials.access(handle);
+PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
+    auto technique = _techniques.access(handle);
 
-    auto it = std::lower_bound(material->passes,
-                               material->passes + material->passCount,
+    auto it = std::lower_bound(technique->passes,
+                               technique->passes + technique->passCount,
                                _currentRenderPass,
                                [](const auto& p1, const auto& pass) {
         return p1.render_pass < pass;
     });
 
-    return it != material->passes + material->passCount ? it->pipeline : Undefined;
+    return it != technique->passes + technique->passCount ? it->pipeline : Undefined;
 }
 
 void VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
@@ -51,12 +51,12 @@ TextureHandle VkRenderer::onCreateTexture(const TextureCreation& creation) {
     return _device->createTexture(creation);
 }
 
-MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
-                                            gerium_utf8_t name,
-                                            gerium_uint32_t pipelineCount,
-                                            const gerium_pipeline_t* pipelines) {
-    auto [handle, material] = _materials.obtain_and_access();
-    material->name          = intern(name);
+TechniqueHandle VkRenderer::onCreateTechnique(const FrameGraph& frameGraph,
+                                              gerium_utf8_t name,
+                                              gerium_uint32_t pipelineCount,
+                                              const gerium_pipeline_t* pipelines) {
+    auto [handle, technique] = _techniques.obtain_and_access();
+    technique->name          = intern(name);
 
     for (gerium_uint32_t i = 0; i < pipelineCount; ++i) {
         PipelineCreation pc{};
@@ -96,12 +96,12 @@ MaterialHandle VkRenderer::onCreateMaterial(const FrameGraph& frameGraph,
             pc.renderPass = _device->getRenderPassOutput(_device->getSwapchainPass());
         }
 
-        material->passes[i].render_pass = intern(pipelines[i].render_pass);
-        material->passes[i].pipeline    = _device->createPipeline(pc);
-        ++material->passCount;
+        technique->passes[i].render_pass = intern(pipelines[i].render_pass);
+        technique->passes[i].pipeline    = _device->createPipeline(pc);
+        ++technique->passCount;
     }
 
-    std::sort(material->passes, material->passes + material->passCount, [](const auto& mat1, const auto& mat2) {
+    std::sort(technique->passes, technique->passes + technique->passCount, [](const auto& mat1, const auto& mat2) {
         return mat1.render_pass < mat2.render_pass;
     });
 
@@ -233,14 +233,14 @@ void VkRenderer::onDestroyTexture(TextureHandle handle) noexcept {
     _device->destroyTexture(handle);
 }
 
-void VkRenderer::onDestroyMaterial(MaterialHandle handle) noexcept {
-    auto meterial = _materials.access(handle);
+void VkRenderer::onDestroyTechnique(TechniqueHandle handle) noexcept {
+    auto meterial = _techniques.access(handle);
 
     for (gerium_uint32_t i = 0; i < meterial->passCount; ++i) {
         _device->destroyPipeline(meterial->passes[i].pipeline);
     }
 
-    _materials.release(handle);
+    _techniques.release(handle);
 }
 
 void VkRenderer::onDestroyDescriptorSet(DescriptorSetHandle handle) noexcept {

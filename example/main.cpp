@@ -22,8 +22,8 @@ static gerium_buffer_h vertices                 = {};
 static gerium_buffer_h meshData                 = {};
 static gerium_buffer_h uniform1                 = {};
 static gerium_buffer_h uniform2                 = {};
-static gerium_material_h baseMaterial           = {};
-static gerium_material_h fullscreenMaterial     = {};
+static gerium_technique_h baseTechnique         = {};
+static gerium_technique_h fullscreenTechnique   = {};
 static gerium_descriptor_set_h descriptorSet0   = {};
 static gerium_descriptor_set_h descriptorSet0_1 = {};
 static gerium_descriptor_set_h descriptorSet1   = {};
@@ -72,7 +72,7 @@ gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
                            gerium_renderer_t renderer,
                            gerium_command_buffer_t command_buffer,
                            gerium_data_t data) {
-    gerium_command_buffer_bind_material(command_buffer, baseMaterial);
+    gerium_command_buffer_bind_technique(command_buffer, baseTechnique);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet0, 0);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet0_1, 1);
     gerium_command_buffer_bind_vertex_buffer(command_buffer, vertices, 0, 0);
@@ -84,7 +84,7 @@ gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
                                gerium_renderer_t renderer,
                                gerium_command_buffer_t command_buffer,
                                gerium_data_t data) {
-    gerium_command_buffer_bind_material(command_buffer, fullscreenMaterial);
+    gerium_command_buffer_bind_technique(command_buffer, fullscreenTechnique);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet1, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
     gerium_command_buffer_draw_profiler(command_buffer, nullptr);
@@ -314,7 +314,7 @@ bool initialize(gerium_application_t application) {
         lightingPipelines[0].shader_count           = std::size(lightingShaders);
         lightingPipelines[0].shaders                = lightingShaders;
 
-        check(gerium_renderer_create_material(
+        check(gerium_renderer_create_technique(
             renderer, frameGraph, "lighting", std::size(lightingPipelines), lightingPipelines, &lighting));*/
 
         gerium_render_pass_t fullscreenPass{ 0, 0, fullscreenRender };
@@ -435,8 +435,8 @@ bool initialize(gerium_application_t application) {
         basePipelines[0].shader_count           = std::size(baseShaders);
         basePipelines[0].shaders                = baseShaders;
 
-        check(gerium_renderer_create_material(
-            renderer, frameGraph, "base", std::size(basePipelines), basePipelines, &baseMaterial));
+        check(gerium_renderer_create_technique(
+            renderer, frameGraph, "base", std::size(basePipelines), basePipelines, &baseTechnique));
 
         gerium_shader_t fullscreenShaders[2];
         fullscreenShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
@@ -477,12 +477,12 @@ bool initialize(gerium_application_t application) {
         fullscreenPipelines[0].shader_count  = std::size(fullscreenShaders);
         fullscreenPipelines[0].shaders       = fullscreenShaders;
 
-        check(gerium_renderer_create_material(renderer,
-                                              frameGraph,
-                                              "fullscreen",
-                                              std::size(fullscreenPipelines),
-                                              fullscreenPipelines,
-                                              &fullscreenMaterial));
+        check(gerium_renderer_create_technique(renderer,
+                                               frameGraph,
+                                               "fullscreen",
+                                               std::size(fullscreenPipelines),
+                                               fullscreenPipelines,
+                                               &fullscreenTechnique));
 
     } catch (const std::runtime_error& exc) {
         gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
@@ -499,8 +499,8 @@ void unitialize(gerium_application_t application) {
         gerium_renderer_destroy_descriptor_set(renderer, descriptorSet1);
         gerium_renderer_destroy_descriptor_set(renderer, descriptorSet0_1);
         gerium_renderer_destroy_descriptor_set(renderer, descriptorSet0);
-        gerium_renderer_destroy_material(renderer, fullscreenMaterial);
-        gerium_renderer_destroy_material(renderer, baseMaterial);
+        gerium_renderer_destroy_technique(renderer, fullscreenTechnique);
+        gerium_renderer_destroy_technique(renderer, baseTechnique);
         gerium_renderer_destroy_buffer(renderer, uniform2);
         gerium_renderer_destroy_buffer(renderer, uniform1);
         gerium_renderer_destroy_buffer(renderer, meshData);
@@ -619,10 +619,12 @@ int main() {
     // Testing file
     // const auto a1 = gerium_file_get_cache_dir();
     // const auto a2 = gerium_file_get_app_dir();
-    // const auto b1 = gerium_file_exists_file("D:\\Development\\Projects\\gerium\\example\\main.cpp"); // "/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
-    // const auto b2 = gerium_file_exists_file("D:\\Development\\Projects\\gerium\\example"); // ""/storage/emulated/0/Pictures");
-    // const auto b3 = gerium_file_exists_dir("D:\\Development\\Projects\\gerium\\example\\main.cpp"); // ""/storage/emulated/0/Pictures/IMG_20240725_013124.jpg");
-    // const auto b4 = gerium_file_exists_dir("D:\\Development\\Projects\\gerium\\example\\"); // ""/storage/emulated/0/Pictures");
+    // const auto b1 = gerium_file_exists_file("D:\\Development\\Projects\\gerium\\example\\main.cpp"); //
+    // "/storage/emulated/0/Pictures/IMG_20240725_013124.jpg"); const auto b2 =
+    // gerium_file_exists_file("D:\\Development\\Projects\\gerium\\example"); // ""/storage/emulated/0/Pictures"); const
+    // auto b3 = gerium_file_exists_dir("D:\\Development\\Projects\\gerium\\example\\main.cpp"); //
+    // ""/storage/emulated/0/Pictures/IMG_20240725_013124.jpg"); const auto b4 =
+    // gerium_file_exists_dir("D:\\Development\\Projects\\gerium\\example\\"); // ""/storage/emulated/0/Pictures");
 
     // gerium_file_t file;
     // gerium_file_create_temp(1024 * 1024 * 4, &file);

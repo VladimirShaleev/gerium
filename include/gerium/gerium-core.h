@@ -23,7 +23,7 @@ GERIUM_TYPE(gerium_profiler)
 
 GERIUM_HANDLE(gerium_buffer)
 GERIUM_HANDLE(gerium_texture)
-GERIUM_HANDLE(gerium_material)
+GERIUM_HANDLE(gerium_technique)
 GERIUM_HANDLE(gerium_descriptor_set)
 
 typedef enum
@@ -764,12 +764,12 @@ gerium_renderer_create_texture(gerium_renderer_t renderer,
                                gerium_texture_h* handle);
 
 gerium_public gerium_result_t
-gerium_renderer_create_material(gerium_renderer_t renderer,
-                                gerium_frame_graph_t frame_graph,
-                                gerium_utf8_t name,
-                                gerium_uint32_t pipeline_count,
-                                const gerium_pipeline_t* pipelines,
-                                gerium_material_h* handle);
+gerium_renderer_create_technique(gerium_renderer_t renderer,
+                                 gerium_frame_graph_t frame_graph,
+                                 gerium_utf8_t name,
+                                 gerium_uint32_t pipeline_count,
+                                 const gerium_pipeline_t* pipelines,
+                                 gerium_technique_h* handle);
 
 gerium_public gerium_result_t
 gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
@@ -784,8 +784,8 @@ gerium_renderer_destroy_texture(gerium_renderer_t renderer,
                                 gerium_texture_h handle);
 
 gerium_public void
-gerium_renderer_destroy_material(gerium_renderer_t renderer,
-                                 gerium_material_h handle);
+gerium_renderer_destroy_technique(gerium_renderer_t renderer,
+                                  gerium_technique_h handle);
 
 gerium_public void
 gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer,
@@ -844,8 +844,8 @@ gerium_command_buffer_set_scissor(gerium_command_buffer_t command_buffer,
                                   gerium_uint16_t height);
 
 gerium_public void
-gerium_command_buffer_bind_material(gerium_command_buffer_t command_buffer,
-                                    gerium_material_h handle);
+gerium_command_buffer_bind_technique(gerium_command_buffer_t command_buffer,
+                                     gerium_technique_h handle);
 
 gerium_public void
 gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_buffer,

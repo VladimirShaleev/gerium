@@ -7,7 +7,6 @@
 #define GERIUM_WINDOWS_VULKAN_COMMAND_BUFFER_HPP
 
 #include "../CommandBuffer.hpp"
-#include "../Gerium.hpp"
 #include "../FrameGraph.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
@@ -73,7 +72,7 @@ private:
                       gerium_uint16_t width,
                       gerium_uint16_t height) noexcept override;
 
-    void onBindMaterial(MaterialHandle handle) noexcept override;
+    void onBindTechnique(TechniqueHandle handle) noexcept override;
     void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept override;
     void onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept override;
     void onDraw(gerium_uint32_t firstVertex,

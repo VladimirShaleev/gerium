@@ -21,7 +21,7 @@ constexpr uint8_t  kMaxDescriptorsPerSet    = 16;
 constexpr uint8_t  kMaxVertexBindings       = 16;
 constexpr uint8_t  kMaxVertexAttributes     = 16;
 constexpr uint8_t  kMaxShaderStages         = 5;
-constexpr uint8_t  kMaxMaterialPasses       = 20;
+constexpr uint8_t  kMaxTechniquePasses      = 20;
 constexpr uint32_t kGlobalPoolElements      = 1024;
 constexpr uint32_t kDescriptorSetsPoolSize  = 1024;
 
@@ -39,7 +39,7 @@ using DescriptorSetLayoutPool = ResourcePool<struct DescriptorSetLayout, Descrip
 using ProgramPool             = ResourcePool<struct Program, ProgramHandle>;
 using PipelinePool            = ResourcePool<struct Pipeline, PipelineHandle>;
 using FramebufferPool         = ResourcePool<struct Framebuffer, FramebufferHandle>;
-using MaterialPool            = ResourcePool<struct Material, MaterialHandle>;
+using TechniquePool           = ResourcePool<struct Technique, TechniqueHandle>;
 
 struct SamplerCreation {
     VkFilter            minFilter = VK_FILTER_NEAREST;
@@ -487,15 +487,15 @@ struct Framebuffer {
     gerium_utf8_t name;
 };
 
-struct MaterialPass {
+struct TechniquePass {
     gerium_utf8_t  render_pass;
     PipelineHandle pipeline;
 };
 
-struct Material {
+struct Technique {
     gerium_utf8_t   name;
     gerium_uint32_t passCount;
-    MaterialPass    passes[kMaxMaterialPasses];
+    TechniquePass   passes[kMaxTechniquePasses];
 };
 
 // clang-format on
