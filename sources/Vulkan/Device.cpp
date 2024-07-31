@@ -112,7 +112,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createInstance(application->getTitle(), version);
     createSurface(application);
     createPhysicalDevice();
-    createDevice();
+    createDevice(application->workerThreadCount());
     createProfiler(32);
     createDescriptorPool();
     createVmaAllocator();
@@ -1284,7 +1284,7 @@ void Device::createPhysicalDevice() {
     }
 }
 
-void Device::createDevice() {
+void Device::createDevice(gerium_uint32_t threadCount) {
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
     const auto extensions    = selectDeviceExtensions(_physicalDevice);
@@ -1353,7 +1353,7 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
-    _commandBufferPool.create(*this, 4, graphic.index);
+    _commandBufferPool.create(*this, threadCount, graphic.index);
     _frameCommandBuffer = getCommandBuffer(0, false);
 }
 

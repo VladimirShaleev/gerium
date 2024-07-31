@@ -8,6 +8,7 @@ Application::Application() noexcept :
     _frameData(nullptr),
     _stateData(nullptr),
     _backgroundWait(false),
+    _workerThreadCount(0),
     _currentState(GERIUM_APPLICATION_STATE_UNKNOWN),
     _callbackStateFailed(false) {
 }
@@ -103,6 +104,15 @@ void Application::setBackgroundWait(bool enable) noexcept {
 }
 
 void Application::run() {
+    _workerThreadCount = (gerium_uint32_t) marl::Thread::numLogicalCPUs();
+
+    marl::Scheduler::Config cfg;
+    cfg.setWorkerThreadCount((int) _workerThreadCount);
+
+    marl::Scheduler scheduler(cfg);
+    scheduler.bind();
+    defer(scheduler.unbind());
+
     onRun();
 }
 
@@ -112,6 +122,10 @@ void Application::exit() noexcept {
 
 bool Application::isRunning() const noexcept {
     return onIsRunning();
+}
+
+gerium_uint32_t Application::workerThreadCount() const noexcept {
+    return _workerThreadCount;
 }
 
 void Application::initImGui() {

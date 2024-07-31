@@ -174,7 +174,7 @@ private:
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface(Application* application);
     void createPhysicalDevice();
-    void createDevice();
+    void createDevice(gerium_uint32_t threadCount);
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
     void createDescriptorPool();
     void createVmaAllocator();

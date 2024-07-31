@@ -45,6 +45,8 @@ public:
 
     bool isRunning() const noexcept;
 
+    gerium_uint32_t workerThreadCount() const noexcept;
+
     void initImGui();
     void shutdownImGui();
     void newFrameImGui();
@@ -91,6 +93,7 @@ private:
     gerium_data_t _frameData;
     gerium_data_t _stateData;
     gerium_bool_t _backgroundWait;
+    gerium_uint32_t _workerThreadCount;
     gerium_application_state_t _currentState;
     gerium_bool_t _callbackStateFailed;
 };
