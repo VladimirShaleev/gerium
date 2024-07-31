@@ -287,6 +287,18 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         _height = height;
     }
 
+    for (gerium_uint32_t i = 0; i < frameGraph.nodeCount(); ++i) {
+        auto node = frameGraph.getNode(i);
+
+        if (!node->enabled) {
+            continue;
+        }
+
+        if (auto pass = frameGraph.getPass(node->pass); pass->pass.prepare) {
+            pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
+        }
+    }
+
     auto cb = _device->getCommandBuffer(0);
     cb->bindRenderer(this);
     cb->pushMarker("total");
@@ -358,11 +370,6 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         cb->setViewport(0, 0, width, height, 0.0f, 1.0f);
         cb->setScissor(0, 0, width, height);
         cb->setFrameGraph(&frameGraph);
-
-        if (pass->pass.prepare) {
-            pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
-        }
-
         cb->bindPass(renderPass, framebuffer);
 
         if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, pass->data)) {
