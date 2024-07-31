@@ -312,13 +312,8 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             auto resource = frameGraph.getResource(node->inputs[i]);
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
-                cb->addImageBarrier(resource->info.texture.handle,
-                                    ResourceState::RenderTarget,
-                                    ResourceState::ShaderResource,
-                                    0,
-                                    1,
-                                    hasDepth(toVkFormat(resource->info.texture.format)),
-                                    hasStencil(toVkFormat(resource->info.texture.format)));
+                cb->addImageBarrier(
+                    resource->info.texture.handle, ResourceState::RenderTarget, ResourceState::ShaderResource, 0, 1);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
@@ -335,23 +330,13 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 const auto format = toVkFormat(resource->info.texture.format);
 
                 if (hasDepthOrStencil(format)) {
-                    cb->addImageBarrier(resource->info.texture.handle,
-                                        ResourceState::Undefined,
-                                        ResourceState::DepthWrite,
-                                        0,
-                                        1,
-                                        true,
-                                        hasStencil(format));
+                    cb->addImageBarrier(
+                        resource->info.texture.handle, ResourceState::Undefined, ResourceState::DepthWrite, 0, 1);
                     cb->clearDepthStencil(resource->info.texture.clearDepthStencil.depth,
                                           resource->info.texture.clearDepthStencil.value);
                 } else {
-                    cb->addImageBarrier(resource->info.texture.handle,
-                                        ResourceState::Undefined,
-                                        ResourceState::RenderTarget,
-                                        0,
-                                        1,
-                                        false,
-                                        false);
+                    cb->addImageBarrier(
+                        resource->info.texture.handle, ResourceState::Undefined, ResourceState::RenderTarget, 0, 1);
 
                     const auto& clear = resource->info.texture.clearColor;
                     cb->clearColor(i, clear.red, clear.green, clear.blue, clear.alpha);
@@ -397,6 +382,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
     cb->bindPass(_device->getSwapchainPass(), _device->getSwapchainFramebuffer());
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->vkCommandBuffer());
+    cb->endCurrentRenderPass();
     cb->popMarker();
 
     cb->popMarker();

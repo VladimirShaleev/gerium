@@ -5,7 +5,7 @@
 #include "../Gerium.hpp"
 #include "../Logger.hpp"
 #include "../StringPool.hpp"
-#include "CommandBuffer.hpp"
+#include "CommandBufferPool.hpp"
 #include "Resources.hpp"
 #include "Utils.hpp"
 #include "VkProfiler.hpp"
@@ -123,7 +123,6 @@ protected:
 
 private:
     friend CommandBuffer;
-    friend CommandBufferManager;
 
     enum class ResourceType {
         Buffer,
@@ -291,7 +290,7 @@ private:
     PipelinePool _pipelines;
     FramebufferPool _framebuffers;
 
-    CommandBufferManager _commandBufferManager{};
+    CommandBufferPool _commandBufferPool{};
     std::queue<ResourceDeletion> _deletionQueue{};
     std::map<gerium_uint64_t, RenderPassHandle> _renderPassCache{};
     CommandBuffer* _queuedCommandBuffers[16]{};

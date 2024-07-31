@@ -87,7 +87,7 @@ Device::~Device() {
             _vkTable.vkDestroyQueryPool(_device, _queryPool, getAllocCalls());
         }
 
-        _commandBufferManager.destroy();
+        _commandBufferPool.destroy();
 
         _vkTable.vkDestroyDevice(_device, getAllocCalls());
     }
@@ -156,7 +156,6 @@ bool Device::newFrame() {
     }
 
     _dynamicAllocatedSize = _dynamicBufferSize * _currentFrame;
-    _commandBufferManager.newFrame();
 
     if (_profilerEnabled) {
         _profiler->resetTimestamps();
@@ -188,7 +187,7 @@ void Device::present() {
         auto commandBuffer = _queuedCommandBuffers[i];
         commandBuffer->end();
 
-        enqueuedCommandBuffers[i] = commandBuffer->_commandBuffer;
+        enqueuedCommandBuffers[i] = commandBuffer->vkCommandBuffer();
     }
 
     VkSemaphore waitSemaphores[]      = { _imageAvailableSemaphores[_currentFrame] };
@@ -1168,7 +1167,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
 }
 
 CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
-    return _commandBufferManager.getCommandBuffer(_currentFrame, thread, profile);
+    return _commandBufferPool.getCommandBuffer(_currentFrame, thread, profile);
 }
 
 uint32_t Device::totalMemoryUsed() {
@@ -1354,7 +1353,7 @@ void Device::createDevice() {
     _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
-    _commandBufferManager.create(*this, 4, graphic.index);
+    _commandBufferPool.create(*this, 4, graphic.index);
     _frameCommandBuffer = getCommandBuffer(0, false);
 }
 
@@ -1555,8 +1554,7 @@ void Device::createSwapchain(Application* application) {
         _textures.release(colorHandle);
         // _textures.release(depthHandle);
 
-        commandBuffer->addImageBarrier(
-            colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1, false, false);
+        commandBuffer->addImageBarrier(colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1);
     }
 
     commandBuffer->submit(QueueType::Graphics);
@@ -1924,15 +1922,15 @@ std::vector<uint32_t> Device::compile(const char* code,
             const auto path = std::filesystem::path(File::getAppDir()) / requested_source;
             strings.push_back(path.string());
 
-            result->source_name = "";
-            result->content = "Include file not found";
+            result->source_name    = "";
+            result->content        = "Include file not found";
             result->content_length = 22;
 
             if (File::existsFile(strings.back().c_str())) {
-                result->source_name = strings.back().c_str();
+                result->source_name        = strings.back().c_str();
                 result->source_name_length = strings.back().length();
 
-                auto file = File::open(result->source_name, true);
+                auto file       = File::open(result->source_name, true);
                 const auto size = file->getSize();
 
                 data.push_back({});
@@ -1941,10 +1939,10 @@ std::vector<uint32_t> Device::compile(const char* code,
                 content.resize(size);
                 file->read((gerium_data_t) content.data(), (gerium_uint32_t) size);
 
-                result->content = content.data();
+                result->content        = content.data();
                 result->content_length = content.length();
             }
-            
+
             return result;
         }
 

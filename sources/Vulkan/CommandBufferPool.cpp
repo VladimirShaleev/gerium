@@ -1,4 +1,4 @@
-#include "CommandBuffer.hpp"
+#include "CommandBufferPool.hpp"
 #include "Device.hpp"
 #include "VkRenderer.hpp"
 
@@ -6,39 +6,32 @@ namespace gerium::vulkan {
 
 CommandBuffer::CommandBuffer(Device& device, VkCommandBuffer commandBuffer) :
     _device(&device),
-    _commandBuffer(commandBuffer),
-    _currentRenderPass(Undefined),
-    _currentFramebuffer(Undefined),
-    _currentPipeline(Undefined) {
-}
-
-CommandBuffer::~CommandBuffer() {
+    _commandBuffer(commandBuffer) {
 }
 
 void CommandBuffer::addImageBarrier(TextureHandle handle,
                                     ResourceState oldState,
                                     ResourceState newState,
                                     gerium_uint32_t mipLevel,
-                                    gerium_uint32_t mipCount,
-                                    bool isDepth,
-                                    bool isStencil) {
+                                    gerium_uint32_t mipCount) {
     auto texture = _device->_textures.access(handle);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    barrier.srcAccessMask                   = toVkAccessFlags(oldState);
-    barrier.dstAccessMask                   = toVkAccessFlags(newState);
-    barrier.oldLayout                       = toVkImageLayout(oldState);
-    barrier.newLayout                       = toVkImageLayout(newState);
-    barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image                           = texture->vkImage;
-    barrier.subresourceRange.aspectMask     = isDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.srcAccessMask       = toVkAccessFlags(oldState);
+    barrier.dstAccessMask       = toVkAccessFlags(newState);
+    barrier.oldLayout           = toVkImageLayout(oldState);
+    barrier.newLayout           = toVkImageLayout(newState);
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image               = texture->vkImage;
+    barrier.subresourceRange.aspectMask =
+        hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel   = mipLevel;
     barrier.subresourceRange.levelCount     = mipCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount     = 1;
 
-    if (isStencil) {
+    if (hasStencil(texture->vkFormat)) {
         barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
     }
 
@@ -62,16 +55,16 @@ void CommandBuffer::clearDepthStencil(gerium_float32_t depth, gerium_uint32_t va
 }
 
 void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
-    auto renderPassObj  = _device->_renderPasses.access(renderPass);
-    auto framebufferObj = _device->_framebuffers.access(framebuffer);
-
     if (_currentRenderPass != renderPass) {
         endCurrentRenderPass();
 
-        uint32_t clearValuesCount = 0;
+        auto renderPassObj  = _device->_renderPasses.access(renderPass);
+        auto framebufferObj = _device->_framebuffers.access(framebuffer);
+
+        gerium_uint32_t clearValuesCount = 0;
         VkClearValue clearValues[kMaxImageOutputs + 1];
 
-        for (uint32_t o = 0; o < renderPassObj->output.numColorFormats; ++o) {
+        for (gerium_uint32_t o = 0; o < renderPassObj->output.numColorFormats; ++o) {
             if (renderPassObj->output.colorOperations[o] == GERIUM_RENDER_PASS_OP_CLEAR) {
                 clearValues[clearValuesCount++] = _clearColors[o];
             }
@@ -90,20 +83,16 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle fram
         renderPassBegin.renderArea.extent = { framebufferObj->width, framebufferObj->height };
         renderPassBegin.clearValueCount   = clearValuesCount;
         renderPassBegin.pClearValues      = clearValues;
-        _device->vkTable().vkCmdBeginRenderPass(_commandBuffer,
-                                                &renderPassBegin,
-                                                false ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
-                                                      : VK_SUBPASS_CONTENTS_INLINE);
+        _device->vkTable().vkCmdBeginRenderPass(_commandBuffer, &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
+
         _currentRenderPass  = renderPass;
         _currentFramebuffer = framebuffer;
     }
 }
 
-// TODO: remove later
 void CommandBuffer::bindPipeline(PipelineHandle pipeline) {
-    auto pipelineObj = _device->_pipelines.access(pipeline);
-
     if (_currentPipeline != pipeline) {
+        auto pipelineObj = _device->_pipelines.access(pipeline);
         _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
         _currentPipeline = pipeline;
     }
@@ -156,16 +145,16 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
 }
 
 void CommandBuffer::pushMarker(gerium_utf8_t name) {
-    if (_device->_profilerEnabled) {
-        auto queryIndex = profiler()->pushTimestamp(name);
+    if (_device->isProfilerEnable()) {
+        auto queryIndex = _device->profiler()->pushTimestamp(name);
         _device->vkTable().vkCmdWriteTimestamp(
             _commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, _device->_queryPool, queryIndex);
     }
 }
 
 void CommandBuffer::popMarker() {
-    if (_device->_profilerEnabled) {
-        auto queryIndex = profiler()->popTimestamp();
+    if (_device->isProfilerEnable()) {
+        auto queryIndex = _device->profiler()->popTimestamp();
         _device->vkTable().vkCmdWriteTimestamp(
             _commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, _device->_queryPool, queryIndex);
     }
@@ -195,12 +184,46 @@ void CommandBuffer::submit(QueueType queue) {
     _device->vkTable().vkQueueWaitIdle(vkQueue);
 }
 
+void CommandBuffer::begin() {
+    _currentRenderPass  = Undefined;
+    _currentFramebuffer = Undefined;
+    _currentPipeline    = Undefined;
+
+    VkCommandBufferBeginInfo beginInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    _device->vkTable().vkBeginCommandBuffer(_commandBuffer, &beginInfo);
+
+    _recording = true;
+}
+
+void CommandBuffer::end() {
+    _device->vkTable().vkEndCommandBuffer(_commandBuffer);
+
+    _recording = false;
+}
+
 void CommandBuffer::endCurrentRenderPass() {
     if (_currentRenderPass != Undefined) {
         _device->vkTable().vkCmdEndRenderPass(_commandBuffer);
         _currentRenderPass  = Undefined;
         _currentFramebuffer = Undefined;
     }
+}
+
+VkCommandBuffer CommandBuffer::vkCommandBuffer() const noexcept {
+    return _commandBuffer;
+}
+
+void CommandBuffer::setFramebufferHeight(gerium_uint16_t framebufferHeight) noexcept {
+    _framebufferHeight = framebufferHeight;
+}
+
+void CommandBuffer::setFrameGraph(FrameGraph* frameGraph) noexcept {
+    _currentFrameGraph = frameGraph;
+}
+
+bool CommandBuffer::isRecording() const noexcept {
+    return _recording;
 }
 
 void CommandBuffer::onSetViewport(gerium_uint16_t x,
@@ -286,45 +309,19 @@ void CommandBuffer::onDraw(gerium_uint32_t firstVertex,
     _device->vkTable().vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
-VkProfiler* CommandBuffer::profiler() noexcept {
-    return _device->_profiler.get();
-}
-
-void CommandBuffer::reset() {
-    // if (_vkDescriptorPool) {
-    //     _vkTable->vkResetDescriptorPool(_device, _vkDescriptorPool, 0);
-    // }
-}
-
-void CommandBuffer::begin() {
-    _currentRenderPass  = Undefined;
-    _currentFramebuffer = Undefined;
-    _currentPipeline    = Undefined;
-
-    VkCommandBufferBeginInfo beginInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    _device->vkTable().vkBeginCommandBuffer(_commandBuffer, &beginInfo);
-}
-
-void CommandBuffer::end() {
-    endCurrentRenderPass();
-    _device->vkTable().vkEndCommandBuffer(_commandBuffer);
-}
-
-CommandBufferManager::~CommandBufferManager() {
+CommandBufferPool::~CommandBufferPool() {
     destroy();
 }
 
-void CommandBufferManager::create(Device& device, uint32_t numThreads, uint32_t family) {
-    _device        = &device;
-    _poolsPerFrame = numThreads;
+void CommandBufferPool::create(Device& device, gerium_uint32_t numThreads, gerium_uint32_t family) {
+    _device      = &device;
+    _threadCount = numThreads;
 
-    const auto totalPools = _poolsPerFrame * _device->MaxFrames;
+    const auto totalPools = _threadCount * _device->MaxFrames;
 
     _vkCommandPools.resize(totalPools);
-    _usedBuffers.resize(totalPools);
 
-    for (uint32_t i = 0; i < totalPools; ++i) {
+    for (gerium_uint32_t i = 0; i < totalPools; ++i) {
         VkCommandPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
         poolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         poolInfo.queueFamilyIndex = family;
@@ -332,60 +329,63 @@ void CommandBufferManager::create(Device& device, uint32_t numThreads, uint32_t 
             _device->vkDevice(), &poolInfo, getAllocCalls(), &_vkCommandPools[i]));
     }
 
-    _commandBuffers.reserve(totalPools * CommandBuffersPerThread);
-    VkCommandBuffer buffers[CommandBuffersPerThread] = {};
+    _indices.resize(totalPools);
+    _commandBuffers.reserve(totalPools * BuffersPerFrame);
+    VkCommandBuffer buffers[BuffersPerFrame] = {};
 
-    for (uint32_t frame = 0; frame < device.MaxFrames; ++frame) {
-        for (uint32_t thread = 0; thread < numThreads; ++thread) {
+    for (gerium_uint32_t frame = 0; frame < device.MaxFrames; ++frame) {
+        for (gerium_uint32_t thread = 0; thread < numThreads; ++thread) {
             const auto poolIndex = getPoolIndex(frame, thread);
 
             VkCommandBufferAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
             allocInfo.commandPool        = _vkCommandPools[poolIndex];
             allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            allocInfo.commandBufferCount = CommandBuffersPerThread;
+            allocInfo.commandBufferCount = BuffersPerFrame;
             check(_device->vkTable().vkAllocateCommandBuffers(_device->vkDevice(), &allocInfo, buffers));
 
-            for (uint32_t i = 0; i < CommandBuffersPerThread; ++i) {
+            for (gerium_uint32_t i = 0; i < BuffersPerFrame; ++i) {
                 _commandBuffers.emplace_back(*_device, buffers[i]);
             }
         }
     }
 }
 
-void CommandBufferManager::destroy() noexcept {
+void CommandBufferPool::destroy() noexcept {
     for (auto& pool : _vkCommandPools) {
         _device->vkTable().vkDestroyCommandPool(_device->vkDevice(), pool, getAllocCalls());
     }
 
+    _indices.clear();
     _commandBuffers.clear();
     _vkCommandPools.clear();
-    _usedBuffers.clear();
+    _threadCount = 0;
+    _device      = nullptr;
 }
 
-void CommandBufferManager::newFrame() noexcept {
-    memset(_usedBuffers.data(), 0, _usedBuffers.size());
-}
+CommandBuffer* CommandBufferPool::getCommandBuffer(gerium_uint32_t frame, gerium_uint32_t thread, bool profile) {
+    const auto poolIndex   = getPoolIndex(frame, thread);
+    const auto bufferIndex = _indices[poolIndex];
 
-CommandBuffer* CommandBufferManager::getCommandBuffer(uint32_t frame, uint32_t thread, bool profile) {
-    const auto poolIndex = getPoolIndex(frame, thread);
-    assert(_usedBuffers[poolIndex] < CommandBuffersPerThread);
+    auto& commandBuffer = _commandBuffers[poolIndex * BuffersPerFrame + bufferIndex];
 
-    const auto offset   = _usedBuffers[poolIndex]++;
-    auto& commandBuffer = _commandBuffers[poolIndex * CommandBuffersPerThread + offset];
-    commandBuffer.reset();
-    commandBuffer.begin();
-
-    if (_device->_profilerEnabled && profile && !_device->_profiler->hasTimestamps()) {
-        const auto queriesPerFrame = _device->_profiler->queriesPerFrame();
-        _device->vkTable().vkCmdResetQueryPool(
-            commandBuffer._commandBuffer, _device->_queryPool, frame * queriesPerFrame * 2, queriesPerFrame);
+    if (commandBuffer.isRecording()) {
+        throw Exception(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 
+    commandBuffer.begin();
+
+    if (profile && _device->isProfilerEnable() && !_device->profiler()->hasTimestamps()) {
+        const auto queriesPerFrame = _device->profiler()->queriesPerFrame();
+        _device->vkTable().vkCmdResetQueryPool(
+            commandBuffer.vkCommandBuffer(), _device->vkQueryPool(), frame * queriesPerFrame * 2, queriesPerFrame);
+    }
+
+    _indices[poolIndex] = (_indices[poolIndex] + 1) % BuffersPerFrame;
     return &commandBuffer;
 }
 
-uint32_t CommandBufferManager::getPoolIndex(uint32_t frame, uint32_t thread) const noexcept {
-    return frame * _poolsPerFrame + thread;
+gerium_uint32_t CommandBufferPool::getPoolIndex(gerium_uint32_t frame, gerium_uint32_t thread) const noexcept {
+    return frame * _threadCount + thread;
 }
 
 } // namespace gerium::vulkan
