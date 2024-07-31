@@ -413,6 +413,7 @@ struct RenderPass {
 struct DescriptorSet {
     struct Descriptors {
         VkDescriptorSet vkDescriptorSet[kMaxFrames];
+        gerium_uint8_t  noChanges;
         gerium_uint8_t  current;
     };
 
@@ -426,7 +427,6 @@ struct DescriptorSet {
     // SamplerHandle samplers[kMaxDescriptorsPerSet];
     Handle bindings[kMaxDescriptorsPerSet];
     gerium_utf8_t resources[kMaxDescriptorsPerSet];
-    gerium_uint8_t dirty;
     gerium_uint8_t hasResources;
 };
 

@@ -554,7 +554,6 @@ DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& cre
     for (auto& binding : descriptorSet->bindings) {
         binding = Undefined;
     }
-    descriptorSet->dirty = true;
 
     return handle;
 }
@@ -1102,7 +1101,9 @@ void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource,
     if (descriptorSet->bindings[binding] != resource) {
         descriptorSet->bindings[binding]  = resource;
         descriptorSet->resources[binding] = resourceInput; // intern(resourceInput);
-        descriptorSet->dirty              = true;
+        for (auto& [_, descriptors] : descriptorSet->descriptors) {
+            descriptors.noChanges = false;
+        }
     } else if (resource == Undefined && resourceInput) {
         descriptorSet->resources[binding] = intern(resourceInput);
     }
@@ -1129,8 +1130,8 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         }
     }
 
-    if (descriptorSet->dirty) {
-        descriptorSet->dirty = false;
+    if (!descriptors.noChanges) {
+        descriptors.noChanges = true;
 
         descriptors.current   = (descriptors.current + 1) % MaxFrames;
         auto& vkDescriptorSet = descriptors.vkDescriptorSet[descriptors.current];
