@@ -1141,6 +1141,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
             allocInfo.descriptorSetCount = 1;
             allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
 
+            marl::lock lock(_descriptorPoolMutex);
             check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &vkDescriptorSet));
         }
 

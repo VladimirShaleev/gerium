@@ -260,6 +260,7 @@ private:
     VkQueue _queuePresent{};
     VkQueue _queueTransfer{};
     VkQueryPool _queryPool{};
+    marl::mutex _descriptorPoolMutex{};
     VkDescriptorPool _descriptorPool{};
     VkDescriptorPool _imguiPool{};
     VmaAllocator _vmaAllocator{};
