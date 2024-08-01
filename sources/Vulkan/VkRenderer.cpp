@@ -382,6 +382,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         cb->bindPass(renderPass, framebuffer, useWorkers);
 
         if (useWorkers) {
+            marl::WaitGroup waitAll(totalWorkers);
             numSecondaryCommandBuffers = 0;
             for (gerium_uint32_t worker = 0; worker < totalWorkers; ++worker) {
                 auto thread    = worker % _application->workerThreadCount();
@@ -393,24 +394,23 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 secondary->setFrameGraph(&frameGraph);
                 secondaryCommandBuffers[numSecondaryCommandBuffers++] = secondary;
 
-                std::string marker = "(worker " + std::to_string(worker) + ')';
-                secondary->pushMarker(marker.c_str());
+                marl::schedule([waitAll, worker, totalWorkers, cb = secondary, pass, renderer = this, &frameGraph] {
+                    defer(waitAll.done());
 
-                if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph),
-                                       this,
-                                       secondary,
-                                       worker,
-                                       totalWorkers,
-                                       pass->data)) {
-                    error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-                }
-
-                secondary->popMarker();
+                    if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph),
+                                           renderer,
+                                           cb,
+                                           worker,
+                                           totalWorkers,
+                                           pass->data)) {
+                        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                    }
+                });
             }
 
-            if (numSecondaryCommandBuffers) {
-                cb->execute(numSecondaryCommandBuffers, secondaryCommandBuffers);
-            }
+            waitAll.wait();
+
+            cb->execute(numSecondaryCommandBuffers, secondaryCommandBuffers);
         } else {
             if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, 0, 1, pass->data)) {
                 error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
