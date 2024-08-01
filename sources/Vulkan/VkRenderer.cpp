@@ -287,16 +287,23 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         _height = height;
     }
 
-    for (gerium_uint32_t i = 0; i < frameGraph.nodeCount(); ++i) {
+    gerium_uint32_t allTotalWorkers[kMaxNodes];
+    for (gerium_uint32_t i = 0, worker = 0; i < frameGraph.nodeCount(); ++i) {
         auto node = frameGraph.getNode(i);
 
         if (!node->enabled) {
             continue;
         }
 
+        allTotalWorkers[worker] = 1;
         if (auto pass = frameGraph.getPass(node->pass); pass->pass.prepare) {
-            pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
+            allTotalWorkers[worker] =
+                pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
+            if (allTotalWorkers[worker] == 0) {
+                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            }
         }
+        ++worker;
     }
 
     CommandBuffer* secondaryCommandBuffers[100];
@@ -307,15 +314,11 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
     cb->pushMarker("total");
 
     cb->pushMarker("frame_graph");
-    for (gerium_uint32_t i = 0; i < frameGraph.nodeCount(); ++i) {
+    for (gerium_uint32_t i = 0, totalWorkerIndex = 0; i < frameGraph.nodeCount(); ++i) {
         auto node = frameGraph.getNode(i);
-
         if (!node->enabled) {
             continue;
         }
-
-        auto pass = frameGraph.getPass(node->pass);
-
         _currentRenderPassName = node->name;
 
         cb->pushMarker(node->name);
@@ -359,8 +362,11 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             }
         }
 
-        auto renderPass  = node->renderPass;
-        auto framebuffer = node->framebuffer;
+        auto pass         = frameGraph.getPass(node->pass);
+        auto totalWorkers = allTotalWorkers[totalWorkerIndex];
+        auto renderPass   = node->renderPass;
+        auto framebuffer  = node->framebuffer;
+        auto useWorkers   = totalWorkers != 1;
 
         if (!node->outputCount) {
             width       = _device->getSwapchainExtent().width;
@@ -373,55 +379,67 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         cb->setViewport(0, 0, width, height, 0.0f, 1.0f);
         cb->setScissor(0, 0, width, height);
         cb->setFrameGraph(&frameGraph);
-        cb->bindPass(renderPass, framebuffer);
+        cb->bindPass(renderPass, framebuffer, useWorkers);
 
-        numSecondaryCommandBuffers = 0;
+        if (useWorkers) {
+            numSecondaryCommandBuffers = 0;
+            for (gerium_uint32_t worker = 0; worker < totalWorkers; ++worker) {
+                auto thread    = worker % _application->workerThreadCount();
+                auto secondary = _device->getSecondaryCommandBuffer(thread, renderPass, framebuffer);
+                secondary->bindRenderer(this);
+                secondary->setFramebufferHeight(height);
+                secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);
+                secondary->setScissor(0, 0, width, height);
+                secondary->setFrameGraph(&frameGraph);
+                secondaryCommandBuffers[numSecondaryCommandBuffers++] = secondary;
 
-        gerium_uint32_t totalWorkers = 2;
+                std::string marker = "(worker " + std::to_string(worker) + ')';
+                secondary->pushMarker(marker.c_str());
 
-        for (gerium_uint32_t worker = 0; worker < totalWorkers; ++worker) {
-            auto secondary = _device->getSecondaryCommandBuffer(
-                worker % _application->workerThreadCount(), renderPass, framebuffer);
-            secondary->bindRenderer(this);
-            secondary->setFramebufferHeight(height);
-            secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);
-            secondary->setScissor(0, 0, width, height);
-            secondary->setFrameGraph(&frameGraph);
+                if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph),
+                                       this,
+                                       secondary,
+                                       worker,
+                                       totalWorkers,
+                                       pass->data)) {
+                    error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                }
 
-            secondaryCommandBuffers[numSecondaryCommandBuffers++] = secondary;
-
-            std::string marker = "(worker " + std::to_string(worker) + ')';
-            secondary->pushMarker(marker.c_str());
-
-            if (!pass->pass.render(
-                    alias_cast<gerium_frame_graph_t>(&frameGraph), this, secondary, worker, totalWorkers, pass->data)) {
-                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                secondary->popMarker();
             }
 
-            secondary->popMarker();
-        }
-
-        if (numSecondaryCommandBuffers) {
-            cb->execute(numSecondaryCommandBuffers, secondaryCommandBuffers);
+            if (numSecondaryCommandBuffers) {
+                cb->execute(numSecondaryCommandBuffers, secondaryCommandBuffers);
+            }
+        } else {
+            if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, 0, 1, pass->data)) {
+                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            }
         }
 
         if (!node->outputCount) {
-            auto secondary = _device->getSecondaryCommandBuffer(0, _device->getSwapchainPass(), _device->getSwapchainFramebuffer());
-            secondary->bindRenderer(this);
-            secondary->setFramebufferHeight(height);
-            secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);
-            secondary->setScissor(0, 0, width, height);
-            secondary->setFrameGraph(&frameGraph);
+            auto imguiCb = useWorkers ? _device->getSecondaryCommandBuffer(
+                                            0, _device->getSwapchainPass(), _device->getSwapchainFramebuffer())
+                                      : cb;
+            imguiCb->bindRenderer(this);
+            imguiCb->setFramebufferHeight(height);
+            imguiCb->setViewport(0, 0, width, height, 0.0f, 1.0f);
+            imguiCb->setScissor(0, 0, width, height);
+            imguiCb->setFrameGraph(&frameGraph);
 
             ImGui::Render();
-            secondary->pushMarker("imgui");
-            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), secondary->vkCommandBuffer());
-            secondary->popMarker();
-            cb->execute(1, &secondary);
+            imguiCb->pushMarker("imgui");
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCb->vkCommandBuffer());
+            imguiCb->popMarker();
+            if (useWorkers) {
+                cb->execute(1, &imguiCb);
+            }
         }
 
         cb->endCurrentRenderPass();
         cb->popMarker();
+
+        ++totalWorkerIndex;
     }
     cb->popMarker();
 

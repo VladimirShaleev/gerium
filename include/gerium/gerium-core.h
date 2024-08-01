@@ -346,7 +346,7 @@ typedef gerium_bool_t
                                    gerium_data_t data,
                                    gerium_application_state_t state);
 
-typedef gerium_bool_t
+typedef gerium_uint32_t
 (*gerium_frame_graph_prepare_func_t)(gerium_frame_graph_t frame_graph,
                                      gerium_renderer_t renderer,
                                      gerium_data_t data);

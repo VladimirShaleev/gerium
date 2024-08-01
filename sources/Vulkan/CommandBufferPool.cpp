@@ -54,7 +54,9 @@ void CommandBuffer::clearDepthStencil(gerium_float32_t depth, gerium_uint32_t va
     _clearDepthStencil.depthStencil = { depth, value };
 }
 
-void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
+void CommandBuffer::bindPass(RenderPassHandle renderPass,
+                             FramebufferHandle framebuffer,
+                             bool useSecondaryCommandBuffers) {
     if (_currentRenderPass != renderPass) {
         endCurrentRenderPass();
 
@@ -86,7 +88,7 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle fram
         _device->vkTable().vkCmdBeginRenderPass(
             _commandBuffer,
             &renderPassBegin,
-            VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS); // VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+            useSecondaryCommandBuffers ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 
         _currentRenderPass  = renderPass;
         _currentFramebuffer = framebuffer;

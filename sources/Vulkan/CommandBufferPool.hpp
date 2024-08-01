@@ -25,7 +25,7 @@ public:
                     gerium_float32_t blue,
                     gerium_float32_t alpha) noexcept;
     void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
-    void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer);
+    void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer, bool useSecondaryCommandBuffers);
     void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
     void pushMarker(gerium_utf8_t name);

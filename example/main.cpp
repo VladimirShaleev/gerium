@@ -68,6 +68,10 @@ gerium_bool_t depthPrePassRender(gerium_frame_graph_t frame_graph, gerium_render
     return 1;
 } */
 
+gerium_uint32_t simplePrepas(gerium_frame_graph_t frame_graph, gerium_renderer_t renderer, gerium_data_t data) {
+    return 2;
+}
+
 gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
                            gerium_renderer_t renderer,
                            gerium_command_buffer_t command_buffer,
@@ -91,9 +95,7 @@ gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
     gerium_command_buffer_bind_technique(command_buffer, fullscreenTechnique);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet1, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
-    if (worker == 0) {
-        gerium_command_buffer_draw_profiler(command_buffer, nullptr);
-    }
+    gerium_command_buffer_draw_profiler(command_buffer, nullptr);
     return 1;
 }
 
@@ -326,7 +328,7 @@ bool initialize(gerium_application_t application) {
         gerium_render_pass_t fullscreenPass{ 0, 0, fullscreenRender };
         gerium_frame_graph_add_pass(frameGraph, "present_pass", &fullscreenPass, nullptr);
 
-        gerium_render_pass_t simplePass{ 0, 0, simpleRender };
+        gerium_render_pass_t simplePass{ simplePrepas, 0, simpleRender };
         gerium_frame_graph_add_pass(frameGraph, "simple_pass", &simplePass, nullptr);
 
         gerium_resource_input_t fullscreenInputs[] = {
