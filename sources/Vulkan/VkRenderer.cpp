@@ -8,7 +8,7 @@ VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noe
     _device(std::move(device)),
     _width(0),
     _height(0),
-    _currentRenderPass(nullptr) {
+    _currentRenderPassName(nullptr) {
     if (!application->isRunning()) {
         error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
     }
@@ -19,7 +19,7 @@ PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
 
     auto it = std::lower_bound(technique->passes,
                                technique->passes + technique->passCount,
-                               _currentRenderPass,
+                               _currentRenderPassName,
                                [](const auto& p1, const auto& pass) {
         return p1.render_pass < pass;
     });
@@ -299,7 +299,10 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         }
     }
 
-    auto cb = _device->getCommandBuffer(0);
+    CommandBuffer* secondaryCommandBuffers[100];
+    gerium_uint32_t numSecondaryCommandBuffers = 0;
+
+    auto cb = _device->getPrimaryCommandBuffer();
     cb->bindRenderer(this);
     cb->pushMarker("total");
 
@@ -313,7 +316,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
         auto pass = frameGraph.getPass(node->pass);
 
-        _currentRenderPass = node->name;
+        _currentRenderPassName = node->name;
 
         cb->pushMarker(node->name);
 
@@ -372,24 +375,54 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         cb->setFrameGraph(&frameGraph);
         cb->bindPass(renderPass, framebuffer);
 
-        if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, pass->data)) {
-            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        numSecondaryCommandBuffers = 0;
+
+        gerium_uint32_t totalWorkers = 2;
+
+        for (gerium_uint32_t worker = 0; worker < totalWorkers; ++worker) {
+            auto secondary = _device->getSecondaryCommandBuffer(
+                worker % _application->workerThreadCount(), renderPass, framebuffer);
+            secondary->bindRenderer(this);
+            secondary->setFramebufferHeight(height);
+            secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);
+            secondary->setScissor(0, 0, width, height);
+            secondary->setFrameGraph(&frameGraph);
+
+            secondaryCommandBuffers[numSecondaryCommandBuffers++] = secondary;
+
+            std::string marker = "(worker " + std::to_string(worker) + ')';
+            secondary->pushMarker(marker.c_str());
+
+            if (!pass->pass.render(
+                    alias_cast<gerium_frame_graph_t>(&frameGraph), this, secondary, worker, totalWorkers, pass->data)) {
+                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            }
+
+            secondary->popMarker();
         }
 
-        if (node->outputCount) {
-            cb->endCurrentRenderPass();
+        if (numSecondaryCommandBuffers) {
+            cb->execute(numSecondaryCommandBuffers, secondaryCommandBuffers);
         }
 
+        if (!node->outputCount) {
+            auto secondary = _device->getSecondaryCommandBuffer(0, _device->getSwapchainPass(), _device->getSwapchainFramebuffer());
+            secondary->bindRenderer(this);
+            secondary->setFramebufferHeight(height);
+            secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);
+            secondary->setScissor(0, 0, width, height);
+            secondary->setFrameGraph(&frameGraph);
+
+            ImGui::Render();
+            secondary->pushMarker("imgui");
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), secondary->vkCommandBuffer());
+            secondary->popMarker();
+            cb->execute(1, &secondary);
+        }
+
+        cb->endCurrentRenderPass();
         cb->popMarker();
     }
-
-    cb->popMarker();
-
-    cb->pushMarker("imgui");
-    cb->bindPass(_device->getSwapchainPass(), _device->getSwapchainFramebuffer());
-    ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb->vkCommandBuffer());
-    cb->endCurrentRenderPass();
     cb->popMarker();
 
     cb->popMarker();

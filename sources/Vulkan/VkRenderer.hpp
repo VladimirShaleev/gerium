@@ -57,8 +57,7 @@ private:
     ObjectPtr<Device> _device;
     gerium_uint16_t _width;
     gerium_uint16_t _height;
-    gerium_utf8_t _currentRenderPass;
-
+    gerium_utf8_t _currentRenderPassName;
     TechniquePool _techniques;
 };
 

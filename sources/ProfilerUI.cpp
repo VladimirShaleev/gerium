@@ -214,12 +214,16 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                     draw_list->AddRectFilled({ x, y + 4 }, { x + 8, y + 12 }, color);
 
                     char spaces[33]{};
-                    for (int s = 0; s < timestamp.depth; ++s) {
+                    auto depth = timestamp.depth;
+                    if (strcmp(timestamp.name, "imgui") == 0) {
+                        depth = 1;
+                    }
+                    for (int s = 0; s < depth; ++s) {
                         spaces[s] = '-';
                         spaces[s + 1] = ' ';
                     }
 
-                    sprintf(buf, "%s%s %2.4f", spaces, timestamp.name, timestamp.elapsed);
+                    sprintf(buf, "%s%s: %2.4f", spaces, timestamp.name, timestamp.elapsed);
                     draw_list->AddText({ x + 12, y }, 0xffffffff, buf);
 
                     y += 16;

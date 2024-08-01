@@ -71,6 +71,8 @@ gerium_bool_t depthPrePassRender(gerium_frame_graph_t frame_graph, gerium_render
 gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
                            gerium_renderer_t renderer,
                            gerium_command_buffer_t command_buffer,
+                           gerium_uint32_t worker,
+                           gerium_uint32_t total_workers,
                            gerium_data_t data) {
     gerium_command_buffer_bind_technique(command_buffer, baseTechnique);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet0, 0);
@@ -83,11 +85,15 @@ gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
 gerium_bool_t fullscreenRender(gerium_frame_graph_t frame_graph,
                                gerium_renderer_t renderer,
                                gerium_command_buffer_t command_buffer,
+                               gerium_uint32_t worker,
+                               gerium_uint32_t total_workers,
                                gerium_data_t data) {
     gerium_command_buffer_bind_technique(command_buffer, fullscreenTechnique);
     gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSet1, 0);
     gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
-    gerium_command_buffer_draw_profiler(command_buffer, nullptr);
+    if (worker == 0) {
+        gerium_command_buffer_draw_profiler(command_buffer, nullptr);
+    }
     return 1;
 }
 
@@ -561,16 +567,20 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     f2 += d2 * elapsed;
 
     if (f1 < 0.5f) {
+        f1 = 0.5f;
         d1 = 0.001f;
     }
     if (f1 > 1.0f) {
+        f1 = 1.0f;
         d1 = -0.001f;
     }
 
     if (f2 < 0.5f) {
+        f2 = 0.5f;
         d2 = 0.001f;
     }
     if (f2 > 1.0f) {
+        f2 = 1.0f;
         d2 = -0.001f;
     }
 

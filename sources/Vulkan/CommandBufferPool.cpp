@@ -83,7 +83,10 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass, FramebufferHandle fram
         renderPassBegin.renderArea.extent = { framebufferObj->width, framebufferObj->height };
         renderPassBegin.clearValueCount   = clearValuesCount;
         renderPassBegin.pClearValues      = clearValues;
-        _device->vkTable().vkCmdBeginRenderPass(_commandBuffer, &renderPassBegin, VK_SUBPASS_CONTENTS_INLINE);
+        _device->vkTable().vkCmdBeginRenderPass(
+            _commandBuffer,
+            &renderPassBegin,
+            VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS); // VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
         _currentRenderPass  = renderPass;
         _currentFramebuffer = framebuffer;
@@ -184,13 +187,36 @@ void CommandBuffer::submit(QueueType queue) {
     _device->vkTable().vkQueueWaitIdle(vkQueue);
 }
 
-void CommandBuffer::begin() {
+void CommandBuffer::execute(gerium_uint32_t numCommandBuffers, CommandBuffer* commandBuffers[]) {
+    VkCommandBuffer buffers[100];
+    for (gerium_uint32_t i = 0; i < numCommandBuffers; ++i) {
+        commandBuffers[i]->end();
+        buffers[i] = commandBuffers[i]->vkCommandBuffer();
+    }
+    _device->vkTable().vkCmdExecuteCommands(_commandBuffer, numCommandBuffers, buffers);
+}
+
+void CommandBuffer::begin(RenderPassHandle renderPass, FramebufferHandle framebuffer) {
+    const auto isSecondary = renderPass != Undefined && framebuffer != Undefined;
+
     _currentRenderPass  = Undefined;
     _currentFramebuffer = Undefined;
     _currentPipeline    = Undefined;
 
+    VkCommandBufferInheritanceInfo inheritanceInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO };
+    if (isSecondary) {
+        auto renderPassObj  = _device->_renderPasses.access(renderPass);
+        auto framebufferObj = _device->_framebuffers.access(framebuffer);
+
+        inheritanceInfo.renderPass  = renderPassObj->vkRenderPass;
+        inheritanceInfo.subpass     = 0;
+        inheritanceInfo.framebuffer = framebufferObj->vkFramebuffer;
+    }
+
     VkCommandBufferBeginInfo beginInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT |
+                      (isSecondary ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT : 0);
+    beginInfo.pInheritanceInfo = isSecondary ? &inheritanceInfo : nullptr;
     _device->vkTable().vkBeginCommandBuffer(_commandBuffer, &beginInfo);
 
     _recording = true;
@@ -313,9 +339,13 @@ CommandBufferPool::~CommandBufferPool() {
     destroy();
 }
 
-void CommandBufferPool::create(Device& device, gerium_uint32_t numThreads, gerium_uint32_t family) {
-    _device      = &device;
-    _threadCount = numThreads;
+void CommandBufferPool::create(Device& device,
+                               gerium_uint32_t numThreads,
+                               gerium_uint32_t numBuffersPerFrame,
+                               gerium_uint32_t family) {
+    _device          = &device;
+    _threadCount     = numThreads + 1;
+    _buffersPerFrame = numBuffersPerFrame;
 
     const auto totalPools = _threadCount * _device->MaxFrames;
 
@@ -329,22 +359,22 @@ void CommandBufferPool::create(Device& device, gerium_uint32_t numThreads, geriu
             _device->vkDevice(), &poolInfo, getAllocCalls(), &_vkCommandPools[i]));
     }
 
+    _commandBuffers.resize(totalPools * _buffersPerFrame);
     _indices.resize(totalPools);
-    _commandBuffers.reserve(totalPools * BuffersPerFrame);
-    VkCommandBuffer buffers[BuffersPerFrame] = {};
+    VkCommandBuffer buffers[100] = {};
 
     for (gerium_uint32_t frame = 0; frame < device.MaxFrames; ++frame) {
         for (gerium_uint32_t thread = 0; thread < numThreads; ++thread) {
             const auto poolIndex = getPoolIndex(frame, thread);
 
             VkCommandBufferAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-            allocInfo.commandPool        = _vkCommandPools[poolIndex];
-            allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            allocInfo.commandBufferCount = BuffersPerFrame;
+            allocInfo.commandPool = _vkCommandPools[poolIndex];
+            allocInfo.level       = thread == 0 ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+            allocInfo.commandBufferCount = _buffersPerFrame;
             check(_device->vkTable().vkAllocateCommandBuffers(_device->vkDevice(), &allocInfo, buffers));
 
-            for (gerium_uint32_t i = 0; i < BuffersPerFrame; ++i) {
-                _commandBuffers.emplace_back(*_device, buffers[i]);
+            for (gerium_uint32_t i = 0; i < _buffersPerFrame; ++i) {
+                _commandBuffers[poolIndex * _buffersPerFrame + i] = CommandBuffer(*_device, buffers[i]);
             }
         }
     }
@@ -358,15 +388,16 @@ void CommandBufferPool::destroy() noexcept {
     _indices.clear();
     _commandBuffers.clear();
     _vkCommandPools.clear();
-    _threadCount = 0;
-    _device      = nullptr;
+    _buffersPerFrame = 0;
+    _threadCount     = 0;
+    _device          = nullptr;
 }
 
-CommandBuffer* CommandBufferPool::getCommandBuffer(gerium_uint32_t frame, gerium_uint32_t thread, bool profile) {
-    const auto poolIndex   = getPoolIndex(frame, thread);
+CommandBuffer* CommandBufferPool::getPrimary(gerium_uint32_t frame, bool profile) {
+    const auto poolIndex   = getPoolIndex(frame, 0);
     const auto bufferIndex = _indices[poolIndex];
 
-    auto& commandBuffer = _commandBuffers[poolIndex * BuffersPerFrame + bufferIndex];
+    auto& commandBuffer = _commandBuffers[poolIndex * _buffersPerFrame + bufferIndex];
 
     if (commandBuffer.isRecording()) {
         throw Exception(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
@@ -380,7 +411,33 @@ CommandBuffer* CommandBufferPool::getCommandBuffer(gerium_uint32_t frame, gerium
             commandBuffer.vkCommandBuffer(), _device->vkQueryPool(), frame * queriesPerFrame * 2, queriesPerFrame);
     }
 
-    _indices[poolIndex] = (_indices[poolIndex] + 1) % BuffersPerFrame;
+    _indices[poolIndex] = (_indices[poolIndex] + 1) % _buffersPerFrame;
+    return &commandBuffer;
+}
+
+CommandBuffer* CommandBufferPool::getSecondary(gerium_uint32_t frame,
+                                               gerium_uint32_t thread,
+                                               RenderPassHandle renderPass,
+                                               FramebufferHandle framebuffer,
+                                               bool profile) {
+    const auto poolIndex   = getPoolIndex(frame, thread + 1);
+    const auto bufferIndex = _indices[poolIndex];
+
+    auto& commandBuffer = _commandBuffers[poolIndex * _buffersPerFrame + bufferIndex];
+
+    if (commandBuffer.isRecording()) {
+        throw Exception(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    commandBuffer.begin(renderPass, framebuffer);
+
+    if (profile && _device->isProfilerEnable() && !_device->profiler()->hasTimestamps()) {
+        const auto queriesPerFrame = _device->profiler()->queriesPerFrame();
+        _device->vkTable().vkCmdResetQueryPool(
+            commandBuffer.vkCommandBuffer(), _device->vkQueryPool(), frame * queriesPerFrame * 2, queriesPerFrame);
+    }
+
+    _indices[poolIndex] = (_indices[poolIndex] + 1) % _buffersPerFrame;
     return &commandBuffer;
 }
 

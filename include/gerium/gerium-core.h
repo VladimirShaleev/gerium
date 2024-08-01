@@ -360,6 +360,8 @@ typedef gerium_bool_t
 (*gerium_frame_graph_render_func_t)(gerium_frame_graph_t frame_graph,
                                     gerium_renderer_t renderer,
                                     gerium_command_buffer_t command_buffer,
+                                    gerium_uint32_t worker,
+                                    gerium_uint32_t total_workers,
                                     gerium_data_t data);
 
 typedef struct

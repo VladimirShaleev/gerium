@@ -8,10 +8,10 @@
 namespace gerium::vulkan {
 
 class Device;
-class VkRenderer;
 
 class CommandBuffer final : public gerium::CommandBuffer {
 public:
+    CommandBuffer() = default;
     CommandBuffer(Device& device, VkCommandBuffer commandBuffer);
 
     void addImageBarrier(TextureHandle handle,
@@ -31,8 +31,9 @@ public:
     void pushMarker(gerium_utf8_t name);
     void popMarker();
     void submit(QueueType queue);
+    void execute(gerium_uint32_t numCommandBuffers, CommandBuffer* commandBuffers[]);
 
-    void begin();
+    void begin(RenderPassHandle renderPass = Undefined, FramebufferHandle framebuffer = Undefined);
     void end();
     void endCurrentRenderPass();
 
@@ -63,7 +64,7 @@ private:
                 gerium_uint32_t instanceCount) noexcept override;
 
     Device* _device{};
-    VkCommandBuffer _commandBuffer{ Undefined };
+    VkCommandBuffer _commandBuffer{};
     FrameGraph* _currentFrameGraph{};
     RenderPassHandle _currentRenderPass{ Undefined };
     FramebufferHandle _currentFramebuffer{ Undefined };
@@ -85,18 +86,22 @@ public:
     CommandBufferPool& operator=(const CommandBufferPool&)  = delete;
     CommandBufferPool& operator=(CommandBufferPool&& other) = delete;
 
-    void create(Device& device, gerium_uint32_t numThreads, gerium_uint32_t family);
+    void create(Device& device, gerium_uint32_t numThreads, gerium_uint32_t numBuffersPerFrame, gerium_uint32_t family);
     void destroy() noexcept;
 
-    CommandBuffer* getCommandBuffer(gerium_uint32_t frame, gerium_uint32_t thread, bool profile);
+    CommandBuffer* getPrimary(gerium_uint32_t frame, bool profile);
+    CommandBuffer* getSecondary(gerium_uint32_t frame,
+                                gerium_uint32_t thread,
+                                RenderPassHandle renderPass,
+                                FramebufferHandle framebuffer,
+                                bool profile);
 
 private:
     gerium_uint32_t getPoolIndex(gerium_uint32_t frame, gerium_uint32_t thread) const noexcept;
 
-    static constexpr gerium_uint32_t BuffersPerFrame = 3;
-
     Device* _device{};
     gerium_uint32_t _threadCount{};
+    gerium_uint32_t _buffersPerFrame{};
     std::vector<VkCommandPool> _vkCommandPools;
     std::vector<CommandBuffer> _commandBuffers;
     std::vector<gerium_uint8_t> _indices;

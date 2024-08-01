@@ -166,7 +166,7 @@ bool Device::newFrame() {
     ImGui::NewFrame();
 
     if (!_frameCommandBuffer) {
-        _frameCommandBuffer = getCommandBuffer(0, false);
+        _frameCommandBuffer = getPrimaryCommandBuffer(false);
     }
 
     return true;
@@ -1166,8 +1166,12 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
     return descriptors.vkDescriptorSet[descriptors.current];
 }
 
-CommandBuffer* Device::getCommandBuffer(uint32_t thread, bool profile) {
-    return _commandBufferPool.getCommandBuffer(_currentFrame, thread, profile);
+CommandBuffer* Device::getPrimaryCommandBuffer(bool profile) {
+    return _commandBufferPool.getPrimary(_currentFrame, profile);
+}
+
+CommandBuffer* Device::getSecondaryCommandBuffer(gerium_uint32_t thread, RenderPassHandle renderPass, FramebufferHandle framebuffer) {
+    return _commandBufferPool.getSecondary(_currentFrame, thread, renderPass, framebuffer, false);
 }
 
 uint32_t Device::totalMemoryUsed() {
@@ -1353,8 +1357,8 @@ void Device::createDevice(gerium_uint32_t threadCount) {
     _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
-    _commandBufferPool.create(*this, threadCount, graphic.index);
-    _frameCommandBuffer = getCommandBuffer(0, false);
+    _commandBufferPool.create(*this, threadCount, 10, graphic.index);
+    _frameCommandBuffer = getPrimaryCommandBuffer(false);
 }
 
 void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
@@ -1509,7 +1513,7 @@ void Device::createSwapchain(Application* application) {
     }
     _swapchainFramebuffers.resize(swapchainImages);
 
-    auto commandBuffer = getCommandBuffer(0, false);
+    auto commandBuffer = getPrimaryCommandBuffer(false);
 
     for (uint32_t i = 0; i < swapchainImages; ++i) {
         auto [colorHandle, color] = _textures.obtain_and_access();

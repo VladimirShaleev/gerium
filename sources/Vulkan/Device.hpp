@@ -50,7 +50,8 @@ public:
                                         DescriptorSetLayoutHandle layoutHandle,
                                         FrameGraph* frameGraph);
 
-    CommandBuffer* getCommandBuffer(uint32_t thread, bool profile = true);
+    CommandBuffer* getPrimaryCommandBuffer(bool profile = true);
+    CommandBuffer* getSecondaryCommandBuffer(gerium_uint32_t thread, RenderPassHandle renderPass, FramebufferHandle framebuffer);
 
     uint32_t totalMemoryUsed();
 
