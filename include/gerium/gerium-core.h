@@ -323,6 +323,12 @@ typedef enum {
 } gerium_vertex_rate_t;
 
 typedef enum {
+    GERIUM_INDEX_TYPE_UINT16   = 0,
+    GERIUM_INDEX_TYPE_UINT32   = 1,
+    GERIUM_INDEX_TYPE_MAX_ENUM = 0x7FFFFFFF
+} gerium_index_type_t;
+
+typedef enum {
     GERIUM_SHADER_TYPE_VERTEX   = 0,
     GERIUM_SHADER_TYPE_FRAGMENT = 1,
     GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
@@ -864,6 +870,12 @@ gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_buffer,
                                          gerium_uint32_t offset);
 
 gerium_public void
+gerium_command_buffer_bind_index_buffer(gerium_command_buffer_t command_buffer,
+                                        gerium_buffer_h handle,
+                                        gerium_uint32_t offset,
+                                        gerium_index_type_t type);
+
+gerium_public void
 gerium_command_buffer_bind_descriptor_set(gerium_command_buffer_t command_buffer,
                                           gerium_descriptor_set_h handle,
                                           gerium_uint32_t set);
@@ -874,6 +886,14 @@ gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                            gerium_uint32_t vertex_count,
                            gerium_uint32_t first_instance,
                            gerium_uint32_t instance_count);
+
+gerium_public void
+gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
+                                   gerium_uint32_t first_index,
+                                   gerium_uint32_t index_count,
+                                   gerium_uint32_t vertex_offset,
+                                   gerium_uint32_t first_instance,
+                                   gerium_uint32_t instance_count);
 
 gerium_public void
 gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,

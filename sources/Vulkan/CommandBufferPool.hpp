@@ -57,11 +57,17 @@ private:
                       gerium_uint16_t height) noexcept override;
     void onBindTechnique(TechniqueHandle handle) noexcept override;
     void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept override;
+    void onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept override;
     void onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept override;
     void onDraw(gerium_uint32_t firstVertex,
                 gerium_uint32_t vertexCount,
                 gerium_uint32_t firstInstance,
                 gerium_uint32_t instanceCount) noexcept override;
+    void onDrawIndexed(gerium_uint32_t firstIndex,
+                       gerium_uint32_t indexCount,
+                       gerium_uint32_t vertexOffset,
+                       gerium_uint32_t firstInstance,
+                       gerium_uint32_t instanceCount) noexcept override;
 
     Device* _device{};
     VkCommandBuffer _commandBuffer{};

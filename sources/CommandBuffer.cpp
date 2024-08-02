@@ -32,6 +32,10 @@ void CommandBuffer::bindVertexBuffer(BufferHandle handle, gerium_uint32_t bindin
     onBindVertexBuffer(handle, binding, offset);
 }
 
+void CommandBuffer::bindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept {
+    onBindIndexBuffer(handle, offset, type);
+}
+
 void CommandBuffer::bindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
     onBindDescriptorSet(handle, set);
 }
@@ -41,6 +45,14 @@ void CommandBuffer::draw(gerium_uint32_t firstVertex,
                          gerium_uint32_t firstInstance,
                          gerium_uint32_t instanceCount) noexcept {
     onDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+}
+
+void CommandBuffer::drawIndexed(gerium_uint32_t firstIndex,
+                                gerium_uint32_t indexCount,
+                                gerium_uint32_t vertexOffset,
+                                gerium_uint32_t firstInstance,
+                                gerium_uint32_t instanceCount) noexcept {
+    onDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
 }
 
 void CommandBuffer::drawProfiler(bool* show) noexcept {
@@ -89,6 +101,14 @@ void gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_bu
     alias_cast<CommandBuffer*>(command_buffer)->bindVertexBuffer({ handle.unused }, binding, offset);
 }
 
+void gerium_command_buffer_bind_index_buffer(gerium_command_buffer_t command_buffer,
+                                             gerium_buffer_h handle,
+                                             gerium_uint32_t offset,
+                                             gerium_index_type_t type) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->bindIndexBuffer({ handle.unused }, offset, type);
+}
+
 void gerium_command_buffer_bind_descriptor_set(gerium_command_buffer_t command_buffer,
                                                gerium_descriptor_set_h handle,
                                                gerium_uint32_t set) {
@@ -103,6 +123,17 @@ void gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                                 gerium_uint32_t instance_count) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->draw(first_vertex, vertex_count, first_instance, instance_count);
+}
+
+void gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
+                                        gerium_uint32_t first_index,
+                                        gerium_uint32_t index_count,
+                                        gerium_uint32_t vertex_offset,
+                                        gerium_uint32_t first_instance,
+                                        gerium_uint32_t instance_count) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)
+        ->drawIndexed(first_index, index_count, vertex_offset, first_instance, instance_count);
 }
 
 void gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer, gerium_bool_t* show) {

@@ -278,6 +278,10 @@ gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) n
     }
 }
 
+gerium_inline VkIndexType toVkIndexType(gerium_index_type_t type) noexcept {
+    return (VkIndexType) type;
+}
+
 gerium_inline VkAccessFlags toVkAccessFlags(ResourceState state) noexcept {
     VkAccessFlags ret = 0;
     if ((state & ResourceState::CopySource) == ResourceState::CopySource) {

@@ -302,6 +302,19 @@ void CommandBuffer::onBindVertexBuffer(BufferHandle handle, gerium_uint32_t bind
     _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
 }
 
+void CommandBuffer::onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept {
+    auto buffer = _device->_buffers.access(handle);
+
+    VkBuffer vkBuffer     = buffer->vkBuffer;
+    VkDeviceSize vkOffset = offset;
+    if (buffer->parent != Undefined) {
+        auto parentBuffer = _device->_buffers.access(buffer->parent);
+        vkBuffer          = parentBuffer->vkBuffer;
+        vkOffset          = buffer->globalOffset;
+    }
+    _device->vkTable().vkCmdBindIndexBuffer(_commandBuffer, vkBuffer, vkOffset + offset, toVkIndexType(type));
+}
+
 void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
     auto pipeline      = _device->_pipelines.access(_currentPipeline);
     auto descriptorSet = _device->_descriptorSets.access(handle);
@@ -335,6 +348,15 @@ void CommandBuffer::onDraw(gerium_uint32_t firstVertex,
                            gerium_uint32_t firstInstance,
                            gerium_uint32_t instanceCount) noexcept {
     _device->vkTable().vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+void CommandBuffer::onDrawIndexed(gerium_uint32_t firstIndex,
+                                  gerium_uint32_t indexCount,
+                                  gerium_uint32_t vertexOffset,
+                                  gerium_uint32_t firstInstance,
+                                  gerium_uint32_t instanceCount) noexcept {
+    _device->vkTable().vkCmdDrawIndexed(
+        _commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
 CommandBufferPool::~CommandBufferPool() {
