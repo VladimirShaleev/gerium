@@ -379,6 +379,7 @@ struct Texture {
     VkFormat              vkFormat;
     VkImageLayout         vkImageLayout;
     VmaAllocation         vmaAllocation;
+    gerium_uint32_t       size;
     uint16_t              width;
     uint16_t              height;
     uint16_t              depth;

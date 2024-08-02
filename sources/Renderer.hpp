@@ -39,6 +39,7 @@ public:
     void destroyFramebuffer(FramebufferHandle handle) noexcept;
 
     void bind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept;
+    void bind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept;
     void bind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept;
 
     gerium_data_t mapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept;
@@ -76,6 +77,7 @@ private:
     virtual void onDestroyFramebuffer(FramebufferHandle handle) noexcept     = 0;
 
     virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept         = 0;
+    virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept       = 0;
     virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept = 0;
 
     virtual gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept = 0;

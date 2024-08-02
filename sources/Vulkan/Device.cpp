@@ -355,14 +355,15 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     auto [handle, texture] = _textures.obtain_and_access();
 
     texture->vkFormat = toVkFormat(creation.format);
-    texture->width    = creation.width;
-    texture->height   = creation.height;
-    texture->depth    = creation.depth;
-    texture->mipmaps  = creation.mipmaps;
-    texture->flags    = creation.flags;
-    texture->type     = creation.type;
-    texture->name     = intern(creation.name);
-    texture->sampler  = Undefined;
+    texture->size   = creation.width * creation.height * creation.depth * vk::blockSize((vk::Format) texture->vkFormat);
+    texture->width  = creation.width;
+    texture->height = creation.height;
+    texture->depth  = creation.depth;
+    texture->mipmaps = creation.mipmaps;
+    texture->flags   = creation.flags;
+    texture->type    = creation.type;
+    texture->name    = intern(creation.name);
+    texture->sampler = Undefined;
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -438,7 +439,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture->vkImageView, texture->name);
 
     if (creation.initialData) {
-        // uploadTextureData(texture, creation.initialData);
+        uploadTextureData(handle, creation.initialData);
     }
 
     return handle;
@@ -1171,7 +1172,9 @@ CommandBuffer* Device::getPrimaryCommandBuffer(bool profile) {
     return _commandBufferPool.getPrimary(_currentFrame, profile);
 }
 
-CommandBuffer* Device::getSecondaryCommandBuffer(gerium_uint32_t thread, RenderPassHandle renderPass, FramebufferHandle framebuffer) {
+CommandBuffer* Device::getSecondaryCommandBuffer(gerium_uint32_t thread,
+                                                 RenderPassHandle renderPass,
+                                                 FramebufferHandle framebuffer) {
     return _commandBufferPool.getSecondary(_currentFrame, thread, renderPass, framebuffer, false);
 }
 
@@ -2347,6 +2350,21 @@ void Device::frameCountersAdvance() noexcept {
     _previousFrame = _currentFrame;
     _currentFrame  = (_currentFrame + 1) % MaxFrames;
     ++_absoluteFrame;
+}
+
+void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
+    auto texture = _textures.access(handle);
+    BufferCreation bc{};
+    bc.set(GERIUM_BUFFER_USAGE_VERTEX_BIT, ResourceUsageType::Dynamic, texture->size);
+
+    auto stagingBuffer = createBuffer(bc);
+
+    auto mapped = mapBuffer(stagingBuffer);
+    memcpy((void*) mapped, (void*) data, texture->size);
+    unmapBuffer(stagingBuffer);
+
+    _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
+    destroyBuffer(stagingBuffer);
 }
 
 std::vector<const char*> Device::selectValidationLayers() {

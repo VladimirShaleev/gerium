@@ -210,6 +210,7 @@ private:
     QueueFamilies getQueueFamilies(VkPhysicalDevice device);
     Swapchain getSwapchain();
     void frameCountersAdvance() noexcept;
+    void uploadTextureData(TextureHandle handle, gerium_cdata_t data);
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();

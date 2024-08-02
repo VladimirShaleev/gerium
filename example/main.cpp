@@ -1,6 +1,7 @@
 #include <gerium/gerium.h>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 // GLM
 #define GLM_ENABLE_EXPERIMENTAL
@@ -19,6 +20,7 @@ static gerium_frame_graph_t frameGraph  = nullptr;
 static gerium_profiler_t profiler       = nullptr;
 
 static gerium_buffer_h vertices                         = {};
+static gerium_texture_h texture                         = {};
 static gerium_buffer_h meshData0                        = {};
 static gerium_buffer_h meshData1                        = {};
 static gerium_buffer_h uniform1                         = {};
@@ -122,12 +124,48 @@ bool initialize(gerium_application_t application) {
         };
 
         Vertex vData[3]{
-            { { 0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { 0.5, 0.5 },    { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+            { { 0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.5f, 1.0f } },
+            { { 0.5, 0.5 },    { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
             { { -0.5, 0.5 },   { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } }
         };
         check(gerium_renderer_create_buffer(
             renderer, GERIUM_BUFFER_USAGE_VERTEX_BIT, 0, "vertices", vData, sizeof(Vertex) * 3, &vertices));
+
+        std::vector<gerium_uint8_t> texData;
+        texData.resize(64 * 64 * 4);
+
+        for (gerium_sint32_t y = 0; y < 64; ++y) {
+            for (gerium_sint32_t x = 0; x < 64; ++x) {
+                auto pos = (y * 64 + x) * 4;
+                auto pX = x - 32;
+                auto pY = y - 32;
+                auto dist = std::sqrt(pX * pX + pY * pY);
+                dist = (dist > 32 ? 32 : dist) / 32;
+                auto c = 1 - dist * dist * dist;
+                c = c * 255;
+                auto cc = uint32_t(c);
+                if (cc > 255) {
+                    cc = 255;
+                } else if (c < 0) {
+                    c = 0;
+                }
+                texData[pos + 0] = cc;
+                texData[pos + 1] = cc;
+                texData[pos + 2] = cc;
+                texData[pos + 3] = 255;
+            }
+        }
+
+        gerium_texture_creation_t c{};
+        c.width   = 64;
+        c.height  = 64;
+        c.depth   = 1;
+        c.mipmaps = 1;
+        c.format  = GERIUM_FORMAT_R8G8B8A8_UNORM;
+        c.type    = GERIUM_TEXTURE_TYPE_2D;
+        c.data    = (gerium_cdata_t) texData.data();
+        c.name    = "texture";
+        check(gerium_renderer_create_texture(renderer, &c, &texture));
 
         check(gerium_renderer_create_buffer(renderer,
                                             GERIUM_BUFFER_USAGE_UNIFORM_BIT,
@@ -168,9 +206,11 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet1));
 
         gerium_renderer_bind_buffer(renderer, descriptorSetMeshData[0], 0, meshData0);
+        gerium_renderer_bind_texture(renderer, descriptorSetMeshData[0], 1, texture);
         gerium_renderer_bind_buffer(renderer, descriptorSetMeshData[0], 2, uniform2);
         gerium_renderer_bind_buffer(renderer, descriptorSetUniform[0], 2, uniform1);
         gerium_renderer_bind_buffer(renderer, descriptorSetMeshData[1], 0, meshData1);
+        gerium_renderer_bind_texture(renderer, descriptorSetMeshData[1], 1, texture);
         gerium_renderer_bind_buffer(renderer, descriptorSetMeshData[1], 2, uniform2);
         gerium_renderer_bind_buffer(renderer, descriptorSetUniform[1], 2, uniform1);
         gerium_renderer_bind_resource(renderer, descriptorSet1, 0, "color");
@@ -416,8 +456,11 @@ bool initialize(gerium_application_t application) {
         baseShaders[1].data = "#version 450\n"
                               "\n"
                               "layout(location = 0) in vec3 inColor;\n"
+                              "layout(location = 1) in vec2 inTexCoord;\n"
 
                               "layout(location = 0) out vec4 outColor;\n"
+                              "\n"
+                              "layout(binding = 1) uniform sampler2D texColor;\n"
                               "\n"
                               "layout(set = 1, binding = 2) uniform UniformBufferObject1 {\n"
                               "    float f;\n"
@@ -428,7 +471,8 @@ bool initialize(gerium_application_t application) {
                               "} test2;\n"
                               "\n"
                               "void main() {\n"
-                              "    outColor = vec4(inColor.r * test.f, inColor.g * test2.f, inColor.b, 1.0);\n"
+                              "    vec3 color = texture(texColor, inTexCoord).rgb;\n"
+                              "    outColor = vec4(inColor.r * test.f * color.r, inColor.g * test2.f * color.g, inColor.b * color.b, 1.0);\n"
                               "}\n";
         baseShaders[1].size = strlen((const char*) baseShaders[1].data);
 
@@ -544,6 +588,7 @@ void unitialize(gerium_application_t application) {
         gerium_renderer_destroy_buffer(renderer, uniform1);
         gerium_renderer_destroy_buffer(renderer, meshData1);
         gerium_renderer_destroy_buffer(renderer, meshData0);
+        gerium_renderer_destroy_texture(renderer, texture);
         gerium_renderer_destroy_buffer(renderer, vertices);
     }
 

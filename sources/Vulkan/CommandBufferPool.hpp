@@ -18,7 +18,11 @@ public:
                          ResourceState oldState,
                          ResourceState newState,
                          gerium_uint32_t mipLevel,
-                         gerium_uint32_t mipCount);
+                         gerium_uint32_t mipCount,
+                         gerium_uint32_t srcFamily = VK_QUEUE_FAMILY_IGNORED,
+                         gerium_uint32_t dstFamily = VK_QUEUE_FAMILY_IGNORED,
+                         QueueType srcQueueType    = QueueType::Graphics,
+                         QueueType dstQueueType    = QueueType::Graphics);
     void clearColor(gerium_uint32_t index,
                     gerium_float32_t red,
                     gerium_float32_t green,
@@ -28,6 +32,7 @@ public:
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer, bool useSecondaryCommandBuffers);
     void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
+    void copyBuffer(BufferHandle src, TextureHandle dst);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
     void submit(QueueType queue);

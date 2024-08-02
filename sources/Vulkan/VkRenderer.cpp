@@ -255,6 +255,10 @@ void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, Buf
     _device->bind(handle, binding, buffer);
 }
 
+void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept {
+    _device->bind(handle, binding, texture);
+}
+
 void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept {
     _device->bind(handle, binding, Undefined, resourceInput);
 }

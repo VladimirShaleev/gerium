@@ -814,6 +814,12 @@ gerium_renderer_bind_buffer(gerium_renderer_t renderer,
                             gerium_buffer_h buffer);
 
 gerium_public void
+gerium_renderer_bind_texture(gerium_renderer_t renderer,
+                             gerium_descriptor_set_h handle,
+                             gerium_uint16_t binding,
+                             gerium_texture_h texture);
+
+gerium_public void
 gerium_renderer_bind_resource(gerium_renderer_t renderer,
                               gerium_descriptor_set_h handle,
                               gerium_uint16_t binding,

@@ -73,6 +73,10 @@ void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferH
     onBind(handle, binding, buffer);
 }
 
+void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept {
+    onBind(handle, binding, texture);
+}
+
 void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept {
     onBind(handle, binding, resourceInput);
 }
@@ -229,6 +233,14 @@ void gerium_renderer_bind_buffer(gerium_renderer_t renderer,
                                  gerium_buffer_h buffer) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, BufferHandle{ buffer.unused });
+}
+
+void gerium_renderer_bind_texture(gerium_renderer_t renderer,
+                                  gerium_descriptor_set_h handle,
+                                  gerium_uint16_t binding,
+                                  gerium_texture_h texture) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, TextureHandle{ texture.unused });
 }
 
 void gerium_renderer_bind_resource(gerium_renderer_t renderer,

@@ -278,6 +278,21 @@ gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) n
     }
 }
 
+gerium_inline VkImageAspectFlags toVkImageAspect(VkFormat format) noexcept {
+    VkImageAspectFlags aspect{};
+    if (hasDepthOrStencil(format)) {
+        if (hasDepth(format)) {
+            aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+        }
+        if (hasStencil(format)) {
+            aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
+    } else {
+        aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+    return aspect;
+}
+
 gerium_inline VkIndexType toVkIndexType(gerium_index_type_t type) noexcept {
     return (VkIndexType) type;
 }
@@ -357,7 +372,7 @@ gerium_inline VkImageLayout toVkImageLayout(ResourceState usage) noexcept {
     return VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags accessFlags, QueueType queueType) noexcept {
+gerium_inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags accessFlags, QueueType queueType) noexcept {
     VkPipelineStageFlags flags = 0;
 
     switch (queueType) {

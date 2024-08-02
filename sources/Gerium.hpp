@@ -68,6 +68,7 @@ CMRC_DECLARE(gerium::resources);
 # define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 1
 #endif
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_format_traits.hpp>
 
 // VMA
 #include <vk_mem_alloc.h>
