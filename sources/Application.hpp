@@ -2,6 +2,7 @@
 #define GERIUM_APPLICATION_HPP
 
 #include "ObjectPtr.hpp"
+#include "Input.hpp"
 
 struct _gerium_application : public gerium::Object {};
 
@@ -43,6 +44,8 @@ public:
     void run();
     void exit() noexcept;
 
+    bool isPressScancode(gerium_scancode_t scancode) const noexcept;
+
     bool isRunning() const noexcept;
 
     gerium_uint32_t workerThreadCount() const noexcept;
@@ -57,6 +60,7 @@ protected:
     void changeState(gerium_application_state_t newState, bool noThrow = false);
     bool callFrameFunc(gerium_float32_t elapsed) noexcept;
     bool callStateFunc(gerium_application_state_t state) noexcept;
+    Input* input() noexcept;
 
 private:
     virtual gerium_runtime_platform_t onGetPlatform() const noexcept = 0;
@@ -96,6 +100,7 @@ private:
     gerium_uint32_t _workerThreadCount;
     gerium_application_state_t _currentState;
     gerium_bool_t _callbackStateFailed;
+    ObjectPtr<Input> _input;
 };
 
 } // namespace gerium

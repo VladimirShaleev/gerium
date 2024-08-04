@@ -113,11 +113,17 @@ void Application::run() {
     scheduler.bind();
     defer(scheduler.unbind());
 
+    _input = Input::create(this);
+
     onRun();
 }
 
 void Application::exit() noexcept {
     onExit();
+}
+
+bool Application::isPressScancode(gerium_scancode_t scancode) const noexcept {
+    return _input->isPressScancode(scancode);
 }
 
 bool Application::isRunning() const noexcept {
@@ -167,6 +173,10 @@ bool Application::callFrameFunc(gerium_float32_t elapsed) noexcept {
 
 bool Application::callStateFunc(gerium_application_state_t state) noexcept {
     return _stateFunc ? _stateFunc(this, _stateData, state) : true;
+}
+
+Input* Application::input() noexcept {
+    return _input.get();
 }
 
 } // namespace gerium
@@ -314,4 +324,9 @@ gerium_result_t gerium_application_run(gerium_application_t application) {
 void gerium_application_exit(gerium_application_t application) {
     assert(application);
     alias_cast<Application*>(application)->exit();
+}
+
+gerium_bool_t gerium_application_is_press_scancode(gerium_application_t application, gerium_scancode_t scancode) {
+    assert(application);
+    return alias_cast<Application*>(application)->isPressScancode(scancode);
 }

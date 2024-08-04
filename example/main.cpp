@@ -136,14 +136,14 @@ bool initialize(gerium_application_t application) {
 
         for (gerium_sint32_t y = 0; y < 64; ++y) {
             for (gerium_sint32_t x = 0; x < 64; ++x) {
-                auto pos = (y * 64 + x) * 4;
-                auto pX = x - 32;
-                auto pY = y - 32;
+                auto pos  = (y * 64 + x) * 4;
+                auto pX   = x - 32;
+                auto pY   = y - 32;
                 auto dist = std::sqrt(pX * pX + pY * pY);
-                dist = (dist > 32 ? 32 : dist) / 32;
-                auto c = 1 - dist * dist * dist;
-                c = c * 255;
-                auto cc = uint32_t(c);
+                dist      = (dist > 32 ? 32 : dist) / 32;
+                auto c    = 1 - dist * dist * dist;
+                c         = c * 255;
+                auto cc   = uint32_t(c);
                 if (cc > 255) {
                     cc = 255;
                 } else if (c < 0) {
@@ -472,7 +472,8 @@ bool initialize(gerium_application_t application) {
                               "\n"
                               "void main() {\n"
                               "    vec3 color = texture(texColor, inTexCoord).rgb;\n"
-                              "    outColor = vec4(inColor.r * test.f * color.r, inColor.g * test2.f * color.g, inColor.b * color.b, 1.0);\n"
+                              "    outColor = vec4(inColor.r * test.f * color.r, inColor.g * test2.f * color.g, "
+                              "inColor.b * color.b, 1.0);\n"
                               "}\n";
         baseShaders[1].size = strlen((const char*) baseShaders[1].data);
 
@@ -610,15 +611,41 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     static float d1 = -0.001f;
     static float d2 = 0.001f;
 
+    static float posY = 0.0f;
+    static float posX = -0.5f;
+
+    glm::vec2 moveDir(0.0f, 0.0f);
+
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_A)) {
+        moveDir.x -= 1;
+    }
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_D)) {
+        moveDir.x += 1;
+    }
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_W)) {
+        moveDir.y += 1;
+    }
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_S)) {
+        moveDir.y -= 1;
+    }
+
+    auto move = glm::normalize(moveDir);
+
+    if (!std::isnan(move.x)) {
+        move *= 0.001f * elapsed;
+        posX += move.x;
+        posY += move.y;
+    }
+
     auto transforms   = (UniformBufferObject*) gerium_renderer_map_buffer(renderer, meshData0, 0, 0);
-    transforms->model = glm::translate(glm::vec3(-0.5f, 0.0f, 0.0f));
+    transforms->model = glm::translate(glm::vec3(posX, posY, 0.0f));
     transforms->view  = glm::translate(glm::vec3(0.0f, 0.0f, -2.0f * f1));
     transforms->proj  = glm::perspective(glm::radians(60.0f), float(width) / height, 0.1f, 1000.0f);
     gerium_renderer_unmap_buffer(renderer, meshData0);
 
     transforms        = (UniformBufferObject*) gerium_renderer_map_buffer(renderer, meshData1, 0, 0);
     transforms->model = glm::translate(glm::vec3(0.5f, 0.0f, 0.0f));
-    transforms->view  = glm::translate(glm::vec3(0.0f, 0.0f, -2.0f * f1));
+    transforms->view  = glm::translate(glm::vec3(0.0f, 0.0f, -2.0f * f2));
     transforms->proj  = glm::perspective(glm::radians(60.0f), float(width) / height, 0.1f, 1000.0f);
     gerium_renderer_unmap_buffer(renderer, meshData1);
 
@@ -633,7 +660,7 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     gerium_renderer_render(renderer, frameGraph);
     gerium_renderer_present(renderer);
 
-    f1 += d1 * elapsed;
+    // f1 += d1 * elapsed;
     f2 += d2 * elapsed;
 
     if (f1 < 0.5f) {

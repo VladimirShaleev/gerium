@@ -378,8 +378,11 @@ void Win32Application::onRun() {
         }
         prevTime = currentTime;
 
-        if (_running && !callFrameFunc(elapsedMs)) {
-            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        if (_running) {
+            input()->poll();
+            if (!callFrameFunc(elapsedMs)) {
+                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            }
         }
     }
 
