@@ -11,7 +11,7 @@ Application::Application() noexcept :
     _workerThreadCount(0),
     _currentState(GERIUM_APPLICATION_STATE_UNKNOWN),
     _callbackStateFailed(false),
-    _keys({}) {
+    _keys() {
 }
 
 gerium_runtime_platform_t Application::getPlatform() const noexcept {
