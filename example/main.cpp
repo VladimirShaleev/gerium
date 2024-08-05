@@ -599,9 +599,20 @@ void unitialize(gerium_application_t application) {
 }
 
 gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
+    bool swapFullscreen = false;
+
     gerium_event_t event;
     while (gerium_application_poll_events(application, &event)) {
-        gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, std::to_string(event.timestamp).c_str());
+        if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
+            if (event.keyboard.scancode == GERIUM_SCANCODE_ENTER && event.keyboard.state == GERIUM_KEY_STATE_RELEASED &&
+                (event.keyboard.modifiers & GERIUM_KEY_MOD_LALT)) {
+                swapFullscreen = true;
+            }
+        }
+    }
+
+    if (swapFullscreen) {
+        gerium_application_fullscreen(application, !gerium_application_is_fullscreen(application), 0, nullptr);
     }
 
     if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SKIP_FRAME) {

@@ -120,6 +120,28 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_KEY_MOD_NONE        = 0,
+    GERIUM_KEY_MOD_LSHIFT      = 1,
+    GERIUM_KEY_MOD_RSHIFT      = 2,
+    GERIUM_KEY_MOD_LCTRL       = 4,
+    GERIUM_KEY_MOD_RCTRL       = 8,
+    GERIUM_KEY_MOD_LALT        = 16,
+    GERIUM_KEY_MOD_RALT        = 32,
+    GERIUM_KEY_MOD_LMETA       = 64,
+    GERIUM_KEY_MOD_RMETA       = 128,
+    GERIUM_KEY_MOD_NUM_LOCK    = 256,
+    GERIUM_KEY_MOD_CAPS_LOCK   = 512,
+    GERIUM_KEY_MOD_SCROLL_LOCK = 1024,
+    GERIUM_KEY_MOD_SHIFT       = GERIUM_KEY_MOD_LSHIFT | GERIUM_KEY_MOD_RSHIFT,
+    GERIUM_KEY_MOD_CTRL        = GERIUM_KEY_MOD_LCTRL | GERIUM_KEY_MOD_RCTRL, 
+    GERIUM_KEY_MOD_ALT         = GERIUM_KEY_MOD_LALT | GERIUM_KEY_MOD_RALT,
+    GERIUM_KEY_MOD_META        = GERIUM_KEY_MOD_LMETA | GERIUM_KEY_MOD_RMETA,
+    GERIUM_KEY_MOD_MAX_ENUM    = 0x7FFFFFFF 
+} gerium_key_mod_flags_t;
+GERIUM_FLAGS(gerium_key_mod_flags_t)
+
+typedef enum
+{
     GERIUM_SCANCODE_UNKNOWN              = 0,
     GERIUM_SCANCODE_0                    = 1,
     GERIUM_SCANCODE_1                    = 2,
@@ -540,8 +562,9 @@ typedef gerium_bool_t
 
 typedef struct
 {
-    gerium_scancode_t  scancode;
-    gerium_key_state_t state;
+    gerium_scancode_t      scancode;
+    gerium_key_state_t     state;
+    gerium_key_mod_flags_t modifiers;
 } gerium_keyboard_event_t;
 
 typedef struct

@@ -432,21 +432,6 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) no
 
     auto prevVisibility = _visibility;
     switch (message) {
-            // case WM_SYSKEYUP: // TODO: Need it for development and testing. Remove later
-            //     if (wParam == VK_RETURN) {
-            //         gerium_application_fullscreen(this,
-            //                                       !gerium_application_is_fullscreen(this),
-            //                                       std::numeric_limits<gerium_uint32_t>::max(),
-            //                                       nullptr);
-            //     }
-            //     break;
-
-            // case WM_KEYUP: // TODO: Need it for development and testing. Remove later
-            //     if (wParam == VK_ESCAPE) {
-            //         gerium_application_exit(this);
-            //     }
-            //     break;
-
         case WM_CLOSE:
             changeState(GERIUM_APPLICATION_STATE_INVISIBLE, true);
             exit();
@@ -604,6 +589,20 @@ void Win32Application::pollInput(LARGE_INTEGER frequency) noexcept {
     LARGE_INTEGER currentTime;
     UINT cbSize = sizeof(_rawInput);
 
+    BYTE keyState[256];
+    GetKeyboardState((LPBYTE) &keyState);
+
+    gerium_key_mod_flags_t modifiers = GERIUM_KEY_MOD_NONE;
+    if (keyState[VK_CAPITAL] & 0x01) {
+        modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
+    }
+    if (keyState[VK_SCROLL] & 0x01) {
+        modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK;
+    }
+    if (keyState[VK_NUMLOCK] & 0x01) {
+        modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
+    }
+
     while (true) {
         auto nInput = GetRawInputBuffer(_rawInput, &cbSize, sizeof(RAWINPUTHEADER));
 
@@ -625,11 +624,37 @@ void Win32Application::pollInput(LARGE_INTEGER frequency) noexcept {
 
                         _lastInputTimestamp = currentTime.QuadPart;
 
+                        if (isPressScancode(GERIUM_SCANCODE_SHIFT_LEFT)) {
+                            modifiers |= GERIUM_KEY_MOD_LSHIFT;
+                        }
+                        if (isPressScancode(GERIUM_SCANCODE_SHIFT_RIGHT)) {
+                            modifiers |= GERIUM_KEY_MOD_RSHIFT;
+                        }
+                        if (isPressScancode(GERIUM_SCANCODE_CONTROL_LEFT)) {
+                            modifiers |= GERIUM_KEY_MOD_LCTRL;
+                        }
+                        if (isPressScancode(GERIUM_SCANCODE_CONTROL_RIGHT)) {
+                            modifiers |= GERIUM_KEY_MOD_RCTRL;
+                        }
+                        if (isPressScancode(GERIUM_SCANCODE_ALT_LEFT)) {
+                            modifiers |= GERIUM_KEY_MOD_LALT;
+                        }
+                        if (isPressScancode(GERIUM_SCANCODE_ALT_RIGHT)) {
+                            modifiers |= GERIUM_KEY_MOD_RALT;
+                        }
+                        if (isPressScancode(GERIUM_SCANCODE_META_LEFT)) {
+                            modifiers |= GERIUM_KEY_MOD_LMETA;
+                        }
+                        if (isPressScancode(GERIUM_SCANCODE_META_RIGHT)) {
+                            modifiers |= GERIUM_KEY_MOD_RMETA;
+                        }
+
                         gerium_event_t event{};
-                        event.type              = GERIUM_EVENT_TYPE_KEYBOARD;
-                        event.timestamp         = _lastInputTimestamp;
-                        event.keyboard.scancode = result;
-                        event.keyboard.state    = keyUp ? GERIUM_KEY_STATE_RELEASED : GERIUM_KEY_STATE_PRESSED;
+                        event.type               = GERIUM_EVENT_TYPE_KEYBOARD;
+                        event.timestamp          = _lastInputTimestamp;
+                        event.keyboard.scancode  = result;
+                        event.keyboard.state     = keyUp ? GERIUM_KEY_STATE_RELEASED : GERIUM_KEY_STATE_PRESSED;
+                        event.keyboard.modifiers = modifiers;
 
                         setKeyState(result, !keyUp);
                         addEvent(event);
