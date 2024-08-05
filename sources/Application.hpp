@@ -2,7 +2,6 @@
 #define GERIUM_APPLICATION_HPP
 
 #include "ObjectPtr.hpp"
-#include "Input.hpp"
 
 struct _gerium_application : public gerium::Object {};
 
