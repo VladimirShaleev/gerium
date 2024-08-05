@@ -199,6 +199,21 @@ bool Application::callStateFunc(gerium_application_state_t state) noexcept {
     return _stateFunc ? _stateFunc(this, _stateData, state) : true;
 }
 
+void Application::clearStates(gerium_uint64_t timestamp) noexcept {
+    for (size_t i = 0; i < std::size(_keys); ++i) {
+        if (_keys[i]) {
+            _keys[i] = 0;
+
+            gerium_event_t event{};
+            event.type              = GERIUM_EVENT_TYPE_KEYBOARD;
+            event.timestamp         = timestamp;
+            event.keyboard.scancode = (gerium_scancode_t) i;
+            event.keyboard.state    = GERIUM_KEY_STATE_RELEASED;
+            addEvent(event);
+        }
+    }
+}
+
 void Application::setKeyState(gerium_scancode_t scancode, bool press) noexcept {
     if (const auto index = (int) scancode; index < std::size(_keys)) {
         _keys[index] = press;

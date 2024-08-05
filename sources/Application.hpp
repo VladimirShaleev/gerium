@@ -61,6 +61,7 @@ protected:
     void changeState(gerium_application_state_t newState, bool noThrow = false);
     bool callFrameFunc(gerium_float32_t elapsed) noexcept;
     bool callStateFunc(gerium_application_state_t state) noexcept;
+    void clearStates(gerium_uint64_t timestamp) noexcept;
     void setKeyState(gerium_scancode_t scancode, bool press) noexcept;
     void addEvent(const gerium_event_t& event) noexcept;
 

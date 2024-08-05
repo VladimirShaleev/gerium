@@ -96,6 +96,7 @@ private:
     HANDLE _readyInputEvent;
     HANDLE _shutdownInputEvent;
     RAWINPUT _rawInput[16];
+    gerium_uint64_t _lastInputTimestamp;
 };
 
 } // namespace gerium::windows

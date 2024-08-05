@@ -34,7 +34,8 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _scheduler(nullptr),
     _inputThread(INVALID_HANDLE_VALUE),
     _readyInputEvent(INVALID_HANDLE_VALUE),
-    _shutdownInputEvent(INVALID_HANDLE_VALUE) {
+    _shutdownInputEvent(INVALID_HANDLE_VALUE),
+    _lastInputTimestamp(0) {
     SetProcessDPIAware();
 
     WNDCLASSEXW wndClassEx;
@@ -452,6 +453,7 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) no
             break;
 
         case WM_ACTIVATEAPP:
+            clearStates(_lastInputTimestamp);
             changeState(wParam ? GERIUM_APPLICATION_STATE_GOT_FOCUS : GERIUM_APPLICATION_STATE_LOST_FOCUS, true);
             break;
 
@@ -565,7 +567,7 @@ void Win32Application::inputThread() noexcept {
     dbh.dbcc_size       = sizeof(dbh);
     dbh.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
     dbh.dbcc_classguid  = GUID_DEVINTERFACE_HID;
-    
+
     auto notify = RegisterDeviceNotificationW(message, (LPVOID) &dbh, DEVICE_NOTIFY_WINDOW_HANDLE);
 
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
@@ -621,9 +623,11 @@ void Win32Application::pollInput(LARGE_INTEGER frequency) noexcept {
                         currentTime.QuadPart *= 1'000'000;
                         currentTime.QuadPart /= frequency.QuadPart;
 
+                        _lastInputTimestamp = currentTime.QuadPart;
+
                         gerium_event_t event{};
                         event.type              = GERIUM_EVENT_TYPE_KEYBOARD;
-                        event.timestamp         = currentTime.QuadPart;
+                        event.timestamp         = _lastInputTimestamp;
                         event.keyboard.scancode = result;
                         event.keyboard.state    = keyUp ? GERIUM_KEY_STATE_RELEASED : GERIUM_KEY_STATE_PRESSED;
 
