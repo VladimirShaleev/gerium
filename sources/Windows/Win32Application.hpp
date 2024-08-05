@@ -56,6 +56,7 @@ private:
                       bool primary,
                       gerium_display_info_t* displays) const;
 
+    static void registerInputs();
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);
     static std::string utf8String(const std::wstring& wstr);

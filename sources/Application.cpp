@@ -10,7 +10,8 @@ Application::Application() noexcept :
     _backgroundWait(false),
     _workerThreadCount(0),
     _currentState(GERIUM_APPLICATION_STATE_UNKNOWN),
-    _callbackStateFailed(false) {
+    _callbackStateFailed(false),
+    _keys({}) {
 }
 
 gerium_runtime_platform_t Application::getPlatform() const noexcept {
@@ -113,8 +114,6 @@ void Application::run() {
     scheduler.bind();
     defer(scheduler.unbind());
 
-    _input = Input::create(this);
-
     onRun();
 }
 
@@ -123,7 +122,10 @@ void Application::exit() noexcept {
 }
 
 bool Application::isPressScancode(gerium_scancode_t scancode) const noexcept {
-    return _input->isPressScancode(scancode);
+    if (const auto index = (int) scancode; index < std::size(_keys)) {
+        return _keys[index];
+    }
+    return false;
 }
 
 bool Application::isRunning() const noexcept {
@@ -175,8 +177,10 @@ bool Application::callStateFunc(gerium_application_state_t state) noexcept {
     return _stateFunc ? _stateFunc(this, _stateData, state) : true;
 }
 
-Input* Application::input() noexcept {
-    return _input.get();
+void Application::setKeyState(gerium_scancode_t scancode, bool press) noexcept {
+    if (const auto index = (int) scancode; index < std::size(_keys)) {
+        _keys[index] = press;
+    }
 }
 
 } // namespace gerium

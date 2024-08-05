@@ -1,5 +1,7 @@
 #include "Win32Application.hpp"
+#include "Win32ScanCodes.hpp"
 
+#include <hidusage.h>
 #include <imgui_impl_win32.h>
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -68,6 +70,8 @@ Win32Application::Win32Application(gerium_utf8_t title,
     }
 
     SetWindowLongPtrW(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
+
+    registerInputs();
 }
 
 HINSTANCE Win32Application::hInstance() const noexcept {
@@ -378,11 +382,8 @@ void Win32Application::onRun() {
         }
         prevTime = currentTime;
 
-        if (_running) {
-            input()->poll();
-            if (!callFrameFunc(elapsedMs)) {
-                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-            }
+        if (_running && !callFrameFunc(elapsedMs)) {
+            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
         }
     }
 
@@ -418,20 +419,20 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) no
 
     auto prevVisibility = _visibility;
     switch (message) {
-        case WM_SYSKEYUP: // TODO: Need it for development and testing. Remove later
-            if (wParam == VK_RETURN) {
-                gerium_application_fullscreen(this,
-                                              !gerium_application_is_fullscreen(this),
-                                              std::numeric_limits<gerium_uint32_t>::max(),
-                                              nullptr);
-            }
-            break;
+            // case WM_SYSKEYUP: // TODO: Need it for development and testing. Remove later
+            //     if (wParam == VK_RETURN) {
+            //         gerium_application_fullscreen(this,
+            //                                       !gerium_application_is_fullscreen(this),
+            //                                       std::numeric_limits<gerium_uint32_t>::max(),
+            //                                       nullptr);
+            //     }
+            //     break;
 
-        case WM_KEYUP: // TODO: Need it for development and testing. Remove later
-            if (wParam == VK_ESCAPE) {
-                gerium_application_exit(this);
-            }
-            break;
+            // case WM_KEYUP: // TODO: Need it for development and testing. Remove later
+            //     if (wParam == VK_ESCAPE) {
+            //         gerium_application_exit(this);
+            //     }
+            //     break;
 
         case WM_CLOSE:
             changeState(GERIUM_APPLICATION_STATE_INVISIBLE, true);
@@ -499,6 +500,44 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) no
             _hWnd    = nullptr;
             _running = false;
             break;
+
+        case WM_INPUT: {
+            UINT dwSize;
+            GetRawInputData((HRAWINPUT) lParam, RID_INPUT, nullptr, &dwSize, sizeof(RAWINPUTHEADER));
+
+            RAWINPUT raw;
+            if (GetRawInputData((HRAWINPUT) lParam, RID_INPUT, (LPVOID) &raw, &dwSize, sizeof(RAWINPUTHEADER)) !=
+                dwSize) {
+                // TODO: add log
+            }
+
+            if (raw.header.dwType == RIM_TYPEKEYBOARD) {
+                const auto& keyboard = raw.data.keyboard;
+                WORD scanCode        = 0;
+                bool keyUp           = keyboard.Flags & RI_KEY_BREAK;
+
+                if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX) {
+                    break;
+                }
+
+                if (keyboard.MakeCode) {
+                    scanCode =
+                        MAKEWORD(keyboard.MakeCode & 0x7f,
+                                 ((keyboard.Flags & RI_KEY_E0) ? 0xe0 : ((keyboard.Flags & RI_KEY_E1) ? 0xe1 : 0x00)));
+                } else {
+                    scanCode = LOWORD(MapVirtualKey(keyboard.VKey, MAPVK_VK_TO_VSC_EX));
+                }
+
+                if (auto result = toScanCode((ScanCode) scanCode); result != GERIUM_SCANCODE_UNKNOWN) {
+                    setKeyState(result, !keyUp);
+                }
+
+            } else if (raw.header.dwType == RIM_TYPEMOUSE) {
+                int k = 0;
+            }
+
+            break;
+        }
 
         default:
             return DefWindowProcW(_hWnd, message, wParam, lParam);
@@ -611,6 +650,23 @@ void Win32Application::enumDisplays(gerium_uint32_t displayCount,
                 ++displayIndex;
             }
         }
+    }
+}
+
+void Win32Application::registerInputs() {
+    RAWINPUTDEVICE rid[2];
+    rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    rid[0].usUsage     = HID_USAGE_GENERIC_KEYBOARD;
+    rid[0].dwFlags     = 0;
+    rid[0].hwndTarget  = nullptr;
+
+    rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    rid[1].usUsage     = HID_USAGE_GENERIC_MOUSE;
+    rid[1].dwFlags     = 0;
+    rid[1].hwndTarget  = nullptr;
+
+    if (RegisterRawInputDevices(rid, std::size(rid), sizeof(rid[0])) == FALSE) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 }
 
