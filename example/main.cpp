@@ -599,6 +599,11 @@ void unitialize(gerium_application_t application) {
 }
 
 gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
+    gerium_event_t event;
+    while (gerium_application_poll_events(application, &event)) {
+        gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, std::to_string(event.timestamp).c_str());
+    }
+
     if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return 1;
     }

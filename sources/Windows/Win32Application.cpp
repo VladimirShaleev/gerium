@@ -1,6 +1,10 @@
 #include "Win32Application.hpp"
 #include "Win32ScanCodes.hpp"
 
+#define INITGUID
+#include <Dbt.h>
+#include <WinDNS.h>
+#include <hidclass.h>
 #include <hidusage.h>
 #include <imgui_impl_win32.h>
 
@@ -26,7 +30,11 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _maxWidth(0),
     _maxHeight(0),
     _newWidth(std::numeric_limits<gerium_uint16_t>::max()),
-    _newHeight(std::numeric_limits<gerium_uint16_t>::max()) {
+    _newHeight(std::numeric_limits<gerium_uint16_t>::max()),
+    _scheduler(nullptr),
+    _inputThread(INVALID_HANDLE_VALUE),
+    _readyInputEvent(INVALID_HANDLE_VALUE),
+    _shutdownInputEvent(INVALID_HANDLE_VALUE) {
     SetProcessDPIAware();
 
     WNDCLASSEXW wndClassEx;
@@ -70,8 +78,10 @@ Win32Application::Win32Application(gerium_utf8_t title,
     }
 
     SetWindowLongPtrW(_hWnd, GWLP_USERDATA, (LONG_PTR) this);
+}
 
-    registerInputs();
+Win32Application::~Win32Application() {
+    closeInputThread();
 }
 
 HINSTANCE Win32Application::hInstance() const noexcept {
@@ -350,6 +360,8 @@ void Win32Application::onRun() {
     QueryPerformanceFrequency(&frequency);
     QueryPerformanceCounter(&prevTime);
 
+    createInputThread();
+
     MSG msg{};
     while (msg.message != WM_QUIT) {
         if (callbackStateFailed()) {
@@ -496,53 +508,133 @@ LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) no
         case WM_DESTROY:
             changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE, true);
             changeState(GERIUM_APPLICATION_STATE_DESTROY, true);
+            closeInputThread();
             PostQuitMessage(0);
             _hWnd    = nullptr;
             _running = false;
             break;
 
-        case WM_INPUT: {
-            UINT dwSize;
-            GetRawInputData((HRAWINPUT) lParam, RID_INPUT, nullptr, &dwSize, sizeof(RAWINPUTHEADER));
-
-            RAWINPUT raw;
-            if (GetRawInputData((HRAWINPUT) lParam, RID_INPUT, (LPVOID) &raw, &dwSize, sizeof(RAWINPUTHEADER)) !=
-                dwSize) {
-                // TODO: add log
-            }
-
-            if (raw.header.dwType == RIM_TYPEKEYBOARD) {
-                const auto& keyboard = raw.data.keyboard;
-                WORD scanCode        = 0;
-                bool keyUp           = keyboard.Flags & RI_KEY_BREAK;
-
-                if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX) {
-                    break;
-                }
-
-                if (keyboard.MakeCode) {
-                    scanCode =
-                        MAKEWORD(keyboard.MakeCode & 0x7f,
-                                 ((keyboard.Flags & RI_KEY_E0) ? 0xe0 : ((keyboard.Flags & RI_KEY_E1) ? 0xe1 : 0x00)));
-                } else {
-                    scanCode = LOWORD(MapVirtualKey(keyboard.VKey, MAPVK_VK_TO_VSC_EX));
-                }
-
-                if (auto result = toScanCode((ScanCode) scanCode); result != GERIUM_SCANCODE_UNKNOWN) {
-                    setKeyState(result, !keyUp);
-                }
-
-            } else if (raw.header.dwType == RIM_TYPEMOUSE) {
-                int k = 0;
-            }
-
-            break;
-        }
-
         default:
             return DefWindowProcW(_hWnd, message, wParam, lParam);
     }
     return 0;
+}
+
+LRESULT Win32Application::inputProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept {
+    return 0;
+}
+
+void Win32Application::inputThread() noexcept {
+    WNDCLASSEXW msgClassEx;
+    msgClassEx.cbSize        = sizeof(WNDCLASSEXW);
+    msgClassEx.style         = 0;
+    msgClassEx.lpfnWndProc   = inputProc;
+    msgClassEx.cbClsExtra    = 0;
+    msgClassEx.cbWndExtra    = sizeof(this);
+    msgClassEx.hInstance     = _hInstance;
+    msgClassEx.hIcon         = nullptr;
+    msgClassEx.hCursor       = nullptr;
+    msgClassEx.hbrBackground = nullptr;
+    msgClassEx.lpszMenuName  = nullptr;
+    msgClassEx.lpszClassName = _kInputName;
+    msgClassEx.hIconSm       = nullptr;
+
+    if (!RegisterClassExW(&msgClassEx)) {
+        // TODO: error
+    }
+
+    auto message = CreateWindowExW(0, _kInputName, nullptr, 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
+    SetWindowLongPtrW(message, GWLP_USERDATA, (LONG_PTR) this);
+
+    RAWINPUTDEVICE rid[2];
+    rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    rid[0].usUsage     = HID_USAGE_GENERIC_KEYBOARD;
+    rid[0].dwFlags     = 0;
+    rid[0].hwndTarget  = message;
+
+    rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    rid[1].usUsage     = HID_USAGE_GENERIC_MOUSE;
+    rid[1].dwFlags     = 0;
+    rid[1].hwndTarget  = message;
+
+    if (RegisterRawInputDevices(rid, std::size(rid), sizeof(rid[0])) == FALSE) {
+        // TODO: error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    DEV_BROADCAST_DEVICEINTERFACE dbh{};
+    dbh.dbcc_size       = sizeof(dbh);
+    dbh.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
+    dbh.dbcc_classguid  = GUID_DEVINTERFACE_HID;
+    
+    auto notify = RegisterDeviceNotificationW(message, (LPVOID) &dbh, DEVICE_NOTIFY_WINDOW_HANDLE);
+
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+
+    _scheduler->bind();
+    defer(_scheduler->unbind());
+
+    SetEvent(_readyInputEvent);
+
+    while (_running) {
+        if (MsgWaitForMultipleObjects(1, &_shutdownInputEvent, FALSE, INFINITE, QS_RAWINPUT) != (WAIT_OBJECT_0 + 1)) {
+            break;
+        }
+
+        GetQueueStatus(QS_RAWINPUT);
+
+        pollInput(frequency);
+    }
+
+    UnregisterDeviceNotification(notify);
+
+    rid[0].dwFlags |= RIDEV_REMOVE;
+    rid[1].dwFlags |= RIDEV_REMOVE;
+    RegisterRawInputDevices(rid, std::size(rid), sizeof(rid[0]));
+
+    DestroyWindow(message);
+    UnregisterClassW(_kInputName, _hInstance);
+}
+
+void Win32Application::pollInput(LARGE_INTEGER frequency) noexcept {
+    LARGE_INTEGER currentTime;
+    UINT cbSize = sizeof(_rawInput);
+
+    while (true) {
+        auto nInput = GetRawInputBuffer(_rawInput, &cbSize, sizeof(RAWINPUTHEADER));
+
+        if (nInput == 0) {
+            break;
+        }
+
+        auto raw = _rawInput;
+        for (UINT i = 0; i < nInput; ++i) {
+            if (raw->header.dwType == RIM_TYPEKEYBOARD) {
+                bool keyUp;
+                if (auto result = getScanCode(raw->data.keyboard, keyUp); result != GERIUM_SCANCODE_UNKNOWN) {
+                    auto prevKeyUp = !isPressScancode(result);
+                    if (keyUp != prevKeyUp) {
+                        QueryPerformanceCounter(&currentTime);
+
+                        currentTime.QuadPart *= 1'000'000;
+                        currentTime.QuadPart /= frequency.QuadPart;
+
+                        gerium_event_t event{};
+                        event.type              = GERIUM_EVENT_TYPE_KEYBOARD;
+                        event.timestamp         = currentTime.QuadPart;
+                        event.keyboard.scancode = result;
+                        event.keyboard.state    = keyUp ? GERIUM_KEY_STATE_RELEASED : GERIUM_KEY_STATE_PRESSED;
+
+                        setKeyState(result, !keyUp);
+                        addEvent(event);
+                    }
+                }
+            }
+            raw = NEXTRAWINPUTBLOCK(raw);
+        }
+    }
 }
 
 void Win32Application::saveWindowPlacement() {
@@ -653,20 +745,38 @@ void Win32Application::enumDisplays(gerium_uint32_t displayCount,
     }
 }
 
-void Win32Application::registerInputs() {
-    RAWINPUTDEVICE rid[2];
-    rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
-    rid[0].usUsage     = HID_USAGE_GENERIC_KEYBOARD;
-    rid[0].dwFlags     = 0;
-    rid[0].hwndTarget  = nullptr;
+void Win32Application::createInputThread() {
+    closeInputThread();
 
-    rid[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
-    rid[1].usUsage     = HID_USAGE_GENERIC_MOUSE;
-    rid[1].dwFlags     = 0;
-    rid[1].hwndTarget  = nullptr;
+    _readyInputEvent    = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    _shutdownInputEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
-    if (RegisterRawInputDevices(rid, std::size(rid), sizeof(rid[0])) == FALSE) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    _scheduler   = marl::Scheduler::get();
+    _inputThread = CreateThread(nullptr, 0, inputThread, (LPVOID) this, 0, nullptr);
+
+    HANDLE handles[] = { _readyInputEvent, _inputThread };
+
+    if (WaitForMultipleObjects(std::size(handles), handles, FALSE, INFINITE) != WAIT_OBJECT_0) {
+        // TODO: add err
+    }
+}
+
+void Win32Application::closeInputThread() {
+    if (_inputThread != INVALID_HANDLE_VALUE) {
+        SetEvent(_shutdownInputEvent);
+        WaitForSingleObject(_inputThread, INFINITE);
+        CloseHandle(_inputThread);
+        _inputThread = INVALID_HANDLE_VALUE;
+    }
+
+    if (_readyInputEvent != INVALID_HANDLE_VALUE) {
+        CloseHandle(_readyInputEvent);
+        _readyInputEvent = INVALID_HANDLE_VALUE;
+    }
+
+    if (_shutdownInputEvent != INVALID_HANDLE_VALUE) {
+        CloseHandle(_shutdownInputEvent);
+        _shutdownInputEvent = INVALID_HANDLE_VALUE;
     }
 }
 
@@ -703,6 +813,37 @@ std::string Win32Application::utf8String(const std::wstring& wstr) {
 LRESULT Win32Application::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     auto application = (Win32Application*) GetWindowLongPtrW(hWnd, GWLP_USERDATA);
     return application ? application->wndProc(message, wParam, lParam) : DefWindowProcW(hWnd, message, wParam, lParam);
+}
+
+LRESULT CALLBACK Win32Application::inputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    auto application = (Win32Application*) GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+    return application ? application->inputProc(message, wParam, lParam)
+                       : DefWindowProcW(hWnd, message, wParam, lParam);
+}
+
+DWORD WINAPI Win32Application::inputThread(LPVOID lpThreadParameter) {
+    auto application = (Win32Application*) lpThreadParameter;
+    application->inputThread();
+    return 0;
+}
+
+gerium_scancode_t Win32Application::getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp) noexcept {
+    WORD scanCode = 0;
+
+    keyUp = keyboard.Flags & RI_KEY_BREAK;
+
+    if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX) {
+        return GERIUM_SCANCODE_UNKNOWN;
+    }
+
+    if (keyboard.MakeCode) {
+        scanCode = MAKEWORD(keyboard.MakeCode & 0x7f,
+                            ((keyboard.Flags & RI_KEY_E0) ? 0xe0 : ((keyboard.Flags & RI_KEY_E1) ? 0xe1 : 0x00)));
+    } else {
+        scanCode = LOWORD(MapVirtualKey(keyboard.VKey, MAPVK_VK_TO_VSC_EX));
+    }
+
+    return toScanCode((ScanCode) scanCode);
 }
 
 } // namespace gerium::windows

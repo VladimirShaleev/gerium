@@ -8,6 +8,7 @@ namespace gerium::windows {
 class Win32Application final : public Application {
 public:
     Win32Application(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height, HINSTANCE instance);
+    ~Win32Application() override;
 
     HINSTANCE hInstance() const noexcept;
     HWND hWnd() const noexcept;
@@ -43,6 +44,9 @@ private:
     void onNewFrameImGui() override;
 
     LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept;
+    LRESULT inputProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept;
+    void inputThread() noexcept;
+    void pollInput(LARGE_INTEGER frequency) noexcept;
 
     void saveWindowPlacement();
     void restoreWindowPlacement();
@@ -55,19 +59,24 @@ private:
                       gerium_uint32_t& displayIndex,
                       bool primary,
                       gerium_display_info_t* displays) const;
+    void createInputThread();
+    void closeInputThread();
 
-    static void registerInputs();
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);
     static std::string utf8String(const std::wstring& wstr);
     static LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK inputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static DWORD WINAPI inputThread(LPVOID lpThreadParameter);
+    static gerium_scancode_t getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp) noexcept;
 
     static constexpr wchar_t _kClassName[] = L"Gerium";
+    static constexpr wchar_t _kInputName[] = L"Input";
 
     HINSTANCE _hInstance;
     HWND _hWnd;
     mutable std::string _title;
-    bool _running;
+    std::atomic_bool _running;
     bool _resizing;
     bool _visibility;
     WINDOWPLACEMENT _windowPlacement;
@@ -82,6 +91,11 @@ private:
     mutable std::map<std::wstring, std::string> _monitors;
     mutable std::vector<gerium_display_mode_t> _modes;
     mutable std::vector<std::string> _displayNames;
+    marl::Scheduler* _scheduler;
+    HANDLE _inputThread;
+    HANDLE _readyInputEvent;
+    HANDLE _shutdownInputEvent;
+    RAWINPUT _rawInput[16];
 };
 
 } // namespace gerium::windows

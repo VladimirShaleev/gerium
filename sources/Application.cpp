@@ -3,6 +3,7 @@
 namespace gerium {
 
 Application::Application() noexcept :
+    _logger(Logger::create("gerium:application")),
     _frameFunc(nullptr),
     _stateFunc(nullptr),
     _frameData(nullptr),
@@ -11,7 +12,9 @@ Application::Application() noexcept :
     _workerThreadCount(0),
     _currentState(GERIUM_APPLICATION_STATE_UNKNOWN),
     _callbackStateFailed(false),
-    _keys() {
+    _keys(),
+    _eventPos(0),
+    _eventCount(0) {
 }
 
 gerium_runtime_platform_t Application::getPlatform() const noexcept {
@@ -121,6 +124,25 @@ void Application::exit() noexcept {
     onExit();
 }
 
+bool Application::pollEvents(gerium_event_t& event) noexcept {
+    if (_eventPos == _eventCount) {
+        return false;
+    }
+
+    marl::lock lock(_eventSync);
+
+    if (_eventPos == _eventCount) {
+        return false;
+    }
+
+    const auto currentIndex = _eventPos % std::size(_events);
+
+    event = _events[currentIndex];
+    ++_eventPos;
+
+    return true;
+}
+
 bool Application::isPressScancode(gerium_scancode_t scancode) const noexcept {
     if (const auto index = (int) scancode; index < std::size(_keys)) {
         return _keys[index];
@@ -181,6 +203,22 @@ void Application::setKeyState(gerium_scancode_t scancode, bool press) noexcept {
     if (const auto index = (int) scancode; index < std::size(_keys)) {
         _keys[index] = press;
     }
+}
+
+void Application::addEvent(const gerium_event_t& event) noexcept {
+    marl::lock lock(_eventSync);
+
+    const auto nextIndex    = _eventCount % std::size(_events);
+    const auto currentIndex = _eventPos % std::size(_events);
+    const auto diff         = _eventCount - _eventPos;
+
+    if (diff >= std::size(_events)) {
+        _logger->print(GERIUM_LOGGER_LEVEL_WARNING, "The input event queue is overflow. Old events will be removed");
+        ++_eventPos;
+    }
+
+    _events[nextIndex] = event;
+    ++_eventCount;
 }
 
 } // namespace gerium
@@ -328,6 +366,12 @@ gerium_result_t gerium_application_run(gerium_application_t application) {
 void gerium_application_exit(gerium_application_t application) {
     assert(application);
     alias_cast<Application*>(application)->exit();
+}
+
+gerium_bool_t gerium_application_poll_events(gerium_application_t application, gerium_event_t* event) {
+    assert(application);
+    assert(event);
+    return alias_cast<Application*>(application)->pollEvents(*event);
 }
 
 gerium_bool_t gerium_application_is_press_scancode(gerium_application_t application, gerium_scancode_t scancode) {

@@ -107,6 +107,19 @@ GERIUM_FLAGS(gerium_application_style_flags_t)
 
 typedef enum
 {
+    GERIUM_EVENT_TYPE_KEYBOARD = 0,
+    GERIUM_EVENT_TYPE_MAX_ENUM = 0x7FFFFFFF
+} gerium_event_type_t;
+
+typedef enum
+{
+    GERIUM_KEY_STATE_PRESSED  = 0,
+    GERIUM_KEY_STATE_RELEASED = 1,
+    GERIUM_KEY_STATE_MAX_ENUM = 0x7FFFFFFF
+} gerium_key_state_t;
+
+typedef enum
+{
     GERIUM_SCANCODE_UNKNOWN              = 0,
     GERIUM_SCANCODE_0                    = 1,
     GERIUM_SCANCODE_1                    = 2,
@@ -527,6 +540,19 @@ typedef gerium_bool_t
 
 typedef struct
 {
+    gerium_scancode_t  scancode;
+    gerium_key_state_t state;
+} gerium_keyboard_event_t;
+
+typedef struct
+{
+    gerium_event_type_t     type;
+    gerium_uint64_t         timestamp;
+    gerium_keyboard_event_t keyboard;
+} gerium_event_t;
+
+typedef struct
+{
     gerium_uint16_t width;
     gerium_uint16_t height;
     gerium_uint16_t refresh_rate;
@@ -900,6 +926,10 @@ gerium_application_run(gerium_application_t application);
 
 gerium_public void
 gerium_application_exit(gerium_application_t application);
+
+gerium_public gerium_bool_t
+gerium_application_poll_events(gerium_application_t application,
+                               gerium_event_t* event);
 
 gerium_public gerium_bool_t
 gerium_application_is_press_scancode(gerium_application_t application,
