@@ -608,6 +608,7 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
                 (event.keyboard.modifiers & GERIUM_KEY_MOD_LALT)) {
                 swapFullscreen = true;
             }
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, event.keyboard.symbol);
         }
     }
 

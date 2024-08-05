@@ -2,6 +2,7 @@
 #define GERIUM_WINDOWS_WIN32_APPLICATION_HPP
 
 #include "../Application.hpp"
+#include "Win32ScanCodes.hpp"
 
 namespace gerium::windows {
 
@@ -46,7 +47,7 @@ private:
     LRESULT wndProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept;
     LRESULT inputProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept;
     void inputThread() noexcept;
-    void pollInput(LARGE_INTEGER frequency) noexcept;
+    void pollInput(LARGE_INTEGER frequency, HKL lang) noexcept;
 
     void saveWindowPlacement();
     void restoreWindowPlacement();
@@ -68,7 +69,7 @@ private:
     static LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK inputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static DWORD WINAPI inputThread(LPVOID lpThreadParameter);
-    static gerium_scancode_t getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp) noexcept;
+    static ScanCode getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp) noexcept;
 
     static constexpr wchar_t _kClassName[] = L"Gerium";
     static constexpr wchar_t _kInputName[] = L"Input";
@@ -96,6 +97,9 @@ private:
     HANDLE _readyInputEvent;
     HANDLE _shutdownInputEvent;
     RAWINPUT _rawInput[16];
+    std::atomic_bool _capslock;
+    std::atomic_bool _numlock;
+    std::atomic_bool _scrolllock;
     gerium_uint64_t _lastInputTimestamp;
 };
 

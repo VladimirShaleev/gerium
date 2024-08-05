@@ -1,5 +1,4 @@
 #include "Win32Application.hpp"
-#include "Win32ScanCodes.hpp"
 
 #define INITGUID
 #include <Dbt.h>
@@ -382,6 +381,10 @@ void Win32Application::onRun() {
             DispatchMessageW(&msg);
         }
 
+        _capslock   = GetKeyState(VK_CAPITAL) & 0x1;
+        _numlock    = GetKeyState(VK_NUMLOCK) & 0x1;
+        _scrolllock = GetKeyState(VK_SCROLL) & 0x1;
+
         QueryPerformanceCounter(&currentTime);
         microseconds.QuadPart = currentTime.QuadPart - prevTime.QuadPart;
 
@@ -555,6 +558,11 @@ void Win32Application::inputThread() noexcept {
 
     auto notify = RegisterDeviceNotificationW(message, (LPVOID) &dbh, DEVICE_NOTIFY_WINDOW_HANDLE);
 
+    GUITHREADINFO guiThreadInfo{};
+    guiThreadInfo.cbSize = sizeof(GUITHREADINFO);
+    GetGUIThreadInfo(0, &guiThreadInfo);
+    auto uiThread = GetWindowThreadProcessId(guiThreadInfo.hwndActive, 0);
+
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
     LARGE_INTEGER frequency;
@@ -572,7 +580,7 @@ void Win32Application::inputThread() noexcept {
 
         GetQueueStatus(QS_RAWINPUT);
 
-        pollInput(frequency);
+        pollInput(frequency, GetKeyboardLayout(uiThread));
     }
 
     UnregisterDeviceNotification(notify);
@@ -585,22 +593,25 @@ void Win32Application::inputThread() noexcept {
     UnregisterClassW(_kInputName, _hInstance);
 }
 
-void Win32Application::pollInput(LARGE_INTEGER frequency) noexcept {
+void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
+    wchar_t keyName[5] = {};
+    BYTE keyState[256]{};
+
     LARGE_INTEGER currentTime;
     UINT cbSize = sizeof(_rawInput);
 
-    BYTE keyState[256];
-    GetKeyboardState((LPBYTE) &keyState);
-
     gerium_key_mod_flags_t modifiers = GERIUM_KEY_MOD_NONE;
-    if (keyState[VK_CAPITAL] & 0x01) {
+    if (_capslock) {
         modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
+        keyState[VK_CAPITAL] = 0x01;
     }
-    if (keyState[VK_SCROLL] & 0x01) {
+    if (_scrolllock) {
         modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK;
+        keyState[VK_SCROLL] = 0x01;
     }
-    if (keyState[VK_NUMLOCK] & 0x01) {
+    if (_numlock) {
         modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
+        keyState[VK_NUMLOCK] = 0x01;
     }
 
     while (true) {
@@ -614,8 +625,9 @@ void Win32Application::pollInput(LARGE_INTEGER frequency) noexcept {
         for (UINT i = 0; i < nInput; ++i) {
             if (raw->header.dwType == RIM_TYPEKEYBOARD) {
                 bool keyUp;
-                if (auto result = getScanCode(raw->data.keyboard, keyUp); result != GERIUM_SCANCODE_UNKNOWN) {
-                    auto prevKeyUp = !isPressScancode(result);
+                if (auto result = getScanCode(raw->data.keyboard, keyUp); result != ScanCode::Unidentified) {
+                    const auto scanCode  = toScanCode(result);
+                    const auto prevKeyUp = !isPressScancode(scanCode);
                     if (keyUp != prevKeyUp) {
                         QueryPerformanceCounter(&currentTime);
 
@@ -649,14 +661,31 @@ void Win32Application::pollInput(LARGE_INTEGER frequency) noexcept {
                             modifiers |= GERIUM_KEY_MOD_RMETA;
                         }
 
+                        if (modifiers & GERIUM_KEY_MOD_SHIFT) {
+                            keyState[VK_SHIFT] = 0x80;
+                        } else {
+                            keyState[VK_SHIFT] = 0;
+                        }
+
+                        ToUnicodeEx(raw->data.keyboard.VKey, (UINT) result, keyState, keyName, 4, 0, lang);
+
+                        const auto code =
+                            toKeyCode(raw->data.keyboard.VKey, scanCode, modifiers & GERIUM_KEY_MOD_SHIFT);
+
                         gerium_event_t event{};
                         event.type               = GERIUM_EVENT_TYPE_KEYBOARD;
                         event.timestamp          = _lastInputTimestamp;
-                        event.keyboard.scancode  = result;
+                        event.keyboard.scancode  = scanCode;
+                        event.keyboard.code      = code;
                         event.keyboard.state     = keyUp ? GERIUM_KEY_STATE_RELEASED : GERIUM_KEY_STATE_PRESSED;
                         event.keyboard.modifiers = modifiers;
 
-                        setKeyState(result, !keyUp);
+                        if (keyName[0] != '\0') {
+                            const auto utf8 = utf8String(keyName);
+                            memcpy((void*) event.keyboard.symbol, utf8.data(), utf8.length());
+                        }
+
+                        setKeyState(scanCode, !keyUp);
                         addEvent(event);
                     }
                 }
@@ -856,13 +885,13 @@ DWORD WINAPI Win32Application::inputThread(LPVOID lpThreadParameter) {
     return 0;
 }
 
-gerium_scancode_t Win32Application::getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp) noexcept {
+ScanCode Win32Application::getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp) noexcept {
     WORD scanCode = 0;
 
     keyUp = keyboard.Flags & RI_KEY_BREAK;
 
     if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX) {
-        return GERIUM_SCANCODE_UNKNOWN;
+        return ScanCode::Unidentified;
     }
 
     if (keyboard.MakeCode) {
@@ -872,7 +901,7 @@ gerium_scancode_t Win32Application::getScanCode(const RAWKEYBOARD& keyboard, boo
         scanCode = LOWORD(MapVirtualKey(keyboard.VKey, MAPVK_VK_TO_VSC_EX));
     }
 
-    return toScanCode((ScanCode) scanCode);
+    return (ScanCode) scanCode;
 }
 
 } // namespace gerium::windows

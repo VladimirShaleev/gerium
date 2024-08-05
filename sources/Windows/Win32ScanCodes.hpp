@@ -8,16 +8,16 @@ namespace gerium::windows {
 enum class ScanCode {
     Unidentified       = 0x0000,
     Escape             = 0x0001,
-    Digit0             = 0x0002,
-    Digit1             = 0x0003,
-    Digit2             = 0x0004,
-    Digit3             = 0x0005,
-    Digit4             = 0x0006,
-    Digit5             = 0x0007,
-    Digit6             = 0x0008,
-    Digit7             = 0x0009,
-    Digit8             = 0x000A,
-    Digit9             = 0x000B,
+    Digit1             = 0x0002,
+    Digit2             = 0x0003,
+    Digit3             = 0x0004,
+    Digit4             = 0x0005,
+    Digit5             = 0x0006,
+    Digit6             = 0x0007,
+    Digit7             = 0x0008,
+    Digit8             = 0x0009,
+    Digit9             = 0x000A,
+    Digit0             = 0x000B,
     Minus              = 0x000C,
     Equal              = 0x000D,
     Backspace          = 0x000E,
@@ -465,6 +465,218 @@ gerium_inline gerium_scancode_t toScanCode(ScanCode scanCode) noexcept {
         default:
             return GERIUM_SCANCODE_UNKNOWN;
     }
+}
+
+gerium_inline gerium_key_code_t toKeyCode(USHORT vkey, gerium_scancode_t scancode, bool shift) {
+    if (vkey >= 0x30 && vkey <= 0x39) {
+        auto num = int(shift ? GERIUM_KEY_CODE_EXCLAIM : GERIUM_KEY_CODE_0);
+        return gerium_key_code_t(num + (vkey - 0x30));
+    }
+
+    if (vkey >= 0x41 && vkey <= 0x5A) {
+        return gerium_key_code_t(int(GERIUM_KEY_CODE_EXCLAIM) + (vkey - 0x41));
+    }
+
+    if (vkey >= VK_NUMPAD0 && vkey <= VK_NUMPAD9) {
+        return gerium_key_code_t(int(GERIUM_KEY_CODE_NUMPAD_0) + (vkey - VK_NUMPAD0));
+    }
+
+    if (vkey >= VK_F1 && vkey <= VK_F24) {
+        return gerium_key_code_t(int(GERIUM_KEY_CODE_F1) + (vkey - VK_F1));
+    }
+
+    switch (vkey) {
+        case VK_LBUTTON:
+        case VK_RBUTTON:
+        case VK_CANCEL:
+        case VK_MBUTTON:
+        case VK_XBUTTON1:
+        case VK_XBUTTON2:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_BACK:
+            return GERIUM_KEY_CODE_BACKSPACE;
+        case VK_TAB:
+            return GERIUM_KEY_CODE_TAB;
+        case VK_CLEAR:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_RETURN:
+            return GERIUM_KEY_CODE_ENTER;
+        case VK_SHIFT:
+            return scancode == GERIUM_SCANCODE_SHIFT_LEFT ? GERIUM_KEY_CODE_SHIFT_LEFT : GERIUM_KEY_CODE_SHIFT_RIGHT;
+        case VK_CONTROL:
+            return scancode == GERIUM_SCANCODE_CONTROL_LEFT ? GERIUM_KEY_CODE_CONTROL_LEFT
+                                                            : GERIUM_KEY_CODE_CONTROL_RIGHT;
+        case VK_MENU:
+            return scancode == GERIUM_SCANCODE_ALT_LEFT ? GERIUM_KEY_CODE_ALT_LEFT : GERIUM_KEY_CODE_ALT_RIGHT;
+        case VK_PAUSE:
+            return GERIUM_KEY_CODE_PAUSE;
+        case VK_CAPITAL:
+            return GERIUM_KEY_CODE_CAPS_LOCK;
+        case VK_KANA:
+            return GERIUM_KEY_CODE_KANA_MODE;
+        case VK_IME_ON:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_JUNJA:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_FINAL:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_KANJI:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_IME_OFF:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_ESCAPE:
+            return GERIUM_KEY_CODE_ESCAPE;
+        case VK_CONVERT:
+            return GERIUM_KEY_CODE_CONVERT;
+        case VK_NONCONVERT:
+            return GERIUM_KEY_CODE_NONCONVERT;
+        case VK_ACCEPT:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_MODECHANGE:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_SPACE:
+            return GERIUM_KEY_CODE_SPACE;
+        case VK_PRIOR:
+            return GERIUM_KEY_CODE_PAGE_UP;
+        case VK_NEXT:
+            return GERIUM_KEY_CODE_PAGE_DOWN;
+        case VK_END:
+            return GERIUM_KEY_CODE_END;
+        case VK_HOME:
+            return GERIUM_KEY_CODE_HOME;
+        case VK_LEFT:
+            return GERIUM_KEY_CODE_ARROW_LEFT;
+        case VK_UP:
+            return GERIUM_KEY_CODE_ARROW_UP;
+        case VK_RIGHT:
+            return GERIUM_KEY_CODE_ARROW_RIGHT;
+        case VK_DOWN:
+            return GERIUM_KEY_CODE_ARROW_DOWN;
+        case VK_SELECT:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_PRINT:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_EXECUTE:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_SNAPSHOT:
+            return GERIUM_KEY_CODE_PRINT_SCREEN;
+        case VK_INSERT:
+            return GERIUM_KEY_CODE_INSERT;
+        case VK_DELETE:
+            return GERIUM_KEY_CODE_DELETE;
+        case VK_HELP:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case VK_LWIN:
+            return GERIUM_KEY_CODE_META_LEFT;
+        case VK_RWIN:
+            return GERIUM_KEY_CODE_META_RIGHT;
+        case VK_APPS:
+            return GERIUM_KEY_CODE_CONTEXT_MENU;
+        case VK_SLEEP:
+            return GERIUM_KEY_CODE_SLEEP;
+        case VK_MULTIPLY:
+            return GERIUM_KEY_CODE_MULTIPLY;
+        case VK_ADD:
+            return shift ? GERIUM_KEY_CODE_ADD : GERIUM_KEY_CODE_EQUAL;
+        case VK_SEPARATOR:
+            return GERIUM_KEY_CODE_PERIOD;
+        case VK_SUBTRACT:
+            return GERIUM_KEY_CODE_SUBTRACT;
+        case VK_DECIMAL:
+            return GERIUM_KEY_CODE_DECIMAL;
+        case VK_DIVIDE:
+            return GERIUM_KEY_CODE_DEVIDE;
+        case VK_NUMLOCK:
+            return GERIUM_KEY_CODE_NUM_LOCK;
+        case VK_SCROLL:
+            return GERIUM_KEY_CODE_SCROLL_LOCK;
+        case VK_LSHIFT:
+            return GERIUM_KEY_CODE_SHIFT_LEFT;
+        case VK_RSHIFT:
+            return GERIUM_KEY_CODE_SHIFT_RIGHT;
+        case VK_LCONTROL:
+            return GERIUM_KEY_CODE_CONTROL_LEFT;
+        case VK_RCONTROL:
+            return GERIUM_KEY_CODE_CONTROL_RIGHT;
+        case VK_LMENU:
+            return GERIUM_KEY_CODE_ALT_LEFT;
+        case VK_RMENU:
+            return GERIUM_KEY_CODE_ALT_RIGHT;
+        case VK_BROWSER_BACK:
+            return GERIUM_KEY_CODE_BROWSER_BACK;
+        case VK_BROWSER_FORWARD:
+            return GERIUM_KEY_CODE_BROWSER_FORWARD;
+        case VK_BROWSER_REFRESH:
+            return GERIUM_KEY_CODE_BROWSER_REFRESH;
+        case VK_BROWSER_STOP:
+            return GERIUM_KEY_CODE_BROWSER_STOP;
+        case VK_BROWSER_SEARCH:
+            return GERIUM_KEY_CODE_BROWSER_SEARCH;
+        case VK_BROWSER_FAVORITES:
+            return GERIUM_KEY_CODE_BROWSER_FAVORITES;
+        case VK_BROWSER_HOME:
+            return GERIUM_KEY_CODE_BROWSER_HOME;
+        case VK_VOLUME_MUTE:
+            return GERIUM_KEY_CODE_AUDIO_VOLUME_MUTE;
+        case VK_VOLUME_DOWN:
+            return GERIUM_KEY_CODE_AUDIO_VOLUME_DOWN;
+        case VK_VOLUME_UP:
+            return GERIUM_KEY_CODE_AUDIO_VOLUME_UP;
+        case VK_MEDIA_NEXT_TRACK:
+            return GERIUM_KEY_CODE_MEDIA_TRACK_NEXT;
+        case VK_MEDIA_PREV_TRACK:
+            return GERIUM_KEY_CODE_MEDIA_TRACK_PREVIOUS;
+        case VK_MEDIA_STOP:
+            return GERIUM_KEY_CODE_MEDIA_STOP;
+        case VK_MEDIA_PLAY_PAUSE:
+            return GERIUM_KEY_CODE_MEDIA_PLAY_PAUSE;
+        case VK_LAUNCH_MAIL:
+            return GERIUM_KEY_CODE_LAUNCH_MAIL;
+        case VK_LAUNCH_MEDIA_SELECT:
+            return GERIUM_KEY_CODE_LAUNCH_MEDIA_PLAYER;
+        case VK_LAUNCH_APP1:
+            return GERIUM_KEY_CODE_LAUNCH_APPLICATION_1;
+        case VK_LAUNCH_APP2:
+            return GERIUM_KEY_CODE_LAUNCH_APPLICATION_2;
+        case VK_OEM_1:
+            return shift ? GERIUM_KEY_CODE_COLON : GERIUM_KEY_CODE_SEMICOLON;
+        case VK_OEM_PLUS:
+            return GERIUM_KEY_CODE_ADD;
+        case VK_OEM_COMMA:
+            return shift ? GERIUM_KEY_CODE_LESS : GERIUM_KEY_CODE_COMMA;
+        case VK_OEM_MINUS:
+            return shift ? GERIUM_KEY_CODE_UNDERSCORE : GERIUM_KEY_CODE_SUBTRACT;
+        case VK_OEM_PERIOD:
+            return shift ? GERIUM_KEY_CODE_GREATER : GERIUM_KEY_CODE_PERIOD;
+        case VK_OEM_2:
+            return shift ? GERIUM_KEY_CODE_QUESTION : GERIUM_KEY_CODE_SLASH;
+        case VK_OEM_3:
+            return shift ? GERIUM_KEY_CODE_TILDE :  GERIUM_KEY_CODE_BACKQUOTE;
+        case VK_OEM_4:
+            return shift ? GERIUM_KEY_CODE_BRACE_LEFT : GERIUM_KEY_CODE_BRACKET_LEFT;
+        case VK_OEM_5:
+            return shift ? GERIUM_KEY_CODE_PIPE : GERIUM_KEY_CODE_BACKSLASH;
+        case VK_OEM_6:
+            return shift ? GERIUM_KEY_CODE_BRACE_RIGHT : GERIUM_KEY_CODE_BRACKET_RIGHT;
+        case VK_OEM_7:
+            return shift ? GERIUM_KEY_CODE_DOUBLE_QUOTE : GERIUM_KEY_CODE_QUOTE;
+        case VK_OEM_8:
+        case VK_OEM_102:
+        case VK_PROCESSKEY:
+        case VK_PACKET:
+        case VK_ATTN:
+        case VK_CRSEL:
+        case VK_EXSEL:
+        case VK_EREOF:
+        case VK_PLAY:
+        case VK_ZOOM:
+        case VK_NONAME:
+        case VK_PA1:
+        case VK_OEM_CLEAR:
+            return GERIUM_KEY_CODE_UNKNOWN;
+    }
+
+    return GERIUM_KEY_CODE_UNKNOWN;
 }
 
 } // namespace gerium::windows
