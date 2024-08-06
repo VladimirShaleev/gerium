@@ -59,7 +59,6 @@ private:
 
     static void onAppCmd(android_app* application, int32_t cmd);
     static int32_t onInputEvent(android_app* app, AInputEvent* event);
-    static ImGuiKey keyCodeToImGuiKey(int32_t keyCode) noexcept;
 
     static std::chrono::high_resolution_clock::time_point getCurrentTime() noexcept;
 
