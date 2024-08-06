@@ -462,6 +462,23 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_MOUSE_BUTTON_NONE        = 0,
+    GERIUM_MOUSE_BUTTON_LEFT_DOWN   = 1,
+    GERIUM_MOUSE_BUTTON_LEFT_UP     = 2,
+    GERIUM_MOUSE_BUTTON_RIGHT_DOWN  = 4,
+    GERIUM_MOUSE_BUTTON_RIGHT_UP    = 8,
+    GERIUM_MOUSE_BUTTON_MIDDLE_DOWN = 16,
+    GERIUM_MOUSE_BUTTON_MIDDLE_UP   = 32,
+    GERIUM_MOUSE_BUTTON_4_DOWN      = 64,
+    GERIUM_MOUSE_BUTTON_4_UP        = 128,
+    GERIUM_MOUSE_BUTTON_5_DOWN      = 256,
+    GERIUM_MOUSE_BUTTON_5_UP        = 512,
+    GERIUM_MOUSE_BUTTON_MAX_ENUM = 0x7FFFFFFF
+} gerium_mouse_button_flags_t;
+GERIUM_FLAGS(gerium_mouse_button_flags_t)
+
+typedef enum
+{
     GERIUM_FORMAT_R8_UNORM            = 0, 
     GERIUM_FORMAT_R8_SNORM            = 1, 
     GERIUM_FORMAT_R8_UINT             = 2, 
@@ -736,12 +753,15 @@ typedef struct
 
 typedef struct
 {
-    gerium_sint16_t absolute_x;
-    gerium_sint16_t absolute_y;
-    gerium_sint16_t delta_x;
-    gerium_sint16_t delta_y;
-    gerium_sint16_t raw_delta_x;
-    gerium_sint16_t raw_delta_y;
+    gerium_mouse_button_flags_t buttons;
+    gerium_sint16_t             absolute_x;
+    gerium_sint16_t             absolute_y;
+    gerium_sint16_t             delta_x;
+    gerium_sint16_t             delta_y;
+    gerium_sint16_t             raw_delta_x;
+    gerium_sint16_t             raw_delta_y;
+    gerium_float32_t            wheel_vertical;
+    gerium_float32_t            wheel_horizontal;
 } gerium_mouse_event_t;
 
 typedef struct

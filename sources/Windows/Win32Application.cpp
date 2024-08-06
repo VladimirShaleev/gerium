@@ -701,7 +701,9 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
 
                 const auto deltaX = gerium_sint16_t(point.x - _lastMousePos.x);
                 const auto deltaY = gerium_sint16_t(point.y - _lastMousePos.y);
-                _lastMousePos     = point;
+                bool hasChanges   = deltaX || deltaY;
+
+                _lastMousePos = point;
 
                 ScreenToClient(_hWnd, &point);
 
@@ -732,9 +734,51 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                 } else if (mouse.lLastX || mouse.lLastY) {
                     event.mouse.raw_delta_x = (gerium_sint16_t) mouse.lLastX;
                     event.mouse.raw_delta_y = (gerium_sint16_t) mouse.lLastY;
+                    hasChanges = true;
                 }
 
-                if (event.mouse.delta_x || event.mouse.delta_y || event.mouse.raw_delta_x || event.mouse.raw_delta_y) {
+                if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_DOWN;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_UP;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_DOWN;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_UP;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_DOWN;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_UP;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_DOWN;
+                    hasChanges = true;
+                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) {
+                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_UP;
+                    hasChanges = true;
+                } else if ((mouse.usButtonFlags & RI_MOUSE_WHEEL) || (mouse.usButtonFlags & RI_MOUSE_HWHEEL)) {
+                    const auto wheelDelta  = (gerium_sint16_t) mouse.usButtonData;
+                    const auto scrollDelta = (gerium_float32_t) wheelDelta / WHEEL_DELTA;
+                    if (mouse.usButtonFlags & RI_MOUSE_HWHEEL) {
+                        event.mouse.wheel_horizontal = scrollDelta;
+                    } else {
+                        event.mouse.wheel_vertical = scrollDelta;
+                    }
+                    hasChanges = true;
+                }
+
+                if (hasChanges) {
                     addEvent(event);
                 }
             }

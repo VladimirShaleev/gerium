@@ -613,7 +613,7 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
         } else if (event.type == GERIUM_EVENT_TYPE_MOUSE) {
             std::ostringstream ss;
             ss << "absolute x: " << event.mouse.absolute_x << ", delta x: " << event.mouse.delta_x
-               << " (raw delta x: " << event.mouse.raw_delta_x << ")";
+               << " (raw delta x: " << event.mouse.raw_delta_x << ", wheel: " << event.mouse.wheel_vertical << ", hwheel: " << event.mouse.wheel_horizontal << ")";
             auto str = ss.str();
             gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, str.c_str());
         }
