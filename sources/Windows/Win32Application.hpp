@@ -15,6 +15,12 @@ public:
     HWND hWnd() const noexcept;
 
 private:
+    enum class MouseEventSource {
+        Mouse,
+        Touch,
+        Pen
+    };
+
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
     void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const override;
@@ -70,6 +76,8 @@ private:
     static LRESULT CALLBACK inputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static DWORD WINAPI inputThread(LPVOID lpThreadParameter);
     static ScanCode getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp) noexcept;
+    static bool isPenEvent(const RAWMOUSE& mouse) noexcept;
+    static MouseEventSource getMouseEventSource(const RAWMOUSE& mouse) noexcept;
 
     static constexpr wchar_t _kClassName[] = L"Gerium";
     static constexpr wchar_t _kInputName[] = L"Input";
@@ -100,6 +108,7 @@ private:
     std::atomic_bool _capslock;
     std::atomic_bool _numlock;
     std::atomic_bool _scrolllock;
+    POINT _lastMousePos;
     gerium_uint64_t _lastInputTimestamp;
 };
 

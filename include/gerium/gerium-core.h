@@ -108,6 +108,7 @@ GERIUM_FLAGS(gerium_application_style_flags_t)
 typedef enum
 {
     GERIUM_EVENT_TYPE_KEYBOARD = 0,
+    GERIUM_EVENT_TYPE_MOUSE    = 1,
     GERIUM_EVENT_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_event_type_t;
 
@@ -735,9 +736,20 @@ typedef struct
 
 typedef struct
 {
+    gerium_sint16_t absolute_x;
+    gerium_sint16_t absolute_y;
+    gerium_sint16_t delta_x;
+    gerium_sint16_t delta_y;
+    gerium_sint16_t raw_delta_x;
+    gerium_sint16_t raw_delta_y;
+} gerium_mouse_event_t;
+
+typedef struct
+{
     gerium_event_type_t     type;
     gerium_uint64_t         timestamp;
     gerium_keyboard_event_t keyboard;
+    gerium_mouse_event_t    mouse;
 } gerium_event_t;
 
 typedef struct

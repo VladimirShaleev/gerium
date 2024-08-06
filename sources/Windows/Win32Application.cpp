@@ -34,6 +34,7 @@ Win32Application::Win32Application(gerium_utf8_t title,
     _inputThread(INVALID_HANDLE_VALUE),
     _readyInputEvent(INVALID_HANDLE_VALUE),
     _shutdownInputEvent(INVALID_HANDLE_VALUE),
+    _lastMousePos(),
     _lastInputTimestamp(0) {
     SetProcessDPIAware();
 
@@ -573,6 +574,8 @@ void Win32Application::inputThread() noexcept {
 
     SetEvent(_readyInputEvent);
 
+    GetCursorPos(&_lastMousePos);
+
     while (_running) {
         if (MsgWaitForMultipleObjects(1, &_shutdownInputEvent, FALSE, INFINITE, QS_RAWINPUT) != (WAIT_OBJECT_0 + 1)) {
             break;
@@ -623,19 +626,19 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
 
         auto raw = _rawInput;
         for (UINT i = 0; i < nInput; ++i) {
+            QueryPerformanceCounter(&currentTime);
+
+            currentTime.QuadPart *= 1'000'000;
+            currentTime.QuadPart /= frequency.QuadPart;
+
+            _lastInputTimestamp = currentTime.QuadPart;
+
             if (raw->header.dwType == RIM_TYPEKEYBOARD) {
                 bool keyUp;
                 if (auto result = getScanCode(raw->data.keyboard, keyUp); result != ScanCode::Unidentified) {
                     const auto scanCode  = toScanCode(result);
                     const auto prevKeyUp = !isPressScancode(scanCode);
                     if (keyUp != prevKeyUp) {
-                        QueryPerformanceCounter(&currentTime);
-
-                        currentTime.QuadPart *= 1'000'000;
-                        currentTime.QuadPart /= frequency.QuadPart;
-
-                        _lastInputTimestamp = currentTime.QuadPart;
-
                         if (isPressScancode(GERIUM_SCANCODE_SHIFT_LEFT)) {
                             modifiers |= GERIUM_KEY_MOD_LSHIFT;
                         }
@@ -688,6 +691,51 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                         setKeyState(scanCode, !keyUp);
                         addEvent(event);
                     }
+                }
+            } else if (raw->header.dwType == RIM_TYPEMOUSE &&
+                       getMouseEventSource(raw->data.mouse) == MouseEventSource::Mouse) {
+                const auto& mouse = raw->data.mouse;
+
+                POINT point{};
+                GetCursorPos(&point);
+
+                const auto deltaX = gerium_sint16_t(point.x - _lastMousePos.x);
+                const auto deltaY = gerium_sint16_t(point.y - _lastMousePos.y);
+                _lastMousePos     = point;
+
+                ScreenToClient(_hWnd, &point);
+
+                gerium_event_t event{};
+                event.type             = GERIUM_EVENT_TYPE_MOUSE;
+                event.timestamp        = _lastInputTimestamp;
+                event.mouse.absolute_x = point.x;
+                event.mouse.absolute_y = point.y;
+                event.mouse.delta_x    = deltaX;
+                event.mouse.delta_y    = deltaY;
+
+                if (mouse.usFlags & MOUSE_MOVE_ABSOLUTE) {
+                    // RECT rect;
+                    // if (mouse.usFlags & MOUSE_VIRTUAL_DESKTOP) {
+                    //     rect.left   = GetSystemMetrics(SM_XVIRTUALSCREEN);
+                    //     rect.top    = GetSystemMetrics(SM_YVIRTUALSCREEN);
+                    //     rect.right  = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+                    //     rect.bottom = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+                    // } else {
+                    //     rect.left   = 0;
+                    //     rect.top    = 0;
+                    //     rect.right  = GetSystemMetrics(SM_CXSCREEN);
+                    //     rect.bottom = GetSystemMetrics(SM_CYSCREEN);
+                    // }
+                    //
+                    // int absoluteX = MulDiv(mouse.lLastX, rect.right, USHRT_MAX) + rect.left;
+                    // int absoluteY = MulDiv(mouse.lLastY, rect.bottom, USHRT_MAX) + rect.top;
+                } else if (mouse.lLastX || mouse.lLastY) {
+                    event.mouse.raw_delta_x = (gerium_sint16_t) mouse.lLastX;
+                    event.mouse.raw_delta_y = (gerium_sint16_t) mouse.lLastY;
+                }
+
+                if (event.mouse.delta_x || event.mouse.delta_y || event.mouse.raw_delta_x || event.mouse.raw_delta_y) {
+                    addEvent(event);
                 }
             }
             raw = NEXTRAWINPUTBLOCK(raw);
@@ -902,6 +950,30 @@ ScanCode Win32Application::getScanCode(const RAWKEYBOARD& keyboard, bool& keyUp)
     }
 
     return (ScanCode) scanCode;
+}
+
+bool Win32Application::isPenEvent(const RAWMOUSE& mouse) noexcept {
+    constexpr gerium_uint32_t miWpSignature = 0xFF515700;
+    constexpr gerium_uint32_t signatureMask = 0xFFFFFF00;
+    return (mouse.ulExtraInformation & signatureMask) == miWpSignature;
+}
+
+Win32Application::MouseEventSource Win32Application::getMouseEventSource(const RAWMOUSE& mouse) noexcept {
+    const auto extraInfo = mouse.ulExtraInformation;
+
+    if (isPenEvent(mouse)) {
+        if (extraInfo & 0x80) {
+            return MouseEventSource::Touch;
+        } else {
+            return MouseEventSource::Pen;
+        }
+    }
+
+    if (extraInfo & 0x80) {
+        return MouseEventSource::Touch;
+    }
+
+    return MouseEventSource::Mouse;
 }
 
 } // namespace gerium::windows
