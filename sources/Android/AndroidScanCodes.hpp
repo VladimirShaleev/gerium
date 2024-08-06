@@ -504,9 +504,13 @@ gerium_inline gerium_key_code_t toKeyCode(int32_t keycode) {
         case AKEYCODE_POUND:
             return GERIUM_KEY_CODE_HASH;
         case AKEYCODE_DPAD_UP:
+            return GERIUM_KEY_CODE_ARROW_UP;
         case AKEYCODE_DPAD_DOWN:
+            return GERIUM_KEY_CODE_ARROW_DOWN;
         case AKEYCODE_DPAD_LEFT:
+            return GERIUM_KEY_CODE_ARROW_LEFT;
         case AKEYCODE_DPAD_RIGHT:
+            return GERIUM_KEY_CODE_ARROW_RIGHT;
         case AKEYCODE_DPAD_CENTER:
             return GERIUM_KEY_CODE_UNKNOWN;
         case AKEYCODE_VOLUME_UP:
