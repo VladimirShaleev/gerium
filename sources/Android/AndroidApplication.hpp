@@ -73,6 +73,7 @@ private:
     mutable std::vector<gerium_display_mode_t> _modes;
     jmethodID _isInMultiWindowMode;
     std::chrono::high_resolution_clock::time_point _prevTime;
+    mutable std::unordered_map<gerium_uint64_t, gerium_uint32_t> _symbols;
 
     jclass _keyEventClass;
     jmethodID _keyEventCtor;

@@ -1,4 +1,5 @@
 #include "AndroidApplication.hpp"
+#include "AndroidScanCodes.hpp"
 
 #include <imgui_impl_android.h>
 
@@ -54,21 +55,21 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         _hideSoftInputFromWindowMehtod =
             env->GetMethodID(inputMethodManagerClass, "hideSoftInputFromWindow", "(Landroid/os/IBinder;I)Z");
 
-        auto displayServiceField =
-                env->GetStaticFieldID(contextClass, "DISPLAY_SERVICE", "Ljava/lang/String;");
-        auto displayService = env->GetStaticObjectField(contextClass, displayServiceField);
+        auto displayServiceField = env->GetStaticFieldID(contextClass, "DISPLAY_SERVICE", "Ljava/lang/String;");
+        auto displayService      = env->GetStaticObjectField(contextClass, displayServiceField);
         _displayManager =
-                env->NewGlobalRef(env->CallObjectMethod(activityClazz, getSystemServiceMethod, displayService));
+            env->NewGlobalRef(env->CallObjectMethod(activityClazz, getSystemServiceMethod, displayService));
         auto displayManagerClass = env->GetObjectClass(_displayManager);
-        _getDisplays = env->GetMethodID(displayManagerClass, "getDisplays", "()[Landroid/view/Display;");
-        auto displayClass = (jclass) env->FindClass("android/view/Display");
-        auto displayModeClass = (jclass) env->FindClass("android/view/Display$Mode");
-        _getDisplayName = env->GetMethodID(displayClass, "getName", "()Ljava/lang/String;");
-        _getDisplayId = env->GetMethodID(displayClass, "getDisplayId", "()I");
+        _getDisplays             = env->GetMethodID(displayManagerClass, "getDisplays", "()[Landroid/view/Display;");
+        auto displayClass        = (jclass) env->FindClass("android/view/Display");
+        auto displayModeClass    = (jclass) env->FindClass("android/view/Display$Mode");
+        _getDisplayName          = env->GetMethodID(displayClass, "getName", "()Ljava/lang/String;");
+        _getDisplayId            = env->GetMethodID(displayClass, "getDisplayId", "()I");
         _getSupportedModes = env->GetMethodID(displayClass, "getSupportedModes", "()[Landroid/view/Display$Mode;");
-        _getPhysicalHeight = displayModeClass ? env->GetMethodID(displayModeClass, "getPhysicalHeight", "()I") : nullptr;
+        _getPhysicalHeight =
+            displayModeClass ? env->GetMethodID(displayModeClass, "getPhysicalHeight", "()I") : nullptr;
         _getPhysicalWidth = displayModeClass ? env->GetMethodID(displayModeClass, "getPhysicalWidth", "()I") : nullptr;
-        _getRefreshRate = displayModeClass ? env->GetMethodID(displayModeClass, "getRefreshRate", "()F") : nullptr;
+        _getRefreshRate   = displayModeClass ? env->GetMethodID(displayModeClass, "getRefreshRate", "()F") : nullptr;
 
         _getTitle = env->GetMethodID(activityClass, "getTitle", "()Ljava/lang/CharSequence;");
         _setTitle = env->GetMethodID(activityClass, "setTitle", "(Ljava/lang/CharSequence;)V");
@@ -93,17 +94,18 @@ void AndroidApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_
     auto activity = _application->activity;
 
     if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
-        auto jDisplays = (jobjectArray) env->CallObjectMethod(_displayManager, _getDisplays);
+        auto jDisplays        = (jobjectArray) env->CallObjectMethod(_displayManager, _getDisplays);
         auto attachedDisplays = (gerium_uint32_t) env->GetArrayLength(jDisplays);
-        displayCount = displays ? std::min(displayCount, attachedDisplays) : attachedDisplays;
+        displayCount          = displays ? std::min(displayCount, attachedDisplays) : attachedDisplays;
         if (displays) {
             _modes.clear();
             _names.clear();
             for (gerium_uint32_t i = 0; i < displayCount; ++i) {
                 auto jDisplay = env->GetObjectArrayElement(jDisplays, (jsize) i);
-                auto jName = (jstring) env->CallObjectMethod(jDisplay, _getDisplayName);
-                auto jId = env->CallIntMethod(jDisplay, _getDisplayId);
-                auto jModes = _getSupportedModes ? (jobjectArray) env->CallObjectMethod(jDisplay, _getSupportedModes) : nullptr;
+                auto jName    = (jstring) env->CallObjectMethod(jDisplay, _getDisplayName);
+                auto jId      = env->CallIntMethod(jDisplay, _getDisplayId);
+                auto jModes =
+                    _getSupportedModes ? (jobjectArray) env->CallObjectMethod(jDisplay, _getSupportedModes) : nullptr;
                 auto jModeCount = jModes ? env->GetArrayLength(jModes) : 0;
                 if (jName) {
                     auto jNameLength = env->GetStringUTFLength(jName);
@@ -116,20 +118,18 @@ void AndroidApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_
                     _names.emplace_back("Unknown");
                 }
 
-                displays[i].id = gerium_uint32_t(jId);
-                displays[i].gpu_name = "Unknown";
+                displays[i].id         = gerium_uint32_t(jId);
+                displays[i].gpu_name   = "Unknown";
                 displays[i].mode_count = gerium_uint32_t(jModeCount);
-                displays[i].modes = nullptr;
+                displays[i].modes      = nullptr;
 
                 for (jsize m = 0; m < jModeCount; ++m) {
-                    auto jMode = env->GetObjectArrayElement(jModes, m);
-                    auto jWidth = env->CallIntMethod(jMode, _getPhysicalWidth);
-                    auto jHeight = env->CallIntMethod(jMode, _getPhysicalHeight);
+                    auto jMode        = env->GetObjectArrayElement(jModes, m);
+                    auto jWidth       = env->CallIntMethod(jMode, _getPhysicalWidth);
+                    auto jHeight      = env->CallIntMethod(jMode, _getPhysicalHeight);
                     auto jRefreshRate = env->CallFloatMethod(jMode, _getRefreshRate);
                     _modes.emplace_back(
-                            gerium_uint16_t(jWidth),
-                            gerium_uint16_t(jHeight),
-                            gerium_uint16_t(jRefreshRate));
+                        gerium_uint16_t(jWidth), gerium_uint16_t(jHeight), gerium_uint16_t(jRefreshRate));
                     env->DeleteLocalRef(jMode);
                 }
 
@@ -144,8 +144,8 @@ void AndroidApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_
     if (displays) {
         gerium_uint32_t modeOffset = 0;
         for (gerium_uint32_t i = 0; i < displayCount; ++i) {
-            displays[i].name = _names[i].c_str();
-            displays[i].device_name  = _names[i].c_str();
+            displays[i].name        = _names[i].c_str();
+            displays[i].device_name = _names[i].c_str();
             if (displays[i].mode_count) {
                 displays[i].modes = &_modes[modeOffset];
                 modeOffset += displays[i].mode_count;
@@ -205,7 +205,7 @@ gerium_utf8_t AndroidApplication::onGetTitle() const noexcept {
     auto activity = _application->activity;
 
     if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
-        auto jTitle = (jstring) env->CallObjectMethod(_application->activity->clazz, _getTitle);
+        auto jTitle       = (jstring) env->CallObjectMethod(_application->activity->clazz, _getTitle);
         auto jTitleLength = env->GetStringLength(jTitle);
         _title.clear();
         _title.resize(jTitleLength + 1);
@@ -362,6 +362,12 @@ bool AndroidApplication::isPause() const noexcept {
 }
 
 int AndroidApplication::getUnicodeChar(int eventType, int keyCode, int metaState) const {
+    const auto key = (gerium_uint64_t(keyCode) << 32) | gerium_uint64_t(metaState);
+
+    if (auto it = _symbols.find(key); it != _symbols.end()) {
+        return it->second;
+    }
+
     if (JNIEnv * env; _application->activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
         auto keyEvent = env->NewObject(_keyEventClass, _keyEventCtor, eventType, keyCode);
 
@@ -371,8 +377,10 @@ int AndroidApplication::getUnicodeChar(int eventType, int keyCode, int metaState
         env->DeleteLocalRef(keyEvent);
         _application->activity->vm->DetachCurrentThread();
 
+        _symbols[key] = unicodeKey;
         return unicodeKey;
     }
+    _symbols[key] = 0;
     return 0;
 }
 
@@ -469,32 +477,69 @@ void AndroidApplication::onAppCmd(int32_t cmd) noexcept {
 
 int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
     auto& io           = ImGui::GetIO();
+    auto eventType     = AInputEvent_getType(event);
+    auto eventAction   = AKeyEvent_getAction(event);
     auto eventKeyCode  = AKeyEvent_getKeyCode(event);
     auto eventScanCode = AKeyEvent_getScanCode(event);
+    auto eventMeta     = AKeyEvent_getMetaState(event);
 
-    if (io.WantTextInput && AInputEvent_getType(event) == AINPUT_EVENT_TYPE_KEY &&
-        AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP) {
-        if (eventKeyCode <= AKEYCODE_ENDCALL || (eventKeyCode >= AKEYCODE_DPAD_UP && eventKeyCode <= AKEYCODE_CLEAR) ||
-            (eventKeyCode >= AKEYCODE_ALT_LEFT && eventKeyCode <= AKEYCODE_SHIFT_RIGHT) ||
-            eventKeyCode >= AKEYCODE_SYM) {
-            return ImGui_ImplAndroid_HandleInputEvent(event);
+    if (eventType == AINPUT_EVENT_TYPE_KEY) {
+        const auto scancode  = toScanCode(eventScanCode);
+        const auto keyUp     = eventAction == AKEY_EVENT_ACTION_UP;
+        const auto prevKeyUp = !isPressScancode(scancode);
+
+        if (keyUp != prevKeyUp) {
+            const auto timestamp =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(getCurrentTime().time_since_epoch());
+
+            gerium_event_t newEvent{};
+            newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
+            newEvent.timestamp          = timestamp.count();
+            newEvent.keyboard.scancode  = scancode;
+            newEvent.keyboard.code      = toKeyCode(eventKeyCode);
+            newEvent.keyboard.state     = keyUp ? GERIUM_KEY_STATE_RELEASED : GERIUM_KEY_STATE_PRESSED;
+            newEvent.keyboard.modifiers = toModifiers(eventMeta);
+
+            if (newEvent.keyboard.code != GERIUM_KEY_CODE_UNKNOWN) {
+                const auto symbol = getUnicodeChar(AKEY_EVENT_ACTION_DOWN, eventKeyCode, eventMeta);
+                const auto bytes  = (gerium_uint8_t*) &symbol;
+
+                newEvent.keyboard.symbol[0] = (gerium_char_t) bytes[0];
+                newEvent.keyboard.symbol[1] = (gerium_char_t) bytes[1];
+                newEvent.keyboard.symbol[2] = (gerium_char_t) bytes[2];
+                newEvent.keyboard.symbol[3] = (gerium_char_t) bytes[3];
+            }
+
+            setKeyState(scancode, !keyUp);
+            addEvent(newEvent);
+            return 1;
         }
-        auto meta = AKeyEvent_getMetaState(event);
-
-        auto c = getUnicodeChar(AKEY_EVENT_ACTION_DOWN, eventKeyCode, meta);
-        io.AddInputCharacter(c);
-        return 0;
     }
 
-    if (AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_DOWN) {
-        ImGuiKey key = keyCodeToImGuiKey(eventKeyCode);
-        ImGui_ImplAndroid_HandleInputEvent(event);
-        io.AddKeyEvent(key, false);
-        io.SetKeyEventNativeData(key, eventKeyCode, eventScanCode);
-        return 0;
-    } else {
-        return ImGui_ImplAndroid_HandleInputEvent(event);
-    }
+    // if (io.WantTextInput && eventType == AINPUT_EVENT_TYPE_KEY && eventAction == AKEY_EVENT_ACTION_UP) {
+    //     if (eventKeyCode <= AKEYCODE_ENDCALL || (eventKeyCode >= AKEYCODE_DPAD_UP && eventKeyCode <= AKEYCODE_CLEAR)
+    //     ||
+    //         (eventKeyCode >= AKEYCODE_ALT_LEFT && eventKeyCode <= AKEYCODE_SHIFT_RIGHT) ||
+    //         eventKeyCode >= AKEYCODE_SYM) {
+    //         return ImGui_ImplAndroid_HandleInputEvent(event);
+    //     }
+
+    //     auto c = getUnicodeChar(AKEY_EVENT_ACTION_DOWN, eventKeyCode, eventMeta);
+    //     io.AddInputCharacter(c);
+    //     return 0;
+    // }
+
+    // if (eventAction == AKEY_EVENT_ACTION_DOWN) {
+    //     ImGuiKey key = keyCodeToImGuiKey(eventKeyCode);
+    //     ImGui_ImplAndroid_HandleInputEvent(event);
+    //     io.AddKeyEvent(key, false);
+    //     io.SetKeyEventNativeData(key, eventKeyCode, eventScanCode);
+    //     return 0;
+    // } else {
+    //     return ImGui_ImplAndroid_HandleInputEvent(event);
+    // }
+
+    return 0;
 }
 
 void AndroidApplication::onAppCmd(android_app* application, int32_t cmd) {
