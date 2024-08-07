@@ -41,6 +41,8 @@ private:
     gerium_utf8_t onGetTitle() const noexcept override;
     void onSetTitle(gerium_utf8_t title) noexcept override;
 
+    void onShowCursor(bool show) noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
@@ -68,6 +70,8 @@ private:
                       gerium_display_info_t* displays) const;
     void createInputThread();
     void closeInputThread();
+
+    void captureCursor(bool capture) noexcept;
 
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);

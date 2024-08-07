@@ -41,6 +41,9 @@ public:
     bool getBackgroundWait() const noexcept;
     void setBackgroundWait(bool enable) noexcept;
 
+    bool isShowCursor() const noexcept;
+    void showCursor(bool show) noexcept;
+
     void run();
     void exit() noexcept;
 
@@ -85,6 +88,8 @@ private:
 
     virtual gerium_utf8_t onGetTitle() const noexcept     = 0;
     virtual void onSetTitle(gerium_utf8_t title) noexcept = 0;
+    
+    virtual void onShowCursor(bool show) noexcept = 0;
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;
@@ -101,6 +106,7 @@ private:
     gerium_data_t _frameData;
     gerium_data_t _stateData;
     gerium_bool_t _backgroundWait;
+    gerium_bool_t _isShowCursor;
     gerium_uint32_t _workerThreadCount;
     gerium_application_state_t _currentState;
     gerium_bool_t _callbackStateFailed;

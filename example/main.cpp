@@ -601,6 +601,7 @@ void unitialize(gerium_application_t application) {
 
 gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
     bool swapFullscreen = false;
+    bool showCursor     = gerium_application_is_show_cursor(application);
 
     gerium_event_t event;
     while (gerium_application_poll_events(application, &event)) {
@@ -608,12 +609,22 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
             if (event.keyboard.scancode == GERIUM_SCANCODE_ENTER && event.keyboard.state == GERIUM_KEY_STATE_RELEASED &&
                 (event.keyboard.modifiers & GERIUM_KEY_MOD_LALT)) {
                 swapFullscreen = true;
+            } else if (event.keyboard.scancode == GERIUM_SCANCODE_ESCAPE &&
+                       event.keyboard.state == GERIUM_KEY_STATE_RELEASED) {
+                showCursor = true;
             }
             gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, event.keyboard.symbol);
         } else if (event.type == GERIUM_EVENT_TYPE_MOUSE) {
+            constexpr auto buttonsDown = GERIUM_MOUSE_BUTTON_LEFT_DOWN | GERIUM_MOUSE_BUTTON_RIGHT_DOWN |
+                                         GERIUM_MOUSE_BUTTON_MIDDLE_DOWN | GERIUM_MOUSE_BUTTON_4_DOWN |
+                                         GERIUM_MOUSE_BUTTON_5_DOWN;
+            if (event.mouse.buttons & buttonsDown) {
+                showCursor = false;
+            }
             std::ostringstream ss;
             ss << "absolute x: " << event.mouse.absolute_x << ", delta x: " << event.mouse.delta_x
-               << " (raw delta x: " << event.mouse.raw_delta_x << ", wheel: " << event.mouse.wheel_vertical << ", hwheel: " << event.mouse.wheel_horizontal << ")";
+               << " (raw delta x: " << event.mouse.raw_delta_x << ", wheel: " << event.mouse.wheel_vertical
+               << ", hwheel: " << event.mouse.wheel_horizontal << ")";
             auto str = ss.str();
             gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, str.c_str());
         }
@@ -622,6 +633,8 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     if (swapFullscreen) {
         gerium_application_fullscreen(application, !gerium_application_is_fullscreen(application), 0, nullptr);
     }
+
+    gerium_application_show_cursor(application, showCursor);
 
     if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return 1;
@@ -724,15 +737,19 @@ gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium
             unitialize(application);
             break;
         case GERIUM_APPLICATION_STATE_GOT_FOCUS:
+            gerium_application_show_cursor(application, 1);
             gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_GOT_FOCUS");
             break;
         case GERIUM_APPLICATION_STATE_LOST_FOCUS:
+            gerium_application_show_cursor(application, 1);
             gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_LOST_FOCUS");
             break;
         case GERIUM_APPLICATION_STATE_VISIBLE:
+            gerium_application_show_cursor(application, 1);
             gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_VISIBLE");
             break;
         case GERIUM_APPLICATION_STATE_INVISIBLE:
+            gerium_application_show_cursor(application, 1);
             gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_DEBUG, "GERIUM_APPLICATION_STATE_INVISIBLE");
             break;
         case GERIUM_APPLICATION_STATE_NORMAL:

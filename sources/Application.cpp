@@ -9,6 +9,7 @@ Application::Application() noexcept :
     _frameData(nullptr),
     _stateData(nullptr),
     _backgroundWait(false),
+    _isShowCursor(true),
     _workerThreadCount(0),
     _currentState(GERIUM_APPLICATION_STATE_UNKNOWN),
     _callbackStateFailed(false),
@@ -105,6 +106,15 @@ bool Application::getBackgroundWait() const noexcept {
 
 void Application::setBackgroundWait(bool enable) noexcept {
     _backgroundWait = enable;
+}
+
+bool Application::isShowCursor() const noexcept {
+    return _isShowCursor;
+}
+
+void Application::showCursor(bool show) noexcept {
+    _isShowCursor = show;
+    onShowCursor(show);
 }
 
 void Application::run() {
@@ -369,6 +379,16 @@ gerium_bool_t gerium_application_get_background_wait(gerium_application_t applic
 void gerium_application_set_background_wait(gerium_application_t application, gerium_bool_t enable) {
     assert(application);
     alias_cast<Application*>(application)->setBackgroundWait(enable);
+}
+
+gerium_bool_t gerium_application_is_show_cursor(gerium_application_t application) {
+    assert(application);
+    return alias_cast<Application*>(application)->isShowCursor();
+}
+
+void gerium_application_show_cursor(gerium_application_t application, gerium_bool_t show) {
+    assert(application);
+    alias_cast<Application*>(application)->showCursor(show);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

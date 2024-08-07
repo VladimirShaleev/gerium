@@ -339,6 +339,10 @@ void Win32Application::onSetTitle(gerium_utf8_t title) noexcept {
     SetWindowTextW(_hWnd, newTitle.data());
 }
 
+void Win32Application::onShowCursor(bool show) noexcept {
+    captureCursor(!show);
+}
+
 void Win32Application::onRun() {
     if (!_hWnd) {
         error(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED);
@@ -381,6 +385,8 @@ void Win32Application::onRun() {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
+
+        captureCursor(!isShowCursor());
 
         _capslock   = GetKeyState(VK_CAPITAL) & 0x1;
         _numlock    = GetKeyState(VK_NUMLOCK) & 0x1;
@@ -432,6 +438,10 @@ void Win32Application::onNewFrameImGui() {
 LRESULT Win32Application::wndProc(UINT message, WPARAM wParam, LPARAM lParam) noexcept {
     if (ImGui_ImplWin32_WndProcHandler(_hWnd, message, wParam, lParam)) {
         return 1;
+    }
+
+    if (ImGui::GetCurrentContext() && !isShowCursor()) {
+        ImGui::GetIO().AddFocusEvent(false);
     }
 
     auto prevVisibility = _visibility;
@@ -597,6 +607,8 @@ void Win32Application::inputThread() noexcept {
 }
 
 void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
+    auto& io = ImGui::GetIO();
+
     wchar_t keyName[5] = {};
     BYTE keyState[256]{};
 
@@ -689,7 +701,10 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                         }
 
                         setKeyState(scanCode, !keyUp);
-                        addEvent(event);
+
+                        if (!io.WantCaptureKeyboard || !isShowCursor()) {
+                            addEvent(event);
+                        }
                     }
                 }
             } else if (raw->header.dwType == RIM_TYPEMOUSE &&
@@ -734,40 +749,46 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                 } else if (mouse.lLastX || mouse.lLastY) {
                     event.mouse.raw_delta_x = (gerium_sint16_t) mouse.lLastX;
                     event.mouse.raw_delta_y = (gerium_sint16_t) mouse.lLastY;
-                    hasChanges = true;
+                    hasChanges              = true;
                 }
 
-                if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_DOWN;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_UP;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_DOWN;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_UP;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_DOWN;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_UP;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_DOWN;
-                    hasChanges = true;
-                } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) {
-                    event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_UP;
-                    hasChanges = true;
-                } else if ((mouse.usButtonFlags & RI_MOUSE_WHEEL) || (mouse.usButtonFlags & RI_MOUSE_HWHEEL)) {
+                gerium_uint16_t width, height;
+                getSize(&width, &height);
+
+                if (point.x >= 0 && point.x <= width && point.y >= 0 && point.y <= height) {
+                    if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_DOWN;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_UP;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_DOWN;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_UP;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_DOWN;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_UP;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_DOWN;
+                        hasChanges = true;
+                    } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) {
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_UP;
+                        hasChanges = true;
+                    }
+                }
+                if ((mouse.usButtonFlags & RI_MOUSE_WHEEL) || (mouse.usButtonFlags & RI_MOUSE_HWHEEL)) {
                     const auto wheelDelta  = (gerium_sint16_t) mouse.usButtonData;
                     const auto scrollDelta = (gerium_float32_t) wheelDelta / WHEEL_DELTA;
                     if (mouse.usButtonFlags & RI_MOUSE_HWHEEL) {
@@ -778,7 +799,7 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                     hasChanges = true;
                 }
 
-                if (hasChanges) {
+                if (hasChanges && (!io.WantCaptureMouse || !isShowCursor())) {
                     addEvent(event);
                 }
             }
@@ -927,6 +948,43 @@ void Win32Application::closeInputThread() {
     if (_shutdownInputEvent != INVALID_HANDLE_VALUE) {
         CloseHandle(_shutdownInputEvent);
         _shutdownInputEvent = INVALID_HANDLE_VALUE;
+    }
+}
+
+void Win32Application::captureCursor(bool capture) noexcept {
+    CURSORINFO cursor{};
+    cursor.cbSize = sizeof(CURSORINFO);
+    GetCursorInfo(&cursor);
+    bool cursorVisible = cursor.flags & CURSOR_SHOWING;
+
+    if (cursorVisible != capture) {
+        return;
+    }
+
+    if (capture) {
+        RECT client;
+        GetClientRect(_hWnd, &client);
+
+        POINT clientLT;
+        POINT clientRB;
+        clientLT.x = client.left;
+        clientLT.y = client.top;
+        clientRB.x = client.right + 1;
+        clientRB.y = client.bottom + 1;
+
+        ClientToScreen(_hWnd, &clientLT);
+        ClientToScreen(_hWnd, &clientRB);
+
+        SetRect(&client, clientLT.x, clientLT.y, clientRB.x, clientRB.y);
+        ClipCursor(&client);
+        SetCapture(_hWnd);
+        while (ShowCursor(FALSE) >= 0) {
+        }
+    } else {
+        while (ShowCursor(TRUE) < 0) {
+        }
+        ClipCursor(nullptr);
+        ReleaseCapture();
     }
 }
 

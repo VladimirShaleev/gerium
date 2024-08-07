@@ -1142,6 +1142,13 @@ gerium_public void
 gerium_application_set_background_wait(gerium_application_t application,
                                        gerium_bool_t enable);
 
+gerium_public gerium_bool_t
+gerium_application_is_show_cursor(gerium_application_t application);
+
+gerium_public void
+gerium_application_show_cursor(gerium_application_t application,
+                               gerium_bool_t show);
+
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);
 
