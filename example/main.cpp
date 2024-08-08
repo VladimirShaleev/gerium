@@ -622,7 +622,11 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
                 showCursor = false;
             }
             std::ostringstream ss;
-            ss << "absolute x: " << event.mouse.absolute_x << ", delta x: " << event.mouse.delta_x
+            ss << "id: " << event.mouse.id
+               << ((event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_DOWN) ? ", ld"
+                   : (event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_UP) ? ", lu"
+                                                                         : ", m")
+               << ", absolute x: " << event.mouse.absolute_x << ", delta x: " << event.mouse.delta_x
                << " (raw delta x: " << event.mouse.raw_delta_x << ", wheel: " << event.mouse.wheel_vertical
                << ", hwheel: " << event.mouse.wheel_horizontal << ")";
             auto str = ss.str();
@@ -634,7 +638,9 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
         gerium_application_fullscreen(application, !gerium_application_is_fullscreen(application), 0, nullptr);
     }
 
-    gerium_application_show_cursor(application, showCursor);
+    if (gerium_application_get_platform(application) != GERIUM_RUNTIME_PLATFORM_ANDROID) {
+        gerium_application_show_cursor(application, showCursor);
+    }
 
     if (gerium_renderer_new_frame(renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return 1;

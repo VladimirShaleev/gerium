@@ -725,6 +725,7 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                 gerium_event_t event{};
                 event.type             = GERIUM_EVENT_TYPE_MOUSE;
                 event.timestamp        = _lastInputTimestamp;
+                event.mouse.id         = 0;
                 event.mouse.absolute_x = point.x;
                 event.mouse.absolute_y = point.y;
                 event.mouse.delta_x    = deltaX;

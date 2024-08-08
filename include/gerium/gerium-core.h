@@ -753,6 +753,7 @@ typedef struct
 
 typedef struct
 {
+    gerium_uint32_t             id;
     gerium_mouse_button_flags_t buttons;
     gerium_sint16_t             absolute_x;
     gerium_sint16_t             absolute_y;
