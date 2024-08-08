@@ -550,8 +550,8 @@ int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
                 newEvent.timestamp        = timestamp.count();
                 newEvent.mouse.id         = (gerium_uint32_t) id;
                 newEvent.mouse.buttons    = GERIUM_MOUSE_BUTTON_NONE;
-                newEvent.mouse.absolute_x = (gerium_sint16_t) x;
-                newEvent.mouse.absolute_y = (gerium_sint16_t) y;
+                newEvent.mouse.absolute_x = (gerium_sint16_t) (x + 0.5f);
+                newEvent.mouse.absolute_y = (gerium_sint16_t) (y + 0.5f);
                 newEvent.mouse.delta_x    = 0;
                 newEvent.mouse.delta_y    = 0;
 
@@ -570,10 +570,12 @@ int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
                     _pointers[id] = { newEvent.mouse.absolute_x, newEvent.mouse.absolute_y, newEvent.mouse.buttons };
                 } else if (flags == AMOTION_EVENT_ACTION_MOVE) {
                     const auto& [prevX, prevY, prevButtons] = _pointers[id];
-                    newEvent.mouse.delta_x                  = gerium_sint16_t(x) - prevX;
-                    newEvent.mouse.delta_y                  = gerium_sint16_t(y) - prevY;
-                    newEvent.mouse.raw_delta_x              = newEvent.mouse.delta_x;
-                    newEvent.mouse.raw_delta_y              = newEvent.mouse.delta_y;
+
+                    newEvent.mouse.delta_x     = gerium_sint16_t(x + 0.5f) - prevX;
+                    newEvent.mouse.delta_y     = gerium_sint16_t(y + 0.5f) - prevY;
+                    newEvent.mouse.raw_delta_x = newEvent.mouse.delta_x;
+                    newEvent.mouse.raw_delta_y = newEvent.mouse.delta_y;
+
                     _pointers[id] = { newEvent.mouse.absolute_x, newEvent.mouse.absolute_y, prevButtons };
                 } else {
                     continue;
