@@ -36,6 +36,8 @@ private:
     gerium_utf8_t onGetTitle() const noexcept override;
     void onSetTitle(gerium_utf8_t title) noexcept override;
 
+    void onShowCursor(bool show) noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
@@ -73,6 +75,7 @@ private:
     jmethodID _isInMultiWindowMode;
     std::chrono::high_resolution_clock::time_point _prevTime;
     mutable std::unordered_map<gerium_uint64_t, gerium_uint32_t> _symbols;
+    std::unordered_map<gerium_sint32_t, std::pair<gerium_float32_t, gerium_float32_t>> _pointers;
 
     jclass _keyEventClass;
     jmethodID _keyEventCtor;

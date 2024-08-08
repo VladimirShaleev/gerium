@@ -227,6 +227,9 @@ void AndroidApplication::onSetTitle(gerium_utf8_t title) noexcept {
     }
 }
 
+void AndroidApplication::onShowCursor(bool show) noexcept {
+}
+
 void AndroidApplication::onRun() {
     if (_application->destroyRequested) {
         error(GERIUM_RESULT_ERROR_APPLICATION_TERMINATED);
@@ -478,12 +481,17 @@ void AndroidApplication::onAppCmd(int32_t cmd) noexcept {
 int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
     auto& io           = ImGui::GetIO();
     auto eventType     = AInputEvent_getType(event);
+    auto eventSource   = AInputEvent_getSource(event);
     auto eventAction   = AKeyEvent_getAction(event);
     auto eventKeyCode  = AKeyEvent_getKeyCode(event);
     auto eventScanCode = AKeyEvent_getScanCode(event);
     auto eventMeta     = AKeyEvent_getMetaState(event);
 
     auto imguiResult = ImGui_ImplAndroid_HandleInputEvent(event);
+
+    if (ImGui::GetCurrentContext() && !isShowCursor() && !io.WantCaptureMouse) {
+        ImGui::GetIO().AddFocusEvent(false);
+    }
 
     if (io.WantTextInput && eventType == AINPUT_EVENT_TYPE_KEY && eventAction == AKEY_EVENT_ACTION_UP) {
         auto symbol = getUnicodeChar(AKEY_EVENT_ACTION_DOWN, eventKeyCode, eventMeta);
@@ -493,15 +501,15 @@ int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
         return imguiResult;
     }
 
+    const auto timestamp =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(getCurrentTime().time_since_epoch());
+
     if (eventType == AINPUT_EVENT_TYPE_KEY && !io.WantTextInput) {
         const auto scancode  = toScanCode(eventScanCode);
         const auto keyUp     = eventAction == AKEY_EVENT_ACTION_UP;
         const auto prevKeyUp = !isPressScancode(scancode);
 
         if (keyUp != prevKeyUp) {
-            const auto timestamp =
-                std::chrono::duration_cast<std::chrono::nanoseconds>(getCurrentTime().time_since_epoch());
-
             gerium_event_t newEvent{};
             newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
             newEvent.timestamp          = timestamp.count();
@@ -521,7 +529,53 @@ int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
             }
 
             setKeyState(scancode, !keyUp);
-            addEvent(newEvent);
+
+            if (!io.WantCaptureKeyboard) {
+                addEvent(newEvent);
+            }
+            return 1;
+        }
+    } else if (eventType == AINPUT_EVENT_TYPE_MOTION) {
+        if ((eventSource & AINPUT_SOURCE_JOYSTICK) == AINPUT_SOURCE_JOYSTICK) {
+
+        } else if ((eventSource & AINPUT_SOURCE_CLASS_POINTER) == AINPUT_SOURCE_CLASS_POINTER) {
+            auto flags = AMotionEvent_getAction(event) & AMOTION_EVENT_ACTION_MASK;
+            auto count = AMotionEvent_getPointerCount(event);
+
+            for (size_t i = 0; i < count; ++i) {
+                auto id = AMotionEvent_getPointerId(event, i);
+                auto x = AMotionEvent_getX(event, i);
+                auto y = AMotionEvent_getY(event, i);
+
+                gerium_event_t newEvent{};
+                newEvent.type             = GERIUM_EVENT_TYPE_MOUSE;
+                newEvent.timestamp        = timestamp.count();
+                newEvent.mouse.buttons    = GERIUM_MOUSE_BUTTON_NONE;
+                newEvent.mouse.absolute_x = (gerium_sint16_t) x;
+                newEvent.mouse.absolute_y = (gerium_sint16_t) y;
+                newEvent.mouse.delta_x    = 0;
+                newEvent.mouse.delta_y    = 0;
+
+                if (flags == AMOTION_EVENT_ACTION_DOWN || flags == AMOTION_EVENT_ACTION_POINTER_DOWN) {
+                    newEvent.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN;
+                    _pointers[id] = {x,y};
+                } else if (flags == AMOTION_EVENT_ACTION_UP || flags == AMOTION_EVENT_ACTION_POINTER_UP) {
+                    newEvent.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP;
+                } else if (flags == AMOTION_EVENT_ACTION_MOVE) {
+                    const auto [prevX, prevY] = _pointers[id];
+                    newEvent.mouse.delta_x = gerium_sint16_t(x - prevX);
+                    newEvent.mouse.delta_y = gerium_sint16_t(y - prevY);
+                    _pointers[id] = {x,y};
+                } else if (flags == AMOTION_EVENT_ACTION_CANCEL) {
+                    newEvent.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP;
+                } else {
+                    continue;
+                }
+
+                if (!io.WantCaptureMouse) {
+                    addEvent(newEvent);
+                }
+            }
             return 1;
         }
     }
