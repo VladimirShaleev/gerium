@@ -38,6 +38,7 @@ public:
 
     const void* getView() const noexcept;
     
+    bool isPressed(gerium_scancode_t scancode) noexcept;
     void sendEvent(const gerium_event_t& event) noexcept;
 
 private:

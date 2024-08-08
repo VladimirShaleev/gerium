@@ -11,6 +11,8 @@
     @public gerium::macos::MacOSApplication* application;
 }
 
+- (void)addEvent:(NSEvent *)event pressed:(BOOL)down;
+
 @property (strong, nonatomic) NSWindow *window;
 
 @end
@@ -97,10 +99,17 @@
 }
 
 - (void)flagsChanged:(NSEvent *)event {
-    [event modifierFlags];
 }
 
 - (void)keyDown:(NSEvent *)event {
+    [self addEvent:event pressed:TRUE];
+}
+
+- (void)keyUp:(NSEvent *)event {
+    [self addEvent:event pressed:FALSE];
+}
+
+- (void)addEvent:(NSEvent *)event pressed:(BOOL)down {
     const auto modifiers = gerium::macos::toModifiers([event modifierFlags]);
     const auto [scancode, keycode] = gerium::macos::toScanCode([event keyCode], modifiers);
     
@@ -109,7 +118,7 @@
     newEvent.timestamp          = gerium_uint64_t([event timestamp] * 10000000);
     newEvent.keyboard.scancode  = scancode;
     newEvent.keyboard.code      = keycode;
-    newEvent.keyboard.state     = GERIUM_KEY_STATE_PRESSED;
+    newEvent.keyboard.state     = down ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
     newEvent.keyboard.modifiers = gerium::macos::toModifiers([event modifierFlags]);
     
     if ([[event characters] length] < 5) {
@@ -120,10 +129,6 @@
         newEvent.keyboard.symbol[3] = symbol[3];
     }
     application->sendEvent(newEvent);
-}
-
-- (void)keyUp:(NSEvent *)event {
-    
 }
 
 - (BOOL)acceptsFirstResponder
@@ -256,9 +261,18 @@ const void* MacOSApplication::getView() const noexcept {
     return _view;
 }
 
+bool MacOSApplication::isPressed(gerium_scancode_t scancode) noexcept {
+    return isPressScancode(scancode);
+}
+
 void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
     if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
-        setKeyState(event.keyboard.scancode, event.keyboard.state == GERIUM_KEY_STATE_PRESSED);
+        const auto pressed = event.keyboard.state == GERIUM_KEY_STATE_PRESSED;
+        const auto prevPressed = isPressScancode(event.keyboard.scancode);
+        if (pressed == prevPressed) {
+            return;
+        }
+        setKeyState(event.keyboard.scancode, pressed);
     }
     addEvent(event);
 }
