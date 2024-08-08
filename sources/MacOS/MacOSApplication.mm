@@ -1,4 +1,5 @@
 #include "MacOSApplication.hpp"
+#include "MacOSScanCodes.hpp"
 
 #include <imgui_impl_osx.h>
 
@@ -95,6 +96,41 @@
     application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
 }
 
+- (void)flagsChanged:(NSEvent *)event {
+    [event modifierFlags];
+}
+
+- (void)keyDown:(NSEvent *)event {
+    const auto modifiers = gerium::macos::toModifiers([event modifierFlags]);
+    const auto [scancode, keycode] = gerium::macos::toScanCode([event keyCode], modifiers);
+    
+    gerium_event_t newEvent{};
+    newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
+    newEvent.timestamp          = gerium_uint64_t([event timestamp] * 10000000);
+    newEvent.keyboard.scancode  = scancode;
+    newEvent.keyboard.code      = keycode;
+    newEvent.keyboard.state     = GERIUM_KEY_STATE_PRESSED;
+    newEvent.keyboard.modifiers = gerium::macos::toModifiers([event modifierFlags]);
+    
+    if ([[event characters] length] < 5) {
+        const auto symbol = [[event characters] UTF8String];
+        newEvent.keyboard.symbol[0] = symbol[0];
+        newEvent.keyboard.symbol[1] = symbol[1];
+        newEvent.keyboard.symbol[2] = symbol[2];
+        newEvent.keyboard.symbol[3] = symbol[3];
+    }
+    application->sendEvent(newEvent);
+}
+
+- (void)keyUp:(NSEvent *)event {
+    
+}
+
+- (BOOL)acceptsFirstResponder
+{
+    return YES;
+}
+
 @end
 
 namespace gerium::macos {
@@ -126,6 +162,8 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
         [window.contentView addSubview:view];
         [window center];
         [window orderFrontRegardless];
+        
+        [view setNextResponder:viewController];
         
         viewController.window = window;
         _scale = window.backingScaleFactor;
@@ -216,6 +254,13 @@ float MacOSApplication::titlebarHeight() const noexcept {
 
 const void* MacOSApplication::getView() const noexcept {
     return _view;
+}
+
+void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
+    if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
+        setKeyState(event.keyboard.scancode, event.keyboard.state == GERIUM_KEY_STATE_PRESSED);
+    }
+    addEvent(event);
 }
 
 gerium_runtime_platform_t MacOSApplication::onGetPlatform() const noexcept {
@@ -411,6 +456,9 @@ gerium_utf8_t MacOSApplication::onGetTitle() const noexcept {
 void MacOSApplication::onSetTitle(gerium_utf8_t title) noexcept {
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
     controller.window.title = [NSString stringWithUTF8String:title];
+}
+
+void MacOSApplication::onShowCursor(bool show) noexcept {
 }
 
 void MacOSApplication::onRun() {

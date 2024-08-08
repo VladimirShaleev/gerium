@@ -37,6 +37,8 @@ public:
     float titlebarHeight() const noexcept;
 
     const void* getView() const noexcept;
+    
+    void sendEvent(const gerium_event_t& event) noexcept;
 
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
@@ -58,6 +60,8 @@ private:
 
     gerium_utf8_t onGetTitle() const noexcept override;
     void onSetTitle(gerium_utf8_t title) noexcept override;
+
+    void onShowCursor(bool show) noexcept override;
 
     void onRun() override;
     void onExit() noexcept override;
