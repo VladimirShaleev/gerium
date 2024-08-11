@@ -20,11 +20,15 @@
 
 - (void)unsubscribeKeyboardEvents:(GCKeyboard *)keyboard;
 
-- (void)addEvent:(NSEvent *)event pressed:(BOOL)down;
+- (void)addKeyboardEvent:(NSEvent *)event pressed:(BOOL)down;
+
+- (void)addMouseEvent:(NSEvent *)event pressed:(BOOL)down;
 
 - (void)initalizeKeyboard;
 
 @property (strong, nonatomic) NSWindow *window;
+
+@property (strong, nonatomic) NSTrackingArea *area;
 
 @property (nonatomic) gerium_key_mod_flags_t modifiers;
 
@@ -36,6 +40,19 @@
 
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
     application->changeState(GERIUM_APPLICATION_STATE_RESIZE);
+    
+    auto frame = [view frame];
+    frame.size = size;
+    frame.size.width += 300;
+    
+    NSTrackingArea* newArea = [[NSTrackingArea alloc] initWithRect:frame options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
+                           owner:view
+                           userInfo:nil];
+    
+    [view removeTrackingArea:self.area];
+    [view addTrackingArea:newArea];
+    
+    self.area = newArea;
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
@@ -116,14 +133,100 @@
 }
 
 - (void)keyDown:(NSEvent *)event {
-    [self addEvent:event pressed:TRUE];
+    [self addKeyboardEvent:event pressed:TRUE];
 }
 
 - (void)keyUp:(NSEvent *)event {
-    [self addEvent:event pressed:FALSE];
+    [self addKeyboardEvent:event pressed:FALSE];
 }
 
-- (void)addEvent:(NSEvent *)event pressed:(BOOL)down {
+- (void)mouseDown:(NSEvent *)event {
+    auto& io = ImGui::GetIO();
+    
+    if (io.WantCaptureMouse) {
+        return;
+    }
+    
+    const NSPoint pos = event.locationInWindow;
+    const NSPoint screenPos = NSEvent.mouseLocation;
+    
+    gerium_event_t newEvent{};
+    newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
+    newEvent.timestamp = application->ticks();
+    newEvent.mouse.id = 0;
+    newEvent.mouse.buttons = {};
+    newEvent.mouse.absolute_x = pos.x;
+    newEvent.mouse.absolute_y = pos.y;
+    newEvent.mouse.delta_x = {};
+    newEvent.mouse.delta_y = {};
+    newEvent.mouse.raw_delta_x = {};
+    newEvent.mouse.raw_delta_y = {};
+    newEvent.mouse.wheel_vertical = {};
+    newEvent.mouse.wheel_horizontal = {};
+    
+    application->sendEvent(newEvent);
+}
+
+- (void)mouseUp:(NSEvent *)event {
+    
+}
+
+- (void)rightMouseDown:(NSEvent *)event {
+    
+}
+
+- (void)rightMouseUp:(NSEvent *)event {
+    
+}
+
+- (void)otherMouseDown:(NSEvent *)event {
+    
+}
+
+- (void)otherMouseUp:(NSEvent *)event {
+    
+}
+
+- (void)mouseMoved:(NSEvent *)event {
+    auto& io = ImGui::GetIO();
+    
+    if (io.WantCaptureMouse) {
+        return;
+    }
+    
+    const NSPoint pos = event.locationInWindow;
+    const NSPoint screenPos = NSEvent.mouseLocation;
+    
+    gerium_event_t newEvent{};
+    newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
+    newEvent.timestamp = application->ticks();
+    newEvent.mouse.id = 0;
+    newEvent.mouse.buttons = {};
+    newEvent.mouse.absolute_x = pos.x;
+    newEvent.mouse.absolute_y = pos.y;
+    newEvent.mouse.delta_x = {};
+    newEvent.mouse.delta_y = {};
+    newEvent.mouse.raw_delta_x = {};
+    newEvent.mouse.raw_delta_y = {};
+    newEvent.mouse.wheel_vertical = {};
+    newEvent.mouse.wheel_horizontal = {};
+    
+    application->sendEvent(newEvent);
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+    
+}
+
+- (void)rightMouseDragged:(NSEvent *)event {
+    
+}
+
+- (void)otherMouseDragged:(NSEvent *)event {
+    
+}
+
+- (void)addKeyboardEvent:(NSEvent *)event pressed:(BOOL)down {
     const auto flags = [event modifierFlags];
     auto mods = GERIUM_KEY_MOD_NONE;
     if (application->isPressed(GERIUM_SCANCODE_SHIFT_LEFT)) {
@@ -177,6 +280,9 @@
     application->sendEvent(newEvent);
     
     modifiers = mods;
+}
+
+- (void)addMouseEvent:(NSEvent *)event pressed:(BOOL)down {
 }
 
 - (void)initalizeKeyboard {
@@ -292,6 +398,12 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
         MTKView* view = [[MTKView alloc] initWithFrame:frame];
         view.delegate = viewController;
         view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        
+        viewController.area = [[NSTrackingArea alloc] initWithRect:frame options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
+                               owner:view
+                               userInfo:nil];
+        
+        [view addTrackingArea:viewController.area];
         
         NSWindow* window = [[NSWindow alloc]
                             initWithContentRect:frame
