@@ -249,6 +249,10 @@
         return;
     }
     
+    if (application->isHideCursor()) {
+        ImGui::GetIO().AddFocusEvent(false);
+    }
+    
     MTKView* view = ((__bridge MTKView*) application->getView());
     
     NSPoint pos = event.locationInWindow;
@@ -496,6 +500,11 @@ bool MacOSApplication::isStartedFullscreen() const noexcept {
 bool MacOSApplication::isFullscreen() const noexcept {
     return onIsFullscreen();
 }
+
+bool MacOSApplication::isHideCursor() const noexcept {
+    return !isShowCursor();
+}
+
 void MacOSApplication::restoreWindow() noexcept {
     constexpr auto val = std::numeric_limits<gerium_uint16_t>::max();
     
@@ -765,6 +774,11 @@ void MacOSApplication::onSetTitle(gerium_utf8_t title) noexcept {
 }
 
 void MacOSApplication::onShowCursor(bool show) noexcept {
+    if (show) {
+        [NSCursor unhide];
+    } else {
+        [NSCursor hide];
+    }
 }
 
 void MacOSApplication::onRun() {

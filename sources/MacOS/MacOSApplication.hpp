@@ -27,6 +27,7 @@ public:
 
     bool isStartedFullscreen() const noexcept;
     bool isFullscreen() const noexcept;
+    bool isHideCursor() const noexcept;
 
     void restoreWindow() noexcept;
     void fullscreen(bool fullscreen) noexcept;
