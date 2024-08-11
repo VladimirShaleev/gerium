@@ -51,6 +51,7 @@
     if (!application->isFullscreen()) {
         application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
     }
+
     [self initalizeKeyboard];
 }
 
@@ -160,7 +161,7 @@
     
     gerium_event_t newEvent{};
     newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
-    newEvent.timestamp          = gerium_uint64_t([event timestamp] * 10000000);
+    newEvent.timestamp          = application->ticks();
     newEvent.keyboard.scancode  = scancode;
     newEvent.keyboard.code      = keycode;
     newEvent.keyboard.state     = down ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
@@ -204,11 +205,16 @@
 
 - (void)subscribeKeyboardEvents:(GCKeyboard *)keyboard {
     keyboard.keyboardInput.keyChangedHandler = ^(GCKeyboardInput *keyboardInput, GCControllerButtonInput *key, GCKeyCode keyCode, BOOL pressed) {
-        auto timestamp = keyboardInput.lastEventTimestamp;
-                
+        
+        auto& io = ImGui::GetIO();
+        
+        if (io.WantCaptureKeyboard) {
+            application->clearEvents();
+        }
+        
         gerium_event_t newEvent{};
         newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
-        newEvent.timestamp          = gerium_uint64_t(timestamp * 10000000);
+        newEvent.timestamp          = application->ticks();
         newEvent.keyboard.state     = pressed ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
         newEvent.keyboard.modifiers = modifiers;
         
@@ -407,6 +413,16 @@ void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
         setKeyState(event.keyboard.scancode, pressed);
     }
     addEvent(event);
+}
+
+void MacOSApplication::clearEvents() noexcept {
+    clearStates(ticks());
+}
+
+gerium_uint64_t MacOSApplication::ticks() noexcept {
+    timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (gerium_uint8_t) now.tv_sec * 1000000000LL + now.tv_nsec;
 }
 
 gerium_runtime_platform_t MacOSApplication::onGetPlatform() const noexcept {

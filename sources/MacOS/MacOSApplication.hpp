@@ -40,6 +40,9 @@ public:
     
     bool isPressed(gerium_scancode_t scancode) noexcept;
     void sendEvent(const gerium_event_t& event) noexcept;
+    void clearEvents() noexcept;
+    
+    static gerium_uint64_t ticks() noexcept;
 
 private:
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
