@@ -138,31 +138,6 @@ gerium_inline std::pair<gerium_scancode_t, gerium_key_code_t> toScanCode(gerium_
     }
 }
 
-gerium_inline gerium_key_mod_flags_t toModifiers(NSEventModifierFlags mods) noexcept {
-    auto result = GERIUM_KEY_MOD_NONE;
-    
-    if (mods & NSEventModifierFlagCapsLock) {
-        result |= GERIUM_KEY_MOD_CAPS_LOCK;
-    }
-    if (mods & NSEventModifierFlagShift) {
-        result |= GERIUM_KEY_MOD_SHIFT;
-    }
-    if (mods & NSEventModifierFlagControl) {
-        result |= GERIUM_KEY_MOD_CTRL;
-    }
-    if (mods & NSEventModifierFlagOption) {
-        result |= GERIUM_KEY_MOD_ALT;
-    }
-    if (mods & NSEventModifierFlagCommand) {
-        result |= GERIUM_KEY_MOD_META;
-    }
-    if (mods & NSEventModifierFlagNumericPad) {
-        result |= GERIUM_KEY_MOD_NUM_LOCK;
-    }
-    
-    return result;
-}
-
 } // namespace gerium::macos
 
 #endif

@@ -6,18 +6,33 @@
 #import <MetalKit/MetalKit.h>
 #import <QuartzCore/QuartzCore.h>
 #import <IOKit/graphics/IOGraphicsLib.h>
+#import <GameController/GameController.h>
 
 @interface WindowViewController : NSViewController <NSApplicationDelegate, NSWindowDelegate, MTKViewDelegate> {
     @public gerium::macos::MacOSApplication* application;
 }
 
+- (void)handleKeyboardConnected:(NSNotification *)notification;
+
+- (void)handleKeyboardDisconnected:(NSNotification *)notification;
+
+- (void)subscribeKeyboardEvents:(GCKeyboard *)keyboard;
+
+- (void)unsubscribeKeyboardEvents:(GCKeyboard *)keyboard;
+
 - (void)addEvent:(NSEvent *)event pressed:(BOOL)down;
 
+- (void)initalizeKeyboard;
+
 @property (strong, nonatomic) NSWindow *window;
+
+@property (nonatomic) gerium_key_mod_flags_t modifiers;
 
 @end
 
 @implementation WindowViewController
+
+@synthesize modifiers;
 
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
     application->changeState(GERIUM_APPLICATION_STATE_RESIZE);
@@ -36,6 +51,7 @@
     if (!application->isFullscreen()) {
         application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
     }
+    [self initalizeKeyboard];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
@@ -98,9 +114,6 @@
     application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
 }
 
-- (void)flagsChanged:(NSEvent *)event {
-}
-
 - (void)keyDown:(NSEvent *)event {
     [self addEvent:event pressed:TRUE];
 }
@@ -110,8 +123,40 @@
 }
 
 - (void)addEvent:(NSEvent *)event pressed:(BOOL)down {
-    const auto modifiers = gerium::macos::toModifiers([event modifierFlags]);
-    const auto [scancode, keycode] = gerium::macos::toScanCode([event keyCode], modifiers);
+    const auto flags = [event modifierFlags];
+    auto mods = GERIUM_KEY_MOD_NONE;
+    if (application->isPressed(GERIUM_SCANCODE_SHIFT_LEFT)) {
+        mods |= GERIUM_KEY_MOD_LSHIFT;
+    }
+    if (application->isPressed(GERIUM_SCANCODE_SHIFT_RIGHT)) {
+        mods |= GERIUM_KEY_MOD_RSHIFT;
+    }
+    if (application->isPressed(GERIUM_SCANCODE_CONTROL_LEFT)) {
+        mods |= GERIUM_KEY_MOD_LCTRL;
+    }
+    if (application->isPressed(GERIUM_SCANCODE_CONTROL_RIGHT)) {
+        mods |= GERIUM_KEY_MOD_RCTRL;
+    }
+    if (application->isPressed(GERIUM_SCANCODE_ALT_LEFT)) {
+        mods |= GERIUM_KEY_MOD_LALT;
+    }
+    if (application->isPressed(GERIUM_SCANCODE_ALT_RIGHT)) {
+        mods |= GERIUM_KEY_MOD_RALT;
+    }
+    if (application->isPressed(GERIUM_SCANCODE_META_LEFT)) {
+        mods |= GERIUM_KEY_MOD_LMETA;
+    }
+    if (application->isPressed(GERIUM_SCANCODE_META_RIGHT)) {
+        mods |= GERIUM_KEY_MOD_RMETA;
+    }
+    if (flags & NSEventModifierFlagCapsLock) {
+        mods |= GERIUM_KEY_MOD_CAPS_LOCK;
+    }
+    if (flags & NSEventModifierFlagNumericPad) {
+        mods |= GERIUM_KEY_MOD_NUM_LOCK;
+    }
+    
+    const auto [scancode, keycode] = gerium::macos::toScanCode([event keyCode], mods);
     
     gerium_event_t newEvent{};
     newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
@@ -119,7 +164,7 @@
     newEvent.keyboard.scancode  = scancode;
     newEvent.keyboard.code      = keycode;
     newEvent.keyboard.state     = down ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
-    newEvent.keyboard.modifiers = gerium::macos::toModifiers([event modifierFlags]);
+    newEvent.keyboard.modifiers = mods;
     
     if ([[event characters] length] < 5) {
         const auto symbol = [[event characters] UTF8String];
@@ -129,6 +174,93 @@
         newEvent.keyboard.symbol[3] = symbol[3];
     }
     application->sendEvent(newEvent);
+    
+    modifiers = mods;
+}
+
+- (void)initalizeKeyboard {
+    modifiers = GERIUM_KEY_MOD_NONE;
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleKeyboardConnected:)
+                                                 name:GCKeyboardDidConnectNotification
+                                                object:nil];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleKeyboardDisconnected:)
+                                                 name:GCKeyboardDidDisconnectNotification
+                                               object:nil];
+}
+
+- (void)handleKeyboardConnected:(NSNotification *)notification {
+    GCKeyboard *keyboard = notification.object;
+    [self subscribeKeyboardEvents:keyboard];
+}
+
+- (void)handleKeyboardDisconnected:(NSNotification *)notification {
+    GCKeyboard *keyboard = notification.object;
+    [self unsubscribeKeyboardEvents:keyboard];
+}
+
+- (void)subscribeKeyboardEvents:(GCKeyboard *)keyboard {
+    keyboard.keyboardInput.keyChangedHandler = ^(GCKeyboardInput *keyboardInput, GCControllerButtonInput *key, GCKeyCode keyCode, BOOL pressed) {
+        auto timestamp = keyboardInput.lastEventTimestamp;
+                
+        gerium_event_t newEvent{};
+        newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
+        newEvent.timestamp          = gerium_uint64_t(timestamp * 10000000);
+        newEvent.keyboard.state     = pressed ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
+        newEvent.keyboard.modifiers = modifiers;
+        
+        auto newModifiers = GERIUM_KEY_MOD_NONE;
+
+        if (keyCode == GCKeyCodeLeftControl) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_CONTROL_LEFT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_CONTROL_LEFT;
+            newModifiers                = GERIUM_KEY_MOD_LCTRL;
+        } else if (keyCode == GCKeyCodeLeftShift) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_SHIFT_LEFT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_SHIFT_LEFT;
+            newModifiers                = GERIUM_KEY_MOD_LSHIFT;
+        } else if (keyCode == GCKeyCodeLeftAlt) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_ALT_LEFT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_ALT_LEFT;
+            newModifiers                = GERIUM_KEY_MOD_LALT;
+        } else if (keyCode == GCKeyCodeLeftGUI) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_META_LEFT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_META_LEFT;
+            newModifiers                = GERIUM_KEY_MOD_LMETA;
+        } else if (keyCode == GCKeyCodeRightControl) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_CONTROL_RIGHT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_CONTROL_RIGHT;
+            newModifiers                = GERIUM_KEY_MOD_RCTRL;
+        } else if (keyCode == GCKeyCodeRightShift) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_SHIFT_RIGHT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_SHIFT_RIGHT;
+            newModifiers                = GERIUM_KEY_MOD_RSHIFT;
+        } else if (keyCode == GCKeyCodeRightAlt) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_ALT_RIGHT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_ALT_RIGHT;
+            newModifiers                = GERIUM_KEY_MOD_RALT;
+        } else if (keyCode == GCKeyCodeRightGUI) {
+            newEvent.keyboard.scancode  = GERIUM_SCANCODE_META_RIGHT;
+            newEvent.keyboard.code      = GERIUM_KEY_CODE_META_RIGHT;
+            newModifiers                = GERIUM_KEY_MOD_RMETA;
+        } else {
+            return;
+        }
+        application->sendEvent(newEvent);
+        
+        if (pressed) {
+            modifiers |= newModifiers;
+        } else {
+            modifiers ^= newModifiers;
+        }
+    };
+}
+
+- (void)unsubscribeKeyboardEvents:(GCKeyboard *)keyboard {
+    keyboard.keyboardInput.keyChangedHandler = nil;
 }
 
 - (BOOL)acceptsFirstResponder

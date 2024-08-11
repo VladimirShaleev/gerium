@@ -613,7 +613,35 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
                        event.keyboard.state == GERIUM_KEY_STATE_RELEASED) {
                 showCursor = true;
             }
-            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, event.keyboard.symbol);
+            std::ostringstream ss;
+            ss << "symbol: " << event.keyboard.symbol << ", press: " << (event.keyboard.state == GERIUM_KEY_STATE_PRESSED ? "true" : "false") << ", tmp: " << event.timestamp << ", sc: " << event.keyboard.scancode << ", kc: " << event.keyboard.code << ", mods: ";
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_LSHIFT) {
+                ss << "ls ";
+            }
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_RSHIFT) {
+                ss << "rs ";
+            }
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_CTRL) {
+                ss << "c";
+            }
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_ALT) {
+                ss << "a";
+            }
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_META) {
+                ss << "m";
+            }
+            ss << " ";
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_NUM_LOCK) {
+                ss << "nl ";
+            }
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_CAPS_LOCK) {
+                ss << "cl ";
+            }
+            if (event.keyboard.modifiers & GERIUM_KEY_MOD_SCROLL_LOCK) {
+                ss << "sl ";
+            }
+            auto str = ss.str();
+            gerium_logger_print(logger, GERIUM_LOGGER_LEVEL_INFO, str.c_str());
         } else if (event.type == GERIUM_EVENT_TYPE_MOUSE) {
             constexpr auto buttonsDown = GERIUM_MOUSE_BUTTON_LEFT_DOWN | GERIUM_MOUSE_BUTTON_RIGHT_DOWN |
                                          GERIUM_MOUSE_BUTTON_MIDDLE_DOWN | GERIUM_MOUSE_BUTTON_4_DOWN |
