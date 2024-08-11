@@ -22,7 +22,7 @@
 
 - (void)addKeyboardEvent:(NSEvent *)event pressed:(BOOL)down;
 
-- (void)addMouseEvent:(NSEvent *)event pressed:(BOOL)down;
+- (void)addMouseEvent:(NSEvent *)event;
 
 - (void)initalizeKeyboard;
 
@@ -31,6 +31,8 @@
 @property (strong, nonatomic) NSTrackingArea *area;
 
 @property (nonatomic) gerium_key_mod_flags_t modifiers;
+
+@property (nonatomic) gerium_mouse_event_t lastMouseEvent;
 
 @end
 
@@ -141,89 +143,47 @@
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    auto& io = ImGui::GetIO();
-    
-    if (io.WantCaptureMouse) {
-        return;
-    }
-    
-    const NSPoint pos = event.locationInWindow;
-    const NSPoint screenPos = NSEvent.mouseLocation;
-    
-    gerium_event_t newEvent{};
-    newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
-    newEvent.timestamp = application->ticks();
-    newEvent.mouse.id = 0;
-    newEvent.mouse.buttons = {};
-    newEvent.mouse.absolute_x = pos.x;
-    newEvent.mouse.absolute_y = pos.y;
-    newEvent.mouse.delta_x = {};
-    newEvent.mouse.delta_y = {};
-    newEvent.mouse.raw_delta_x = {};
-    newEvent.mouse.raw_delta_y = {};
-    newEvent.mouse.wheel_vertical = {};
-    newEvent.mouse.wheel_horizontal = {};
-    
-    application->sendEvent(newEvent);
+    [self addMouseEvent:event];
 }
 
 - (void)mouseUp:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
 }
 
 - (void)rightMouseDown:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
 }
 
 - (void)rightMouseUp:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
 }
 
 - (void)otherMouseDown:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
 }
 
 - (void)otherMouseUp:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
 }
 
 - (void)mouseMoved:(NSEvent *)event {
-    auto& io = ImGui::GetIO();
-    
-    if (io.WantCaptureMouse) {
-        return;
-    }
-    
-    const NSPoint pos = event.locationInWindow;
-    const NSPoint screenPos = NSEvent.mouseLocation;
-    
-    gerium_event_t newEvent{};
-    newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
-    newEvent.timestamp = application->ticks();
-    newEvent.mouse.id = 0;
-    newEvent.mouse.buttons = {};
-    newEvent.mouse.absolute_x = pos.x;
-    newEvent.mouse.absolute_y = pos.y;
-    newEvent.mouse.delta_x = {};
-    newEvent.mouse.delta_y = {};
-    newEvent.mouse.raw_delta_x = {};
-    newEvent.mouse.raw_delta_y = {};
-    newEvent.mouse.wheel_vertical = {};
-    newEvent.mouse.wheel_horizontal = {};
-    
-    application->sendEvent(newEvent);
+    [self addMouseEvent:event];
 }
 
 - (void)mouseDragged:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
 }
 
 - (void)rightMouseDragged:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
 }
 
 - (void)otherMouseDragged:(NSEvent *)event {
-    
+    [self addMouseEvent:event];
+}
+
+-(void)scrollWheel:(NSEvent *)event {
+    [self addMouseEvent:event];
 }
 
 - (void)addKeyboardEvent:(NSEvent *)event pressed:(BOOL)down {
@@ -282,7 +242,75 @@
     modifiers = mods;
 }
 
-- (void)addMouseEvent:(NSEvent *)event pressed:(BOOL)down {
+- (void)addMouseEvent:(NSEvent *)event {
+    auto& io = ImGui::GetIO();
+    
+    if (io.WantCaptureMouse) {
+        return;
+    }
+    
+    MTKView* view = ((__bridge MTKView*) application->getView());
+    
+    NSPoint pos = event.locationInWindow;
+    if (event.window == nil) {
+        pos = [[view window] convertPointFromScreen:pos];
+    }
+    
+    pos = [view convertPoint:pos fromView:nil];
+    if ([view isFlipped]) {
+        pos = NSMakePoint(pos.x, pos.y);
+    } else {
+        pos = NSMakePoint(pos.x, view.bounds.size.height - pos.y);
+    }
+    
+    auto buttons = GERIUM_MOUSE_BUTTON_NONE;
+    auto wheelX = 0.0;
+    auto wheelY = 0.0;
+    
+    if (event.type == NSEventTypeLeftMouseDown) {
+        buttons = GERIUM_MOUSE_BUTTON_LEFT_DOWN;
+    } else if (event.type == NSEventTypeRightMouseDown) {
+        buttons = GERIUM_MOUSE_BUTTON_RIGHT_UP;
+    } else if (event.type == NSEventTypeOtherMouseDown) {
+        buttons = GERIUM_MOUSE_BUTTON_MIDDLE_DOWN;
+    } else if (event.type == NSEventTypeLeftMouseUp) {
+        buttons = GERIUM_MOUSE_BUTTON_LEFT_UP;
+    } else if (event.type == NSEventTypeRightMouseUp) {
+        buttons = GERIUM_MOUSE_BUTTON_RIGHT_UP;
+    } else if (event.type == NSEventTypeOtherMouseUp) {
+        buttons = GERIUM_MOUSE_BUTTON_LEFT_UP;
+    } else if (event.type == NSEventTypeScrollWheel && event.phase != NSEventPhaseCancelled) {
+        if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6) {
+            wheelX = [event scrollingDeltaX];
+            wheelY = [event scrollingDeltaY];
+            if ([event hasPreciseScrollingDeltas])
+            {
+                wheelX *= 0.01;
+                wheelY *= 0.01;
+            }
+        } else  {
+            wheelX = [event deltaX] * 0.1;
+            wheelY = [event deltaY] * 0.1;
+        }
+    }
+    
+    gerium_event_t newEvent{};
+    newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
+    newEvent.timestamp = application->ticks();
+    newEvent.mouse.id = 0;
+    newEvent.mouse.buttons = buttons;
+    newEvent.mouse.absolute_x = gerium_sint16_t(pos.x * application->scale());
+    newEvent.mouse.absolute_y = gerium_sint16_t(pos.y * application->scale());
+    newEvent.mouse.delta_x = newEvent.mouse.absolute_x - self.lastMouseEvent.absolute_x;
+    newEvent.mouse.delta_y = newEvent.mouse.absolute_y - self.lastMouseEvent.absolute_y;
+    newEvent.mouse.raw_delta_x = newEvent.mouse.delta_x;
+    newEvent.mouse.raw_delta_y = newEvent.mouse.delta_y;
+    newEvent.mouse.wheel_vertical = wheelY;
+    newEvent.mouse.wheel_horizontal = wheelX;
+    
+    application->sendEvent(newEvent);
+    
+    self.lastMouseEvent = newEvent.mouse;
 }
 
 - (void)initalizeKeyboard {
@@ -529,6 +557,10 @@ void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
 
 void MacOSApplication::clearEvents() noexcept {
     clearStates(ticks());
+}
+
+float MacOSApplication::scale() const noexcept {
+    return _scale;
 }
 
 gerium_uint64_t MacOSApplication::ticks() noexcept {

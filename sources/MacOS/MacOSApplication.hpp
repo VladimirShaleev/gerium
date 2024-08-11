@@ -42,6 +42,8 @@ public:
     void sendEvent(const gerium_event_t& event) noexcept;
     void clearEvents() noexcept;
     
+    float scale() const noexcept;
+    
     static gerium_uint64_t ticks() noexcept;
 
 private:
