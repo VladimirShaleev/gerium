@@ -16,19 +16,29 @@
 
 - (void)handleKeyboardDisconnected:(NSNotification *)notification;
 
+- (void)handleMouseConnected:(NSNotification *)notification;
+
+- (void)handleMouseDisconnected:(NSNotification *)notification;
+
 - (void)subscribeKeyboardEvents:(GCKeyboard *)keyboard;
 
 - (void)unsubscribeKeyboardEvents:(GCKeyboard *)keyboard;
+
+- (void)subscribeMouseEvents:(GCMouse *)mouse;
+
+- (void)unsubscribeMouseEvents:(GCMouse *)mouse;
 
 - (void)addKeyboardEvent:(NSEvent *)event pressed:(BOOL)down;
 
 - (void)addMouseEvent:(NSEvent *)event;
 
-- (void)initalizeKeyboard;
+- (void)initializeDevices;
 
 @property (strong, nonatomic) NSWindow *window;
 
 @property (strong, nonatomic) NSTrackingArea *area;
+
+@property (nonatomic) bool imguiFoucus;
 
 @property (nonatomic) gerium_key_mod_flags_t modifiers;
 
@@ -58,6 +68,12 @@
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view {
+    if (auto& io = ImGui::GetIO(); io.WantCaptureKeyboard && !self.imguiFoucus) {
+        self.imguiFoucus = true;
+        application->clearEvents();
+    } else if (!io.WantCaptureKeyboard && self.imguiFoucus) {
+        self.imguiFoucus = false;
+    }
     application->frame();
 }
 
@@ -70,8 +86,11 @@
     if (!application->isFullscreen()) {
         application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
     }
+    
+    self.imguiFoucus = false;
+    self.lastMouseEvent = {};
 
-    [self initalizeKeyboard];
+    [self initializeDevices];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
@@ -317,7 +336,7 @@
     self.lastMouseEvent = newEvent.mouse;
 }
 
-- (void)initalizeKeyboard {
+- (void)initializeDevices {
     modifiers = GERIUM_KEY_MOD_NONE;
     
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -329,6 +348,16 @@
                                              selector:@selector(handleKeyboardDisconnected:)
                                                  name:GCKeyboardDidDisconnectNotification
                                                object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleMouseConnected:)
+                                                 name:GCMouseDidConnectNotification
+                                                object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleMouseDisconnected::)
+                                                 name:GCMouseDidDisconnectNotification
+                                                object:nil];
 }
 
 - (void)handleKeyboardConnected:(NSNotification *)notification {
@@ -341,14 +370,18 @@
     [self unsubscribeKeyboardEvents:keyboard];
 }
 
+- (void)handleMouseConnected:(NSNotification *)notification {
+    GCMouse *mouse = notification.object;
+    [self subscribeMouseEvents:mouse];
+}
+
+- (void)handleMouseDisconnected:(NSNotification *)notification {
+    GCMouse *mouse = notification.object;
+    [self unsubscribeMouseEvents:mouse];
+}
+
 - (void)subscribeKeyboardEvents:(GCKeyboard *)keyboard {
     keyboard.keyboardInput.keyChangedHandler = ^(GCKeyboardInput *keyboardInput, GCControllerButtonInput *key, GCKeyCode keyCode, BOOL pressed) {
-        
-        auto& io = ImGui::GetIO();
-        
-        if (io.WantCaptureKeyboard) {
-            application->clearEvents();
-        }
         
         gerium_event_t newEvent{};
         newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
@@ -405,6 +438,16 @@
 
 - (void)unsubscribeKeyboardEvents:(GCKeyboard *)keyboard {
     keyboard.keyboardInput.keyChangedHandler = nil;
+}
+
+- (void)subscribeMouseEvents:(GCMouse *)mouse {
+    mouse.mouseInput.mouseMovedHandler = ^(GCMouseInput* mouseInput, float deltaX, float deltaY) {
+        auto b = deltaX;
+    };
+}
+
+- (void)unsubscribeMouseEvents:(GCMouse *)mouse {
+    mouse.mouseInput.mouseMovedHandler = nil;
 }
 
 - (BOOL)acceptsFirstResponder
@@ -548,8 +591,12 @@ const void* MacOSApplication::getView() const noexcept {
     return _view;
 }
 
-bool MacOSApplication::isPressed(gerium_scancode_t scancode) noexcept {
+bool MacOSApplication::isPressed(gerium_scancode_t scancode) const noexcept {
     return isPressScancode(scancode);
+}
+
+void MacOSApplication::setPressed(gerium_scancode_t scancode, bool pressed) noexcept {
+    setKeyState(scancode, pressed);
 }
 
 void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
@@ -561,7 +608,9 @@ void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
         }
         setKeyState(event.keyboard.scancode, pressed);
     }
-    addEvent(event);
+    if (auto& io = ImGui::GetIO(); !io.WantCaptureKeyboard) {
+        addEvent(event);
+    }
 }
 
 void MacOSApplication::clearEvents() noexcept {
@@ -815,7 +864,9 @@ bool MacOSApplication::onIsRunning() const noexcept {
 
 void MacOSApplication::onInitImGui() {
     MTKView* view = ((__bridge MTKView*) _view);
+    WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
     ImGui_ImplOSX_Init(view);
+    [controller.window makeFirstResponder:controller];
 }
 
 void MacOSApplication::onShutdownImGui() {
