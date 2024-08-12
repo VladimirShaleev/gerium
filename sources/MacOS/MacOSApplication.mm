@@ -268,10 +268,6 @@
         return;
     }
     
-    if (application->isHideCursor()) {
-        ImGui::GetIO().AddFocusEvent(false);
-    }
-    
     MTKView* view = ((__bridge MTKView*) application->getView());
     
     NSPoint pos = event.locationInWindow;
@@ -442,7 +438,37 @@
 
 - (void)subscribeMouseEvents:(GCMouse *)mouse {
     mouse.mouseInput.mouseMovedHandler = ^(GCMouseInput* mouseInput, float deltaX, float deltaY) {
-        auto b = deltaX;
+        
+        if (application->isHideCursor()) {
+            gerium_event_t newEvent{};
+            newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
+            newEvent.timestamp = application->ticks();
+            newEvent.mouse.id = 0;
+            newEvent.mouse.absolute_x = self.lastMouseEvent.absolute_x;
+            newEvent.mouse.absolute_y = self.lastMouseEvent.absolute_y;
+            newEvent.mouse.delta_x = gerium_sint16_t(deltaX * application->scale());
+            newEvent.mouse.delta_y = gerium_sint16_t(deltaY * application->scale());
+            newEvent.mouse.raw_delta_x = newEvent.mouse.delta_x;
+            newEvent.mouse.raw_delta_y = newEvent.mouse.delta_y;
+            
+            application->sendEvent(newEvent);
+            
+            self.lastMouseEvent = newEvent.mouse;
+            
+            MTKView* view = ((__bridge MTKView*) application->getView());
+            NSRect frame = [self.window convertRectToScreen:[view frame]];
+            NSPoint mouseLocation = [NSEvent mouseLocation];
+            
+            if (!NSPointInRect(mouseLocation, frame)) {
+                mouseLocation.x = MIN(MAX(mouseLocation.x, NSMinX(frame) + 1), NSMaxX(frame) - 1);
+                mouseLocation.y = MIN(MAX(mouseLocation.y, NSMinY(frame) + 1), NSMaxY(frame) - 1);
+                auto height = [NSScreen mainScreen].frame.size.height;
+                mouseLocation.y = height - mouseLocation.y;
+                CGWarpMouseCursorPosition(mouseLocation);
+            }
+            
+            ImGui::GetIO().AddFocusEvent(false);
+        }
     };
 }
 
