@@ -3,46 +3,47 @@
 
 #include <imgui_impl_osx.h>
 
+#import <GameController/GameController.h>
+#import <IOKit/graphics/IOGraphicsLib.h>
 #import <MetalKit/MetalKit.h>
 #import <QuartzCore/QuartzCore.h>
-#import <IOKit/graphics/IOGraphicsLib.h>
-#import <GameController/GameController.h>
 
 @interface WindowViewController : NSViewController <NSApplicationDelegate, NSWindowDelegate, MTKViewDelegate> {
-    @public gerium::macos::MacOSApplication* application;
+@public
+    gerium::macos::MacOSApplication* application;
 }
 
-- (void)handleKeyboardConnected:(NSNotification *)notification;
+- (void)handleKeyboardConnected:(NSNotification*)notification;
 
-- (void)handleKeyboardDisconnected:(NSNotification *)notification;
+- (void)handleKeyboardDisconnected:(NSNotification*)notification;
 
-- (void)handleMouseConnected:(NSNotification *)notification;
+- (void)handleMouseConnected:(NSNotification*)notification;
 
-- (void)handleMouseDisconnected:(NSNotification *)notification;
+- (void)handleMouseDisconnected:(NSNotification*)notification;
 
-- (void)subscribeKeyboardEvents:(GCKeyboard *)keyboard;
+- (void)subscribeKeyboardEvents:(GCKeyboard*)keyboard;
 
-- (void)unsubscribeKeyboardEvents:(GCKeyboard *)keyboard;
+- (void)unsubscribeKeyboardEvents:(GCKeyboard*)keyboard;
 
-- (void)subscribeMouseEvents:(GCMouse *)mouse;
+- (void)subscribeMouseEvents:(GCMouse*)mouse;
 
-- (void)unsubscribeMouseEvents:(GCMouse *)mouse;
+- (void)unsubscribeMouseEvents:(GCMouse*)mouse;
 
-- (void)addKeyboardEvent:(NSEvent *)event pressed:(BOOL)down;
+- (void)addKeyboardEvent:(NSEvent*)event pressed:(BOOL)down;
 
-- (void)addMouseEvent:(NSEvent *)event;
+- (void)addMouseEvent:(NSEvent*)event;
 
 - (void)initializeDevices;
 
-@property (strong, nonatomic) NSWindow *window;
+@property(strong, nonatomic) NSWindow* window;
 
-@property (strong, nonatomic) NSTrackingArea *area;
+@property(strong, nonatomic) NSTrackingArea* area;
 
-@property (nonatomic) bool imguiFoucus;
+@property(nonatomic) bool imguiFoucus;
 
-@property (nonatomic) gerium_key_mod_flags_t modifiers;
+@property(nonatomic) gerium_key_mod_flags_t modifiers;
 
-@property (nonatomic) gerium_mouse_event_t lastMouseEvent;
+@property(nonatomic) gerium_mouse_event_t lastMouseEvent;
 
 @end
 
@@ -50,24 +51,25 @@
 
 @synthesize modifiers;
 
-- (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size {
+- (void)mtkView:(nonnull MTKView*)view drawableSizeWillChange:(CGSize)size {
     application->changeState(GERIUM_APPLICATION_STATE_RESIZE);
-    
+
     auto frame = [view frame];
     frame.size = size;
-    frame.size.width += 300;
-    
-    NSTrackingArea* newArea = [[NSTrackingArea alloc] initWithRect:frame options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
-                           owner:view
-                           userInfo:nil];
-    
+
+    NSTrackingArea* newArea = [[NSTrackingArea alloc]
+        initWithRect:frame
+             options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
+               owner:view
+            userInfo:nil];
+
     [view removeTrackingArea:self.area];
     [view addTrackingArea:newArea];
-    
+
     self.area = newArea;
 }
 
-- (void)drawInMTKView:(nonnull MTKView *)view {
+- (void)drawInMTKView:(nonnull MTKView*)view {
     if (auto& io = ImGui::GetIO(); io.WantCaptureKeyboard && !self.imguiFoucus) {
         self.imguiFoucus = true;
         application->clearEvents();
@@ -77,7 +79,7 @@
     application->frame();
 }
 
-- (void)applicationDidFinishLaunching:(NSNotification *)notification {
+- (void)applicationDidFinishLaunching:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_CREATE);
     application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
     if (application->isStartedFullscreen()) {
@@ -86,14 +88,14 @@
     if (!application->isFullscreen()) {
         application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
     }
-    
-    self.imguiFoucus = false;
+
+    self.imguiFoucus    = false;
     self.lastMouseEvent = {};
 
     [self initializeDevices];
 }
 
-- (void)applicationWillTerminate:(NSNotification *)notification {
+- (void)applicationWillTerminate:(NSNotification*)notification {
     if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
         application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
     }
@@ -101,23 +103,23 @@
     application->changeState(GERIUM_APPLICATION_STATE_DESTROY);
 }
 
-- (void)applicationDidBecomeActive:(NSNotification *)notification {
+- (void)applicationDidBecomeActive:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
-    
+
     MTKView* view = ((__bridge MTKView*) application->getView());
-    view.paused = NO;
+    view.paused   = NO;
 }
 
-- (void)applicationDidResignActive:(NSNotification *)notification {
+- (void)applicationDidResignActive:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS);
-    
+
     if (application->getBackgroundWait()) {
         MTKView* view = ((__bridge MTKView*) application->getView());
-        view.paused = YES;
+        view.paused   = YES;
     }
 }
 
-- (void)applicationDidChangeOcclusionState:(NSNotification *)notification {
+- (void)applicationDidChangeOcclusionState:(NSNotification*)notification {
     if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
         application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
     } else {
@@ -125,89 +127,89 @@
     }
 }
 
-- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender {
     return YES;
 }
 
-- (void)windowDidEndLiveResize:(NSNotification *)notification {
+- (void)windowDidEndLiveResize:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_RESIZED);
 }
 
-- (void)windowDidMiniaturize:(NSNotification *)notification {
+- (void)windowDidMiniaturize:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_MINIMIZE);
     application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
 }
 
-- (void)windowDidDeminiaturize:(NSNotification *)notification {
+- (void)windowDidDeminiaturize:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
     if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
         application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
     }
 }
 
-- (void)windowDidEnterFullScreen:(NSNotification *)notification {
+- (void)windowDidEnterFullScreen:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_FULLSCREEN);
 }
 
-- (void)windowDidExitFullScreen:(NSNotification *)notification {
+- (void)windowDidExitFullScreen:(NSNotification*)notification {
     application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
 }
 
-- (void)keyDown:(NSEvent *)event {
+- (void)keyDown:(NSEvent*)event {
     [self addKeyboardEvent:event pressed:TRUE];
 }
 
-- (void)keyUp:(NSEvent *)event {
+- (void)keyUp:(NSEvent*)event {
     [self addKeyboardEvent:event pressed:FALSE];
 }
 
-- (void)mouseDown:(NSEvent *)event {
+- (void)mouseDown:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)mouseUp:(NSEvent *)event {
+- (void)mouseUp:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)rightMouseDown:(NSEvent *)event {
+- (void)rightMouseDown:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)rightMouseUp:(NSEvent *)event {
+- (void)rightMouseUp:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)otherMouseDown:(NSEvent *)event {
+- (void)otherMouseDown:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)otherMouseUp:(NSEvent *)event {
+- (void)otherMouseUp:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)mouseMoved:(NSEvent *)event {
+- (void)mouseMoved:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)mouseDragged:(NSEvent *)event {
+- (void)mouseDragged:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)rightMouseDragged:(NSEvent *)event {
+- (void)rightMouseDragged:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)otherMouseDragged:(NSEvent *)event {
+- (void)otherMouseDragged:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
--(void)scrollWheel:(NSEvent *)event {
+- (void)scrollWheel:(NSEvent*)event {
     [self addMouseEvent:event];
 }
 
-- (void)addKeyboardEvent:(NSEvent *)event pressed:(BOOL)down {
+- (void)addKeyboardEvent:(NSEvent*)event pressed:(BOOL)down {
     const auto flags = [event modifierFlags];
-    auto mods = GERIUM_KEY_MOD_NONE;
+    auto mods        = GERIUM_KEY_MOD_NONE;
     if (application->isPressed(GERIUM_SCANCODE_SHIFT_LEFT)) {
         mods |= GERIUM_KEY_MOD_LSHIFT;
     }
@@ -238,9 +240,9 @@
     if (flags & NSEventModifierFlagNumericPad) {
         mods |= GERIUM_KEY_MOD_NUM_LOCK;
     }
-    
+
     const auto [scancode, keycode] = gerium::macos::toScanCode([event keyCode], mods);
-    
+
     gerium_event_t newEvent{};
     newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
     newEvent.timestamp          = application->ticks();
@@ -248,44 +250,44 @@
     newEvent.keyboard.code      = keycode;
     newEvent.keyboard.state     = down ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
     newEvent.keyboard.modifiers = mods;
-    
+
     if ([[event characters] length] < 5) {
-        const auto symbol = [[event characters] UTF8String];
+        const auto symbol           = [[event characters] UTF8String];
         newEvent.keyboard.symbol[0] = symbol[0];
         newEvent.keyboard.symbol[1] = symbol[1];
         newEvent.keyboard.symbol[2] = symbol[2];
         newEvent.keyboard.symbol[3] = symbol[3];
     }
     application->sendEvent(newEvent);
-    
+
     modifiers = mods;
 }
 
-- (void)addMouseEvent:(NSEvent *)event {
+- (void)addMouseEvent:(NSEvent*)event {
     auto& io = ImGui::GetIO();
-    
+
     if (io.WantCaptureMouse) {
         return;
     }
-    
+
     MTKView* view = ((__bridge MTKView*) application->getView());
-    
+
     NSPoint pos = event.locationInWindow;
     if (event.window == nil) {
         pos = [[view window] convertPointFromScreen:pos];
     }
-    
+
     pos = [view convertPoint:pos fromView:nil];
     if ([view isFlipped]) {
         pos = NSMakePoint(pos.x, pos.y);
     } else {
         pos = NSMakePoint(pos.x, view.bounds.size.height - pos.y);
     }
-    
+
     auto buttons = GERIUM_MOUSE_BUTTON_NONE;
-    auto wheelX = 0.0;
-    auto wheelY = 0.0;
-    
+    auto wheelX  = 0.0;
+    auto wheelY  = 0.0;
+
     if (event.type == NSEventTypeLeftMouseDown) {
         buttons = GERIUM_MOUSE_BUTTON_LEFT_DOWN;
     } else if (event.type == NSEventTypeRightMouseDown) {
@@ -302,182 +304,179 @@
         if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6) {
             wheelX = [event scrollingDeltaX];
             wheelY = [event scrollingDeltaY];
-            if ([event hasPreciseScrollingDeltas])
-            {
+            if ([event hasPreciseScrollingDeltas]) {
                 wheelX *= 0.01;
                 wheelY *= 0.01;
             }
-        } else  {
+        } else {
             wheelX = [event deltaX] * 0.1;
             wheelY = [event deltaY] * 0.1;
         }
     }
-    
+
     gerium_event_t newEvent{};
-    newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
-    newEvent.timestamp = application->ticks();
-    newEvent.mouse.id = 0;
-    newEvent.mouse.buttons = buttons;
-    newEvent.mouse.absolute_x = gerium_sint16_t(pos.x * application->scale());
-    newEvent.mouse.absolute_y = gerium_sint16_t(pos.y * application->scale());
-    newEvent.mouse.delta_x = newEvent.mouse.absolute_x - self.lastMouseEvent.absolute_x;
-    newEvent.mouse.delta_y = newEvent.mouse.absolute_y - self.lastMouseEvent.absolute_y;
-    newEvent.mouse.raw_delta_x = newEvent.mouse.delta_x;
-    newEvent.mouse.raw_delta_y = newEvent.mouse.delta_y;
-    newEvent.mouse.wheel_vertical = wheelY;
+    newEvent.type                   = GERIUM_EVENT_TYPE_MOUSE;
+    newEvent.timestamp              = application->ticks();
+    newEvent.mouse.id               = 0;
+    newEvent.mouse.buttons          = buttons;
+    newEvent.mouse.absolute_x       = gerium_sint16_t(pos.x * application->scale());
+    newEvent.mouse.absolute_y       = gerium_sint16_t(pos.y * application->scale());
+    newEvent.mouse.delta_x          = newEvent.mouse.absolute_x - self.lastMouseEvent.absolute_x;
+    newEvent.mouse.delta_y          = newEvent.mouse.absolute_y - self.lastMouseEvent.absolute_y;
+    newEvent.mouse.raw_delta_x      = newEvent.mouse.delta_x;
+    newEvent.mouse.raw_delta_y      = newEvent.mouse.delta_y;
+    newEvent.mouse.wheel_vertical   = wheelY;
     newEvent.mouse.wheel_horizontal = wheelX;
-    
+
     application->sendEvent(newEvent);
-    
+
     self.lastMouseEvent = newEvent.mouse;
 }
 
 - (void)initializeDevices {
     modifiers = GERIUM_KEY_MOD_NONE;
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleKeyboardConnected:)
                                                  name:GCKeyboardDidConnectNotification
-                                                object:nil];
+                                               object:nil];
 
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleKeyboardDisconnected:)
                                                  name:GCKeyboardDidDisconnectNotification
                                                object:nil];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleMouseConnected:)
                                                  name:GCMouseDidConnectNotification
-                                                object:nil];
-    
+                                               object:nil];
+
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleMouseDisconnected::)
                                                  name:GCMouseDidDisconnectNotification
-                                                object:nil];
+                                               object:nil];
 }
 
-- (void)handleKeyboardConnected:(NSNotification *)notification {
-    GCKeyboard *keyboard = notification.object;
+- (void)handleKeyboardConnected:(NSNotification*)notification {
+    GCKeyboard* keyboard = notification.object;
     [self subscribeKeyboardEvents:keyboard];
 }
 
-- (void)handleKeyboardDisconnected:(NSNotification *)notification {
-    GCKeyboard *keyboard = notification.object;
+- (void)handleKeyboardDisconnected:(NSNotification*)notification {
+    GCKeyboard* keyboard = notification.object;
     [self unsubscribeKeyboardEvents:keyboard];
 }
 
-- (void)handleMouseConnected:(NSNotification *)notification {
-    GCMouse *mouse = notification.object;
+- (void)handleMouseConnected:(NSNotification*)notification {
+    GCMouse* mouse = notification.object;
     [self subscribeMouseEvents:mouse];
 }
 
-- (void)handleMouseDisconnected:(NSNotification *)notification {
-    GCMouse *mouse = notification.object;
+- (void)handleMouseDisconnected:(NSNotification*)notification {
+    GCMouse* mouse = notification.object;
     [self unsubscribeMouseEvents:mouse];
 }
 
-- (void)subscribeKeyboardEvents:(GCKeyboard *)keyboard {
-    keyboard.keyboardInput.keyChangedHandler = ^(GCKeyboardInput *keyboardInput, GCControllerButtonInput *key, GCKeyCode keyCode, BOOL pressed) {
-        
-        gerium_event_t newEvent{};
-        newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
-        newEvent.timestamp          = application->ticks();
-        newEvent.keyboard.state     = pressed ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
-        newEvent.keyboard.modifiers = modifiers;
-        
-        auto newModifiers = GERIUM_KEY_MOD_NONE;
+- (void)subscribeKeyboardEvents:(GCKeyboard*)keyboard {
+    keyboard.keyboardInput.keyChangedHandler =
+        ^(GCKeyboardInput* keyboardInput, GCControllerButtonInput* key, GCKeyCode keyCode, BOOL pressed) {
+            gerium_event_t newEvent{};
+            newEvent.type               = GERIUM_EVENT_TYPE_KEYBOARD;
+            newEvent.timestamp          = application->ticks();
+            newEvent.keyboard.state     = pressed ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
+            newEvent.keyboard.modifiers = modifiers;
 
-        if (keyCode == GCKeyCodeLeftControl) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_CONTROL_LEFT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_CONTROL_LEFT;
-            newModifiers                = GERIUM_KEY_MOD_LCTRL;
-        } else if (keyCode == GCKeyCodeLeftShift) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_SHIFT_LEFT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_SHIFT_LEFT;
-            newModifiers                = GERIUM_KEY_MOD_LSHIFT;
-        } else if (keyCode == GCKeyCodeLeftAlt) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_ALT_LEFT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_ALT_LEFT;
-            newModifiers                = GERIUM_KEY_MOD_LALT;
-        } else if (keyCode == GCKeyCodeLeftGUI) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_META_LEFT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_META_LEFT;
-            newModifiers                = GERIUM_KEY_MOD_LMETA;
-        } else if (keyCode == GCKeyCodeRightControl) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_CONTROL_RIGHT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_CONTROL_RIGHT;
-            newModifiers                = GERIUM_KEY_MOD_RCTRL;
-        } else if (keyCode == GCKeyCodeRightShift) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_SHIFT_RIGHT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_SHIFT_RIGHT;
-            newModifiers                = GERIUM_KEY_MOD_RSHIFT;
-        } else if (keyCode == GCKeyCodeRightAlt) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_ALT_RIGHT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_ALT_RIGHT;
-            newModifiers                = GERIUM_KEY_MOD_RALT;
-        } else if (keyCode == GCKeyCodeRightGUI) {
-            newEvent.keyboard.scancode  = GERIUM_SCANCODE_META_RIGHT;
-            newEvent.keyboard.code      = GERIUM_KEY_CODE_META_RIGHT;
-            newModifiers                = GERIUM_KEY_MOD_RMETA;
-        } else {
-            return;
-        }
-        application->sendEvent(newEvent);
-        
-        if (pressed) {
-            modifiers |= newModifiers;
-        } else {
-            modifiers ^= newModifiers;
-        }
-    };
+            auto newModifiers = GERIUM_KEY_MOD_NONE;
+
+            if (keyCode == GCKeyCodeLeftControl) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_CONTROL_LEFT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_CONTROL_LEFT;
+                newModifiers               = GERIUM_KEY_MOD_LCTRL;
+            } else if (keyCode == GCKeyCodeLeftShift) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_SHIFT_LEFT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_SHIFT_LEFT;
+                newModifiers               = GERIUM_KEY_MOD_LSHIFT;
+            } else if (keyCode == GCKeyCodeLeftAlt) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_ALT_LEFT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_ALT_LEFT;
+                newModifiers               = GERIUM_KEY_MOD_LALT;
+            } else if (keyCode == GCKeyCodeLeftGUI) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_META_LEFT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_META_LEFT;
+                newModifiers               = GERIUM_KEY_MOD_LMETA;
+            } else if (keyCode == GCKeyCodeRightControl) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_CONTROL_RIGHT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_CONTROL_RIGHT;
+                newModifiers               = GERIUM_KEY_MOD_RCTRL;
+            } else if (keyCode == GCKeyCodeRightShift) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_SHIFT_RIGHT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_SHIFT_RIGHT;
+                newModifiers               = GERIUM_KEY_MOD_RSHIFT;
+            } else if (keyCode == GCKeyCodeRightAlt) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_ALT_RIGHT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_ALT_RIGHT;
+                newModifiers               = GERIUM_KEY_MOD_RALT;
+            } else if (keyCode == GCKeyCodeRightGUI) {
+                newEvent.keyboard.scancode = GERIUM_SCANCODE_META_RIGHT;
+                newEvent.keyboard.code     = GERIUM_KEY_CODE_META_RIGHT;
+                newModifiers               = GERIUM_KEY_MOD_RMETA;
+            } else {
+                return;
+            }
+            application->sendEvent(newEvent);
+
+            if (pressed) {
+                modifiers |= newModifiers;
+            } else {
+                modifiers ^= newModifiers;
+            }
+        };
 }
 
-- (void)unsubscribeKeyboardEvents:(GCKeyboard *)keyboard {
+- (void)unsubscribeKeyboardEvents:(GCKeyboard*)keyboard {
     keyboard.keyboardInput.keyChangedHandler = nil;
 }
 
-- (void)subscribeMouseEvents:(GCMouse *)mouse {
+- (void)subscribeMouseEvents:(GCMouse*)mouse {
     mouse.mouseInput.mouseMovedHandler = ^(GCMouseInput* mouseInput, float deltaX, float deltaY) {
-        
         if (application->isHideCursor()) {
             gerium_event_t newEvent{};
-            newEvent.type = GERIUM_EVENT_TYPE_MOUSE;
-            newEvent.timestamp = application->ticks();
-            newEvent.mouse.id = 0;
-            newEvent.mouse.absolute_x = self.lastMouseEvent.absolute_x;
-            newEvent.mouse.absolute_y = self.lastMouseEvent.absolute_y;
-            newEvent.mouse.delta_x = gerium_sint16_t(deltaX * application->scale());
-            newEvent.mouse.delta_y = gerium_sint16_t(deltaY * application->scale());
+            newEvent.type              = GERIUM_EVENT_TYPE_MOUSE;
+            newEvent.timestamp         = application->ticks();
+            newEvent.mouse.id          = 0;
+            newEvent.mouse.absolute_x  = self.lastMouseEvent.absolute_x;
+            newEvent.mouse.absolute_y  = self.lastMouseEvent.absolute_y;
+            newEvent.mouse.delta_x     = gerium_sint16_t(deltaX * application->scale());
+            newEvent.mouse.delta_y     = gerium_sint16_t(deltaY * application->scale());
             newEvent.mouse.raw_delta_x = newEvent.mouse.delta_x;
             newEvent.mouse.raw_delta_y = newEvent.mouse.delta_y;
-            
+
             application->sendEvent(newEvent);
-            
+
             self.lastMouseEvent = newEvent.mouse;
-            
-            MTKView* view = ((__bridge MTKView*) application->getView());
-            NSRect frame = [self.window convertRectToScreen:[view frame]];
+
+            MTKView* view         = ((__bridge MTKView*) application->getView());
+            NSRect frame          = [self.window convertRectToScreen:[view frame]];
             NSPoint mouseLocation = [NSEvent mouseLocation];
-            
+
             if (!NSPointInRect(mouseLocation, frame)) {
                 mouseLocation.x = MIN(MAX(mouseLocation.x, NSMinX(frame) + 1), NSMaxX(frame) - 1);
                 mouseLocation.y = MIN(MAX(mouseLocation.y, NSMinY(frame) + 1), NSMaxY(frame) - 1);
-                auto height = [NSScreen mainScreen].frame.size.height;
+                auto height     = [NSScreen mainScreen].frame.size.height;
                 mouseLocation.y = height - mouseLocation.y;
                 CGWarpMouseCursorPosition(mouseLocation);
             }
-            
+
             ImGui::GetIO().AddFocusEvent(false);
         }
     };
 }
 
-- (void)unsubscribeMouseEvents:(GCMouse *)mouse {
+- (void)unsubscribeMouseEvents:(GCMouse*)mouse {
     mouse.mouseInput.mouseMovedHandler = nil;
 }
 
-- (BOOL)acceptsFirstResponder
-{
+- (BOOL)acceptsFirstResponder {
     return YES;
 }
 
@@ -490,43 +489,45 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
         float scale = [NSScreen mainScreen].backingScaleFactor;
         width /= scale;
         height /= scale;
-        
+
         NSRect frame = NSMakeRect(0, 0, width, height);
-        
+
         WindowViewController* viewController = [WindowViewController new];
-        viewController->application = this;
-        
-        MTKView* view = [[MTKView alloc] initWithFrame:frame];
-        view.delegate = viewController;
+        viewController->application          = this;
+
+        MTKView* view         = [[MTKView alloc] initWithFrame:frame];
+        view.delegate         = viewController;
         view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-        
-        viewController.area = [[NSTrackingArea alloc] initWithRect:frame options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
-                               owner:view
-                               userInfo:nil];
-        
+
+        viewController.area = [[NSTrackingArea alloc]
+            initWithRect:frame
+                 options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
+                   owner:view
+                userInfo:nil];
+
         [view addTrackingArea:viewController.area];
-        
-        NSWindow* window = [[NSWindow alloc]
-                            initWithContentRect:frame
-                            styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable)
-                            backing:NSBackingStoreBuffered
-                            defer:NO
-        ];
+
+        NSWindow* window =
+            [[NSWindow alloc] initWithContentRect:frame
+                                        styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+                                                   NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable)
+                                          backing:NSBackingStoreBuffered
+                                            defer:NO];
         window.delegate = viewController;
-        window.title = [NSString stringWithUTF8String:title];
-        
+        window.title    = [NSString stringWithUTF8String:title];
+
         [window.contentView addSubview:view];
         [window center];
         [window orderFrontRegardless];
-        
+
         [view setNextResponder:viewController];
-        
+
         viewController.window = window;
-        _scale = window.backingScaleFactor;
-        _invScale = 1.0f / _scale;
-        _viewController = CFRetain((__bridge void*) viewController);
-        _view = CFRetain((__bridge void*) view);
-        
+        _scale                = window.backingScaleFactor;
+        _invScale             = 1.0f / _scale;
+        _viewController       = CFRetain((__bridge void*) viewController);
+        _view                 = CFRetain((__bridge void*) view);
+
     } @catch (NSException*) {
         error(GERIUM_RESULT_ERROR_UNKNOWN);
     }
@@ -548,15 +549,15 @@ void MacOSApplication::changeState(gerium_application_state_t newState) {
 
 void MacOSApplication::frame() {
     auto currentTime = getCurrentTime();
-    
+
     const std::chrono::duration<float, std::milli> delta = currentTime - _prevTime;
-    const auto elapsed = delta.count();
-    
+    const auto elapsed                                   = delta.count();
+
     if (elapsed == 0.0f) {
         return;
     }
     _prevTime = currentTime;
-    
+
     if (!callFrameFunc(elapsed)) {
         error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
@@ -576,29 +577,30 @@ bool MacOSApplication::isHideCursor() const noexcept {
 
 void MacOSApplication::restoreWindow() noexcept {
     constexpr auto val = std::numeric_limits<gerium_uint16_t>::max();
-    
+
     if (_newMinWidth != val) {
         onSetMinSize(_newMinWidth, _newMinHeight);
-        _newMinWidth = val;
+        _newMinWidth  = val;
         _newMinHeight = val;
     }
     if (_newMaxWidth != val) {
         onSetMaxSize(_newMaxWidth, _newMaxHeight);
-        _newMaxWidth = val;
+        _newMaxWidth  = val;
         _newMaxHeight = val;
     }
     if (_newWidth != val) {
         onSetSize(_newWidth, _newHeight);
-        _newWidth = val;
+        _newWidth  = val;
         _newHeight = val;
     }
-    
+
     onSetStyle(_styles);
 }
 
 void MacOSApplication::fullscreen(bool fullscreen) noexcept {
     onFullscreen(fullscreen, _display, _mode.has_value() ? &_mode.value() : nullptr);
 }
+
 gerium_uint16_t MacOSApplication::getPixelSize(gerium_uint16_t x) const noexcept {
     return gerium_uint16_t(x * _scale);
 }
@@ -609,7 +611,7 @@ float MacOSApplication::getDeviceSize(gerium_uint16_t x) const noexcept {
 
 float MacOSApplication::titlebarHeight() const noexcept {
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-    NSRect frame = controller.window.frame;
+    NSRect frame                     = controller.window.frame;
     return frame.size.height - [controller.window contentRectForFrameRect:frame].size.height;
 }
 
@@ -627,7 +629,7 @@ void MacOSApplication::setPressed(gerium_scancode_t scancode, bool pressed) noex
 
 void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
     if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
-        const auto pressed = event.keyboard.state == GERIUM_KEY_STATE_PRESSED;
+        const auto pressed     = event.keyboard.state == GERIUM_KEY_STATE_PRESSED;
         const auto prevPressed = isPressScancode(event.keyboard.scancode);
         if (pressed == prevPressed) {
             return;
@@ -650,7 +652,7 @@ float MacOSApplication::scale() const noexcept {
 gerium_uint64_t MacOSApplication::ticks() noexcept {
     timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    return (gerium_uint8_t) now.tv_sec * 1000000000LL + now.tv_nsec;
+    return (gerium_uint8_t) now.tv_sec * 1'000'000'000LL + now.tv_nsec;
 }
 
 gerium_runtime_platform_t MacOSApplication::onGetPlatform() const noexcept {
@@ -664,11 +666,11 @@ void MacOSApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
     if (displays) {
         _modes.clear();
         _displayNames.clear();
-        
+
         gerium_uint32_t index = 0;
         enumDisplays(activeDisplays, displayCount, true, index, displays);
         enumDisplays(activeDisplays, displayCount, false, index, displays);
-        
+
         for (gerium_uint32_t i = 0, offset = 0; i < displayCount; ++i) {
             displays[i].device_name = _displayNames[i * 3].data();
             displays[i].gpu_name    = _displayNames[i * 3 + 1].data();
@@ -696,21 +698,21 @@ void MacOSApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
                 controller.window.minSize = NSMakeSize(0, 0);
                 controller.window.maxSize = NSMakeSize(FLT_MAX, FLT_MAX);
                 controller.window.styleMask |= NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
-                
-                CGDirectDisplayID display = std::numeric_limits<gerium_uint32_t>::max() == displayId ? kCGDirectMainDisplay : displayId;
-                
+
+                CGDirectDisplayID display =
+                    std::numeric_limits<gerium_uint32_t>::max() == displayId ? kCGDirectMainDisplay : displayId;
+
                 if (mode) {
                     CFArrayRef modes = CGDisplayCopyAllDisplayModes(display, nil);
-                    long modeCount = CFArrayGetCount(modes);
-                    
+                    long modeCount   = CFArrayGetCount(modes);
+
                     for (long m = 0; m < modeCount; ++m) {
                         CGDisplayModeRef ref = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
-                        size_t width = CGDisplayModeGetWidth(ref);
-                        size_t height = CGDisplayModeGetHeight(ref);
-                        double refreshRate = CGDisplayModeGetRefreshRate(ref);
-                        
+                        size_t width         = CGDisplayModeGetWidth(ref);
+                        size_t height        = CGDisplayModeGetHeight(ref);
+                        double refreshRate   = CGDisplayModeGetRefreshRate(ref);
+
                         if (width == mode->width && height == mode->height && int(refreshRate) == mode->refresh_rate) {
-                            
                             // CGDisplayCapture(kCGDirectMainDisplay);
                             CGDisplayConfigRef config;
                             CGBeginDisplayConfiguration(&config);
@@ -725,7 +727,7 @@ void MacOSApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
         }
     } else {
         _startFullscreen = fullscreen;
-        _display = displayId;
+        _display         = displayId;
         if (mode) {
             _mode = *mode;
         }
@@ -738,23 +740,23 @@ gerium_application_style_flags_t MacOSApplication::onGetStyle() const noexcept {
 
 void MacOSApplication::onSetStyle(gerium_application_style_flags_t style) noexcept {
     _styles = style;
-    
+
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-        NSWindowStyleMask mask = controller.window.styleMask;
-        
+        NSWindowStyleMask mask           = controller.window.styleMask;
+
         if (style & GERIUM_APPLICATION_STYLE_RESIZABLE_BIT) {
             mask |= NSWindowStyleMaskResizable;
         } else {
             mask ^= NSWindowStyleMaskResizable;
         }
-        
+
         if (style & GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT) {
             mask |= NSWindowStyleMaskMiniaturizable;
         } else {
             mask ^= NSWindowStyleMaskMiniaturizable;
         }
-        
+
         controller.window.styleMask = mask;
     }
 }
@@ -781,7 +783,7 @@ void MacOSApplication::onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* hei
 
 void MacOSApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-    NSRect frame = [controller.window frame];
+    NSRect frame                     = [controller.window frame];
     if (width) {
         *width = getPixelSize(frame.size.width);
     }
@@ -793,48 +795,48 @@ void MacOSApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height
 void MacOSApplication::onSetMinSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-        controller.window.minSize = NSMakeSize(getDeviceSize(width), getDeviceSize(height) + titlebarHeight());
-        
+        controller.window.minSize        = NSMakeSize(getDeviceSize(width), getDeviceSize(height) + titlebarHeight());
+
         gerium_uint16_t currentWidth;
         gerium_uint16_t currentHeight;
         onGetSize(&currentWidth, &currentHeight);
         if (currentWidth < width || currentHeight < height) {
-            width = currentWidth < width ? width : currentWidth;
+            width  = currentWidth < width ? width : currentWidth;
             height = currentHeight < height ? height : currentHeight;
             onSetSize(width, height);
         }
     }
-    _newMinWidth = width;
+    _newMinWidth  = width;
     _newMinHeight = height;
 }
 
 void MacOSApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-        controller.window.maxSize = NSMakeSize(getDeviceSize(width), getDeviceSize(height) + titlebarHeight());
-        
+        controller.window.maxSize        = NSMakeSize(getDeviceSize(width), getDeviceSize(height) + titlebarHeight());
+
         gerium_uint16_t currentWidth;
         gerium_uint16_t currentHeight;
         onGetSize(&currentWidth, &currentHeight);
         if (currentWidth > width || currentHeight > height) {
-            width = currentWidth > width ? width : currentWidth;
+            width  = currentWidth > width ? width : currentWidth;
             height = currentHeight > height ? height : currentHeight;
             onSetSize(width, height);
         }
     }
-    _newMaxWidth = width;
+    _newMaxWidth  = width;
     _newMaxHeight = height;
 }
 
 void MacOSApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
     if (!isFullscreen()) {
         WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-        NSRect frame = [controller.window frame];
-        frame.size.width = getDeviceSize(width);
-        frame.size.height = getDeviceSize(height) + titlebarHeight();
+        NSRect frame                     = [controller.window frame];
+        frame.size.width                 = getDeviceSize(width);
+        frame.size.height                = getDeviceSize(height) + titlebarHeight();
         [controller.window setFrame:frame display:YES animate:YES];
     }
-    _newWidth = width;
+    _newWidth  = width;
     _newHeight = height;
 }
 
@@ -845,7 +847,7 @@ gerium_utf8_t MacOSApplication::onGetTitle() const noexcept {
 
 void MacOSApplication::onSetTitle(gerium_utf8_t title) noexcept {
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
-    controller.window.title = [NSString stringWithUTF8String:title];
+    controller.window.title          = [NSString stringWithUTF8String:title];
 }
 
 void MacOSApplication::onShowCursor(bool show) noexcept {
@@ -864,8 +866,8 @@ void MacOSApplication::onRun() {
         error(GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING);
     }
     @try {
-        _running = true;
-        _prevTime = getCurrentTime();
+        _running                   = true;
+        _prevTime                  = getCurrentTime();
         NSApplication* application = [NSApplication sharedApplication];
         [application setDelegate:((__bridge WindowViewController*) _viewController)];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -889,7 +891,7 @@ bool MacOSApplication::onIsRunning() const noexcept {
 }
 
 void MacOSApplication::onInitImGui() {
-    MTKView* view = ((__bridge MTKView*) _view);
+    MTKView* view                    = ((__bridge MTKView*) _view);
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
     ImGui_ImplOSX_Init(view);
     [controller.window makeFirstResponder:controller];
@@ -904,45 +906,50 @@ void MacOSApplication::onNewFrameImGui() {
     ImGui_ImplOSX_NewFrame(view);
 }
 
-void MacOSApplication::enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays, gerium_uint32_t displayCount, bool isMain, gerium_uint32_t& index, gerium_display_info_t* displays) const {
+void MacOSApplication::enumDisplays(const std::vector<CGDirectDisplayID>& activeDisplays,
+                                    gerium_uint32_t displayCount,
+                                    bool isMain,
+                                    gerium_uint32_t& index,
+                                    gerium_display_info_t* displays) const {
     for (uint32_t i = 0; i < displayCount; ++i) {
         if (CGDisplayIsMain(activeDisplays[i]) != isMain) {
             continue;
         }
-        
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        NSDictionary *deviceInfo = CFBridgingRelease(IODisplayCreateInfoDictionary(CGDisplayIOServicePort(activeDisplays[i]), kIODisplayOnlyPreferredName));
-    #pragma clang diagnostic pop
-        
-        NSDictionary *localizedNames = deviceInfo[@(kDisplayProductName)];
-          
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        NSDictionary* deviceInfo = CFBridgingRelease(
+            IODisplayCreateInfoDictionary(CGDisplayIOServicePort(activeDisplays[i]), kIODisplayOnlyPreferredName));
+#pragma clang diagnostic pop
+
+        NSDictionary* localizedNames = deviceInfo[@(kDisplayProductName)];
+
         if (localizedNames.count > 0) {
             _displayNames.push_back([localizedNames.allValues[0] UTF8String]);
         } else {
             _displayNames.push_back("Unknown");
         }
-        
+
         _displayNames.push_back("Unknown");
         _displayNames.push_back(std::to_string(CGDisplayUnitNumber(activeDisplays[i])));
 
         CFArrayRef modes = CGDisplayCopyAllDisplayModes(activeDisplays[i], nil);
-        long modeCount = CFArrayGetCount(modes);
+        long modeCount   = CFArrayGetCount(modes);
         _modes.resize(modeCount);
         for (long m = 0; m < modeCount; ++m) {
             CGDisplayModeRef mode = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, m);
-            size_t width = CGDisplayModeGetWidth(mode);
-            size_t height = CGDisplayModeGetHeight(mode);
-            double refreshRate = CGDisplayModeGetRefreshRate(mode);
-            
-            auto& result = _modes[m];
-            result.width = gerium_uint16_t(width);
+            size_t width          = CGDisplayModeGetWidth(mode);
+            size_t height         = CGDisplayModeGetHeight(mode);
+            double refreshRate    = CGDisplayModeGetRefreshRate(mode);
+
+            auto& result  = _modes[m];
+            result.width  = gerium_uint16_t(width);
             result.height = gerium_uint16_t(height);
         }
-        displays[index].id = activeDisplays[i];
+        displays[index].id         = activeDisplays[i];
         displays[index].mode_count = gerium_uint32_t(modeCount);
         ++index;
-        
+
         if (CGDisplayIsMain(activeDisplays[i]) == isMain) {
             break;
         }
