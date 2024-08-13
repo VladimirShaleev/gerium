@@ -778,16 +778,6 @@ std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesyste
 
             auto& material = gltf.materials[primitive.material];
             fillPbrMaterial(material, mesh.material);
-
-            // check(gerium_renderer_create_buffer(renderer,
-            //                                     GERIUM_BUFFER_USAGE_UNIFORM_BIT,
-            //                                     true,
-            //                                     "mesh_data",
-            //                                     nullptr,
-            //                                     sizeof(MeshData),
-            //                                     &mesh.material.data));
-
-            // check(gerium_renderer_create_descriptor_set(renderer, &mesh.material.descriptorSet));
         }
     }
 

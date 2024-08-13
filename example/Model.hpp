@@ -23,16 +23,6 @@ enum class DrawFlags {
 };
 GERIUM_FLAGS(DrawFlags);
 
-struct SceneData {
-    glm::mat4 viewProjection;
-    glm::vec4 eye;
-};
-
-struct MeshData {
-    glm::mat4 world;
-    glm::mat4 inverseWorld;
-};
-
 struct PBRMaterial {
     // gerium_technique_h technique;
 

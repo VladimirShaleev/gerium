@@ -5,6 +5,16 @@
 
 #include <entt/entt.hpp>
 
+struct SceneData {
+    glm::mat4 viewProjection;
+    glm::vec4 eye;
+};
+
+struct MeshData {
+    glm::mat4 world;
+    glm::mat4 inverseWorld;
+};
+
 struct Transform {
     glm::mat4 localMatrix;
     glm::mat4 worldMatrix;
@@ -13,9 +23,27 @@ struct Transform {
 
 struct Object {
     Model model;
+    gerium_renderer_t renderer;
     gerium_technique_h technique;
     gerium_descriptor_set_h descriptorSet;
     gerium_buffer_h data;
+    bool initialized;
+
+    void destroy() {
+        if (initialized) {
+            gerium_renderer_destroy_descriptor_set(renderer, descriptorSet);
+            gerium_renderer_destroy_buffer(renderer, data);
+        }
+    }
+
+    void init() {
+        if (!initialized) {
+            check(gerium_renderer_create_buffer(
+                renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "mesh_data", nullptr, sizeof(MeshData), &data));
+            check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet));
+            initialized = true;
+        }
+    }
 };
 
 class SceneNode {
@@ -43,11 +71,17 @@ public:
 
     void update();
 
-    template <typename T>
-    void addComponentToNode(SceneNode* node, const T& component) {
-        _registry.emplace<T>(node->_entity, component);
+    void destroy() {
+        for (auto [_, obj] : _registry.view<Object>().each()) {
+            obj.destroy();
+        }
     }
-    
+
+    template <typename T>
+    T& addComponentToNode(SceneNode* node, const T& component) {
+        return _registry.emplace<T>(node->_entity, component);
+    }
+
     template <typename T>
     T* getComponentNode(SceneNode* node) noexcept {
         return _registry.try_get<T>(node->_entity);

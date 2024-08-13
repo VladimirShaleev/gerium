@@ -37,22 +37,24 @@ void Scene::update() {
             if (transform->changed || changed) {
                 transform->worldMatrix = *mat * transform->localMatrix;
                 transform->changed     = false;
-                changed = true;
+                changed                = true;
             }
             resultMat = &transform->worldMatrix;
         }
 
-        if (auto obj = getComponentNode<Object>(node); obj && changed) {
-            int i = 0;
-            for (; i < obj->model.hierarchy.nodesHierarchy.size(); ++i) {
-                if (obj->model.hierarchy.nodesHierarchy[i].parent < 0) {
-                    break;
+        if (auto obj = getComponentNode<Object>(node)) {
+            obj->init();
+            if (changed) {
+                int i = 0;
+                for (; i < obj->model.hierarchy.nodesHierarchy.size(); ++i) {
+                    if (obj->model.hierarchy.nodesHierarchy[i].parent < 0) {
+                        break;
+                    }
                 }
-            }
-            
-            obj->model.hierarchy.setLocalMatrix(i, *resultMat);
-            obj->model.hierarchy.updateMatrices();
 
+                obj->model.hierarchy.setLocalMatrix(i, *resultMat);
+                obj->model.hierarchy.updateMatrices();
+            }
             // TODO: add update data
         }
 
