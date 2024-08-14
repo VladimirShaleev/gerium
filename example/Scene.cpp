@@ -57,6 +57,14 @@ void Scene::update() {
     }
 }
 
+void Scene::clear() {
+    for (auto& node : _nodes) {
+        _registry.destroy(node->_entity);
+    }
+    _nodes.clear();
+    _root = nullptr;
+}
+
 SceneNode* Scene::allocateNode() {
     _nodes.push_back(std::make_shared<SceneNode>());
     return _nodes.back().get();

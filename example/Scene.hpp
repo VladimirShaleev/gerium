@@ -45,12 +45,7 @@ public:
     SceneNode* addNode(SceneNode* parent);
 
     void update();
-
-    void destroy() {
-        // for (auto [_, obj] : _registry.view<Object>().each()) {
-        //     obj.destroy();
-        // }
-    }
+    void clear();
 
     template <typename T>
     T& addComponentToNode(SceneNode* node, const T& component) {
