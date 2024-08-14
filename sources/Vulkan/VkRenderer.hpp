@@ -33,6 +33,11 @@ private:
     RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
     FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
 
+    BufferHandle onReferenceBuffer(BufferHandle handle) noexcept override;
+    TextureHandle onReferenceTexture(TextureHandle handle) noexcept override;
+    TechniqueHandle onReferenceTechnique(TechniqueHandle handle) noexcept override;
+    DescriptorSetHandle onReferenceDescriptorSet(DescriptorSetHandle handle) noexcept override;
+
     void onDestroyBuffer(BufferHandle handle) noexcept override;
     void onDestroyTexture(TextureHandle handle) noexcept override;
     void onDestroyTechnique(TechniqueHandle handle) noexcept override;

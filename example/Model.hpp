@@ -1,19 +1,9 @@
 #ifndef MODEL_HPP
 #define MODEL_HPP
 
-#include <gerium/gerium.h>
+#include "Common.hpp"
 
-#include <filesystem>
-#include <memory>
-
-#define GLM_ENABLE_EXPERIMENTAL
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-// #define GLM_FORCE_MESSAGES
-// https://github.com/g-truc/glm/issues/1269
-#include <glm/detail/setup.hpp>
-#undef GLM_DEPRECATED
-#define GLM_DEPRECATED [[deprecated]]
-#include <glm/ext.hpp>
+static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 
 enum class DrawFlags {
     None        = 0,
@@ -23,7 +13,9 @@ enum class DrawFlags {
 };
 GERIUM_FLAGS(DrawFlags);
 
-struct PBRMaterial {
+class PBRMaterial final {
+public:
+private:
     // gerium_technique_h technique;
 
     // gerium_buffer_h data;
@@ -41,24 +33,61 @@ struct PBRMaterial {
     DrawFlags flags;
 };
 
-struct Mesh {
-    PBRMaterial material;
+class Mesh final {
+public:
+    explicit Mesh(gerium_renderer_t renderer);
+    ~Mesh();
 
-    gerium_buffer_h indices;
-    gerium_buffer_h positions;
-    gerium_buffer_h texcoords;
-    gerium_buffer_h normals;
-    gerium_buffer_h tangents;
+    Mesh(const Mesh& mesh) noexcept;
+    Mesh(Mesh&& mesh) noexcept;
 
-    gerium_index_type_t indexType;
-    gerium_uint32_t indexOffset;
-    gerium_uint32_t positionOffset;
-    gerium_uint32_t texcoordsOffset;
-    gerium_uint32_t normalOffset;
-    gerium_uint32_t tangentsOffset;
+    Mesh& operator=(const Mesh& mesh) noexcept;
+    Mesh& operator=(Mesh&& mesh) noexcept;
 
-    gerium_uint32_t primitiveCount;
-    gerium_uint32_t nodeIndex;
+    void setNodeIndex(gerium_uint32_t index) noexcept;
+    gerium_uint32_t getNodeIndex() const noexcept;
+
+    void setIndices(gerium_buffer_h indices,
+                    gerium_index_type_t type,
+                    gerium_uint32_t offset,
+                    gerium_uint32_t primitives) noexcept;
+    void setPositions(gerium_buffer_h positions, gerium_uint32_t offset) noexcept;
+    void setTexcoords(gerium_buffer_h texcoords, gerium_uint32_t offset) noexcept;
+    void setNormals(gerium_buffer_h normals, gerium_uint32_t offset) noexcept;
+    void setTangents(gerium_buffer_h tangents, gerium_uint32_t offset) noexcept;
+
+    gerium_buffer_h getIndices() const noexcept;
+    gerium_buffer_h getPositions() const noexcept;
+    gerium_buffer_h getTexcoords() const noexcept;
+    gerium_buffer_h getNormals() const noexcept;
+    gerium_buffer_h getTangents() const noexcept;
+
+private:
+    void copy(const Mesh& mesh) noexcept;
+    void reference() noexcept;
+    void destroy() noexcept;
+    void invalidateBuffers() noexcept;
+    void setBuffer(gerium_buffer_h& oldBuffer, gerium_buffer_h newBuffer) noexcept;
+
+    gerium_renderer_t _renderer{};
+
+    // PBRMaterial _material{};
+
+    gerium_buffer_h _indices{ UndefinedHandle };
+    gerium_buffer_h _positions{ UndefinedHandle };
+    gerium_buffer_h _texcoords{ UndefinedHandle };
+    gerium_buffer_h _normals{ UndefinedHandle };
+    gerium_buffer_h _tangents{ UndefinedHandle };
+
+    gerium_index_type_t _indexType{};
+    gerium_uint32_t _indicesOffset{};
+    gerium_uint32_t _positionsOffset{};
+    gerium_uint32_t _texcoordsOffset{};
+    gerium_uint32_t _normalsOffset{};
+    gerium_uint32_t _tangentsOffset{};
+
+    gerium_uint32_t _primitiveCount{};
+    gerium_uint32_t _nodeIndex{};
 };
 
 struct NodeHierarchy {
@@ -72,53 +101,39 @@ struct Hierarchy {
     void setHierarchy(gerium_sint32_t nodeIndex, gerium_sint32_t parentIndex, gerium_sint32_t level) noexcept;
     void setLocalMatrix(gerium_sint32_t nodeIndex, const glm::mat4& localMatrix) noexcept;
     void updateMatrices() noexcept;
+    void changeNode(gerium_sint32_t nodeIndex) noexcept;
 
     std::vector<glm::mat4> localMatrices;
     std::vector<glm::mat4> worldMatrices;
     std::vector<NodeHierarchy> nodesHierarchy;
 
     std::vector<bool> updatedNodes;
+    gerium_uint32_t maxLevel;
 };
 
-struct DataBuffer {
-    struct BufferImpl {
-        ~BufferImpl() {
-            if (renderer) {
-                gerium_renderer_destroy_buffer(renderer, buffer);
-                renderer = nullptr;
-            }
-        }
+class Model final {
+public:
+    explicit Model(gerium_renderer_t renderer);
 
-        gerium_renderer_t renderer{};
-        gerium_buffer_h buffer{};
-    };
-    std::shared_ptr<BufferImpl> bufferImpl;
+    void addMesh(const Mesh& mesh);
+    std::vector<Mesh>& meshes() noexcept;
 
-    DataBuffer() : bufferImpl(std::make_shared<BufferImpl>()) {
-    }
+    void resizeNodes(gerium_uint32_t numNodes);
+    void setNodeMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat);
+    void setHierarchy(gerium_sint32_t nodeIndex, gerium_sint32_t parentIndex, gerium_sint32_t level) noexcept;
+    void updateMatrices();
 
-    void setBuffer(gerium_renderer_t renderer, gerium_buffer_h buffer) {
-        bufferImpl->renderer = renderer;
-        bufferImpl->buffer = buffer;
-    }
+    const NodeHierarchy& getHierarchy(gerium_sint32_t nodeIndex) const noexcept;
+    gerium_sint32_t getParentNodeIndex() const noexcept;
 
-    gerium_buffer_h buffer() noexcept {
-        return bufferImpl->buffer;
-    }
+    const glm::mat4& getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept;
+    const glm::mat4& getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
+
+private:
+    gerium_renderer_t _renderer{};
+    std::vector<Mesh> _meshes{};
+    mutable Hierarchy _hierarchy{};
 };
-
-struct Model {
-    gerium_renderer_t renderer;
-    Hierarchy hierarchy;
-    std::vector<DataBuffer> buffers;
-    std::vector<Mesh> meshes;
-};
-
-inline void check(gerium_result_t result) {
-    if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
-        throw std::runtime_error(gerium_result_to_string(result));
-    }
-}
 
 std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path);
 

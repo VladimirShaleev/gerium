@@ -42,6 +42,10 @@ public:
     void destroyProgram(ProgramHandle handle);
     void destroyPipeline(PipelineHandle handle);
 
+    void addReferenceBuffer(BufferHandle handle) noexcept;
+    void addReferenceTexture(TextureHandle handle) noexcept;
+    void addReferenceDescriptorSet(DescriptorSetHandle handle) noexcept;
+
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
@@ -51,7 +55,9 @@ public:
                                         FrameGraph* frameGraph);
 
     CommandBuffer* getPrimaryCommandBuffer(bool profile = true);
-    CommandBuffer* getSecondaryCommandBuffer(gerium_uint32_t thread, RenderPassHandle renderPass, FramebufferHandle framebuffer);
+    CommandBuffer* getSecondaryCommandBuffer(gerium_uint32_t thread,
+                                             RenderPassHandle renderPass,
+                                             FramebufferHandle framebuffer);
 
     uint32_t totalMemoryUsed();
 

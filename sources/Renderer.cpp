@@ -45,6 +45,22 @@ FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph, cons
     return onCreateFramebuffer(frameGraph, node);
 }
 
+BufferHandle Renderer::referenceBuffer(BufferHandle handle) noexcept {
+    return onReferenceBuffer(handle);
+}
+
+TextureHandle Renderer::referenceTexture(TextureHandle handle) noexcept {
+    return onReferenceTexture(handle);
+}
+
+TechniqueHandle Renderer::referenceTechnique(TechniqueHandle handle) noexcept {
+    return onReferenceTechnique(handle);
+}
+
+DescriptorSetHandle Renderer::referenceDescriptorSet(DescriptorSetHandle handle) noexcept {
+    return onReferenceDescriptorSet(handle);
+}
+
 void Renderer::destroyBuffer(BufferHandle handle) noexcept {
     onDestroyBuffer(handle);
 }
@@ -205,6 +221,11 @@ gerium_result_t gerium_renderer_create_descriptor_set(gerium_renderer_t renderer
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createDescriptorSet();
     GERIUM_END_SAFE_BLOCK
+}
+
+gerium_buffer_h gerium_renderer_reference_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->referenceBuffer({ handle.unused });
 }
 
 void gerium_renderer_destroy_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {

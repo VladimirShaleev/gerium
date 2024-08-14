@@ -31,6 +31,11 @@ public:
     RenderPassHandle createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node);
     FramebufferHandle createFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node);
 
+    BufferHandle referenceBuffer(BufferHandle handle) noexcept;
+    TextureHandle referenceTexture(TextureHandle handle) noexcept;
+    TechniqueHandle referenceTechnique(TechniqueHandle handle) noexcept;
+    DescriptorSetHandle referenceDescriptorSet(DescriptorSetHandle handle) noexcept;
+
     void destroyBuffer(BufferHandle handle) noexcept;
     void destroyTexture(TextureHandle handle) noexcept;
     void destroyTechnique(TechniqueHandle handle) noexcept;
@@ -68,6 +73,11 @@ private:
     virtual DescriptorSetHandle onCreateDescriptorSet()                                                     = 0;
     virtual RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node)   = 0;
     virtual FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) = 0;
+
+    virtual BufferHandle onReferenceBuffer(BufferHandle handle) noexcept                      = 0;
+    virtual TextureHandle onReferenceTexture(TextureHandle handle) noexcept                   = 0;
+    virtual TechniqueHandle onReferenceTechnique(TechniqueHandle handle) noexcept             = 0;
+    virtual DescriptorSetHandle onReferenceDescriptorSet(DescriptorSetHandle handle) noexcept = 0;
 
     virtual void onDestroyBuffer(BufferHandle handle) noexcept               = 0;
     virtual void onDestroyTexture(TextureHandle handle) noexcept             = 0;

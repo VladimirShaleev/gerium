@@ -225,6 +225,26 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, 
     return _device->createFramebuffer(creation);
 }
 
+BufferHandle VkRenderer::onReferenceBuffer(BufferHandle handle) noexcept {
+    _device->addReferenceBuffer(handle);
+    return handle;
+}
+
+TextureHandle VkRenderer::onReferenceTexture(TextureHandle handle) noexcept {
+    _device->addReferenceTexture(handle);
+    return handle;
+}
+
+TechniqueHandle VkRenderer::onReferenceTechnique(TechniqueHandle handle) noexcept {
+    _techniques.addReference(handle);
+    return handle;
+}
+
+DescriptorSetHandle VkRenderer::onReferenceDescriptorSet(DescriptorSetHandle handle) noexcept {
+    _device->addReferenceDescriptorSet(handle);
+    return handle;
+}
+
 void VkRenderer::onDestroyBuffer(BufferHandle handle) noexcept {
     _device->destroyBuffer(handle);
 }
@@ -234,12 +254,13 @@ void VkRenderer::onDestroyTexture(TextureHandle handle) noexcept {
 }
 
 void VkRenderer::onDestroyTechnique(TechniqueHandle handle) noexcept {
-    auto meterial = _techniques.access(handle);
+    if (_techniques.references(handle) == 1) {
+        auto technique = _techniques.access(handle);
 
-    for (gerium_uint32_t i = 0; i < meterial->passCount; ++i) {
-        _device->destroyPipeline(meterial->passes[i].pipeline);
+        for (gerium_uint32_t i = 0; i < technique->passCount; ++i) {
+            _device->destroyPipeline(technique->passes[i].pipeline);
+        }
     }
-
     _techniques.release(handle);
 }
 

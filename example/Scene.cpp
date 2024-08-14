@@ -42,20 +42,10 @@ void Scene::update() {
             resultMat = &transform->worldMatrix;
         }
 
-        if (auto obj = getComponentNode<Object>(node)) {
-            obj->init();
-            if (changed) {
-                int i = 0;
-                for (; i < obj->model.hierarchy.nodesHierarchy.size(); ++i) {
-                    if (obj->model.hierarchy.nodesHierarchy[i].parent < 0) {
-                        break;
-                    }
-                }
-
-                obj->model.hierarchy.setLocalMatrix(i, *resultMat);
-                obj->model.hierarchy.updateMatrices();
-            }
-            // TODO: add update data
+        if (auto obj = getComponentNode<Object>(node); obj && changed) {
+            auto parentNodeIndex = obj->model.getParentNodeIndex();
+            obj->model.setNodeMatrix(parentNodeIndex, *resultMat);
+            obj->model.updateMatrices();
         }
 
         for (auto& child : node->childrens()) {
