@@ -228,20 +228,26 @@ void Hierarchy::updateMatrices() noexcept {
 }
 
 void Hierarchy::changeNode(gerium_sint32_t nodeIndex) noexcept {
-    std::queue<gerium_sint32_t> indices;
-    indices.push(nodeIndex);
+    if (nodeIndex == 0) {
+        for (auto i = 0; i < updatedNodes.size(); ++i) {
+            updatedNodes[i] = true;
+        }
+    } else {
+        std::queue<gerium_sint32_t> indices;
+        indices.push(nodeIndex);
 
-    while (!indices.empty()) {
-        auto parentIndex = indices.front();
-        indices.pop();
+        while (!indices.empty()) {
+            auto parentIndex = indices.front();
+            indices.pop();
 
-        updatedNodes[parentIndex] = true;
+            updatedNodes[parentIndex] = true;
 
-        for (gerium_uint32_t i = 0; i < nodesHierarchy.size(); ++i) {
-            if (nodesHierarchy[i].parent != parentIndex) {
-                continue;
+            for (gerium_uint32_t i = 0; i < nodesHierarchy.size(); ++i) {
+                if (nodesHierarchy[i].parent != parentIndex) {
+                    continue;
+                }
+                indices.push(i);
             }
-            indices.push(i);
         }
     }
 }
@@ -275,15 +281,6 @@ void Model::updateMatrices() {
 
 const NodeHierarchy& Model::getHierarchy(gerium_sint32_t nodeIndex) const noexcept {
     return _hierarchy.nodesHierarchy[nodeIndex];
-}
-
-gerium_sint32_t Model::getParentNodeIndex() const noexcept {
-    for (gerium_sint32_t i = 0; i < _hierarchy.nodesHierarchy.size(); ++i) {
-        if (_hierarchy.nodesHierarchy[i].parent < 0) {
-            return i;
-        }
-    }
-    return 0;
 }
 
 const glm::mat4& Model::getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept {
@@ -348,11 +345,11 @@ static void fillPbrMaterial(Material& material, PBRMaterial& pbrMaterial) {
 
 */
 
-std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path) {
+Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path) {
     gltf::glTF glTF{};
     gltf::loadGlTF(glTF, path);
 
-    auto model = std::make_shared<Model>(renderer);
+    Model model(renderer);
 
     std::vector<gerium_file_t> bufferFiles;
     std::vector<gerium_uint8_t*> bufferDatas;
@@ -407,7 +404,7 @@ std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesyste
         numNodes += node.children.size();
     }
 
-    model->resizeNodes(numNodes);
+    model.resizeNodes(numNodes);
 
     for (const auto& node : root.nodes) {
         nodesToVisit.push(node);
@@ -420,20 +417,20 @@ std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesyste
         auto& node = glTF.nodes[nodeIndex];
 
         if (node.matrix) {
-            model->setNodeMatrix(nodeIndex, node.matrix.value());
+            model.setNodeMatrix(nodeIndex, node.matrix.value());
         } else {
             auto matS = glm::scale(glm::identity<glm::mat4>(), node.scale);
             auto matT = glm::translate(glm::identity<glm::mat4>(), node.translation);
             auto matR = glm::mat4_cast(node.rotation);
             auto mat  = matS * matR * matT;
-            model->setNodeMatrix(nodeIndex, mat);
+            model.setNodeMatrix(nodeIndex, mat);
         }
 
         if (node.children.size()) {
-            const auto& nodeHierarchy = model->getHierarchy(nodeIndex);
+            const auto& nodeHierarchy = model.getHierarchy(nodeIndex);
             for (const auto& childIndex : node.children) {
-                auto& childHierarchy = model->getHierarchy(childIndex);
-                model->setHierarchy(childIndex, nodeIndex, nodeHierarchy.level + 1);
+                auto& childHierarchy = model.getHierarchy(childIndex);
+                model.setHierarchy(childIndex, nodeIndex, nodeHierarchy.level + 1);
                 nodesToVisit.push(childIndex);
             }
         }
@@ -485,7 +482,7 @@ std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesyste
             mesh.setTexcoords(texcoords, texcoordsOffset);
             mesh.setIndices(indices, indexType, indexOffset, primitiveCount);
 
-            model->addMesh(mesh);
+            model.addMesh(mesh);
 
             // auto& material = gltf.materials[primitive.material];
             // fillPbrMaterial(material, mesh.material);
@@ -496,6 +493,6 @@ std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesyste
         gerium_renderer_destroy_buffer(renderer, buffer);
     }
 
-    model->updateMatrices();
+    model.updateMatrices();
     return model;
 }

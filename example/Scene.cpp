@@ -29,27 +29,30 @@ void Scene::update() {
     nodes.push({ &rootMat, false, root() });
 
     while (!nodes.empty()) {
-        auto& [mat, changed, node] = nodes.front();
+        auto& [parentMat, parentUpdated, node] = nodes.front();
         nodes.pop();
 
-        auto resultMat = mat;
+        auto mat     = parentMat;
+        auto updated = parentUpdated;
+
         if (auto transform = getComponentNode<Transform>(node)) {
-            if (transform->changed || changed) {
+            if (transform->updated || updated) {
                 transform->worldMatrix = *mat * transform->localMatrix;
-                transform->changed     = false;
-                changed                = true;
+                transform->updated     = false;
+                updated                = true;
             }
-            resultMat = &transform->worldMatrix;
+            mat = &transform->worldMatrix;
         }
 
-        if (auto obj = getComponentNode<Object>(node); obj && changed) {
-            auto parentNodeIndex = obj->model.getParentNodeIndex();
-            obj->model.setNodeMatrix(parentNodeIndex, *resultMat);
-            obj->model.updateMatrices();
+        if (auto model = getComponentNode<Model>(node); model) {
+            if (updated) {
+                model->setNodeMatrix(0, *mat);
+            }
+            model->updateMatrices();
         }
 
         for (auto& child : node->childrens()) {
-            nodes.push({ resultMat, changed, child });
+            nodes.push({ mat, updated, child });
         }
     }
 }

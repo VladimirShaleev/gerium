@@ -124,17 +124,16 @@ public:
     void updateMatrices();
 
     const NodeHierarchy& getHierarchy(gerium_sint32_t nodeIndex) const noexcept;
-    gerium_sint32_t getParentNodeIndex() const noexcept;
 
     const glm::mat4& getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept;
     const glm::mat4& getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
+
+    static Model loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path);
 
 private:
     gerium_renderer_t _renderer{};
     std::vector<Mesh> _meshes{};
     mutable Hierarchy _hierarchy{};
 };
-
-std::shared_ptr<Model> loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path);
 
 #endif

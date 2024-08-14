@@ -18,32 +18,7 @@ struct MeshData {
 struct Transform {
     glm::mat4 localMatrix;
     glm::mat4 worldMatrix;
-    bool changed;
-};
-
-struct Object {
-    Model model;
-    //gerium_renderer_t renderer;
-    //gerium_technique_h technique;
-    //gerium_descriptor_set_h descriptorSet;
-    //gerium_buffer_h data;
-    //bool initialized;
-
-    // void destroy() {
-    //     if (initialized) {
-    //         gerium_renderer_destroy_descriptor_set(renderer, descriptorSet);
-    //         gerium_renderer_destroy_buffer(renderer, data);
-    //     }
-    // }
-
-    // void init() {
-    //     if (!initialized) {
-    //         check(gerium_renderer_create_buffer(
-    //             renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "mesh_data", nullptr, sizeof(MeshData), &data));
-    //         check(gerium_renderer_create_descriptor_set(renderer, &descriptorSet));
-    //         initialized = true;
-    //     }
-    // }
+    bool updated;
 };
 
 class SceneNode {
