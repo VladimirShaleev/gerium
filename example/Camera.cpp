@@ -6,7 +6,7 @@ Camera::Camera(gerium_application_t application, gerium_renderer_t renderer) noe
     setSpeed();
     setPosition({ 0.0f, 0.0f, 0.0f });
     setRotation(0.0f, 0.0f);
-    setPerpective(0.1, 10000.0f, glm::radians(60.0f));
+    setPerpective(0.01f, 1000.0f, glm::radians(60.0f));
 
     check(gerium_renderer_create_buffer(
         _renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, 1, "scene_data", nullptr, sizeof(SceneData), &_data));

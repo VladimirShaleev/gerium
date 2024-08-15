@@ -255,28 +255,32 @@ bool initialize(gerium_application_t application) {
 
         std::filesystem::path appDir = gerium_file_get_app_dir();
 
-        auto sponzaDir = appDir / "assets" / "models" / "sponza" / "Sponza.gltf";
-        // auto spaceModuleDir = appDir / "assets" / "scenes" / "space_module" / "SpaceModule.gltf";
+        auto sponzaDir       = appDir / "assets" / "models" / "sponza" / "Sponza.gltf";
+        auto flightHelmetDir = appDir / "assets" / "models" / "flight-helmet" / "FlightHelmet.gltf";
 
-        auto modelSponza = Model::loadGlTF(renderer, sponzaDir.string().c_str());
-        // auto modelSpaceModule = Model::loadGlTF(renderer, spaceModuleDir.string().c_str());
+        auto modelSponza       = Model::loadGlTF(renderer, sponzaDir.string().c_str());
+        auto modelFlightHelmet = Model::loadGlTF(renderer, flightHelmetDir.string().c_str());
 
         auto defaultTransform = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
-        auto moduleTransform  = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
-        moduleTransform.localMatrix =
-            glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.0008f, 0.0008f, 0.0008f)) *
-            glm::rotate(glm::identity<glm::mat4>(), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) *
-            glm::rotate(glm::identity<glm::mat4>(), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.0008f, 0.0008f, 0.0008f)),
+                                          glm::identity<glm::mat4>(),
+                                          true };
+        auto flightHelmetTransform =
+            Transform{ glm::rotate(glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.125f, 0.125f, 0.125f)),
+                                   glm::radians(-90.0f),
+                                   glm::vec3(0.0f, 1.0f, 0.0f)),
+                       glm::identity<glm::mat4>(),
+                       true };
 
-        auto root   = scene.root();
-        auto sponza = scene.addNode(root);
-        // auto spaceModule = scene.addNode(sponza);
+        auto root         = scene.root();
+        auto sponza       = scene.addNode(root);
+        auto flightHelmet = scene.addNode(root);
 
         scene.addComponentToNode(root, defaultTransform);
-        scene.addComponentToNode(sponza, defaultTransform);
+        scene.addComponentToNode(sponza, sponzaTransform);
         scene.addComponentToNode(sponza, modelSponza);
-        // scene.addComponentToNode(spaceModule, defaultTransform);
-        // scene.addComponentToNode(spaceModule, modelSpaceModule);
+        scene.addComponentToNode(flightHelmet, flightHelmetTransform);
+        scene.addComponentToNode(flightHelmet, modelFlightHelmet);
 
         camera = std::make_shared<Camera>(application, renderer);
 
@@ -308,6 +312,16 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     bool swapFullscreen = false;
     bool showCursor     = gerium_application_is_show_cursor(application);
 
+    auto move = 1.0f;
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_SHIFT_LEFT) ||
+        gerium_application_is_press_scancode(application, GERIUM_SCANCODE_SHIFT_RIGHT)) {
+        move *= 2.0f;
+    }
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_CONTROL_LEFT) ||
+        gerium_application_is_press_scancode(application, GERIUM_SCANCODE_CONTROL_RIGHT)) {
+        move /= 2.0f;
+    }
+
     gerium_event_t event;
     while (gerium_application_poll_events(application, &event)) {
         if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
@@ -326,20 +340,12 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
                 showCursor = false;
             }
             if (!gerium_application_is_show_cursor(application)) {
-                gerium_float32_t pitch = event.mouse.raw_delta_y * -0.0003f;
-                gerium_float32_t yaw   = event.mouse.raw_delta_x * 0.0003f;
+                gerium_float32_t pitch = event.mouse.raw_delta_y * -1.0f;
+                gerium_float32_t yaw   = event.mouse.raw_delta_x * 1.0f;
                 camera->rotate(pitch, yaw, elapsed);
-                camera->zoom(event.mouse.wheel_vertical * -0.01f, elapsed);
+                camera->zoom(event.mouse.wheel_vertical * move * -0.01f, elapsed);
             }
         }
-    }
-
-    auto move = 1.0f;
-    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_SHIFT_LEFT)) {
-        move *= 2.0f;
-    }
-    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_CONTROL_LEFT)) {
-        move /= 2.0f;
     }
 
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_A) ||

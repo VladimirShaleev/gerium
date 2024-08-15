@@ -58,3 +58,4 @@ elseif(NOT APPLE)
 endif()
 
 file(COPY ${ASSETS_SRC}/Models/Sponza/glTF/ DESTINATION ${ASSETS_OUTPUT_PATH}/assets/models/sponza)
+file(COPY ${ASSETS_SRC}/Models/FlightHelmet/glTF/ DESTINATION ${ASSETS_OUTPUT_PATH}/assets/models/flight-helmet)

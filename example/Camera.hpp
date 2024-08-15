@@ -25,7 +25,7 @@ public:
     Camera& operator=(const Camera&) = delete;
     Camera& operator=(Camera&&)      = delete;
 
-    void setSpeed(gerium_float32_t movementSpeed = 1.0f, gerium_float32_t rotationSpeed = 1.0f);
+    void setSpeed(gerium_float32_t movementSpeed = 0.001f, gerium_float32_t rotationSpeed = 0.001f);
 
     void setPosition(const glm::vec3& position);
     void setRotation(gerium_float32_t yaw, gerium_float32_t pitch);
