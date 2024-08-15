@@ -319,6 +319,34 @@ gerium_buffer_h Mesh::getTangents() const noexcept {
     return _tangents;
 }
 
+gerium_uint32_t Mesh::getIndicesOffset() const noexcept {
+    return _indicesOffset;
+}
+
+gerium_uint32_t Mesh::getPositionsOffset() const noexcept {
+    return _positionsOffset;
+}
+
+gerium_uint32_t Mesh::getTexcoordsOffset() const noexcept {
+    return _texcoordsOffset;
+}
+
+gerium_uint32_t Mesh::getNormalsOffset() const noexcept {
+    return _normalsOffset;
+}
+
+gerium_uint32_t Mesh::getTangentsOffset() const noexcept {
+    return _tangentsOffset;
+}
+
+gerium_index_type_t Mesh::getIndexType() const noexcept {
+    return _indexType;
+}
+
+gerium_uint32_t Mesh::getPrimitiveCount() const noexcept {
+    return _primitiveCount;
+}
+
 void Mesh::copy(const Mesh& mesh) noexcept {
     _renderer        = mesh._renderer;
     _indices         = mesh._indices;
@@ -672,6 +700,10 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
             auto indexOffset = indicesAccessor.byteOffset == gltf::INVALID_INT_VALUE ? 0 : indicesAccessor.byteOffset;
             auto primitiveCount = indicesAccessor.count;
 
+            auto& material = glTF.materials[primitive.material];
+            PBRMaterial pbrMaterial(renderer);
+            fillPbrMaterial(material, pbrMaterial);
+
             Mesh mesh(renderer);
             mesh.setNodeIndex(nodeIndex);
             mesh.setPositions(positions, positionsOffset);
@@ -679,11 +711,9 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
             mesh.setNormals(normals, normalsOffset);
             mesh.setTexcoords(texcoords, texcoordsOffset);
             mesh.setIndices(indices, indexType, indexOffset, primitiveCount);
+            mesh.setMaterial(pbrMaterial);
 
             model.addMesh(mesh);
-
-            // auto& material = gltf.materials[primitive.material];
-            // fillPbrMaterial(material, mesh.material);
         }
     }
 

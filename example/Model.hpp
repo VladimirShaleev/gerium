@@ -3,8 +3,6 @@
 
 #include "Common.hpp"
 
-static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
-
 enum class DrawFlags {
     None        = 0,
     AlphaMask   = 1,
@@ -12,11 +10,6 @@ enum class DrawFlags {
     Transparent = 4
 };
 GERIUM_FLAGS(DrawFlags);
-
-struct SceneData {
-    glm::mat4 viewProjection;
-    glm::vec4 eye;
-};
 
 struct MeshData {
     glm::mat4 world;
@@ -115,6 +108,15 @@ public:
     gerium_buffer_h getTexcoords() const noexcept;
     gerium_buffer_h getNormals() const noexcept;
     gerium_buffer_h getTangents() const noexcept;
+
+    gerium_uint32_t getIndicesOffset() const noexcept;
+    gerium_uint32_t getPositionsOffset() const noexcept;
+    gerium_uint32_t getTexcoordsOffset() const noexcept;
+    gerium_uint32_t getNormalsOffset() const noexcept;
+    gerium_uint32_t getTangentsOffset() const noexcept;
+
+    gerium_index_type_t getIndexType() const noexcept;
+    gerium_uint32_t getPrimitiveCount() const noexcept;
 
 private:
     void copy(const Mesh& mesh) noexcept;

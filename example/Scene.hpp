@@ -2,6 +2,7 @@
 #define SCENE_HPP
 
 #include "Model.hpp"
+#include "Camera.hpp"
 
 #include <entt/entt.hpp>
 
@@ -47,12 +48,24 @@ public:
         return _registry.try_get<T>(node->_entity);
     }
 
+    template <typename T>
+    std::vector<T*> getComponents() noexcept {
+        std::vector<T*> result;
+        for (auto entity : _registry.view<T>()) {
+            if (auto component = _registry.try_get<T>(entity)) {
+                result.push_back(component);
+            }
+        }
+        return result;
+    }
+
 private:
     SceneNode* allocateNode();
 
     entt::registry _registry{};
     std::vector<std::shared_ptr<SceneNode>> _nodes{};
     SceneNode* _root{};
+    SceneData _sceneData{};
 };
 
 #endif

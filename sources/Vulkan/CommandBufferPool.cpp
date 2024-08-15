@@ -327,7 +327,7 @@ void CommandBuffer::onBindVertexBuffer(BufferHandle handle, gerium_uint32_t bind
     if (buffer->parent != Undefined) {
         auto parentBuffer = _device->_buffers.access(buffer->parent);
         vkBuffer          = parentBuffer->vkBuffer;
-        vkOffset          = buffer->globalOffset;
+        vkOffset          = buffer->globalOffset + offset;
     }
     _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
 }
@@ -340,9 +340,9 @@ void CommandBuffer::onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offse
     if (buffer->parent != Undefined) {
         auto parentBuffer = _device->_buffers.access(buffer->parent);
         vkBuffer          = parentBuffer->vkBuffer;
-        vkOffset          = buffer->globalOffset;
+        vkOffset          = buffer->globalOffset + offset;
     }
-    _device->vkTable().vkCmdBindIndexBuffer(_commandBuffer, vkBuffer, vkOffset + offset, toVkIndexType(type));
+    _device->vkTable().vkCmdBindIndexBuffer(_commandBuffer, vkBuffer, vkOffset, toVkIndexType(type));
 }
 
 void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
