@@ -339,7 +339,8 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
             if (event.mouse.buttons & buttonsDown) {
                 showCursor = false;
             }
-            if (!gerium_application_is_show_cursor(application)) {
+            if (!gerium_application_is_show_cursor(application) ||
+                gerium_application_get_platform(application) == GERIUM_RUNTIME_PLATFORM_ANDROID) {
                 gerium_float32_t pitch = event.mouse.raw_delta_y * -1.0f;
                 gerium_float32_t yaw   = event.mouse.raw_delta_x * 1.0f;
                 camera->rotate(pitch, yaw, elapsed);

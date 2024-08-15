@@ -39,6 +39,17 @@ UnixFile::~UnixFile() {
     }
 }
 
+void UnixFile::createDirs(gerium_utf8_t path) {
+    if (!std::filesystem::exists(path)) {
+        const auto dir = std::filesystem::path(path).parent_path();
+        auto currentPath = *dir.begin();
+        for (auto it = ++dir.begin(); it != dir.end(); ++it) {
+            currentPath /= *it;
+            ::mkdir(currentPath.string().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        }
+    }
+}
+
 void UnixFile::reserveSpace(gerium_uint64_t size) const {
     if (size) {
 #ifdef __APPLE__
@@ -55,11 +66,6 @@ void UnixFile::reserveSpace(gerium_uint64_t size) const {
         }
 #endif
     }
-}
-
-void UnixFile::createDirs(gerium_utf8_t path) {
-    const auto dirs = std::filesystem::path(path).parent_path().string();
-    ::mkdir(dirs.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 }
 
 gerium_uint64_t UnixFile::onGetSize() noexcept {

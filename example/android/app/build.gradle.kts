@@ -33,4 +33,8 @@ android {
             version = "3.22.1"
         }
     }
+
+    sourceSets["main"].assets {
+        srcDir(".cxx/assets")
+    }
 }

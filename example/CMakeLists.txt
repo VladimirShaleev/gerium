@@ -41,6 +41,8 @@ if(MSVC)
     endif()
     set_target_properties(cpp-example PROPERTIES
         WIN32_EXECUTABLE ON)
+elseif(ANDROID)
+    set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/../../../../)
 elseif(APPLE)
     set_target_properties(cpp-example PROPERTIES
         MACOSX_BUNDLE ON

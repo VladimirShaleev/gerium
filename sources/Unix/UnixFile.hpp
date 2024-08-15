@@ -12,9 +12,11 @@ public:
 
     ~UnixFile() override;
 
+protected:
+    static void createDirs(gerium_utf8_t path);
+
 private:
     void reserveSpace(gerium_uint64_t size) const;
-    static void createDirs(gerium_utf8_t path);
 
     gerium_uint64_t onGetSize() noexcept override final;
     void onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept override final;

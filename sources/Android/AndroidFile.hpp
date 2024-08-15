@@ -18,6 +18,7 @@ private:
     static std::string getTempFile();
 
     static void initialize();
+    static gerium_utf8_t copyFromAssets(gerium_utf8_t path, bool readOnly);
 
     static jclass _fileClass;
     static jmethodID _getAbsolutePath;

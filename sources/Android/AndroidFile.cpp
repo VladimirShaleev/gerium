@@ -10,7 +10,7 @@ AndroidFile::AndroidFile(gerium_uint64_t size) : AndroidFile(getTempFile().c_str
 AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : unix::UnixFile(path, size) {
 }
 
-AndroidFile::AndroidFile(gerium_utf8_t path, bool readOnly) : unix::UnixFile(path, readOnly) {
+AndroidFile::AndroidFile(gerium_utf8_t path, bool readOnly) : unix::UnixFile(copyFromAssets(path, readOnly), readOnly) {
 }
 
 gerium_utf8_t AndroidFile::getCacheDirFromContext() {
@@ -75,6 +75,27 @@ void AndroidFile::initialize() {
             activity->vm->DetachCurrentThread();
         }
     }
+}
+
+gerium_utf8_t AndroidFile::copyFromAssets(gerium_utf8_t path, bool readOnly) {
+    if (readOnly && !existsFile(path)) {
+        std::filesystem::path appDir = std::filesystem::path(AndroidFile::getAppDir()) / "assets";
+        auto relative                = std::filesystem::relative(path, appDir).string();
+        auto asset                   = AAssetManager_open(
+            AndroidApplication::instance()->activity->assetManager, relative.c_str(), AASSET_MODE_BUFFER);
+        if (asset) {
+            createDirs(path);
+            char buffer[1024];
+            int read  = 0;
+            auto file = fopen(path, "wb");
+            while ((read = AAsset_read(asset, buffer, 1024)) > 0) {
+                fwrite(buffer, read, 1, file);
+            }
+            fclose(file);
+            AAsset_close(asset);
+        }
+    }
+    return path;
 }
 
 jclass AndroidFile::_fileClass = nullptr;
