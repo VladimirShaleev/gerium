@@ -5,16 +5,6 @@
 
 #include <entt/entt.hpp>
 
-struct SceneData {
-    glm::mat4 viewProjection;
-    glm::vec4 eye;
-};
-
-struct MeshData {
-    glm::mat4 world;
-    glm::mat4 inverseWorld;
-};
-
 struct Transform {
     glm::mat4 localMatrix;
     glm::mat4 worldMatrix;

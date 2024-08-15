@@ -1213,6 +1213,18 @@ gerium_public gerium_buffer_h
 gerium_renderer_reference_buffer(gerium_renderer_t renderer,
                                  gerium_buffer_h handle);
 
+gerium_public gerium_texture_h
+gerium_renderer_reference_texture(gerium_renderer_t renderer,
+                                  gerium_texture_h handle);
+
+gerium_public gerium_technique_h
+gerium_renderer_reference_technique(gerium_renderer_t renderer,
+                                    gerium_technique_h handle);
+
+gerium_public gerium_descriptor_set_h
+gerium_renderer_reference_descriptor_set(gerium_renderer_t renderer,
+                                         gerium_descriptor_set_h handle);
+
 gerium_public void
 gerium_renderer_destroy_buffer(gerium_renderer_t renderer,
                                gerium_buffer_h handle);

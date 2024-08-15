@@ -13,24 +13,75 @@ enum class DrawFlags {
 };
 GERIUM_FLAGS(DrawFlags);
 
+struct SceneData {
+    glm::mat4 viewProjection;
+    glm::vec4 eye;
+};
+
+struct MeshData {
+    glm::mat4 world;
+    glm::mat4 inverseWorld;
+};
+
 class PBRMaterial final {
 public:
+    explicit PBRMaterial(gerium_renderer_t renderer);
+    ~PBRMaterial();
+
+    PBRMaterial(const PBRMaterial& pbrMaterial) noexcept;
+    PBRMaterial(PBRMaterial&& pbrMaterial) noexcept;
+
+    PBRMaterial& operator=(const PBRMaterial& pbrMaterial) noexcept;
+    PBRMaterial& operator=(PBRMaterial&& pbrMaterial) noexcept;
+
+    void setTechnique(gerium_technique_h technique);
+    gerium_technique_h getTechnique() const noexcept;
+
+    void updateMeshData(const MeshData& meshData);
+    gerium_descriptor_set_h getDecriptorSet() const noexcept;
+
+    void setDiffuse(gerium_texture_h handle) noexcept;
+    void setRoughness(gerium_texture_h handle) noexcept;
+    void setNormal(gerium_texture_h handle) noexcept;
+    void setOcclusion(gerium_texture_h handle) noexcept;
+
+    gerium_texture_h getDiffuse() const noexcept;
+    gerium_texture_h getRoughness() const noexcept;
+    gerium_texture_h getNormal() const noexcept;
+    gerium_texture_h getOcclusion() const noexcept;
+
+    void setFactor(const glm::vec4& baseColorFactor, const glm::vec4& metallicRoughnessOcclusionFactor) noexcept;
+    const glm::vec4& getBaseColorFactor() const noexcept;
+    const glm::vec4& getMetallicRoughnessOcclusionFactor() const noexcept;
+
+    void setAlpha(gerium_float32_t alphaCutoff, DrawFlags flags) noexcept;
+    gerium_float32_t getAlphaCutoff() const noexcept;
+    DrawFlags getFlags() const noexcept;
+
 private:
-    // gerium_technique_h technique;
+    void copy(const PBRMaterial& pbrMaterial) noexcept;
+    void reference() noexcept;
+    void destroy() noexcept;
+    void invalidate() noexcept;
+    void setTexture(gerium_texture_h& oldTexture, gerium_texture_h newTexture) noexcept;
 
-    // gerium_buffer_h data;
-    // gerium_descriptor_set_h descriptorSet;
+    gerium_renderer_t _renderer{};
 
-    // gerium_texture_h diffuse;
-    // gerium_texture_h roughness;
-    // gerium_texture_h normal;
-    // gerium_texture_h occlusion;
+    gerium_technique_h _technique{ UndefinedHandle };
 
-    glm::vec4 baseColorFactor;
-    glm::vec4 metallicRoughnessOcclusionFactor;
+    gerium_buffer_h _data{ UndefinedHandle };
+    gerium_descriptor_set_h _descriptorSet{ UndefinedHandle };
 
-    gerium_float32_t alphaCutoff;
-    DrawFlags flags;
+    gerium_texture_h _diffuse{ UndefinedHandle };
+    gerium_texture_h _roughness{ UndefinedHandle };
+    gerium_texture_h _normal{ UndefinedHandle };
+    gerium_texture_h _occlusion{ UndefinedHandle };
+
+    glm::vec4 _baseColorFactor{};
+    glm::vec4 _metallicRoughnessOcclusionFactor{};
+
+    gerium_float32_t _alphaCutoff{};
+    DrawFlags _flags{ DrawFlags::None };
 };
 
 class Mesh final {
@@ -46,6 +97,9 @@ public:
 
     void setNodeIndex(gerium_uint32_t index) noexcept;
     gerium_uint32_t getNodeIndex() const noexcept;
+
+    void setMaterial(const PBRMaterial& material);
+    PBRMaterial& getMaterial() noexcept;
 
     void setIndices(gerium_buffer_h indices,
                     gerium_index_type_t type,
@@ -71,7 +125,7 @@ private:
 
     gerium_renderer_t _renderer{};
 
-    // PBRMaterial _material{};
+    PBRMaterial _material;
 
     gerium_buffer_h _indices{ UndefinedHandle };
     gerium_buffer_h _positions{ UndefinedHandle };
@@ -90,50 +144,45 @@ private:
     gerium_uint32_t _nodeIndex{};
 };
 
-struct NodeHierarchy {
-    gerium_sint32_t parent : 24;
-    gerium_sint32_t level  : 8;
-};
-
-struct Hierarchy {
-    void resize(gerium_uint32_t numNodes);
-
-    void setHierarchy(gerium_sint32_t nodeIndex, gerium_sint32_t parentIndex, gerium_sint32_t level) noexcept;
-    void setLocalMatrix(gerium_sint32_t nodeIndex, const glm::mat4& localMatrix) noexcept;
-    void updateMatrices() noexcept;
-    void changeNode(gerium_sint32_t nodeIndex) noexcept;
-
-    std::vector<glm::mat4> localMatrices;
-    std::vector<glm::mat4> worldMatrices;
-    std::vector<NodeHierarchy> nodesHierarchy;
-
-    std::vector<bool> updatedNodes;
-    gerium_uint32_t maxLevel;
-};
-
 class Model final {
 public:
+    struct Node {
+        gerium_sint32_t parent : 24;
+        gerium_sint32_t level  : 8;
+    };
+
     explicit Model(gerium_renderer_t renderer);
 
     void addMesh(const Mesh& mesh);
     std::vector<Mesh>& meshes() noexcept;
 
     void resizeNodes(gerium_uint32_t numNodes);
-    void setNodeMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat);
     void setHierarchy(gerium_sint32_t nodeIndex, gerium_sint32_t parentIndex, gerium_sint32_t level) noexcept;
-    void updateMatrices();
 
-    const NodeHierarchy& getHierarchy(gerium_sint32_t nodeIndex) const noexcept;
+    const Node& getNode(gerium_sint32_t nodeIndex) const noexcept;
+
+    void setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat);
+    void updateMatrices();
+    void updateMaterials();
 
     const glm::mat4& getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept;
     const glm::mat4& getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
+    const glm::mat4& getInverseWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
 
     static Model loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path);
 
 private:
+    void changeNode(gerium_sint32_t nodeIndex) noexcept;
+
     gerium_renderer_t _renderer{};
     std::vector<Mesh> _meshes{};
-    mutable Hierarchy _hierarchy{};
+
+    std::vector<Node> _nodes;
+    std::vector<glm::mat4> _localMatrices;
+    std::vector<glm::mat4> _worldMatrices;
+    std::vector<glm::mat4> _inverseWorldMatrices;
+    std::vector<bool> _updatedNodes;
+    gerium_uint32_t _maxLevel;
 };
 
 #endif

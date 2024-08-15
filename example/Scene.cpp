@@ -46,9 +46,10 @@ void Scene::update() {
 
         if (auto model = getComponentNode<Model>(node); model) {
             if (updated) {
-                model->setNodeMatrix(0, *mat);
+                model->setMatrix(0, *mat);
             }
             model->updateMatrices();
+            model->updateMaterials();
         }
 
         for (auto& child : node->childrens()) {

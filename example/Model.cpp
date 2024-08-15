@@ -3,19 +3,232 @@
 
 using namespace std::string_literals;
 
-Mesh::Mesh(gerium_renderer_t renderer) : _renderer(renderer) {
+PBRMaterial::PBRMaterial(gerium_renderer_t renderer) : _renderer(renderer) {
+}
+
+PBRMaterial::~PBRMaterial() {
+    destroy();
+}
+
+PBRMaterial::PBRMaterial(const PBRMaterial& pbrMaterial) noexcept {
+    copy(pbrMaterial);
+    reference();
+}
+
+PBRMaterial::PBRMaterial(PBRMaterial&& pbrMaterial) noexcept {
+    copy(pbrMaterial);
+    pbrMaterial.invalidate();
+}
+
+PBRMaterial& PBRMaterial::operator=(const PBRMaterial& pbrMaterial) noexcept {
+    if (this != &pbrMaterial) {
+        destroy();
+        copy(pbrMaterial);
+        reference();
+    }
+    return *this;
+}
+
+PBRMaterial& PBRMaterial::operator=(PBRMaterial&& pbrMaterial) noexcept {
+    if (this != &pbrMaterial) {
+        destroy();
+        copy(pbrMaterial);
+        invalidate();
+    }
+    return *this;
+}
+
+void PBRMaterial::setTechnique(gerium_technique_h technique) {
+    if (_technique.unused != technique.unused) {
+        if (_technique.unused != UndefinedHandle) {
+            gerium_renderer_destroy_technique(_renderer, _technique);
+        }
+        _technique = technique;
+        if (_technique.unused != UndefinedHandle) {
+            gerium_renderer_reference_technique(_renderer, _technique);
+        }
+    }
+}
+
+gerium_technique_h PBRMaterial::getTechnique() const noexcept {
+    return _technique;
+}
+
+void PBRMaterial::updateMeshData(const MeshData& meshData) {
+    if (_data.unused == UndefinedHandle) {
+        check(gerium_renderer_create_buffer(
+            _renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, 1, "mesh_data", nullptr, sizeof(MeshData), &_data));
+    }
+    if (_descriptorSet.unused == UndefinedHandle) {
+        check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
+        gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
+    }
+    auto data = (MeshData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
+    *data     = meshData;
+    gerium_renderer_unmap_buffer(_renderer, _data);
+}
+
+gerium_descriptor_set_h PBRMaterial::getDecriptorSet() const noexcept {
+    return _descriptorSet;
+}
+
+void PBRMaterial::setDiffuse(gerium_texture_h handle) noexcept {
+    setTexture(_diffuse, handle);
+}
+
+void PBRMaterial::setRoughness(gerium_texture_h handle) noexcept {
+    setTexture(_roughness, handle);
+}
+
+void PBRMaterial::setNormal(gerium_texture_h handle) noexcept {
+    setTexture(_normal, handle);
+}
+
+void PBRMaterial::setOcclusion(gerium_texture_h handle) noexcept {
+    setTexture(_occlusion, handle);
+}
+
+gerium_texture_h PBRMaterial::getDiffuse() const noexcept {
+    return _diffuse;
+}
+
+gerium_texture_h PBRMaterial::getRoughness() const noexcept {
+    return _roughness;
+}
+
+gerium_texture_h PBRMaterial::getNormal() const noexcept {
+    return _normal;
+}
+
+gerium_texture_h PBRMaterial::getOcclusion() const noexcept {
+    return _occlusion;
+}
+
+void PBRMaterial::setFactor(const glm::vec4& baseColorFactor,
+                            const glm::vec4& metallicRoughnessOcclusionFactor) noexcept {
+    _baseColorFactor                  = baseColorFactor;
+    _metallicRoughnessOcclusionFactor = metallicRoughnessOcclusionFactor;
+}
+
+const glm::vec4& PBRMaterial::getBaseColorFactor() const noexcept {
+    return _baseColorFactor;
+}
+
+const glm::vec4& PBRMaterial::getMetallicRoughnessOcclusionFactor() const noexcept {
+    return _metallicRoughnessOcclusionFactor;
+}
+
+void PBRMaterial::setAlpha(gerium_float32_t alphaCutoff, DrawFlags flags) noexcept {
+    _alphaCutoff = alphaCutoff;
+    _flags       = flags;
+}
+
+gerium_float32_t PBRMaterial::getAlphaCutoff() const noexcept {
+    return _alphaCutoff;
+}
+
+DrawFlags PBRMaterial::getFlags() const noexcept {
+    return _flags;
+}
+
+void PBRMaterial::copy(const PBRMaterial& pbrMaterial) noexcept {
+    _renderer  = pbrMaterial._renderer;
+    _technique = pbrMaterial._technique;
+
+    _diffuse   = pbrMaterial._diffuse;
+    _roughness = pbrMaterial._roughness;
+    _normal    = pbrMaterial._normal;
+    _occlusion = pbrMaterial._occlusion;
+
+    _baseColorFactor                  = pbrMaterial._baseColorFactor;
+    _metallicRoughnessOcclusionFactor = pbrMaterial._metallicRoughnessOcclusionFactor;
+
+    _alphaCutoff = pbrMaterial._alphaCutoff;
+    _flags       = pbrMaterial._flags;
+}
+
+void PBRMaterial::reference() noexcept {
+    if (_technique.unused != UndefinedHandle) {
+        gerium_renderer_reference_technique(_renderer, _technique);
+    }
+    if (_diffuse.unused != UndefinedHandle) {
+        gerium_renderer_reference_texture(_renderer, _diffuse);
+    }
+    if (_roughness.unused != UndefinedHandle) {
+        gerium_renderer_reference_texture(_renderer, _roughness);
+    }
+    if (_normal.unused != UndefinedHandle) {
+        gerium_renderer_reference_texture(_renderer, _normal);
+    }
+    if (_occlusion.unused != UndefinedHandle) {
+        gerium_renderer_reference_texture(_renderer, _occlusion);
+    }
+}
+
+void PBRMaterial::destroy() noexcept {
+    if (_technique.unused != UndefinedHandle) {
+        gerium_renderer_destroy_technique(_renderer, _technique);
+        _technique = { UndefinedHandle };
+    }
+    if (_data.unused != UndefinedHandle) {
+        gerium_renderer_destroy_buffer(_renderer, _data);
+        _data = { UndefinedHandle };
+    }
+    if (_descriptorSet.unused != UndefinedHandle) {
+        gerium_renderer_destroy_descriptor_set(_renderer, _descriptorSet);
+        _descriptorSet = { UndefinedHandle };
+    }
+    if (_diffuse.unused != UndefinedHandle) {
+        gerium_renderer_destroy_texture(_renderer, _diffuse);
+        _diffuse = { UndefinedHandle };
+    }
+    if (_roughness.unused != UndefinedHandle) {
+        gerium_renderer_destroy_texture(_renderer, _roughness);
+        _roughness = { UndefinedHandle };
+    }
+    if (_normal.unused != UndefinedHandle) {
+        gerium_renderer_destroy_texture(_renderer, _normal);
+        _normal = { UndefinedHandle };
+    }
+    if (_occlusion.unused != UndefinedHandle) {
+        gerium_renderer_destroy_texture(_renderer, _occlusion);
+        _occlusion = { UndefinedHandle };
+    }
+}
+
+void PBRMaterial::invalidate() noexcept {
+    _technique = { UndefinedHandle };
+    _diffuse   = { UndefinedHandle };
+    _roughness = { UndefinedHandle };
+    _normal    = { UndefinedHandle };
+    _occlusion = { UndefinedHandle };
+}
+
+void PBRMaterial::setTexture(gerium_texture_h& oldTexture, gerium_texture_h newTexture) noexcept {
+    if (oldTexture.unused != newTexture.unused) {
+        if (oldTexture.unused != UndefinedHandle) {
+            gerium_renderer_destroy_texture(_renderer, oldTexture);
+        }
+        oldTexture = newTexture;
+        if (oldTexture.unused != UndefinedHandle) {
+            gerium_renderer_reference_texture(_renderer, oldTexture);
+        }
+    }
+}
+
+Mesh::Mesh(gerium_renderer_t renderer) : _renderer(renderer), _material(renderer) {
 }
 
 Mesh::~Mesh() {
     destroy();
 }
 
-Mesh::Mesh(const Mesh& mesh) noexcept {
+Mesh::Mesh(const Mesh& mesh) noexcept : _material(mesh._renderer) {
     copy(mesh);
     reference();
 }
 
-Mesh::Mesh(Mesh&& mesh) noexcept {
+Mesh::Mesh(Mesh&& mesh) noexcept : _material(std::move(mesh._material)) {
     copy(mesh);
     mesh.invalidateBuffers();
 }
@@ -25,6 +238,7 @@ Mesh& Mesh::operator=(const Mesh& mesh) noexcept {
         destroy();
         copy(mesh);
         reference();
+        _material = mesh._material;
     }
     return *this;
 }
@@ -34,6 +248,7 @@ Mesh& Mesh::operator=(Mesh&& mesh) noexcept {
         destroy();
         copy(mesh);
         mesh.invalidateBuffers();
+        _material = mesh._material;
     }
     return *this;
 }
@@ -44,6 +259,14 @@ void Mesh::setNodeIndex(gerium_uint32_t index) noexcept {
 
 gerium_uint32_t Mesh::getNodeIndex() const noexcept {
     return _nodeIndex;
+}
+
+void Mesh::setMaterial(const PBRMaterial& material) {
+    _material = material;
+}
+
+PBRMaterial& Mesh::getMaterial() noexcept {
+    return _material;
 }
 
 void Mesh::setIndices(gerium_buffer_h indices,
@@ -174,84 +397,6 @@ void Mesh::setBuffer(gerium_buffer_h& oldBuffer, gerium_buffer_h newBuffer) noex
     }
 }
 
-void Hierarchy::resize(gerium_uint32_t numNodes) {
-    nodesHierarchy.resize(numNodes);
-    localMatrices.resize(numNodes);
-    worldMatrices.resize(numNodes);
-
-    updatedNodes.resize(numNodes);
-
-    memset(nodesHierarchy.data(), 0, numNodes * sizeof(NodeHierarchy));
-    for (uint32_t i = 0; i < numNodes; ++i) {
-        nodesHierarchy[i].parent = -1;
-    }
-    maxLevel = 0;
-}
-
-void Hierarchy::setHierarchy(gerium_sint32_t nodeIndex, gerium_sint32_t parentIndex, gerium_sint32_t level) noexcept {
-    nodesHierarchy[nodeIndex].parent = parentIndex;
-    nodesHierarchy[nodeIndex].level  = level;
-    maxLevel                         = std::max(maxLevel, (gerium_uint32_t) level);
-    changeNode(nodeIndex);
-}
-
-void Hierarchy::setLocalMatrix(gerium_sint32_t nodeIndex, const glm::mat4& localMatrix) noexcept {
-    localMatrices[nodeIndex] = localMatrix;
-    changeNode(nodeIndex);
-}
-
-void Hierarchy::updateMatrices() noexcept {
-    gerium_uint32_t currentLevel = 0;
-
-    while (currentLevel <= maxLevel) {
-        for (gerium_uint32_t i = 0; i < nodesHierarchy.size(); ++i) {
-            if (nodesHierarchy[i].level != currentLevel) {
-                continue;
-            }
-
-            if (!updatedNodes[i]) {
-                continue;
-            }
-
-            updatedNodes[i] = false;
-
-            if (nodesHierarchy[i].parent < 0) {
-                worldMatrices[i] = localMatrices[i];
-            } else {
-                const auto& parentMatrix = worldMatrices[nodesHierarchy[i].parent];
-                worldMatrices[i]         = parentMatrix * localMatrices[i];
-            }
-        }
-
-        ++currentLevel;
-    }
-}
-
-void Hierarchy::changeNode(gerium_sint32_t nodeIndex) noexcept {
-    if (nodeIndex == 0) {
-        for (auto i = 0; i < updatedNodes.size(); ++i) {
-            updatedNodes[i] = true;
-        }
-    } else {
-        std::queue<gerium_sint32_t> indices;
-        indices.push(nodeIndex);
-
-        while (!indices.empty()) {
-            auto parentIndex = indices.front();
-            indices.pop();
-
-            updatedNodes[parentIndex] = true;
-
-            for (gerium_uint32_t i = 0; i < nodesHierarchy.size(); ++i) {
-                if (nodesHierarchy[i].parent != parentIndex) {
-                    continue;
-                }
-                indices.push(i);
-            }
-        }
-    }
-}
-
 Model::Model(gerium_renderer_t renderer) : _renderer(renderer) {
 }
 
@@ -264,70 +409,125 @@ std::vector<Mesh>& Model::meshes() noexcept {
 }
 
 void Model::resizeNodes(gerium_uint32_t numNodes) {
-    _hierarchy.resize(numNodes);
-}
+    _nodes.resize(numNodes);
+    _localMatrices.resize(numNodes);
+    _worldMatrices.resize(numNodes);
+    _inverseWorldMatrices.resize(numNodes);
+    _updatedNodes.resize(numNodes);
 
-void Model::setNodeMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat) {
-    _hierarchy.setLocalMatrix(nodeIndex, mat);
+    for (gerium_uint32_t i = 0; i < numNodes; ++i) {
+        _nodes[i].parent = -1;
+        _nodes[i].level  = 0;
+    }
+    _maxLevel = 0;
 }
 
 void Model::setHierarchy(gerium_sint32_t nodeIndex, gerium_sint32_t parentIndex, gerium_sint32_t level) noexcept {
-    _hierarchy.setHierarchy(nodeIndex, parentIndex, level);
+    _nodes[nodeIndex].parent = parentIndex;
+    _nodes[nodeIndex].level  = level;
+    _maxLevel                = std::max(_maxLevel, (gerium_uint32_t) level);
+    changeNode(nodeIndex);
+}
+
+const Model::Node& Model::getNode(gerium_sint32_t nodeIndex) const noexcept {
+    return _nodes[nodeIndex];
+}
+
+void Model::setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat) {
+    _localMatrices[nodeIndex] = mat;
+    changeNode(nodeIndex);
 }
 
 void Model::updateMatrices() {
-    _hierarchy.updateMatrices();
+    gerium_uint32_t currentLevel = 0;
+
+    while (currentLevel <= _maxLevel) {
+        for (gerium_uint32_t i = 0; i < _nodes.size(); ++i) {
+            if (_nodes[i].level != currentLevel) {
+                continue;
+            }
+
+            if (!_updatedNodes[i]) {
+                continue;
+            }
+
+            _updatedNodes[i] = false;
+
+            if (_nodes[i].parent < 0) {
+                _worldMatrices[i] = _localMatrices[i];
+            } else {
+                const auto& parentMatrix = _worldMatrices[_nodes[i].parent];
+                _worldMatrices[i]        = parentMatrix * _localMatrices[i];
+                _inverseWorldMatrices[i] = glm::inverse(_worldMatrices[i]);
+            }
+        }
+
+        ++currentLevel;
+    }
 }
 
-const NodeHierarchy& Model::getHierarchy(gerium_sint32_t nodeIndex) const noexcept {
-    return _hierarchy.nodesHierarchy[nodeIndex];
+void Model::updateMaterials() {
+    for (auto& mesh : _meshes) {
+        auto& material = mesh.getMaterial();
+        MeshData meshData;
+        meshData.world        = _worldMatrices[mesh.getNodeIndex()];
+        meshData.inverseWorld = _inverseWorldMatrices[mesh.getNodeIndex()];
+        material.updateMeshData(meshData);
+    }
 }
 
 const glm::mat4& Model::getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept {
-    return _hierarchy.localMatrices[nodeIndex];
+    return _localMatrices[nodeIndex];
 }
 
 const glm::mat4& Model::getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept {
-    if (_hierarchy.updatedNodes[nodeIndex]) {
-        _hierarchy.updateMatrices();
+    if (_updatedNodes[nodeIndex]) {
+        const_cast<Model*>(this)->updateMatrices();
     }
-    return _hierarchy.worldMatrices[nodeIndex];
+    return _worldMatrices[nodeIndex];
 }
 
-/*
+const glm::mat4& Model::getInverseWorldMatrix(gerium_uint32_t nodeIndex) const noexcept {
+    if (_updatedNodes[nodeIndex]) {
+        const_cast<Model*>(this)->updateMatrices();
+    }
+    return _inverseWorldMatrices[nodeIndex];
+}
 
-static void fillPbrMaterial(Material& material, PBRMaterial& pbrMaterial) {
+static void fillPbrMaterial(const gltf::Material& material, PBRMaterial& pbrMaterial) {
+    auto flags = material.doubleSided ? DrawFlags::DoubleSided : DrawFlags::None;
     if (material.alphaMode == "MASK") {
-        pbrMaterial.flags |= DrawFlags::AlphaMask;
+        flags |= DrawFlags::AlphaMask;
     } else if (material.alphaMode == "BLEND") {
-        pbrMaterial.flags |= DrawFlags::Transparent;
+        flags |= DrawFlags::Transparent;
     }
 
-    pbrMaterial.flags |= material.doubleSided ? DrawFlags::DoubleSided : DrawFlags::None;
-    pbrMaterial.alphaCutoff = material.alphaCutoff != INVALID_FLOAT_VALUE ? material.alphaCutoff : 1.f;
+    const auto alphaCutoff = material.alphaCutoff != gltf::INVALID_FLOAT_VALUE ? material.alphaCutoff : 1.0f;
+    pbrMaterial.setAlpha(alphaCutoff, flags);
+
+    glm::vec4 baseColorFactor                  = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glm::vec4 metallicRoughnessOcclusionFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     if (material.pbrMetallicRoughness.has) {
         if (material.pbrMetallicRoughness.baseColorFactor.size() != 0) {
-            memcpy(glm::value_ptr(pbrMaterial.baseColorFactor),
+            memcpy(glm::value_ptr(baseColorFactor),
                    material.pbrMetallicRoughness.baseColorFactor.data(),
                    sizeof(glm::vec4));
-        } else {
-            pbrMaterial.baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
         }
 
-        pbrMaterial.metallicRoughnessOcclusionFactor.x =
-            material.pbrMetallicRoughness.roughnessFactor != INVALID_FLOAT_VALUE
-                ? material.pbrMetallicRoughness.roughnessFactor
-                : 1.0f;
-        pbrMaterial.metallicRoughnessOcclusionFactor.y =
-            material.pbrMetallicRoughness.metallicFactor != INVALID_FLOAT_VALUE
-                ? material.pbrMetallicRoughness.metallicFactor
-                : 1.0f;
+        metallicRoughnessOcclusionFactor.x = material.pbrMetallicRoughness.roughnessFactor != gltf::INVALID_FLOAT_VALUE
+                                                 ? material.pbrMetallicRoughness.roughnessFactor
+                                                 : 1.0f;
+        metallicRoughnessOcclusionFactor.y = material.pbrMetallicRoughness.metallicFactor != gltf::INVALID_FLOAT_VALUE
+                                                 ? material.pbrMetallicRoughness.metallicFactor
+                                                 : 1.0f;
 
         // pbrMaterial.diffuseTextureIndex = getMaterialTexture(&material.pbr_metallic_roughness.base_color_texture);
         // pbrMaterial.roughnessTextureIndex =
         //     getMaterialTexture(&material.pbr_metallic_roughness.metallic_roughness_texture);
     }
+
+    pbrMaterial.setFactor(baseColorFactor, metallicRoughnessOcclusionFactor);
 
     // pbrMaterial.occlusionTextureIndex =
     //     getMaterialTexture((material.occlusion_texture.has) ? material.occlusion_texture.index : -1);
@@ -342,8 +542,6 @@ static void fillPbrMaterial(Material& material, PBRMaterial& pbrMaterial) {
     //     }
     // }
 }
-
-*/
 
 Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path) {
     gltf::glTF glTF{};
@@ -417,19 +615,19 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
         auto& node = glTF.nodes[nodeIndex];
 
         if (node.matrix) {
-            model.setNodeMatrix(nodeIndex, node.matrix.value());
+            model.setMatrix(nodeIndex, node.matrix.value());
         } else {
             auto matS = glm::scale(glm::identity<glm::mat4>(), node.scale);
             auto matT = glm::translate(glm::identity<glm::mat4>(), node.translation);
             auto matR = glm::mat4_cast(node.rotation);
             auto mat  = matS * matR * matT;
-            model.setNodeMatrix(nodeIndex, mat);
+            model.setMatrix(nodeIndex, mat);
         }
 
         if (node.children.size()) {
-            const auto& nodeHierarchy = model.getHierarchy(nodeIndex);
+            const auto& nodeHierarchy = model.getNode(nodeIndex);
             for (const auto& childIndex : node.children) {
-                auto& childHierarchy = model.getHierarchy(childIndex);
+                auto& childHierarchy = model.getNode(childIndex);
                 model.setHierarchy(childIndex, nodeIndex, nodeHierarchy.level + 1);
                 nodesToVisit.push(childIndex);
             }
@@ -495,4 +693,28 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
 
     model.updateMatrices();
     return model;
+}
+
+void Model::changeNode(gerium_sint32_t nodeIndex) noexcept {
+    if (nodeIndex == 0) {
+        for (auto i = 0; i < _updatedNodes.size(); ++i) {
+            _updatedNodes[i] = true;
+        }
+    } else {
+        std::queue<gerium_sint32_t> indices;
+        indices.push(nodeIndex);
+
+        while (!indices.empty()) {
+            auto parentIndex = indices.front();
+            indices.pop();
+
+            _updatedNodes[parentIndex] = true;
+
+            for (gerium_uint32_t i = 0; i < _nodes.size(); ++i) {
+                if (_nodes[i].parent == parentIndex) {
+                    indices.push(i);
+                }
+            }
+        }
+    }
 }

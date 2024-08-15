@@ -228,6 +228,22 @@ gerium_buffer_h gerium_renderer_reference_buffer(gerium_renderer_t renderer, ger
     return alias_cast<Renderer*>(renderer)->referenceBuffer({ handle.unused });
 }
 
+gerium_texture_h gerium_renderer_reference_texture(gerium_renderer_t renderer, gerium_texture_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->referenceTexture({ handle.unused });
+}
+
+gerium_technique_h gerium_renderer_reference_technique(gerium_renderer_t renderer, gerium_technique_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->referenceTechnique({ handle.unused });
+}
+
+gerium_descriptor_set_h gerium_renderer_reference_descriptor_set(gerium_renderer_t renderer,
+                                                                 gerium_descriptor_set_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->referenceDescriptorSet({ handle.unused });
+}
+
 void gerium_renderer_destroy_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->destroyBuffer({ handle.unused });
