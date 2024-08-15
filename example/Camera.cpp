@@ -27,10 +27,9 @@ Camera::~Camera() {
     }
 }
 
-void Camera::setSpeed(gerium_float32_t rotationSpeed, gerium_float32_t movementSpeed, gerium_float32_t movementDelta) {
-    _rotationSpeed = rotationSpeed;
+void Camera::setSpeed(gerium_float32_t movementSpeed, gerium_float32_t rotationSpeed) {
     _movementSpeed = movementSpeed;
-    _movementDelta = movementDelta;
+    _rotationSpeed = rotationSpeed;
 }
 
 void Camera::setPosition(const glm::vec3& position) {
@@ -49,21 +48,41 @@ void Camera::setPerpective(gerium_float32_t nearPlane, gerium_float32_t farPlane
 }
 
 void Camera::rotate(gerium_float32_t deltaPitch, gerium_float32_t deltaYaw, gerium_float32_t delta) {
-    _pitch += deltaPitch * _rotationSpeed * delta;
-    _yaw += deltaYaw * _rotationSpeed * delta;
+    auto speed = _fov / glm::radians(30.0f);
+    _pitch += deltaPitch * _rotationSpeed * speed * delta;
+    _yaw += deltaYaw * _rotationSpeed * speed * delta;
 }
 
-void Camera::move(gerium_float32_t forward, gerium_float32_t up, gerium_float32_t right, gerium_float32_t delta) {
-    glm::vec3 move{};
-    move += _right * right;
-    move -= _up * up;
-    move += _direction * forward;
-    move *= _movementSpeed * _movementDelta * delta;
+void Camera::move(Movement direction, gerium_float32_t value, gerium_float32_t delta) {
+    auto velocity = _movementSpeed * delta;
+    if (direction == Forward) {
+        _position += _front * value * velocity;
+    } else if (direction == Right) {
+        _position += _right * value * velocity;
+    } else if (direction == Up) {
+        _position += glm::vec3(0.0f, 1.0f, 0.0f) * value * velocity;
+    }
+}
 
-    _position += move;
+void Camera::zoom(gerium_float32_t value, gerium_float32_t delta) {
+    _fov += value * delta;
 }
 
 void Camera::update() {
+    _fov   = std::clamp(_fov, glm::radians(30.0f), glm::radians(120.0f));
+    _pitch = std::clamp(_pitch, glm::radians(-89.99f), glm::radians(89.99f));
+    _yaw   = std::fmod(_yaw, M_PI * 2.0);
+    if (_yaw < 0.0f) {
+        _yaw += M_PI * 2.0;
+    }
+
+    _front.x = cos(_yaw) * cos(_pitch);
+    _front.y = sin(_pitch);
+    _front.z = sin(_yaw) * cos(_pitch);
+    _front   = glm::normalize(_front);
+    _right   = glm::normalize(glm::cross(_front, glm::vec3(0.0f, 1.0f, 0.0f)));
+    _up      = glm::normalize(glm::cross(_right, _front));
+
     gerium_uint16_t width, height;
     gerium_application_get_size(_application, &width, &height);
 
@@ -77,16 +96,12 @@ void Camera::update() {
     const auto aspect = float(width) / height;
 
     _projection     = glm::perspective(_fov, aspect, _nearPlane, _farPlane);
-    _view           = R * T;
+    _view           = glm::lookAt(_position, _position + _front, _up);
     _viewProjection = _projection * _view;
-
-    _right     = { _view[0][0], _view[1][0], _view[2][0] };
-    _up        = { _view[0][1], _view[1][1], _view[2][1] };
-    _direction = { _view[0][2], _view[1][2], _view[2][2] };
 
     auto data            = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
     data->viewProjection = _viewProjection;
-    data->eye            = glm::vec4(_direction, 1.0f);
+    data->eye            = glm::vec4(_front, 1.0f);
     gerium_renderer_unmap_buffer(_renderer, _data);
 }
 
@@ -102,16 +117,40 @@ const glm::mat4& Camera::viewProjection() const noexcept {
     return _viewProjection;
 }
 
-glm::vec3 Camera::up() const noexcept {
+const glm::vec3& Camera::position() const noexcept {
+    return _position;
+}
+
+const glm::vec3& Camera::front() const noexcept {
+    return _front;
+}
+
+const glm::vec3& Camera::up() const noexcept {
     return _up;
 }
 
-glm::vec3 Camera::right() const noexcept {
+const glm::vec3& Camera::right() const noexcept {
     return _right;
 }
 
-glm::vec3 Camera::direction() const noexcept {
-    return _direction;
+gerium_float32_t Camera::yaw() const noexcept {
+    return _yaw;
+}
+
+gerium_float32_t Camera::pitch() const noexcept {
+    return _pitch;
+}
+
+gerium_float32_t Camera::nearPlane() const noexcept {
+    return _nearPlane;
+}
+
+gerium_float32_t Camera::farPlane() const noexcept {
+    return _farPlane;
+}
+
+gerium_float32_t Camera::fov() const noexcept {
+    return _fov;
 }
 
 gerium_descriptor_set_h Camera::getDecriptorSet() const noexcept {

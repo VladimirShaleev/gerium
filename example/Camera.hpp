@@ -10,6 +10,12 @@ struct SceneData {
 
 class Camera final {
 public:
+    enum Movement {
+        Forward,
+        Right,
+        Up
+    };
+
     explicit Camera(gerium_application_t application, gerium_renderer_t renderer) noexcept;
     ~Camera();
 
@@ -19,15 +25,14 @@ public:
     Camera& operator=(const Camera&) = delete;
     Camera& operator=(Camera&&)      = delete;
 
-    void setSpeed(gerium_float32_t rotationSpeed = 10.f,
-                  gerium_float32_t movementSpeed = 10.f,
-                  gerium_float32_t movementDelta = 0.1f);
+    void setSpeed(gerium_float32_t movementSpeed = 1.0f, gerium_float32_t rotationSpeed = 1.0f);
 
     void setPosition(const glm::vec3& position);
     void setRotation(gerium_float32_t yaw, gerium_float32_t pitch);
     void setPerpective(gerium_float32_t nearPlane, gerium_float32_t farPlane, gerium_float32_t fov);
     void rotate(gerium_float32_t deltaPitch, gerium_float32_t deltaYaw, gerium_float32_t delta);
-    void move(gerium_float32_t forward, gerium_float32_t up, gerium_float32_t right, gerium_float32_t delta);
+    void move(Movement direction, gerium_float32_t value, gerium_float32_t delta);
+    void zoom(gerium_float32_t value, gerium_float32_t delta);
 
     void update();
 
@@ -35,9 +40,17 @@ public:
     const glm::mat4& projection() const noexcept;
     const glm::mat4& viewProjection() const noexcept;
 
-    glm::vec3 up() const noexcept;
-    glm::vec3 right() const noexcept;
-    glm::vec3 direction() const noexcept;
+    const glm::vec3& position() const noexcept;
+    const glm::vec3& front() const noexcept;
+    const glm::vec3& up() const noexcept;
+    const glm::vec3& right() const noexcept;
+
+    gerium_float32_t yaw() const noexcept;
+    gerium_float32_t pitch() const noexcept;
+
+    gerium_float32_t nearPlane() const noexcept;
+    gerium_float32_t farPlane() const noexcept;
+    gerium_float32_t fov() const noexcept;
 
     gerium_descriptor_set_h getDecriptorSet() const noexcept;
 
@@ -45,21 +58,20 @@ private:
     gerium_application_t _application{};
     gerium_renderer_t _renderer{};
 
-    gerium_float32_t _rotationSpeed{};
-    gerium_float32_t _movementSpeed{};
-    gerium_float32_t _movementDelta{};
-
     glm::vec3 _position{};
+    glm::vec3 _front{};
+    glm::vec3 _up{};
+    glm::vec3 _right{};
+
     gerium_float32_t _yaw{};
     gerium_float32_t _pitch{};
+
+    gerium_float32_t _movementSpeed;
+    gerium_float32_t _rotationSpeed;
 
     gerium_float32_t _nearPlane;
     gerium_float32_t _farPlane;
     gerium_float32_t _fov;
-
-    glm::vec3 _up{};
-    glm::vec3 _right{};
-    glm::vec3 _direction{};
 
     glm::mat4 _view{};
     glm::mat4 _projection{};

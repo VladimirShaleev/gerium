@@ -40,10 +40,6 @@ gerium_bool_t simpleRender(gerium_frame_graph_t frame_graph,
             gerium_command_buffer_draw_indexed(command_buffer, 0, mesh.getPrimitiveCount(), 0, 0, 1);
         }
     }
-    // gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSetMeshData[worker], 0);
-    // gerium_command_buffer_bind_descriptor_set(command_buffer, descriptorSetUniform[worker], 1);
-    // gerium_command_buffer_bind_vertex_buffer(command_buffer, vertices, 0, 0);
-    // gerium_command_buffer_draw(command_buffer, 0, 3, 0, 1);
     return 1;
 }
 
@@ -101,7 +97,7 @@ bool initialize(gerium_application_t application) {
 
         simpleOutputs[1].type           = GERIUM_RESOURCE_TYPE_ATTACHMENT;
         simpleOutputs[1].name           = "depth";
-        simpleOutputs[1].format         = GERIUM_FORMAT_D24_UNORM_S8_UINT;
+        simpleOutputs[1].format         = GERIUM_FORMAT_D32_SFLOAT;
         simpleOutputs[1].auto_scale     = 1.0f;
         simpleOutputs[1].render_pass_op = GERIUM_RENDER_PASS_OP_CLEAR;
 
@@ -174,7 +170,7 @@ bool initialize(gerium_application_t application) {
 
         gerium_rasterization_state_t rasterization{};
         rasterization.polygon_mode               = GERIUM_POLYGON_MODE_FILL;
-        rasterization.cull_mode                  = GERIUM_CULL_MODE_NONE;
+        rasterization.cull_mode                  = GERIUM_CULL_MODE_BACK;
         rasterization.front_face                 = GERIUM_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterization.depth_clamp_enable         = 0;
         rasterization.depth_bias_enable          = 0;
@@ -244,10 +240,12 @@ bool initialize(gerium_application_t application) {
                                  "}\n";
         presentShaders[1].size = strlen((const char*) presentShaders[1].data);
 
+        gerium_depth_stencil_state_t depthStencilEmpty{};
+        gerium_rasterization_state_t rasterizationEmpty{};
         gerium_pipeline_t presentPipelines[1]{};
         presentPipelines[0].render_pass   = "present_pass";
-        presentPipelines[0].rasterization = &rasterization;
-        presentPipelines[0].depth_stencil = &depthStencil;
+        presentPipelines[0].rasterization = &rasterizationEmpty;
+        presentPipelines[0].depth_stencil = &depthStencilEmpty;
         presentPipelines[0].color_blend   = &colorBlend;
         presentPipelines[0].shader_count  = std::size(presentShaders);
         presentPipelines[0].shaders       = presentShaders;
@@ -255,27 +253,30 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create_technique(
             renderer, frameGraph, "present", std::size(presentPipelines), presentPipelines, &presentTechnique));
 
-        auto modelSponza =
-            Model::loadGlTF(renderer, "...");
-        auto modelModernAkWeapon =
-            Model::loadGlTF(renderer, "...");
+        std::filesystem::path appDir = gerium_file_get_app_dir();
+
+        auto sponzaDir = appDir / "assets" / "models" / "sponza" / "Sponza.gltf";
+        // auto spaceModuleDir = appDir / "assets" / "scenes" / "space_module" / "SpaceModule.gltf";
+
+        auto modelSponza = Model::loadGlTF(renderer, sponzaDir.string().c_str());
+        // auto modelSpaceModule = Model::loadGlTF(renderer, spaceModuleDir.string().c_str());
 
         auto defaultTransform = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
-        auto akTransform      = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
-        akTransform.localMatrix =
-            glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.08f, 0.08f, 0.08f)) *
+        auto moduleTransform  = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
+        moduleTransform.localMatrix =
+            glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.0008f, 0.0008f, 0.0008f)) *
             glm::rotate(glm::identity<glm::mat4>(), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) *
             glm::rotate(glm::identity<glm::mat4>(), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        auto root           = scene.root();
-        auto sponza         = scene.addNode(root);
-        auto modernAkWeapon = scene.addNode(sponza);
+        auto root   = scene.root();
+        auto sponza = scene.addNode(root);
+        // auto spaceModule = scene.addNode(sponza);
 
         scene.addComponentToNode(root, defaultTransform);
         scene.addComponentToNode(sponza, defaultTransform);
         scene.addComponentToNode(sponza, modelSponza);
-        scene.addComponentToNode(modernAkWeapon, akTransform);
-        scene.addComponentToNode(modernAkWeapon, modelModernAkWeapon);
+        // scene.addComponentToNode(spaceModule, defaultTransform);
+        // scene.addComponentToNode(spaceModule, modelSpaceModule);
 
         camera = std::make_shared<Camera>(application, renderer);
 
@@ -307,9 +308,6 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     bool swapFullscreen = false;
     bool showCursor     = gerium_application_is_show_cursor(application);
 
-    gerium_float32_t pitch = 0.0f;
-    gerium_float32_t yaw   = 0.0f;
-
     gerium_event_t event;
     while (gerium_application_poll_events(application, &event)) {
         if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
@@ -328,42 +326,46 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
                 showCursor = false;
             }
             if (!gerium_application_is_show_cursor(application)) {
-                pitch = event.mouse.raw_delta_y * 0.0001f;
-                yaw   = event.mouse.raw_delta_x * 0.0001f;
+                gerium_float32_t pitch = event.mouse.raw_delta_y * -0.0003f;
+                gerium_float32_t yaw   = event.mouse.raw_delta_x * 0.0003f;
+                camera->rotate(pitch, yaw, elapsed);
+                camera->zoom(event.mouse.wheel_vertical * -0.01f, elapsed);
             }
         }
     }
 
-    gerium_float32_t forward = 0.0f;
-    gerium_float32_t up      = 0.0f;
-    gerium_float32_t right   = 0.0f;
+    auto move = 1.0f;
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_SHIFT_LEFT)) {
+        move *= 2.0f;
+    }
+    if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_CONTROL_LEFT)) {
+        move /= 2.0f;
+    }
 
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_A) ||
         gerium_application_is_press_scancode(application, GERIUM_SCANCODE_ARROW_LEFT)) {
-        right += 1.0f;
+        camera->move(Camera::Right, -move, elapsed);
     }
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_D) ||
         gerium_application_is_press_scancode(application, GERIUM_SCANCODE_ARROW_RIGHT)) {
-        right -= 1.0f;
+        camera->move(Camera::Right, move, elapsed);
     }
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_W) ||
         gerium_application_is_press_scancode(application, GERIUM_SCANCODE_ARROW_UP)) {
-        forward += 1.0f;
+        camera->move(Camera::Forward, move, elapsed);
     }
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_S) ||
         gerium_application_is_press_scancode(application, GERIUM_SCANCODE_ARROW_DOWN)) {
-        forward -= 1.0f;
+        camera->move(Camera::Forward, -move, elapsed);
     }
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_SPACE) ||
         gerium_application_is_press_scancode(application, GERIUM_SCANCODE_PAGE_UP)) {
-        up += 1.0f;
+        camera->move(Camera::Up, move, elapsed);
     }
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_C) ||
         gerium_application_is_press_scancode(application, GERIUM_SCANCODE_PAGE_DOWN)) {
-        up -= 1.0f;
+        camera->move(Camera::Up, -move, elapsed);
     }
-    camera->move(forward, up, right, elapsed);
-    camera->rotate(pitch, yaw, elapsed);
 
     if (swapFullscreen) {
         gerium_application_fullscreen(application, !gerium_application_is_fullscreen(application), 0, nullptr);

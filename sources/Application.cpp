@@ -113,7 +113,7 @@ bool Application::isShowCursor() const noexcept {
 }
 
 void Application::showCursor(bool show) noexcept {
-    if (_isShowCursor != show) {
+    if (!!_isShowCursor != show) {
         _isShowCursor = show;
         onShowCursor(show);
     }

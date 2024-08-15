@@ -1,8 +1,11 @@
 #ifndef COMMON_HPP
 #define COMMON_HPP
 
+#define _USE_MATH_DEFINES
+
 #include <gerium/gerium.h>
 
+#include <cmath>
 #include <filesystem>
 #include <limits>
 #include <memory>
