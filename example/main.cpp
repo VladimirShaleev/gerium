@@ -166,6 +166,12 @@ bool initialize(gerium_application_t application) {
 
         gerium_color_blend_state_t colorBlend{};
         gerium_depth_stencil_state_t depthStencil{};
+        depthStencil.depth_test_enable        = 1;
+        depthStencil.depth_write_enable       = 1;
+        depthStencil.depth_bounds_test_enable = 0;
+        depthStencil.stencil_test_enable      = 0;
+        depthStencil.depth_compare_op         = GERIUM_COMPARE_OP_LESS_OR_EQUAL;
+
         gerium_rasterization_state_t rasterization{};
         rasterization.polygon_mode               = GERIUM_POLYGON_MODE_FILL;
         rasterization.cull_mode                  = GERIUM_CULL_MODE_NONE;
@@ -249,16 +255,26 @@ bool initialize(gerium_application_t application) {
         check(gerium_renderer_create_technique(
             renderer, frameGraph, "present", std::size(presentPipelines), presentPipelines, &presentTechnique));
 
+        auto modelSponza =
+            Model::loadGlTF(renderer, "...");
         auto modelModernAkWeapon =
-            Model::loadGlTF(renderer, "<path to gltf model>");
+            Model::loadGlTF(renderer, "...");
 
         auto defaultTransform = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
+        auto akTransform      = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
+        akTransform.localMatrix =
+            glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.08f, 0.08f, 0.08f)) *
+            glm::rotate(glm::identity<glm::mat4>(), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) *
+            glm::rotate(glm::identity<glm::mat4>(), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
         auto root           = scene.root();
-        auto modernAkWeapon = scene.addNode(root);
+        auto sponza         = scene.addNode(root);
+        auto modernAkWeapon = scene.addNode(sponza);
 
         scene.addComponentToNode(root, defaultTransform);
-        scene.addComponentToNode(modernAkWeapon, defaultTransform);
+        scene.addComponentToNode(sponza, defaultTransform);
+        scene.addComponentToNode(sponza, modelSponza);
+        scene.addComponentToNode(modernAkWeapon, akTransform);
         scene.addComponentToNode(modernAkWeapon, modelModernAkWeapon);
 
         camera = std::make_shared<Camera>(application, renderer);
