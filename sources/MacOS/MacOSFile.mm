@@ -1,5 +1,7 @@
 #include "MacOSFile.hpp"
 
+#include <mach-o/dyld.h>
+
 namespace gerium {
 
 namespace macos {
@@ -54,7 +56,14 @@ gerium_utf8_t File::getCacheDir() noexcept {
 }
 
 gerium_utf8_t File::getAppDir() noexcept {
-    static auto dir = macos::MacOSFile::getPath(NSApplicationSupportDirectory);
+    //static auto dir = macos::MacOSFile::getPath(NSApplicationSupportDirectory);
+    //return dir.c_str();
+    static std::string dir;
+    char path[1025]{};
+    uint32_t size = 1024;
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        dir = std::filesystem::path(path).parent_path().parent_path().parent_path().parent_path().string();
+    }
     return dir.c_str();
 }
 
