@@ -162,6 +162,12 @@ bool Application::isPressScancode(gerium_scancode_t scancode) const noexcept {
     return false;
 }
 
+void Application::execute(gerium_application_executor_func_t callback, gerium_data_t data) noexcept {
+    marl::schedule([this, callback, data]() {
+        callback(this, data);
+    });
+}
+
 bool Application::isRunning() const noexcept {
     return onIsRunning();
 }
@@ -414,4 +420,12 @@ gerium_bool_t gerium_application_poll_events(gerium_application_t application, g
 gerium_bool_t gerium_application_is_press_scancode(gerium_application_t application, gerium_scancode_t scancode) {
     assert(application);
     return alias_cast<Application*>(application)->isPressScancode(scancode);
+}
+
+void gerium_application_execute(gerium_application_t application,
+                                gerium_application_executor_func_t callback,
+                                gerium_data_t data) {
+    assert(application);
+    assert(callback);
+    return alias_cast<Application*>(application)->execute(callback, data);
 }

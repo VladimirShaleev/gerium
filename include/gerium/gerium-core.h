@@ -15,6 +15,8 @@ GERIUM_BEGIN
 
 GERIUM_TYPE(gerium_logger)
 GERIUM_TYPE(gerium_file)
+GERIUM_TYPE(gerium_mutex)
+GERIUM_TYPE(gerium_signal)
 GERIUM_TYPE(gerium_application)
 GERIUM_TYPE(gerium_renderer)
 GERIUM_TYPE(gerium_command_buffer)
@@ -724,6 +726,10 @@ typedef gerium_bool_t
                                    gerium_data_t data,
                                    gerium_application_state_t state);
 
+typedef void
+(*gerium_application_executor_func_t)(gerium_application_t application,
+                                      gerium_data_t data);
+
 typedef gerium_uint32_t
 (*gerium_frame_graph_prepare_func_t)(gerium_frame_graph_t frame_graph,
                                      gerium_renderer_t renderer,
@@ -1050,6 +1056,42 @@ gerium_public gerium_data_t
 gerium_file_map(gerium_file_t file);
 
 gerium_public gerium_result_t
+gerium_mutex_create(gerium_mutex_t* mutex);
+
+gerium_public gerium_mutex_t
+gerium_mutex_reference(gerium_mutex_t mutex);
+
+gerium_public void
+gerium_mutex_destroy(gerium_mutex_t mutex);
+
+gerium_public void
+gerium_mutex_lock(gerium_mutex_t mutex);
+
+gerium_public void
+gerium_mutex_unlock(gerium_mutex_t mutex);
+
+gerium_public gerium_result_t
+gerium_signal_create(gerium_signal_t* signal);
+
+gerium_public gerium_signal_t
+gerium_signal_reference(gerium_signal_t signal);
+
+gerium_public void
+gerium_signal_destroy(gerium_signal_t signal);
+
+gerium_public gerium_bool_t
+gerium_signal_is_set(gerium_signal_t signal);
+
+gerium_public void
+gerium_signal_set(gerium_signal_t signal);
+
+gerium_public void
+gerium_signal_wait(gerium_signal_t signal);
+
+gerium_public void
+gerium_signal_clear(gerium_signal_t signal);
+
+gerium_public gerium_result_t
 gerium_application_create(gerium_utf8_t title,
                           gerium_uint32_t width,
                           gerium_uint32_t height,
@@ -1167,6 +1209,11 @@ gerium_application_poll_events(gerium_application_t application,
 gerium_public gerium_bool_t
 gerium_application_is_press_scancode(gerium_application_t application,
                                      gerium_scancode_t scancode);
+
+gerium_public void
+gerium_application_execute(gerium_application_t application,
+                           gerium_application_executor_func_t callback,
+                           gerium_data_t data);
 
 gerium_public gerium_result_t
 gerium_renderer_create(gerium_application_t application,

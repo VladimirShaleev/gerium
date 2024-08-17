@@ -2,6 +2,7 @@
 #define MODEL_HPP
 
 #include "Common.hpp"
+#include "AsyncLoader.hpp"
 
 enum class DrawFlags {
     None        = 0,
@@ -171,7 +172,7 @@ public:
     const glm::mat4& getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
     const glm::mat4& getInverseWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
 
-    static Model loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path);
+    static Model loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std::filesystem::path& path);
 
 private:
     void changeNode(gerium_sint32_t nodeIndex) noexcept;

@@ -650,7 +650,7 @@ static void fillPbrMaterial(const gltf::Material& material,
     // }
 }
 
-Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& path) {
+Model Model::loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std::filesystem::path& path) {
     gltf::glTF glTF{};
     gltf::loadGlTF(glTF, path);
 
@@ -693,7 +693,35 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
     std::vector<gerium_texture_h> textures;
     for (const auto& image : glTF.images) {
         const auto fullPath = path.parent_path() / image.uri;
-        textures.push_back(loadTexture(renderer, fullPath));
+        if (gerium_file_exists_file(fullPath.string().c_str())) {
+            gerium_file_t file;
+            check(gerium_file_open(fullPath.string().c_str(), true, &file));
+            auto size = gerium_file_get_size(file);
+            auto data = gerium_file_map(file);
+            auto name = fullPath.filename().string();
+
+            int comp, width, height;
+            stbi_info_from_memory((const stbi_uc*) data, size, &width, &height, &comp);
+
+            auto mipLevels = 1; // calcMipLevels(width, height);
+
+            gerium_texture_info_t info{};
+            info.width   = (gerium_uint16_t) width;
+            info.height  = (gerium_uint16_t) height;
+            info.depth   = 1;
+            info.mipmaps = (gerium_uint16_t) mipLevels;
+            info.format  = GERIUM_FORMAT_R8G8B8A8_UNORM;
+            info.type    = GERIUM_TEXTURE_TYPE_2D;
+            info.name    = name.c_str();
+
+            gerium_texture_h texture;
+            check(gerium_renderer_create_texture(renderer, &info, nullptr, &texture));
+            textures.push_back(texture);
+            
+            loader.loadTexture(texture, file, data);
+        } else {
+            textures.push_back({ UndefinedHandle });
+        }
     }
 
     auto& root    = glTF.scenes[glTF.scene];

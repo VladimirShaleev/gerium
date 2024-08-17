@@ -50,6 +50,8 @@ public:
     bool pollEvents(gerium_event_t& event) noexcept;
     bool isPressScancode(gerium_scancode_t scancode) const noexcept;
 
+    void execute(gerium_application_executor_func_t callback, gerium_data_t data) noexcept;
+
     bool isRunning() const noexcept;
 
     gerium_uint32_t workerThreadCount() const noexcept;
@@ -88,7 +90,7 @@ private:
 
     virtual gerium_utf8_t onGetTitle() const noexcept     = 0;
     virtual void onSetTitle(gerium_utf8_t title) noexcept = 0;
-    
+
     virtual void onShowCursor(bool show) noexcept = 0;
 
     virtual void onRun()           = 0;
