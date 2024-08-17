@@ -62,6 +62,9 @@ void PBRMaterial::updateMeshData(const MeshData& meshData) {
     if (_descriptorSet.unused == UndefinedHandle) {
         check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
         gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
+        gerium_renderer_bind_texture(_renderer, _descriptorSet, 1, _diffuse);
+        gerium_renderer_bind_texture(_renderer, _descriptorSet, 2, _normal);
+        gerium_renderer_bind_texture(_renderer, _descriptorSet, 3, _roughness);
     }
     auto data = (MeshData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
     *data     = meshData;
@@ -228,7 +231,7 @@ Mesh::Mesh(const Mesh& mesh) noexcept : _material(mesh._renderer) {
     reference();
 }
 
-Mesh::Mesh(Mesh&& mesh) noexcept : _material(std::move(mesh._material)) {
+Mesh::Mesh(Mesh&& mesh) noexcept : _material(mesh._renderer) {
     copy(mesh);
     mesh.invalidateBuffers();
 }
@@ -349,6 +352,7 @@ gerium_uint32_t Mesh::getPrimitiveCount() const noexcept {
 
 void Mesh::copy(const Mesh& mesh) noexcept {
     _renderer        = mesh._renderer;
+    _material        = mesh._material;
     _indices         = mesh._indices;
     _positions       = mesh._positions;
     _texcoords       = mesh._texcoords;
@@ -522,7 +526,70 @@ const glm::mat4& Model::getInverseWorldMatrix(gerium_uint32_t nodeIndex) const n
     return _inverseWorldMatrices[nodeIndex];
 }
 
-static void fillPbrMaterial(const gltf::Material& material, PBRMaterial& pbrMaterial) {
+static gerium_texture_h loadTexture(gerium_renderer_t renderer, const std::filesystem::path& path) {
+    if (gerium_file_exists_file(path.string().c_str())) {
+        gerium_file_t file;
+        check(gerium_file_open(path.string().c_str(), true, &file));
+        auto size = gerium_file_get_size(file);
+        auto data = gerium_file_map(file);
+
+        int comp, width, height;
+        stbi_info_from_memory((const stbi_uc*) data, size, &width, &height, &comp);
+
+        auto mipLevels = 1; // calcMipLevels(width, height);
+
+        auto name = path.filename().string();
+
+        gerium_texture_info_t info{};
+        info.width   = (gerium_uint16_t) width;
+        info.height  = (gerium_uint16_t) height;
+        info.depth   = 1;
+        info.mipmaps = (gerium_uint16_t) mipLevels;
+        info.format  = GERIUM_FORMAT_R8G8B8A8_UNORM;
+        info.type    = GERIUM_TEXTURE_TYPE_2D;
+        info.name    = name.c_str();
+
+        gerium_texture_h texture;
+        check(gerium_renderer_create_texture(renderer, &info, nullptr, &texture));
+
+        auto textureData = stbi_load_from_memory((const stbi_uc*) data, size, &width, &height, &comp, 4);
+
+        struct UploadData {
+            gerium_file_t file;
+            stbi_uc* textureData;
+        };
+
+        auto uploadData = new UploadData{ file, textureData };
+
+        check(gerium_renderer_async_upload_texture_data(
+            renderer, texture, textureData, [](auto renderer, auto texture, auto data) {
+            auto uploadData = (UploadData*) data;
+            stbi_image_free(uploadData->textureData);
+            gerium_file_destroy(uploadData->file);
+            delete data;
+        }, uploadData));
+
+        // stbi_image_free(textureData);
+        // gerium_file_destroy(file);
+
+        // check(gerium_renderer_async_load_texture(
+        //     renderer,
+        //     path.string().c_str(),
+        //     [](gerium_renderer_t renderer, gerium_texture_h texture, gerium_data_t data) {
+        //     int i = 5;
+        // },
+        //     nullptr));
+
+        return texture;
+    } else {
+        return { UndefinedHandle };
+    }
+}
+
+static void fillPbrMaterial(const gltf::Material& material,
+                            PBRMaterial& pbrMaterial,
+                            const std::vector<gltf::Texture>& gltfTextures,
+                            const std::vector<gerium_texture_h>& textures) {
     auto flags = material.doubleSided ? DrawFlags::DoubleSided : DrawFlags::None;
     if (material.alphaMode == "MASK") {
         flags |= DrawFlags::AlphaMask;
@@ -550,15 +617,27 @@ static void fillPbrMaterial(const gltf::Material& material, PBRMaterial& pbrMate
                                                  ? material.pbrMetallicRoughness.metallicFactor
                                                  : 1.0f;
 
-        // pbrMaterial.diffuseTextureIndex = getMaterialTexture(&material.pbr_metallic_roughness.base_color_texture);
-        // pbrMaterial.roughnessTextureIndex =
-        //     getMaterialTexture(&material.pbr_metallic_roughness.metallic_roughness_texture);
+        if (material.pbrMetallicRoughness.baseColorTexture.has) {
+            const auto links = gltfTextures[material.pbrMetallicRoughness.baseColorTexture.index];
+            pbrMaterial.setDiffuse(textures[links.source]);
+        }
+
+        if (material.pbrMetallicRoughness.metallicRoughnessTexture.has) {
+            const auto links = gltfTextures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
+            pbrMaterial.setRoughness(textures[links.source]);
+        }
     }
 
     pbrMaterial.setFactor(baseColorFactor, metallicRoughnessOcclusionFactor);
 
     // pbrMaterial.occlusionTextureIndex =
     //     getMaterialTexture((material.occlusion_texture.has) ? material.occlusion_texture.index : -1);
+
+    if (material.normalTexture.has) {
+        const auto links = gltfTextures[material.normalTexture.index];
+        pbrMaterial.setNormal(textures[links.source]);
+    }
+
     // pbrMaterial.normalTextureIndex =
     //     getMaterialTexture((material.normal_texture.has) ? material.normal_texture.index : -1);
 
@@ -609,6 +688,12 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
 
     for (auto& bufferFile : bufferFiles) {
         gerium_file_destroy(bufferFile);
+    }
+
+    std::vector<gerium_texture_h> textures;
+    for (const auto& image : glTF.images) {
+        const auto fullPath = path.parent_path() / image.uri;
+        textures.push_back(loadTexture(renderer, fullPath));
     }
 
     auto& root    = glTF.scenes[glTF.scene];
@@ -702,7 +787,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
 
             auto& material = glTF.materials[primitive.material];
             PBRMaterial pbrMaterial(renderer);
-            fillPbrMaterial(material, pbrMaterial);
+            fillPbrMaterial(material, pbrMaterial, glTF.textures, textures);
 
             Mesh mesh(renderer);
             mesh.setNodeIndex(nodeIndex);
@@ -715,6 +800,10 @@ Model Model::loadGlTF(gerium_renderer_t renderer, const std::filesystem::path& p
 
             model.addMesh(mesh);
         }
+    }
+
+    for (auto texture : textures) {
+        gerium_renderer_destroy_texture(renderer, texture);
     }
 
     for (auto buffer : buffers) {

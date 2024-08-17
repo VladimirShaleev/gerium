@@ -742,6 +742,11 @@ typedef gerium_bool_t
                                     gerium_uint32_t total_workers,
                                     gerium_data_t data);
 
+typedef void
+(*gerium_texture_loaded_func_t)(gerium_renderer_t renderer,
+                                gerium_texture_h texture,
+                                gerium_data_t data);
+
 typedef struct
 {
     gerium_scancode_t      scancode;
@@ -798,9 +803,8 @@ typedef struct
     gerium_uint16_t       mipmaps;
     gerium_format_t       format;
     gerium_texture_type_t type;
-    gerium_cdata_t        data;
     gerium_utf8_t         name;
-} gerium_texture_creation_t;
+} gerium_texture_info_t;
 
 typedef struct
 {
@@ -1194,7 +1198,8 @@ gerium_renderer_create_buffer(gerium_renderer_t renderer,
 
 gerium_public gerium_result_t
 gerium_renderer_create_texture(gerium_renderer_t renderer,
-                               const gerium_texture_creation_t* creation,
+                               const gerium_texture_info_t* info,
+                               gerium_cdata_t data,
                                gerium_texture_h* handle);
 
 gerium_public gerium_result_t
@@ -1208,6 +1213,13 @@ gerium_renderer_create_technique(gerium_renderer_t renderer,
 gerium_public gerium_result_t
 gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
                                       gerium_descriptor_set_h* handle);
+
+gerium_public gerium_result_t
+gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
+                                          gerium_texture_h handle,
+                                          gerium_cdata_t texture_data,
+                                          gerium_texture_loaded_func_t callback,
+                                          gerium_data_t data);
 
 gerium_public gerium_buffer_h
 gerium_renderer_reference_buffer(gerium_renderer_t renderer,

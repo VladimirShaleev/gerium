@@ -45,6 +45,13 @@ FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph, cons
     return onCreateFramebuffer(frameGraph, node);
 }
 
+void Renderer::asyncUploadTextureData(TextureHandle handle,
+                                      gerium_cdata_t textureData,
+                                      gerium_texture_loaded_func_t callback,
+                                      gerium_data_t data){
+    onAsyncUploadTextureData(handle, textureData, callback, data);
+}
+
 BufferHandle Renderer::referenceBuffer(BufferHandle handle) noexcept {
     return onReferenceBuffer(handle);
 }
@@ -172,18 +179,19 @@ gerium_result_t gerium_renderer_create_buffer(gerium_renderer_t renderer,
 }
 
 gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
-                                               const gerium_texture_creation_t* creation,
+                                               const gerium_texture_info_t* info,
+                                               gerium_cdata_t data,
                                                gerium_texture_h* handle) {
     assert(renderer);
-    GERIUM_ASSERT_ARG(creation);
+    GERIUM_ASSERT_ARG(info);
     GERIUM_ASSERT_ARG(handle);
 
     TextureCreation tc;
-    tc.setSize(creation->width, creation->height, creation->depth)
-        .setFlags(creation->mipmaps, false, false)
-        .setFormat(creation->format, creation->type)
-        .setData((void*) creation->data)
-        .setName(creation->name);
+    tc.setSize(info->width, info->height, info->depth)
+        .setFlags(info->mipmaps, false, false)
+        .setFormat(info->format, info->type)
+        .setData((void*) data)
+        .setName(info->name);
 
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createTexture(tc);
@@ -220,6 +228,19 @@ gerium_result_t gerium_renderer_create_descriptor_set(gerium_renderer_t renderer
 
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createDescriptorSet();
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
+                                                          gerium_texture_h handle,
+                                                          gerium_cdata_t texture_data,
+                                                          gerium_texture_loaded_func_t callback,
+                                                          gerium_data_t data) {
+    assert(renderer);
+    GERIUM_ASSERT_ARG(texture_data);
+
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<Renderer*>(renderer)->asyncUploadTextureData({ handle.unused }, texture_data, callback, data);
     GERIUM_END_SAFE_BLOCK
 }
 

@@ -57,6 +57,7 @@ find_package(unofficial-shaderc CONFIG REQUIRED)
 find_package(unofficial-spirv-reflect CONFIG REQUIRED)
 find_package(marl CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
@@ -137,6 +138,7 @@ target_link_libraries(gerium PRIVATE marl::marl)
 target_link_libraries(gerium PRIVATE glm::glm-header-only)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${IMGUI_INCLUDE_DIRS})
+target_include_directories(gerium PRIVATE ${Stb_INCLUDE_DIR})
 target_sources(gerium PRIVATE ${IMGUI_SOURCES})
 
 target_include_directories(gerium PUBLIC

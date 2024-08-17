@@ -7,6 +7,9 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 gerium_uint32_t gerium_version(void) {
     return GERIUM_VERSION;
 }

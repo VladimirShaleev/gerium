@@ -8,10 +8,20 @@ VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noe
     _device(std::move(device)),
     _width(0),
     _height(0),
-    _currentRenderPassName(nullptr) {
+    _currentRenderPassName(nullptr),
+    _transferBuffer(Undefined),
+    _transferBufferOffset(0),
+    _loadEvent(marl::Event::Mode::Manual),
+    _loadThreadEnd(marl::Event::Mode::Manual) {
     if (!application->isRunning()) {
         error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
     }
+}
+
+VkRenderer::~VkRenderer() {
+    _loadEvent.signal();
+    _loadThreadEnd.signal();
+    _loadTread.join();
 }
 
 PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
@@ -29,10 +39,26 @@ PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
 
 void VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
     _device->create(application(), version, debug);
+    createTransferBuffer();
 }
 
 Application* VkRenderer::application() noexcept {
     return _application.get();
+}
+
+void VkRenderer::createTransferBuffer() {
+    BufferCreation bc;
+    bc.reset().set({}, ResourceUsageType::Staging, 64 * 1024 * 1024).setName("staging_buffer").setPersistent(true);
+    _transferBuffer       = _device->createBuffer(bc);
+    _transferBufferOffset = 0;
+
+    auto scheduler = marl::Scheduler::get();
+
+    _loadTread = std::thread([this, scheduler]() {
+        scheduler->bind();
+        defer(scheduler->unbind());
+        loadThread();
+    });
 }
 
 bool VkRenderer::onGetProfilerEnable() const noexcept {
@@ -223,6 +249,15 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, 
     creation.height = height;
 
     return _device->createFramebuffer(creation);
+}
+
+void VkRenderer::onAsyncUploadTextureData(TextureHandle handle,
+                                          gerium_cdata_t textureData,
+                                          gerium_texture_loaded_func_t callback,
+                                          gerium_data_t data) {
+    marl::lock lock(_loadRequestsMutex);
+    _loadRequests.push({ textureData, handle, callback, data });
+    _loadEvent.signal();
 }
 
 BufferHandle VkRenderer::onReferenceBuffer(BufferHandle handle) noexcept {
@@ -484,6 +519,23 @@ void VkRenderer::onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& hei
     const auto& size = _device->getSwapchainExtent();
     width            = size.width;
     height           = size.height;
+}
+
+void VkRenderer::loadThread() noexcept {
+    LoadRequest request;
+
+    while (!_loadThreadEnd.test()) {
+        _loadEvent.wait();
+        {
+            marl::lock lock(_loadRequestsMutex);
+            if (_loadRequests.empty()) {
+                _loadEvent.clear();
+                continue;
+            }
+            request = _loadRequests.front();
+            _loadRequests.pop();
+        }
+    }
 }
 
 } // namespace gerium::vulkan

@@ -155,8 +155,12 @@ bool initialize(gerium_application_t application) {
                               "\n"
                               "layout(location = 0) out vec4 outColor;\n"
                               "\n"
+                              "layout(binding = 1, set = 1) uniform sampler2D baseColor;\n"
+                              "layout(binding = 2, set = 1) uniform sampler2D normalColor;\n"
+                              "layout(binding = 3, set = 1) uniform sampler2D metallicRoughnessColor;\n"
+                              "\n"
                               "void main() {\n"
-                              "    outColor = vec4(inTexcoord, 0.0, 1.0);\n"
+                              "    outColor = texture(baseColor, inTexcoord);\n"
                               "}\n";
         baseShaders[1].size = strlen((const char*) baseShaders[1].data);
 
@@ -242,6 +246,7 @@ bool initialize(gerium_application_t application) {
 
         gerium_depth_stencil_state_t depthStencilEmpty{};
         gerium_rasterization_state_t rasterizationEmpty{};
+        rasterizationEmpty.line_width = 1.0f;
         gerium_pipeline_t presentPipelines[1]{};
         presentPipelines[0].render_pass   = "present_pass";
         presentPipelines[0].rasterization = &rasterizationEmpty;

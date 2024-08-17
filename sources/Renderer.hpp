@@ -31,6 +31,11 @@ public:
     RenderPassHandle createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node);
     FramebufferHandle createFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node);
 
+    void asyncUploadTextureData(TextureHandle handle,
+                                gerium_cdata_t textureData,
+                                gerium_texture_loaded_func_t callback,
+                                gerium_data_t data);
+
     BufferHandle referenceBuffer(BufferHandle handle) noexcept;
     TextureHandle referenceTexture(TextureHandle handle) noexcept;
     TechniqueHandle referenceTechnique(TechniqueHandle handle) noexcept;
@@ -73,6 +78,11 @@ private:
     virtual DescriptorSetHandle onCreateDescriptorSet()                                                     = 0;
     virtual RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node)   = 0;
     virtual FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) = 0;
+
+    virtual void onAsyncUploadTextureData(TextureHandle handle,
+                                          gerium_cdata_t textureData,
+                                          gerium_texture_loaded_func_t callback,
+                                          gerium_data_t data) = 0;
 
     virtual BufferHandle onReferenceBuffer(BufferHandle handle) noexcept                      = 0;
     virtual TextureHandle onReferenceTexture(TextureHandle handle) noexcept                   = 0;

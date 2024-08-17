@@ -16,7 +16,8 @@
     "marl",
     "glm",
     "nlohmann-json",
-    "entt"
+    "entt",
+    "stb"
   ],
   "overrides": [
     { "name": "wyhash", "version": "2023-01-25" }

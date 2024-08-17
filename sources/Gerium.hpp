@@ -123,6 +123,9 @@ CMRC_DECLARE(gerium::resources);
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 
+// Stb
+#include <stb_image.h>
+
 #include "gerium/gerium.h"
 
 typedef ptrdiff_t gerium_sint_t;
@@ -163,6 +166,12 @@ gerium_inline gerium_uint32_t align(gerium_uint32_t size, gerium_uint32_t alignm
     } else {
         return size;
     }
+}
+
+template <typename T>
+gerium_inline gerium_uint8_t calcMipLevels(T width, T height) noexcept {
+    static_assert(std::is_integral_v<T>, "T is not integral type");
+    return static_cast<gerium_uint8_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 }
 
 } // namespace gerium

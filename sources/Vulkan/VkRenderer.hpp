@@ -11,6 +11,7 @@ namespace gerium::vulkan {
 class VkRenderer : public Renderer {
 public:
     VkRenderer(Application* application, ObjectPtr<Device>&& device) noexcept;
+    ~VkRenderer() override;
 
     PipelineHandle getPipeline(TechniqueHandle handle) const noexcept;
 
@@ -20,6 +21,15 @@ protected:
     Application* application() noexcept;
 
 private:
+    struct LoadRequest {
+        gerium_cdata_t data{};
+        TextureHandle texture{ Undefined };
+        gerium_texture_loaded_func_t callback{};
+        gerium_data_t userData{};
+    };
+
+    void createTransferBuffer();
+
     bool onGetProfilerEnable() const noexcept override;
     void onSetProfilerEnable(bool enable) noexcept override;
 
@@ -32,6 +42,11 @@ private:
     DescriptorSetHandle onCreateDescriptorSet() override;
     RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
     FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
+
+    void onAsyncUploadTextureData(TextureHandle handle,
+                                  gerium_cdata_t textureData,
+                                  gerium_texture_loaded_func_t callback,
+                                  gerium_data_t data) override;
 
     BufferHandle onReferenceBuffer(BufferHandle handle) noexcept override;
     TextureHandle onReferenceTexture(TextureHandle handle) noexcept override;
@@ -59,12 +74,21 @@ private:
     Profiler* onGetProfiler() noexcept override;
     void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept override;
 
+    void loadThread() noexcept;
+
     ObjectPtr<Application> _application;
     ObjectPtr<Device> _device;
     gerium_uint16_t _width;
     gerium_uint16_t _height;
     gerium_utf8_t _currentRenderPassName;
     TechniquePool _techniques;
+    BufferHandle _transferBuffer;
+    std::atomic_size_t _transferBufferOffset;
+    std::thread _loadTread;
+    marl::Event _loadEvent;
+    marl::Event _loadThreadEnd;
+    marl::mutex _loadRequestsMutex;
+    std::queue<LoadRequest> _loadRequests;
 };
 
 } // namespace gerium::vulkan

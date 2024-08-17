@@ -155,13 +155,14 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
 void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst) {
     auto srcBuffer  = _device->_buffers.access(src);
     auto dstTexture = _device->_textures.access(dst);
+    auto srcOffset  = srcBuffer->globalOffset;
 
     if (srcBuffer->parent != Undefined) {
         srcBuffer = _device->_buffers.access(srcBuffer->parent);
     }
 
     VkBufferImageCopy region{};
-    region.bufferOffset                    = srcBuffer->globalOffset;
+    region.bufferOffset                    = (VkDeviceSize) srcOffset;
     region.bufferRowLength                 = 0;
     region.bufferImageHeight               = 0;
     region.imageSubresource.aspectMask     = toVkImageAspect(dstTexture->vkFormat);
