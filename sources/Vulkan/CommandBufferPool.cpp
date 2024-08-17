@@ -14,11 +14,12 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
                                     ResourceState newState,
                                     gerium_uint32_t mipLevel,
                                     gerium_uint32_t mipCount,
-                                    gerium_uint32_t srcFamily,
-                                    gerium_uint32_t dstFamily,
                                     QueueType srcQueueType,
                                     QueueType dstQueueType) {
     auto texture = _device->_textures.access(handle);
+
+    auto srcFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(srcQueueType);
+    auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
     barrier.srcAccessMask                   = toVkAccessFlags(oldState);
@@ -30,7 +31,7 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     barrier.image                           = texture->vkImage;
     barrier.subresourceRange.aspectMask     = toVkImageAspect(texture->vkFormat);
     barrier.subresourceRange.baseMipLevel   = mipLevel;
-    barrier.subresourceRange.levelCount     = mipCount;
+    barrier.subresourceRange.levelCount     = mipCount == 0 ? texture->mipmaps : mipCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount     = 1;
 
@@ -152,10 +153,15 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
         _commandBuffer, srcStageMask2, dstStageMask2, 0, 0, nullptr, 1, &barrier2, 0, nullptr);
 }
 
-void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst) {
+void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset) {
     auto srcBuffer  = _device->_buffers.access(src);
     auto dstTexture = _device->_textures.access(dst);
-    auto srcOffset  = srcBuffer->globalOffset;
+    auto srcOffset  = srcBuffer->globalOffset + offset;
+
+    auto isTransfer = srcBuffer->vkUsageFlags == VkBufferUsageFlagBits{};
+    // auto srcFamily  = isTransfer ? _device->_queueFamilies.transfer.value().index : VK_QUEUE_FAMILY_IGNORED;
+    // auto dstFamily  = isTransfer ? _device->_queueFamilies.graphic.value().index : VK_QUEUE_FAMILY_IGNORED;
+    auto queue = isTransfer ? QueueType::CopyTransfer : QueueType::Graphics;
 
     if (srcBuffer->parent != Undefined) {
         srcBuffer = _device->_buffers.access(srcBuffer->parent);
@@ -172,12 +178,77 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst) {
     region.imageOffset                     = { 0, 0, 0 };
     region.imageExtent                     = { dstTexture->width, dstTexture->height, dstTexture->depth };
 
-    addImageBarrier(dst, ResourceState::Undefined, ResourceState::CopyDest, 0, 1);
+    addImageBarrier(dst, ResourceState::Undefined, ResourceState::CopyDest, 0, 1, queue, queue);
     _device->vkTable().vkCmdCopyBufferToImage(
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    addImageBarrier(dst, ResourceState::CopyDest, ResourceState::ShaderResource, 0, 1);
+    addImageBarrier(dst, ResourceState::CopyDest, ResourceState::CopySource, 0, 1, queue, queue);
+
+    // if (!isTransfer) {
+    //     return;
+    // }
+
+    // addImageBarrier(dst,
+    //                 ResourceState::CopyDest,
+    //                 ResourceState::CopySource,
+    //                 0,
+    //                 1,
+    //                 srcFamily,
+    //                 dstFamily,
+    //                 QueueType::CopyTransfer,
+    //                 QueueType::Graphics);
+
+    // if (dstTexture->mipmaps > 1) {
+    //     addImageBarrier(dst, ResourceState::CopySource, ResourceState::CopySource, 0, 1);
+    // }
+
+    int32_t w = dstTexture->width;
+    int32_t h = dstTexture->height;
+
+    for (int mipIndex = 1; mipIndex < dstTexture->mipmaps; ++mipIndex) {
+        addImageBarrier(dst, ResourceState::Undefined, ResourceState::CopyDest, mipIndex, 1, queue, queue);
+
+        VkImageBlit blitRegion{};
+        blitRegion.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.srcSubresource.mipLevel       = mipIndex - 1;
+        blitRegion.srcSubresource.baseArrayLayer = 0;
+        blitRegion.srcSubresource.layerCount     = 1;
+        blitRegion.srcOffsets[0]                 = { 0, 0, 0 };
+        blitRegion.srcOffsets[1]                 = { w, h, 1 };
+        blitRegion.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.dstSubresource.mipLevel       = mipIndex;
+        blitRegion.dstSubresource.baseArrayLayer = 0;
+        blitRegion.dstSubresource.layerCount     = 1;
+        blitRegion.dstOffsets[0]                 = { 0, 0, 0 };
+        blitRegion.dstOffsets[1]                 = { w /= 2, h /= 2, 1 };
+
+        _device->_vkTable.vkCmdBlitImage(_commandBuffer,
+                                         dstTexture->vkImage,
+                                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                         dstTexture->vkImage,
+                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                         1,
+                                         &blitRegion,
+                                         VK_FILTER_LINEAR);
+
+        addImageBarrier(dst, ResourceState::CopyDest, ResourceState::CopySource, mipIndex, 1, queue, queue);
+    }
+
+    // Transition
+    if (isTransfer) {
+        addImageBarrier(dst,
+                        ResourceState::CopySource,
+                        ResourceState::CopySource,
+                        0,
+                        dstTexture->mipmaps,
+                        queue,
+                        QueueType::Graphics);
+    }
+    if (!isTransfer) {
+        addImageBarrier(dst, ResourceState::CopySource, ResourceState::ShaderResource, 0, dstTexture->mipmaps);
+    }
 
     // dstTexture->vkImageLayout =
+    // dstTexture->loaded = true;
 }
 
 void CommandBuffer::pushMarker(gerium_utf8_t name) {
@@ -196,7 +267,7 @@ void CommandBuffer::popMarker() {
     }
 }
 
-void CommandBuffer::submit(QueueType queue) {
+void CommandBuffer::submit(QueueType queue, bool wait) {
     end();
 
     VkSubmitInfo submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -217,7 +288,10 @@ void CommandBuffer::submit(QueueType queue) {
     }
 
     _device->vkTable().vkQueueSubmit(vkQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    _device->vkTable().vkQueueWaitIdle(vkQueue);
+
+    if (wait) {
+        _device->vkTable().vkQueueWaitIdle(vkQueue);
+    }
 }
 
 void CommandBuffer::execute(gerium_uint32_t numCommandBuffers, CommandBuffer* commandBuffers[]) {
@@ -390,6 +464,19 @@ void CommandBuffer::onDrawIndexed(gerium_uint32_t firstIndex,
         _commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
+uint32_t CommandBuffer::getFamilyIndex(QueueType queue) const noexcept {
+    switch (queue) {
+        case QueueType::Graphics:
+            return _device->_queueFamilies.graphic.value().index;
+        case QueueType::Compute:
+            return _device->_queueFamilies.compute.value().index;
+        case QueueType::CopyTransfer:
+            return _device->_queueFamilies.transfer.value().index;
+    }
+    assert(!"unreachable code");
+    return 0;
+}
+
 CommandBufferPool::~CommandBufferPool() {
     destroy();
 }
@@ -397,10 +484,23 @@ CommandBufferPool::~CommandBufferPool() {
 void CommandBufferPool::create(Device& device,
                                gerium_uint32_t numThreads,
                                gerium_uint32_t numBuffersPerFrame,
-                               gerium_uint32_t family) {
+                               QueueType queue) {
     _device          = &device;
     _threadCount     = numThreads + 1;
     _buffersPerFrame = numBuffersPerFrame;
+
+    uint32_t family;
+    switch (queue) {
+        case QueueType::Graphics:
+            family = _device->_queueFamilies.graphic.value().index;
+            break;
+        case QueueType::Compute:
+            family = _device->_queueFamilies.compute.value().index;
+            break;
+        case QueueType::CopyTransfer:
+            family = _device->_queueFamilies.transfer.value().index;
+            break;
+    }
 
     const auto totalPools = _threadCount * _device->MaxFrames;
 
@@ -446,6 +546,22 @@ void CommandBufferPool::destroy() noexcept {
     _buffersPerFrame = 0;
     _threadCount     = 0;
     _device          = nullptr;
+}
+
+void CommandBufferPool::wait(QueueType queue) {
+    VkQueue vkQueue;
+    switch (queue) {
+        case QueueType::Graphics:
+            vkQueue = _device->_queueGraphic;
+            break;
+        case QueueType::Compute:
+            vkQueue = _device->_queueCompute;
+            break;
+        case QueueType::CopyTransfer:
+            vkQueue = _device->_queueTransfer;
+            break;
+    }
+    _device->vkTable().vkQueueWaitIdle(vkQueue);
 }
 
 CommandBuffer* CommandBufferPool::getPrimary(gerium_uint32_t frame, bool profile) {

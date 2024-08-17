@@ -369,6 +369,8 @@ struct Buffer {
     gerium_uint32_t    size;
     gerium_uint32_t    globalOffset;
     void*              mappedData;
+    gerium_uint32_t    mappedOffset;
+    gerium_uint32_t    mappedSize;
     gerium_utf8_t      name;
     BufferHandle       parent;
 };
@@ -384,6 +386,7 @@ struct Texture {
     uint16_t              height;
     uint16_t              depth;
     uint8_t               mipmaps;
+    uint8_t               loaded;
     TextureFlags          flags;
     gerium_texture_type_t type;
     gerium_utf8_t         name;

@@ -21,6 +21,8 @@ public:
     bool getProfilerEnable() const noexcept;
     void setProfilerEnable(bool enable) noexcept;
 
+    void getTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept;
+
     BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
     TechniqueHandle createTechnique(const FrameGraph& frameGraph,
@@ -68,6 +70,8 @@ protected:
 private:
     virtual bool onGetProfilerEnable() const noexcept      = 0;
     virtual void onSetProfilerEnable(bool enable) noexcept = 0;
+
+    virtual void onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept = 0;
 
     virtual BufferHandle onCreateBuffer(const BufferCreation& creation)                                     = 0;
     virtual TextureHandle onCreateTexture(const TextureCreation& creation)                                  = 0;

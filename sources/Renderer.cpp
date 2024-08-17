@@ -18,6 +18,10 @@ void Renderer::setProfilerEnable(bool enable) noexcept {
     onSetProfilerEnable(enable);
 }
 
+void Renderer::getTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept {
+    onGetTextureInfo(handle, info);
+}
+
 BufferHandle Renderer::createBuffer(const BufferCreation& creation) {
     return onCreateBuffer(creation);
 }
@@ -48,7 +52,7 @@ FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph, cons
 void Renderer::asyncUploadTextureData(TextureHandle handle,
                                       gerium_cdata_t textureData,
                                       gerium_texture_loaded_func_t callback,
-                                      gerium_data_t data){
+                                      gerium_data_t data) {
     onAsyncUploadTextureData(handle, textureData, callback, data);
 }
 
@@ -156,6 +160,14 @@ gerium_bool_t gerium_renderer_get_profiler_enable(gerium_renderer_t renderer) {
 void gerium_renderer_set_profiler_enable(gerium_renderer_t renderer, gerium_bool_t enable) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->setProfilerEnable(enable);
+}
+
+void gerium_renderer_get_texture_info(gerium_renderer_t renderer,
+                                      gerium_texture_h handle,
+                                      gerium_texture_info_t* info) {
+    assert(renderer);
+    assert(info);
+    return alias_cast<Renderer*>(renderer)->getTextureInfo({ handle.unused }, *info);
 }
 
 gerium_result_t gerium_renderer_create_buffer(gerium_renderer_t renderer,

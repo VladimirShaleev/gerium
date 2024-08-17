@@ -49,6 +49,8 @@ public:
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
+    void finishLoadTexture(TextureHandle handle);
+
     void bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput = nullptr);
     VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle,
                                         DescriptorSetLayoutHandle layoutHandle,
@@ -121,6 +123,26 @@ public:
         }
     }
 
+    // uint32_t getTransferFamily() const noexcept {
+    //     return _queueFamilies.transfer.value().index;
+    // }
+
+    // uint32_t getGraphicFamily() const noexcept {
+    //     return _queueFamilies.graphic.value().index;
+    // }
+
+    void getTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept {
+        const auto texture = _textures.access(handle);
+
+        info.width   = texture->width;
+        info.height  = texture->height;
+        info.depth   = texture->depth;
+        info.mipmaps = texture->mipmaps;
+        info.format  = toGeriumFormat(texture->vkFormat);
+        info.type    = texture->type;
+        info.name    = texture->name;
+    }
+
     static constexpr gerium_uint32_t MaxFrames = 2;
 
 protected:
@@ -130,6 +152,7 @@ protected:
 
 private:
     friend CommandBuffer;
+    friend CommandBufferPool;
 
     enum class ResourceType {
         Buffer,
@@ -187,6 +210,7 @@ private:
     void createVmaAllocator();
     void createDynamicBuffer();
     void createDefaultSampler();
+    void createDefaultTexture();
     void createSynchronizations();
     void createSwapchain(Application* application);
     void createImGui(Application* application);
@@ -196,12 +220,12 @@ private:
     void printExtensions();
     void printPhysicalDevices();
 
-    uint32_t fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
-                                     const DescriptorSet& descriptorSet,
-                                     VkDescriptorSet vkDescriptorSet,
-                                     VkWriteDescriptorSet* descriptorWrite,
-                                     VkDescriptorBufferInfo* bufferInfo,
-                                     VkDescriptorImageInfo* imageInfo);
+    std::tuple<uint32_t, bool> fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
+                                                       const DescriptorSet& descriptorSet,
+                                                       VkDescriptorSet vkDescriptorSet,
+                                                       VkWriteDescriptorSet* descriptorWrite,
+                                                       VkDescriptorBufferInfo* bufferInfo,
+                                                       VkDescriptorImageInfo* imageInfo);
     std::vector<uint32_t> compile(const char* code,
                                   size_t size,
                                   gerium_shader_languge_t lang,
@@ -288,6 +312,7 @@ private:
     BufferHandle _dynamicBuffer{ Undefined };
     uint8_t* _dynamicBufferMapped{};
     SamplerHandle _defaultSampler{ Undefined };
+    TextureHandle _defaultTexture{ Undefined };
 
     BufferPool _buffers;
     TexturePool _textures;

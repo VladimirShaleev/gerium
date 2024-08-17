@@ -4,6 +4,7 @@
 #include "../Application.hpp"
 #include "../Logger.hpp"
 #include "../Renderer.hpp"
+#include "CommandBufferPool.hpp"
 #include "Device.hpp"
 
 namespace gerium::vulkan {
@@ -32,6 +33,8 @@ private:
 
     bool onGetProfilerEnable() const noexcept override;
     void onSetProfilerEnable(bool enable) noexcept override;
+
+    void onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept override;
 
     BufferHandle onCreateBuffer(const BufferCreation& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
@@ -82,13 +85,18 @@ private:
     gerium_uint16_t _height;
     gerium_utf8_t _currentRenderPassName;
     TechniquePool _techniques;
+    gerium_uint32_t _transferMaxTasks;
     BufferHandle _transferBuffer;
-    std::atomic_size_t _transferBufferOffset;
+    size_t _transferBufferOffset;
+    CommandBufferPool _transferCommandPool;
     std::thread _loadTread;
     marl::Event _loadEvent;
     marl::Event _loadThreadEnd;
     marl::mutex _loadRequestsMutex;
+    marl::mutex _transferToGraphicMutex;
     std::queue<LoadRequest> _loadRequests;
+    std::queue<LoadRequest> _transferToGraphic;
+    std::queue<LoadRequest> _finishedRequests;
 };
 
 } // namespace gerium::vulkan

@@ -9,6 +9,7 @@ VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noe
     _width(0),
     _height(0),
     _currentRenderPassName(nullptr),
+    _transferMaxTasks(10),
     _transferBuffer(Undefined),
     _transferBufferOffset(0),
     _loadEvent(marl::Event::Mode::Manual),
@@ -48,9 +49,11 @@ Application* VkRenderer::application() noexcept {
 
 void VkRenderer::createTransferBuffer() {
     BufferCreation bc;
-    bc.reset().set({}, ResourceUsageType::Staging, 64 * 1024 * 1024).setName("staging_buffer").setPersistent(true);
+    bc.reset().set({}, ResourceUsageType::Staging, 128 * 1024 * 1024).setName("staging_buffer").setPersistent(true);
     _transferBuffer       = _device->createBuffer(bc);
     _transferBufferOffset = 0;
+
+    _transferCommandPool.create(*_device.get(), 1, _transferMaxTasks, QueueType::CopyTransfer);
 
     auto scheduler = marl::Scheduler::get();
 
@@ -67,6 +70,10 @@ bool VkRenderer::onGetProfilerEnable() const noexcept {
 
 void VkRenderer::onSetProfilerEnable(bool enable) noexcept {
     _device->setProfilerEnable(enable);
+}
+
+void VkRenderer::onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept {
+    _device->getTextureInfo(handle, info);
 }
 
 BufferHandle VkRenderer::onCreateBuffer(const BufferCreation& creation) {
@@ -332,7 +339,28 @@ void VkRenderer::onDestroyFramebuffer(FramebufferHandle handle) noexcept {
 }
 
 bool VkRenderer::onNewFrame() {
-    return _device->newFrame();
+    if (!_device->newFrame()) {
+        return false;
+    }
+
+    marl::lock lock(_transferToGraphicMutex);
+    if (!_transferToGraphic.empty()) {
+        auto commandBuffer = _device->getPrimaryCommandBuffer(false);
+        while (!_transferToGraphic.empty()) {
+            const auto& request = _transferToGraphic.front();
+            commandBuffer->addImageBarrier(request.texture,
+                                           ResourceState::CopySource,
+                                           ResourceState::ShaderResource,
+                                           0,
+                                           0,
+                                           QueueType::CopyTransfer,
+                                           QueueType::Graphics);
+            _finishedRequests.push(request);
+            _transferToGraphic.pop();
+        }
+        _device->submit(commandBuffer);
+    }
+    return true;
 }
 
 void VkRenderer::onRender(FrameGraph& frameGraph) {
@@ -509,6 +537,15 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
 void VkRenderer::onPresent() {
     _device->present();
+
+    while (!_finishedRequests.empty()) {
+        const auto& request = _finishedRequests.front();
+        _device->finishLoadTexture(request.texture);
+        if (request.callback) {
+            request.callback(this, request.texture, request.userData);
+        }
+        _finishedRequests.pop();
+    }
 }
 
 Profiler* VkRenderer::onGetProfiler() noexcept {
@@ -523,6 +560,15 @@ void VkRenderer::onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& hei
 
 void VkRenderer::loadThread() noexcept {
     LoadRequest request;
+    std::vector<LoadRequest> tasks;
+
+    auto finishLoad = [this, &tasks]() {
+        marl::lock lock(_transferToGraphicMutex);
+        for (auto& task : tasks) {
+            _transferToGraphic.push(task);
+        }
+        tasks.clear();
+    };
 
     while (!_loadThreadEnd.test()) {
         _loadEvent.wait();
@@ -530,10 +576,37 @@ void VkRenderer::loadThread() noexcept {
             marl::lock lock(_loadRequestsMutex);
             if (_loadRequests.empty()) {
                 _loadEvent.clear();
+                _transferCommandPool.wait(QueueType::CopyTransfer);
+                _transferBufferOffset = 0;
+                finishLoad();
                 continue;
             }
             request = _loadRequests.front();
             _loadRequests.pop();
+
+            tasks.push_back(request);
+        }
+
+        gerium_texture_info_t info;
+        onGetTextureInfo(request.texture, info);
+
+        const auto blockSize        = vk::blockSize((vk::Format) toVkFormat(info.format));
+        const auto alignedImageSize = align(info.width * info.height * blockSize, 4);
+        const auto currentOffset    = _transferBufferOffset;
+        _transferBufferOffset += alignedImageSize;
+
+        auto data = onMapBuffer(_transferBuffer, currentOffset, alignedImageSize);
+        memcpy((void*) data, request.data, alignedImageSize);
+        onUnmapBuffer(_transferBuffer);
+
+        auto commandBuffer = _transferCommandPool.getPrimary(0, false);
+        commandBuffer->copyBuffer(_transferBuffer, request.texture, currentOffset);
+        commandBuffer->submit(QueueType::CopyTransfer, false);
+
+        if (tasks.size() > _transferMaxTasks) {
+            _transferCommandPool.wait(QueueType::CopyTransfer);
+            _transferBufferOffset = 0;
+            finishLoad();
         }
     }
 }

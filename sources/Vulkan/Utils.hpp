@@ -140,6 +140,122 @@ gerium_inline VkFormat toVkFormat(gerium_format_t format) noexcept {
     }
 }
 
+gerium_inline gerium_format_t toGeriumFormat(VkFormat format) noexcept {
+    switch (format) {
+        case VK_FORMAT_R8_UNORM:
+            return GERIUM_FORMAT_R8_UNORM;
+        case VK_FORMAT_R8_SNORM:
+            return GERIUM_FORMAT_R8_SNORM;
+        case VK_FORMAT_R8_UINT:
+            return GERIUM_FORMAT_R8_UINT;
+        case VK_FORMAT_R8_SINT:
+            return GERIUM_FORMAT_R8_SINT;
+        case VK_FORMAT_R8G8_UNORM:
+            return GERIUM_FORMAT_R8G8_UNORM;
+        case VK_FORMAT_R8G8_SNORM:
+            return GERIUM_FORMAT_R8G8_SNORM;
+        case VK_FORMAT_R8G8_UINT:
+            return GERIUM_FORMAT_R8G8_UINT;
+        case VK_FORMAT_R8G8_SINT:
+            return GERIUM_FORMAT_R8G8_SINT;
+        case VK_FORMAT_R8G8B8_UNORM:
+            return GERIUM_FORMAT_R8G8B8_UNORM;
+        case VK_FORMAT_R8G8B8_SNORM:
+            return GERIUM_FORMAT_R8G8B8_SNORM;
+        case VK_FORMAT_R8G8B8_UINT:
+            return GERIUM_FORMAT_R8G8B8_UINT;
+        case VK_FORMAT_R8G8B8_SINT:
+            return GERIUM_FORMAT_R8G8B8_SINT;
+        case VK_FORMAT_R8G8B8_SRGB:
+            return GERIUM_FORMAT_R8G8B8_SRGB;
+        case VK_FORMAT_R4G4B4A4_UNORM_PACK16:
+            return GERIUM_FORMAT_R4G4B4A4_UNORM;
+        case VK_FORMAT_R5G5B5A1_UNORM_PACK16:
+            return GERIUM_FORMAT_R5G5B5A1_UNORM;
+        case VK_FORMAT_R8G8B8A8_UNORM:
+            return GERIUM_FORMAT_R8G8B8A8_UNORM;
+        case VK_FORMAT_R8G8B8A8_SNORM:
+            return GERIUM_FORMAT_R8G8B8A8_SNORM;
+        case VK_FORMAT_R8G8B8A8_UINT:
+            return GERIUM_FORMAT_R8G8B8A8_UINT;
+        case VK_FORMAT_R8G8B8A8_SINT:
+            return GERIUM_FORMAT_R8G8B8A8_SINT;
+        case VK_FORMAT_R8G8B8A8_SRGB:
+            return GERIUM_FORMAT_R8G8B8A8_SRGB;
+        case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+            return GERIUM_FORMAT_A2R10G10B10_UNORM;
+        case VK_FORMAT_A2R10G10B10_UINT_PACK32:
+            return GERIUM_FORMAT_A2R10G10B10_UINT;
+        case VK_FORMAT_R16_UINT:
+            return GERIUM_FORMAT_R16_UINT;
+        case VK_FORMAT_R16_SINT:
+            return GERIUM_FORMAT_R16_SINT;
+        case VK_FORMAT_R16_SFLOAT:
+            return GERIUM_FORMAT_R16_SFLOAT;
+        case VK_FORMAT_R16G16_UINT:
+            return GERIUM_FORMAT_R16G16_UINT;
+        case VK_FORMAT_R16G16_SINT:
+            return GERIUM_FORMAT_R16G16_SINT;
+        case VK_FORMAT_R16G16_SFLOAT:
+            return GERIUM_FORMAT_R16G16_SFLOAT;
+        case VK_FORMAT_R16G16B16_UINT:
+            return GERIUM_FORMAT_R16G16B16_UINT;
+        case VK_FORMAT_R16G16B16_SINT:
+            return GERIUM_FORMAT_R16G16B16_SINT;
+        case VK_FORMAT_R16G16B16_SFLOAT:
+            return GERIUM_FORMAT_R16G16B16_SFLOAT;
+        case VK_FORMAT_R16G16B16A16_UINT:
+            return GERIUM_FORMAT_R16G16B16A16_UINT;
+        case VK_FORMAT_R16G16B16A16_SINT:
+            return GERIUM_FORMAT_R16G16B16A16_SINT;
+        case VK_FORMAT_R16G16B16A16_SFLOAT:
+            return GERIUM_FORMAT_R16G16B16A16_SFLOAT;
+        case VK_FORMAT_R32_UINT:
+            return GERIUM_FORMAT_R32_UINT;
+        case VK_FORMAT_R32_SINT:
+            return GERIUM_FORMAT_R32_SINT;
+        case VK_FORMAT_R32_SFLOAT:
+            return GERIUM_FORMAT_R32_SFLOAT;
+        case VK_FORMAT_R32G32_UINT:
+            return GERIUM_FORMAT_R32G32_UINT;
+        case VK_FORMAT_R32G32_SINT:
+            return GERIUM_FORMAT_R32G32_SINT;
+        case VK_FORMAT_R32G32_SFLOAT:
+            return GERIUM_FORMAT_R32G32_SFLOAT;
+        case VK_FORMAT_R32G32B32_UINT:
+            return GERIUM_FORMAT_R32G32B32_UINT;
+        case VK_FORMAT_R32G32B32_SINT:
+            return GERIUM_FORMAT_R32G32B32_SINT;
+        case VK_FORMAT_R32G32B32_SFLOAT:
+            return GERIUM_FORMAT_R32G32B32_SFLOAT;
+        case VK_FORMAT_R32G32B32A32_UINT:
+            return GERIUM_FORMAT_R32G32B32A32_UINT;
+        case VK_FORMAT_R32G32B32A32_SINT:
+            return GERIUM_FORMAT_R32G32B32A32_SINT;
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            return GERIUM_FORMAT_R32G32B32A32_SFLOAT;
+        case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+            return GERIUM_FORMAT_B10G11R11_UFLOAT;
+        case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+            return GERIUM_FORMAT_E5B9G9R9_UFLOAT;
+        case VK_FORMAT_D16_UNORM:
+            return GERIUM_FORMAT_D16_UNORM;
+        case VK_FORMAT_X8_D24_UNORM_PACK32:
+            return GERIUM_FORMAT_X8_D24_UNORM;
+        case VK_FORMAT_D32_SFLOAT:
+            return GERIUM_FORMAT_D32_SFLOAT;
+        case VK_FORMAT_S8_UINT:
+            return GERIUM_FORMAT_S8_UINT;
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+            return GERIUM_FORMAT_D24_UNORM_S8_UINT;
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+            return GERIUM_FORMAT_D32_SFLOAT_S8_UINT;
+        default:
+            assert(!"unreachable code");
+            return {};
+    }
+}
+
 gerium_inline VkPolygonMode toVkPolygonMode(gerium_polygon_mode_t polygonMode) noexcept {
     constexpr VkPolygonMode modes[] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
     return modes[int(polygonMode)];
@@ -372,7 +488,8 @@ gerium_inline VkImageLayout toVkImageLayout(ResourceState usage) noexcept {
     return VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-gerium_inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags accessFlags, QueueType queueType) noexcept {
+gerium_inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags accessFlags,
+                                                                   QueueType queueType) noexcept {
     VkPipelineStageFlags flags = 0;
 
     switch (queueType) {

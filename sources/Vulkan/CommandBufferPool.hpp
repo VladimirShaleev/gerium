@@ -19,10 +19,8 @@ public:
                          ResourceState newState,
                          gerium_uint32_t mipLevel,
                          gerium_uint32_t mipCount,
-                         gerium_uint32_t srcFamily = VK_QUEUE_FAMILY_IGNORED,
-                         gerium_uint32_t dstFamily = VK_QUEUE_FAMILY_IGNORED,
-                         QueueType srcQueueType    = QueueType::Graphics,
-                         QueueType dstQueueType    = QueueType::Graphics);
+                         QueueType srcQueueType = QueueType::Graphics,
+                         QueueType dstQueueType = QueueType::Graphics);
     void clearColor(gerium_uint32_t index,
                     gerium_float32_t red,
                     gerium_float32_t green,
@@ -32,10 +30,10 @@ public:
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer, bool useSecondaryCommandBuffers);
     void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
-    void copyBuffer(BufferHandle src, TextureHandle dst);
+    void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset = 0);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
-    void submit(QueueType queue);
+    void submit(QueueType queue, bool wait = true);
     void execute(gerium_uint32_t numCommandBuffers, CommandBuffer* commandBuffers[]);
 
     void begin(RenderPassHandle renderPass = Undefined, FramebufferHandle framebuffer = Undefined);
@@ -74,6 +72,8 @@ private:
                        gerium_uint32_t firstInstance,
                        gerium_uint32_t instanceCount) noexcept override;
 
+    uint32_t getFamilyIndex(QueueType queue) const noexcept;
+
     Device* _device{};
     VkCommandBuffer _commandBuffer{};
     FrameGraph* _currentFrameGraph{};
@@ -97,8 +97,12 @@ public:
     CommandBufferPool& operator=(const CommandBufferPool&)  = delete;
     CommandBufferPool& operator=(CommandBufferPool&& other) = delete;
 
-    void create(Device& device, gerium_uint32_t numThreads, gerium_uint32_t numBuffersPerFrame, gerium_uint32_t family);
+    void create(Device& device,
+                gerium_uint32_t numThreads,
+                gerium_uint32_t numBuffersPerFrame,
+                QueueType queue = QueueType::Graphics);
     void destroy() noexcept;
+    void wait(QueueType queue);
 
     CommandBuffer* getPrimary(gerium_uint32_t frame, bool profile);
     CommandBuffer* getSecondary(gerium_uint32_t frame,

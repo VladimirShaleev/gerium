@@ -1187,6 +1187,11 @@ gerium_public void
 gerium_renderer_set_profiler_enable(gerium_renderer_t renderer,
                                     gerium_bool_t enable);
 
+gerium_public void
+gerium_renderer_get_texture_info(gerium_renderer_t renderer,
+                                 gerium_texture_h handle,
+                                 gerium_texture_info_t* info);
+
 gerium_public gerium_result_t
 gerium_renderer_create_buffer(gerium_renderer_t renderer,
                               gerium_buffer_usage_flags_t buffer_usage,

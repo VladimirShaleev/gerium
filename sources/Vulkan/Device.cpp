@@ -118,6 +118,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createVmaAllocator();
     createDynamicBuffer();
     createDefaultSampler();
+    createDefaultTexture();
     createSynchronizations();
     createSwapchain(application);
     createImGui(application);
@@ -373,10 +374,14 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     if (hasDepthOrStencil(texture->vkFormat)) {
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        texture->loaded = true;
     } else {
         const auto renderTarget = (creation.flags & TextureFlags::RenderTarget) == TextureFlags::RenderTarget;
         usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         usage |= renderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0;
+        if (renderTarget) {
+            texture->loaded = true;
+        }
     }
 
     VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
@@ -1081,30 +1086,47 @@ void Device::addReferenceDescriptorSet(DescriptorSetHandle handle) noexcept {
 void* Device::mapBuffer(BufferHandle handle, uint32_t offset, uint32_t size) {
     auto buffer = _buffers.access(handle);
 
+    size = align(size ? size : buffer->size, _uboAlignment);
+
     if (buffer->parent == _dynamicBuffer) {
         buffer->globalOffset = _dynamicAllocatedSize;
+        buffer->mappedOffset = _dynamicAllocatedSize + offset;
+        buffer->mappedSize   = size;
 
-        uint8_t* mappedMemory = _dynamicBufferMapped + _dynamicAllocatedSize;
-        _dynamicAllocatedSize += align(size ? size : buffer->size, _uboAlignment);
+        uint8_t* mappedMemory = _dynamicBufferMapped + buffer->mappedOffset;
+        _dynamicAllocatedSize += size;
 
-        return (void*) (mappedMemory + offset);
+        return (void*) mappedMemory;
     }
 
     void* data = nullptr;
     check(vmaMapMemory(_vmaAllocator, buffer->vmaAllocation, &data));
+
+    buffer->mappedOffset = offset;
+    buffer->mappedSize   = size;
+
     return (uint8_t*) data + offset;
 }
 
 void Device::unmapBuffer(BufferHandle handle) {
     auto buffer = _buffers.access(handle);
 
-    if (buffer->parent == _dynamicBuffer) {
+    if (buffer->parent != Undefined) {
         auto parentBuffer = _buffers.access(buffer->parent);
-        vmaFlushAllocation(_vmaAllocator, parentBuffer->vmaAllocation, buffer->globalOffset, buffer->size);
+        vmaFlushAllocation(_vmaAllocator, parentBuffer->vmaAllocation, buffer->mappedOffset, buffer->mappedSize);
         return;
     }
 
+    if (buffer->mappedData) {
+        vmaFlushAllocation(_vmaAllocator, buffer->vmaAllocation, buffer->mappedOffset, buffer->mappedSize);
+    }
+
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
+}
+
+void Device::finishLoadTexture(TextureHandle handle) {
+    auto texture    = _textures.access(handle);
+    texture->loaded = true;
 }
 
 void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput) {
@@ -1143,8 +1165,6 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
     }
 
     if (!descriptors.noChanges) {
-        descriptors.noChanges = true;
-
         descriptors.current   = (descriptors.current + 1) % MaxFrames;
         auto& vkDescriptorSet = descriptors.vkDescriptorSet[descriptors.current];
 
@@ -1171,10 +1191,12 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
         VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
 
-        const uint32_t num = fillWriteDescriptorSets(
+        const auto [num, updateRequired] = fillWriteDescriptorSets(
             *pipelineLayout, *descriptorSet, vkDescriptorSet, descriptorWrite, bufferInfo, imageInfo);
 
         _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
+
+        descriptors.noChanges = !updateRequired;
     }
 
     return descriptors.vkDescriptorSet[descriptors.current];
@@ -1373,7 +1395,7 @@ void Device::createDevice(gerium_uint32_t threadCount) {
     _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
-    _commandBufferPool.create(*this, threadCount, 10, graphic.index);
+    _commandBufferPool.create(*this, threadCount, 10, QueueType::Graphics);
     _frameCommandBuffer = getPrimaryCommandBuffer(false);
 }
 
@@ -1435,7 +1457,7 @@ void Device::createVmaAllocator() {
 }
 
 void Device::createDynamicBuffer() {
-    _dynamicBufferSize = 1024 * 1024 * 10;
+    _dynamicBufferSize = 1024 * 1024 * 250;
 
     BufferCreation bc;
     bc.set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,
@@ -1455,6 +1477,17 @@ void Device::createDefaultSampler() {
         .setMinMagMip(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR)
         .setName("Sampler Default");
     _defaultSampler = createSampler(sc);
+}
+
+void Device::createDefaultTexture() {
+    gerium_uint32_t black = 0;
+    TextureCreation tc{};
+    tc.setSize(1, 1, 1)
+        .setFlags(1, false, false)
+        .setFormat(GERIUM_FORMAT_R8G8B8A8_UNORM, GERIUM_TEXTURE_TYPE_2D)
+        .setData(&black)
+        .setName("default_texture");
+    _defaultTexture = createTexture(tc);
 }
 
 void Device::createSynchronizations() {
@@ -1535,6 +1568,7 @@ void Device::createSwapchain(Application* application) {
         auto [colorHandle, color] = _textures.obtain_and_access();
 
         color->vkImage = images[i];
+        color->loaded  = true;
 
         VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         viewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
@@ -1766,22 +1800,23 @@ void Device::printPhysicalDevices() {
     }
 }
 
-uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
-                                         const DescriptorSet& descriptorSet,
-                                         VkDescriptorSet vkDescriptorSet,
-                                         VkWriteDescriptorSet* descriptorWrite,
-                                         VkDescriptorBufferInfo* bufferInfo,
-                                         VkDescriptorImageInfo* imageInfo) {
+std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
+                                                           const DescriptorSet& descriptorSet,
+                                                           VkDescriptorSet vkDescriptorSet,
+                                                           VkWriteDescriptorSet* descriptorWrite,
+                                                           VkDescriptorBufferInfo* bufferInfo,
+                                                           VkDescriptorImageInfo* imageInfo) {
     uint32_t usedResources = 0;
+    bool updateRequired = false;
 
     auto defaultSampler = _samplers.access(_defaultSampler)->vkSampler;
 
     for (uint32_t b = 0; b < kMaxDescriptorsPerSet; ++b) {
         auto resource = descriptorSet.bindings[b];
 
-        if (resource == Undefined) {
-            continue;
-        }
+        // if (resource == Undefined) {
+        //     continue;
+        // }
 
         auto it = std::find_if(descriptorSetLayout.data.bindings.cbegin(),
                                descriptorSetLayout.data.bindings.cend(),
@@ -1790,12 +1825,13 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
         });
 
         if (it == descriptorSetLayout.data.bindings.cend()) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            // error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            continue;
         }
 
         const auto& binding = *it;
 
-        auto i = usedResources++;
+        auto i = usedResources;
 
         descriptorWrite[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrite[i].dstSet          = vkDescriptorSet;
@@ -1807,10 +1843,15 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-                auto texture = _textures.access(resource);
+                auto texture = _textures.access(resource != Undefined ? resource : _defaultTexture);
 
                 imageInfo[i].sampler =
                     texture->sampler != Undefined ? _samplers.access(texture->sampler)->vkSampler : defaultSampler;
+
+                if (!texture->loaded) {
+                    texture = _textures.access(_defaultTexture);
+                    updateRequired = true;
+                }
 
                 // if (descriptorSet.samplers[r] != Undefined) {
                 //     auto sampler         = _samplers.access(descriptorSet.samplers[r]);
@@ -1827,6 +1868,9 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
                 break;
             }
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
+                if (resource == Undefined) {
+                    continue;
+                }
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
                 auto texture = _textures.access(resource);
@@ -1840,6 +1884,9 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
             }
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
+                if (resource == Undefined) {
+                    continue;
+                }
                 auto buffer = _buffers.access(resource);
 
                 descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
@@ -1859,6 +1906,9 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
                 break;
             }
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
+                if (resource == Undefined) {
+                    continue;
+                }
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
                 auto buffer = _buffers.access(resource);
@@ -1880,9 +1930,10 @@ uint32_t Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSe
                 break;
             }
         }
+        ++usedResources;
     }
 
-    return usedResources;
+    return {usedResources, updateRequired};
 }
 
 std::vector<uint32_t> Device::compile(const char* code,
@@ -2377,6 +2428,8 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
 
     _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
     destroyBuffer(stagingBuffer);
+
+    finishLoadTexture(handle);
 }
 
 std::vector<const char*> Device::selectValidationLayers() {
