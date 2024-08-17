@@ -31,6 +31,7 @@ public:
     void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
     void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset = 0);
+    void generateMipmaps(TextureHandle handle);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
     void submit(QueueType queue, bool wait = true);

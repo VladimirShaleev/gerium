@@ -526,66 +526,6 @@ const glm::mat4& Model::getInverseWorldMatrix(gerium_uint32_t nodeIndex) const n
     return _inverseWorldMatrices[nodeIndex];
 }
 
-static gerium_texture_h loadTexture(gerium_renderer_t renderer, const std::filesystem::path& path) {
-    if (gerium_file_exists_file(path.string().c_str())) {
-        gerium_file_t file;
-        check(gerium_file_open(path.string().c_str(), true, &file));
-        auto size = gerium_file_get_size(file);
-        auto data = gerium_file_map(file);
-
-        int comp, width, height;
-        stbi_info_from_memory((const stbi_uc*) data, size, &width, &height, &comp);
-
-        auto mipLevels = 1; // calcMipLevels(width, height);
-
-        auto name = path.filename().string();
-
-        gerium_texture_info_t info{};
-        info.width   = (gerium_uint16_t) width;
-        info.height  = (gerium_uint16_t) height;
-        info.depth   = 1;
-        info.mipmaps = (gerium_uint16_t) mipLevels;
-        info.format  = GERIUM_FORMAT_R8G8B8A8_UNORM;
-        info.type    = GERIUM_TEXTURE_TYPE_2D;
-        info.name    = name.c_str();
-
-        gerium_texture_h texture;
-        check(gerium_renderer_create_texture(renderer, &info, nullptr, &texture));
-
-        auto textureData = stbi_load_from_memory((const stbi_uc*) data, size, &width, &height, &comp, 4);
-
-        struct UploadData {
-            gerium_file_t file;
-            stbi_uc* textureData;
-        };
-
-        auto uploadData = new UploadData{ file, textureData };
-
-        check(gerium_renderer_async_upload_texture_data(
-            renderer, texture, textureData, [](auto renderer, auto texture, auto data) {
-            auto uploadData = (UploadData*) data;
-            stbi_image_free(uploadData->textureData);
-            gerium_file_destroy(uploadData->file);
-            delete data;
-        }, uploadData));
-
-        // stbi_image_free(textureData);
-        // gerium_file_destroy(file);
-
-        // check(gerium_renderer_async_load_texture(
-        //     renderer,
-        //     path.string().c_str(),
-        //     [](gerium_renderer_t renderer, gerium_texture_h texture, gerium_data_t data) {
-        //     int i = 5;
-        // },
-        //     nullptr));
-
-        return texture;
-    } else {
-        return { UndefinedHandle };
-    }
-}
-
 static void fillPbrMaterial(const gltf::Material& material,
                             PBRMaterial& pbrMaterial,
                             const std::vector<gltf::Texture>& gltfTextures,
@@ -703,7 +643,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std
             int comp, width, height;
             stbi_info_from_memory((const stbi_uc*) data, size, &width, &height, &comp);
 
-            auto mipLevels = 1; // calcMipLevels(width, height);
+            auto mipLevels = calcMipLevels(width, height);
 
             gerium_texture_info_t info{};
             info.width   = (gerium_uint16_t) width;

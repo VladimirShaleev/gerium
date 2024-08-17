@@ -183,29 +183,26 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     addImageBarrier(dst, ResourceState::CopyDest, ResourceState::CopySource, 0, 1, queue, queue);
 
-    // if (!isTransfer) {
-    //     return;
-    // }
+    addImageBarrier(dst,
+                    ResourceState::CopySource,
+                    isTransfer ? ResourceState::CopySource : ResourceState::ShaderResource,
+                    0,
+                    1,
+                    queue);
 
-    // addImageBarrier(dst,
-    //                 ResourceState::CopyDest,
-    //                 ResourceState::CopySource,
-    //                 0,
-    //                 1,
-    //                 srcFamily,
-    //                 dstFamily,
-    //                 QueueType::CopyTransfer,
-    //                 QueueType::Graphics);
+    if (dstTexture->mipmaps > 1) {
+        addImageBarrier(dst, ResourceState::Undefined, ResourceState::CopyDest, 0, 1, queue);
+    }
+}
 
-    // if (dstTexture->mipmaps > 1) {
-    //     addImageBarrier(dst, ResourceState::CopySource, ResourceState::CopySource, 0, 1);
-    // }
+void CommandBuffer::generateMipmaps(TextureHandle handle) {
+    auto texture = _device->_textures.access(handle);
 
-    int32_t w = dstTexture->width;
-    int32_t h = dstTexture->height;
+    int32_t w = texture->width;
+    int32_t h = texture->height;
 
-    for (int mipIndex = 1; mipIndex < dstTexture->mipmaps; ++mipIndex) {
-        addImageBarrier(dst, ResourceState::Undefined, ResourceState::CopyDest, mipIndex, 1, queue, queue);
+    for (int mipIndex = 1; mipIndex < texture->mipmaps; ++mipIndex) {
+        addImageBarrier(handle, ResourceState::Undefined, ResourceState::CopyDest, mipIndex, 1);
 
         VkImageBlit blitRegion{};
         blitRegion.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -222,33 +219,18 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
         blitRegion.dstOffsets[1]                 = { w /= 2, h /= 2, 1 };
 
         _device->_vkTable.vkCmdBlitImage(_commandBuffer,
-                                         dstTexture->vkImage,
+                                         texture->vkImage,
                                          VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                         dstTexture->vkImage,
+                                         texture->vkImage,
                                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                          1,
                                          &blitRegion,
                                          VK_FILTER_LINEAR);
 
-        addImageBarrier(dst, ResourceState::CopyDest, ResourceState::CopySource, mipIndex, 1, queue, queue);
+        addImageBarrier(handle, ResourceState::CopyDest, ResourceState::CopySource, mipIndex, 1);
     }
 
-    // Transition
-    if (isTransfer) {
-        addImageBarrier(dst,
-                        ResourceState::CopySource,
-                        ResourceState::CopySource,
-                        0,
-                        dstTexture->mipmaps,
-                        queue,
-                        QueueType::Graphics);
-    }
-    if (!isTransfer) {
-        addImageBarrier(dst, ResourceState::CopySource, ResourceState::ShaderResource, 0, dstTexture->mipmaps);
-    }
-
-    // dstTexture->vkImageLayout =
-    // dstTexture->loaded = true;
+    addImageBarrier(handle, ResourceState::CopySource, ResourceState::ShaderResource, 0, texture->mipmaps);
 }
 
 void CommandBuffer::pushMarker(gerium_utf8_t name) {

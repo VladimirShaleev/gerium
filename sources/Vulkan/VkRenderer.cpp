@@ -348,13 +348,7 @@ bool VkRenderer::onNewFrame() {
         auto commandBuffer = _device->getPrimaryCommandBuffer(false);
         while (!_transferToGraphic.empty()) {
             const auto& request = _transferToGraphic.front();
-            commandBuffer->addImageBarrier(request.texture,
-                                           ResourceState::CopySource,
-                                           ResourceState::ShaderResource,
-                                           0,
-                                           0,
-                                           QueueType::CopyTransfer,
-                                           QueueType::Graphics);
+            commandBuffer->generateMipmaps(request.texture);
             _finishedRequests.push(request);
             _transferToGraphic.pop();
         }
