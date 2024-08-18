@@ -469,11 +469,7 @@ gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium
     return 1;
 }
 
-#ifdef GERIUM_PLATFORM_WINDOWS
-int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-#else
 int main() {
-#endif
     check(gerium_logger_create("app", &logger));
 
     try {

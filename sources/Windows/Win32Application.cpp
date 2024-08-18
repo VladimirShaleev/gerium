@@ -1,4 +1,5 @@
 #include "Win32Application.hpp"
+#include "Unicode.hpp"
 
 #define INITGUID
 #include <Dbt.h>
@@ -1080,6 +1081,33 @@ Win32Application::MouseEventSource Win32Application::getMouseEventSource(const R
 }
 
 } // namespace gerium::windows
+
+static int invokeMain() {
+    typedef int (*mainFunc)(int argc, char* argv[]);
+
+    if (auto main = (mainFunc) GetProcAddress(GetModuleHandleW(nullptr), "main")) {
+        int argc   = 0;
+        auto wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
+        std::vector<std::string> argvData;
+        std::vector<char*> argv;
+        argvData.resize(argc);
+        argv.resize(argc);
+        for (int i = 0; i < argc; ++i) {
+            argvData[i] = gerium::windows::utf8String(wargv[i]);
+            argv[i]     = (char*) argvData[i].c_str();
+        }
+        return main(argc, argv.data());
+    }
+    return 0;
+}
+
+int WINAPI wWinMainW(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nShowCmd) {
+    return invokeMain();
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+    return invokeMain();
+}
 
 gerium_result_t gerium_application_create(gerium_utf8_t title,
                                           gerium_uint32_t width,
