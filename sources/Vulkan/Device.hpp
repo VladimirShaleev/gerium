@@ -61,6 +61,8 @@ public:
                                              RenderPassHandle renderPass,
                                              FramebufferHandle framebuffer);
 
+    void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
+
     uint32_t totalMemoryUsed();
 
     const vk::DispatchLoaderDynamic& vkTable() const noexcept {
@@ -261,6 +263,7 @@ private:
                        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData);
 
     static gerium_uint64_t calcPipelineHash(const PipelineCreation& creation) noexcept;
+    static gerium_uint64_t calcSamplerHash(const SamplerCreation& creation) noexcept;
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL
     debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -330,6 +333,7 @@ private:
     CommandBuffer* _queuedCommandBuffers[16]{};
     CommandBuffer* _frameCommandBuffer{};
     gerium_uint32_t _numQueuedCommandBuffers{};
+    std::map<gerium_uint64_t, SamplerHandle> _samplerCache{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};

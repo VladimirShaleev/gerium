@@ -56,6 +56,16 @@ void Renderer::asyncUploadTextureData(TextureHandle handle,
     onAsyncUploadTextureData(handle, textureData, callback, data);
 }
 
+void Renderer::textureSampler(TextureHandle handle,
+                              gerium_filter_t minFilter,
+                              gerium_filter_t magFilter,
+                              gerium_filter_t mipFilter,
+                              gerium_address_mode_t addressModeU,
+                              gerium_address_mode_t addressModeV,
+                              gerium_address_mode_t addressModeW) {
+    onTextureSampler(handle, minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW);
+}
+
 BufferHandle Renderer::referenceBuffer(BufferHandle handle) noexcept {
     return onReferenceBuffer(handle);
 }
@@ -253,6 +263,22 @@ gerium_result_t gerium_renderer_async_upload_texture_data(gerium_renderer_t rend
 
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<Renderer*>(renderer)->asyncUploadTextureData({ handle.unused }, texture_data, callback, data);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_renderer_texture_sampler(gerium_renderer_t renderer,
+                                                gerium_texture_h handle,
+                                                gerium_filter_t min_filter,
+                                                gerium_filter_t mag_filter,
+                                                gerium_filter_t mip_filter,
+                                                gerium_address_mode_t address_mode_u,
+                                                gerium_address_mode_t address_mode_v,
+                                                gerium_address_mode_t address_mode_w) {
+    assert(renderer);
+
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<Renderer*>(renderer)->textureSampler(
+            { handle.unused }, min_filter, mag_filter, mip_filter, address_mode_u, address_mode_v, address_mode_w);
     GERIUM_END_SAFE_BLOCK
 }
 

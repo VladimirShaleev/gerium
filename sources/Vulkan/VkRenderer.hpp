@@ -51,6 +51,14 @@ private:
                                   gerium_texture_loaded_func_t callback,
                                   gerium_data_t data) override;
 
+    void onTextureSampler(TextureHandle handle,
+                          gerium_filter_t minFilter,
+                          gerium_filter_t magFilter,
+                          gerium_filter_t mipFilter,
+                          gerium_address_mode_t addressModeU,
+                          gerium_address_mode_t addressModeV,
+                          gerium_address_mode_t addressModeW) override;
+
     BufferHandle onReferenceBuffer(BufferHandle handle) noexcept override;
     TextureHandle onReferenceTexture(TextureHandle handle) noexcept override;
     TechniqueHandle onReferenceTechnique(TechniqueHandle handle) noexcept override;

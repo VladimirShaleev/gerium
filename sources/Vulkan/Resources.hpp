@@ -390,8 +390,7 @@ struct Texture {
     TextureFlags          flags;
     gerium_texture_type_t type;
     gerium_utf8_t         name;
-
-    SamplerHandle sampler;
+    SamplerHandle         sampler;
 };
 
 struct Sampler {

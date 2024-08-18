@@ -451,6 +451,13 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 }
 
 SamplerHandle Device::createSampler(const SamplerCreation& creation) {
+    const auto key = calcSamplerHash(creation);
+
+    if (auto it = _samplerCache.find(key); it != _samplerCache.end()) {
+        _samplers.addReference(it->second);
+        return it->second;
+    }
+
     auto [handle, sampler] = _samplers.obtain_and_access();
 
     sampler->minFilter    = creation.minFilter;
@@ -480,6 +487,8 @@ SamplerHandle Device::createSampler(const SamplerCreation& creation) {
     check(_vkTable.vkCreateSampler(_device, &createInfo, getAllocCalls(), &sampler->vkSampler));
 
     setObjectName(VK_OBJECT_TYPE_SAMPLER, (uint64_t) sampler->vkSampler, sampler->name);
+
+    _samplerCache[key] = handle;
 
     return handle;
 }
@@ -1212,6 +1221,10 @@ CommandBuffer* Device::getSecondaryCommandBuffer(gerium_uint32_t thread,
     return _commandBufferPool.getSecondary(_currentFrame, thread, renderPass, framebuffer, false);
 }
 
+void Device::linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept {
+    _textures.access(texture)->sampler = sampler;
+}
+
 uint32_t Device::totalMemoryUsed() {
     if (_vmaBudget.size() != _deviceMemProperties.memoryHeapCount) {
         _vmaBudget.resize(_deviceMemProperties.memoryHeapCount);
@@ -1568,6 +1581,7 @@ void Device::createSwapchain(Application* application) {
         auto [colorHandle, color] = _textures.obtain_and_access();
 
         color->vkImage = images[i];
+        color->sampler = Undefined;
         color->loaded  = true;
 
         VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
@@ -1807,7 +1821,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                                                            VkDescriptorBufferInfo* bufferInfo,
                                                            VkDescriptorImageInfo* imageInfo) {
     uint32_t usedResources = 0;
-    bool updateRequired = false;
+    bool updateRequired    = false;
 
     auto defaultSampler = _samplers.access(_defaultSampler)->vkSampler;
 
@@ -1849,7 +1863,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                     texture->sampler != Undefined ? _samplers.access(texture->sampler)->vkSampler : defaultSampler;
 
                 if (!texture->loaded) {
-                    texture = _textures.access(_defaultTexture);
+                    texture        = _textures.access(_defaultTexture);
                     updateRequired = true;
                 }
 
@@ -1933,7 +1947,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
         ++usedResources;
     }
 
-    return {usedResources, updateRequired};
+    return { usedResources, updateRequired };
 }
 
 std::vector<uint32_t> Device::compile(const char* code,
@@ -2202,6 +2216,9 @@ void Device::deleteResources(bool forceDelete) {
             case ResourceType::Texture:
                 if (_textures.references(TextureHandle{ resource.handle }) == 1) {
                     auto texture = _textures.access(resource.handle);
+                    if (texture->sampler != Undefined) {
+                        destroySampler(texture->sampler);
+                    }
                     if (texture->vkImageView) {
                         _vkTable.vkDestroyImageView(_device, texture->vkImageView, getAllocCalls());
                     }
@@ -2214,6 +2231,10 @@ void Device::deleteResources(bool forceDelete) {
             case ResourceType::Sampler:
                 if (_samplers.references(SamplerHandle{ resource.handle }) == 1) {
                     auto sampler = _samplers.access(resource.handle);
+                    _samplerCache.erase(calcSamplerHash(
+                        SamplerCreation()
+                            .setMinMagMip(sampler->minFilter, sampler->magFilter, sampler->mipFilter)
+                            .setAddressModeUvw(sampler->addressModeU, sampler->addressModeV, sampler->addressModeW)));
                     _vkTable.vkDestroySampler(_device, sampler->vkSampler, getAllocCalls());
                 }
                 _samplers.release(resource.handle);
@@ -2688,6 +2709,19 @@ gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexc
             seed = hash(macro.value, seed);
         }
     }
+
+    return seed;
+}
+
+gerium_uint64_t Device::calcSamplerHash(const SamplerCreation& creation) noexcept {
+    gerium_uint64_t seed = hash(GERIUM_VERSION);
+
+    seed = hash(creation.minFilter, seed);
+    seed = hash(creation.magFilter, seed);
+    seed = hash(creation.mipFilter, seed);
+    seed = hash(creation.addressModeU, seed);
+    seed = hash(creation.addressModeV, seed);
+    seed = hash(creation.addressModeW, seed);
 
     return seed;
 }

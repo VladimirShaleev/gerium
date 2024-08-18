@@ -683,6 +683,23 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_FILTER_NEAREST  = 0,
+    GERIUM_FILTER_LINEAR   = 1,
+    GERIUM_FILTER_MAX_ENUM = 0x7FFFFFFF
+} gerium_filter_t;
+
+typedef enum
+{
+    GERIUM_ADDRESS_MODE_REPEAT               = 0,
+    GERIUM_ADDRESS_MODE_MIRRORED_REPEAT      = 1,
+    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE        = 2,
+    GERIUM_ADDRESS_MODE_CLAMP_TO_BORDER      = 3,
+    GERIUM_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE = 4,
+    GERIUM_ADDRESS_MODE_MAX_ENUM             = 0x7FFFFFFF
+} gerium_address_mode_t;
+
+typedef enum
+{
     GERIUM_RESOURCE_TYPE_BUFFER     = 0,
     GERIUM_RESOURCE_TYPE_TEXTURE    = 1,
     GERIUM_RESOURCE_TYPE_ATTACHMENT = 2,
@@ -1272,6 +1289,16 @@ gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
                                           gerium_cdata_t texture_data,
                                           gerium_texture_loaded_func_t callback,
                                           gerium_data_t data);
+
+gerium_public gerium_result_t
+gerium_renderer_texture_sampler(gerium_renderer_t renderer,
+                                gerium_texture_h handle,
+                                gerium_filter_t min_filter,
+                                gerium_filter_t mag_filter,
+                                gerium_filter_t mip_filter,
+                                gerium_address_mode_t address_mode_u,
+                                gerium_address_mode_t address_mode_v,
+                                gerium_address_mode_t address_mode_w);
 
 gerium_public gerium_buffer_h
 gerium_renderer_reference_buffer(gerium_renderer_t renderer,

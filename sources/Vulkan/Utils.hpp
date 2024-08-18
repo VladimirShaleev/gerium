@@ -375,6 +375,18 @@ gerium_inline VkImageType toVkImageType(gerium_texture_type_t type) noexcept {
     }
 }
 
+gerium_inline VkFilter toVkFilter(gerium_filter_t filter) noexcept {
+    return (VkFilter) filter;
+}
+
+gerium_inline VkSamplerMipmapMode toVkSamplerMipmapMode(gerium_filter_t filter) noexcept {
+    return (VkSamplerMipmapMode) filter;
+}
+
+gerium_inline VkSamplerAddressMode toVkSamplerAddressMode(gerium_address_mode_t mode) noexcept {
+    return (VkSamplerAddressMode) mode;
+}
+
 gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type) noexcept {
     constexpr VkImageViewType types[] = { VK_IMAGE_VIEW_TYPE_1D,       VK_IMAGE_VIEW_TYPE_2D,
                                           VK_IMAGE_VIEW_TYPE_3D,       VK_IMAGE_VIEW_TYPE_1D_ARRAY,

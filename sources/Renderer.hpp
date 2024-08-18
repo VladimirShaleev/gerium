@@ -38,6 +38,14 @@ public:
                                 gerium_texture_loaded_func_t callback,
                                 gerium_data_t data);
 
+    void textureSampler(TextureHandle handle,
+                        gerium_filter_t minFilter,
+                        gerium_filter_t magFilter,
+                        gerium_filter_t mipFilter,
+                        gerium_address_mode_t addressModeU,
+                        gerium_address_mode_t addressModeV,
+                        gerium_address_mode_t addressModeW);
+
     BufferHandle referenceBuffer(BufferHandle handle) noexcept;
     TextureHandle referenceTexture(TextureHandle handle) noexcept;
     TechniqueHandle referenceTechnique(TechniqueHandle handle) noexcept;
@@ -87,6 +95,14 @@ private:
                                           gerium_cdata_t textureData,
                                           gerium_texture_loaded_func_t callback,
                                           gerium_data_t data) = 0;
+
+    virtual void onTextureSampler(TextureHandle handle,
+                                  gerium_filter_t minFilter,
+                                  gerium_filter_t magFilter,
+                                  gerium_filter_t mipFilter,
+                                  gerium_address_mode_t addressModeU,
+                                  gerium_address_mode_t addressModeV,
+                                  gerium_address_mode_t addressModeW) = 0;
 
     virtual BufferHandle onReferenceBuffer(BufferHandle handle) noexcept                      = 0;
     virtual TextureHandle onReferenceTexture(TextureHandle handle) noexcept                   = 0;
