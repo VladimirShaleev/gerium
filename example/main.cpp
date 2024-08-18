@@ -336,6 +336,10 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
     }
 
     gerium_event_t event;
+    gerium_float32_t pitch = 0.0f;
+    gerium_float32_t yaw   = 0.0f;
+    gerium_float32_t zoom  = 0.0f;
+    const bool invY        = gerium_application_get_platform(application) == GERIUM_RUNTIME_PLATFORM_MAC_OS;
     while (gerium_application_poll_events(application, &event)) {
         if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
             if (event.keyboard.scancode == GERIUM_SCANCODE_ENTER && event.keyboard.state == GERIUM_KEY_STATE_RELEASED &&
@@ -354,14 +358,16 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
             }
             if (!gerium_application_is_show_cursor(application) ||
                 gerium_application_get_platform(application) == GERIUM_RUNTIME_PLATFORM_ANDROID) {
-                bool invY = gerium_application_get_platform(application) == GERIUM_RUNTIME_PLATFORM_MAC_OS;
-                gerium_float32_t pitch = event.mouse.raw_delta_y * (invY ? 0.5f : -0.5f);
-                gerium_float32_t yaw   = event.mouse.raw_delta_x * 0.5f;
-                camera->rotate(pitch, yaw, elapsed);
-                camera->zoom(event.mouse.wheel_vertical * move * -0.01f, elapsed);
+                const auto delta = 1.0f;
+                pitch += event.mouse.raw_delta_y * (invY ? delta : -delta);
+                yaw += event.mouse.raw_delta_x * delta;
+                zoom += event.mouse.wheel_vertical * move * -0.01f;
             }
         }
     }
+
+    camera->rotate(pitch, yaw, 1.0f);
+    camera->zoom(zoom, 1.0f);
 
     if (gerium_application_is_press_scancode(application, GERIUM_SCANCODE_A) ||
         gerium_application_is_press_scancode(application, GERIUM_SCANCODE_ARROW_LEFT)) {

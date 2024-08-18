@@ -43,7 +43,6 @@ public:
     void destroyPipeline(PipelineHandle handle);
 
     void addReferenceBuffer(BufferHandle handle) noexcept;
-    void addReferenceTexture(TextureHandle handle) noexcept;
     void addReferenceDescriptorSet(DescriptorSetHandle handle) noexcept;
 
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);

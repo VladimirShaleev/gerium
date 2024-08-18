@@ -47,7 +47,6 @@ public:
                         gerium_address_mode_t addressModeW);
 
     BufferHandle referenceBuffer(BufferHandle handle) noexcept;
-    TextureHandle referenceTexture(TextureHandle handle) noexcept;
     TechniqueHandle referenceTechnique(TechniqueHandle handle) noexcept;
     DescriptorSetHandle referenceDescriptorSet(DescriptorSetHandle handle) noexcept;
 
@@ -105,7 +104,6 @@ private:
                                   gerium_address_mode_t addressModeW) = 0;
 
     virtual BufferHandle onReferenceBuffer(BufferHandle handle) noexcept                      = 0;
-    virtual TextureHandle onReferenceTexture(TextureHandle handle) noexcept                   = 0;
     virtual TechniqueHandle onReferenceTechnique(TechniqueHandle handle) noexcept             = 0;
     virtual DescriptorSetHandle onReferenceDescriptorSet(DescriptorSetHandle handle) noexcept = 0;
 

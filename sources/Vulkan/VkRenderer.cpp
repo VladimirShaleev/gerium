@@ -292,11 +292,6 @@ BufferHandle VkRenderer::onReferenceBuffer(BufferHandle handle) noexcept {
     return handle;
 }
 
-TextureHandle VkRenderer::onReferenceTexture(TextureHandle handle) noexcept {
-    _device->addReferenceTexture(handle);
-    return handle;
-}
-
 TechniqueHandle VkRenderer::onReferenceTechnique(TechniqueHandle handle) noexcept {
     _techniques.addReference(handle);
     return handle;

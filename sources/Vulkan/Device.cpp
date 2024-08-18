@@ -1084,10 +1084,6 @@ void Device::addReferenceBuffer(BufferHandle handle) noexcept {
     _buffers.addReference(handle);
 }
 
-void Device::addReferenceTexture(TextureHandle handle) noexcept {
-    _textures.addReference(handle);
-}
-
 void Device::addReferenceDescriptorSet(DescriptorSetHandle handle) noexcept {
     _descriptorSets.addReference(handle);
 }
