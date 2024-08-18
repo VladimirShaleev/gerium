@@ -17,6 +17,7 @@ static gerium_technique_h presentTechnique = {};
 static gerium_descriptor_set_h presentDescriptorSet = {};
 
 static AsyncLoader asyncLoader{};
+static ResourceManager resourceManager{};
 static Scene scene{};
 static std::shared_ptr<Camera> camera{};
 
@@ -70,6 +71,7 @@ bool initialize(gerium_application_t application) {
         gerium_renderer_set_profiler_enable(renderer, 1);
 
         asyncLoader.create(application, renderer);
+        resourceManager.create(renderer, asyncLoader);
 
         check(gerium_frame_graph_create(renderer, &frameGraph));
         check(gerium_profiler_create(renderer, &profiler));
@@ -266,8 +268,8 @@ bool initialize(gerium_application_t application) {
         auto sponzaDir       = appDir / "assets" / "models" / "sponza" / "Sponza.gltf";
         auto flightHelmetDir = appDir / "assets" / "models" / "flight-helmet" / "FlightHelmet.gltf";
 
-        auto modelSponza       = Model::loadGlTF(renderer, asyncLoader, sponzaDir.string().c_str());
-        auto modelFlightHelmet = Model::loadGlTF(renderer, asyncLoader, flightHelmetDir.string().c_str());
+        auto modelSponza       = Model::loadGlTF(renderer, resourceManager, sponzaDir.string().c_str());
+        auto modelFlightHelmet = Model::loadGlTF(renderer, resourceManager, flightHelmetDir.string().c_str());
 
         auto defaultTransform = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
         auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.0008f, 0.0008f, 0.0008f)),
@@ -313,6 +315,7 @@ void unitialize(gerium_application_t application) {
         gerium_renderer_destroy_descriptor_set(renderer, presentDescriptorSet);
     }
 
+    resourceManager.destroy();
     gerium_profiler_destroy(profiler);
     gerium_frame_graph_destroy(frameGraph);
     gerium_renderer_destroy(renderer);
@@ -397,6 +400,7 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
         return 1;
     }
 
+    resourceManager.update(elapsed);
     scene.update();
     camera->update();
 

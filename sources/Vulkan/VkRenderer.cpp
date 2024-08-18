@@ -279,8 +279,12 @@ void VkRenderer::onTextureSampler(TextureHandle handle,
         .setAddressModeUvw(toVkSamplerAddressMode(addressModeU),
                            toVkSamplerAddressMode(addressModeV),
                            toVkSamplerAddressMode(addressModeW));
-    auto sampler = _device->createSampler(sc);
+    auto oldSampler = _device->getTextureSampler(handle);
+    auto sampler    = _device->createSampler(sc);
     _device->linkTextureSampler(handle, sampler);
+    if (oldSampler != Undefined) {
+        _device->destroySampler(oldSampler);
+    }
 }
 
 BufferHandle VkRenderer::onReferenceBuffer(BufferHandle handle) noexcept {

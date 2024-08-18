@@ -2,7 +2,7 @@
 #define MODEL_HPP
 
 #include "Common.hpp"
-#include "AsyncLoader.hpp"
+#include "ResourceManager.hpp"
 
 enum class DrawFlags {
     None        = 0,
@@ -19,7 +19,7 @@ struct MeshData {
 
 class PBRMaterial final {
 public:
-    explicit PBRMaterial(gerium_renderer_t renderer);
+    explicit PBRMaterial(gerium_renderer_t renderer, ResourceManager& resourceManger);
     ~PBRMaterial();
 
     PBRMaterial(const PBRMaterial& pbrMaterial) noexcept;
@@ -60,6 +60,7 @@ private:
     void setTexture(gerium_texture_h& oldTexture, gerium_texture_h newTexture) noexcept;
 
     gerium_renderer_t _renderer{};
+    ResourceManager* _resourceManger{};
 
     gerium_technique_h _technique{ UndefinedHandle };
 
@@ -80,7 +81,7 @@ private:
 
 class Mesh final {
 public:
-    explicit Mesh(gerium_renderer_t renderer);
+    explicit Mesh(gerium_renderer_t renderer, ResourceManager& resourceManger);
     ~Mesh();
 
     Mesh(const Mesh& mesh) noexcept;
@@ -127,6 +128,7 @@ private:
     void setBuffer(gerium_buffer_h& oldBuffer, gerium_buffer_h newBuffer) noexcept;
 
     gerium_renderer_t _renderer{};
+    ResourceManager* _resourceManger{};
 
     PBRMaterial _material;
 
@@ -172,7 +174,7 @@ public:
     const glm::mat4& getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
     const glm::mat4& getInverseWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
 
-    static Model loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std::filesystem::path& path);
+    static Model loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManager, const std::filesystem::path& path);
 
 private:
     void changeNode(gerium_sint32_t nodeIndex) noexcept;

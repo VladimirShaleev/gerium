@@ -61,6 +61,7 @@ public:
                                              RenderPassHandle renderPass,
                                              FramebufferHandle framebuffer);
 
+    SamplerHandle getTextureSampler(TextureHandle texture) const noexcept;
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
     uint32_t totalMemoryUsed();

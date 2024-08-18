@@ -1221,6 +1221,10 @@ CommandBuffer* Device::getSecondaryCommandBuffer(gerium_uint32_t thread,
     return _commandBufferPool.getSecondary(_currentFrame, thread, renderPass, framebuffer, false);
 }
 
+SamplerHandle Device::getTextureSampler(TextureHandle texture) const noexcept {
+    return _textures.access(texture)->sampler;
+}
+
 void Device::linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept {
     _textures.access(texture)->sampler = sampler;
 }
