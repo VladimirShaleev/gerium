@@ -361,7 +361,7 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
                 const auto delta = 1.0f;
                 pitch += event.mouse.raw_delta_y * (invY ? delta : -delta);
                 yaw += event.mouse.raw_delta_x * delta;
-                zoom += event.mouse.wheel_vertical * move * -0.01f;
+                zoom += event.mouse.wheel_vertical * move * -0.1f;
             }
         }
     }
