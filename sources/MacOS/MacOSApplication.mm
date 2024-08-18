@@ -284,9 +284,13 @@
         pos = NSMakePoint(pos.x, view.bounds.size.height - pos.y);
     }
 
-    auto buttons = GERIUM_MOUSE_BUTTON_NONE;
-    auto wheelX  = 0.0;
-    auto wheelY  = 0.0;
+    auto buttons   = GERIUM_MOUSE_BUTTON_NONE;
+    auto absoluteX = gerium_sint16_t(pos.x * application->scale());
+    auto absoluteY = gerium_sint16_t(pos.y * application->scale());
+    auto deltaX    = absoluteX - self.lastMouseEvent.absolute_x;
+    auto deltaY    = absoluteY - self.lastMouseEvent.absolute_y;
+    auto wheelX    = 0.0;
+    auto wheelY    = 0.0;
 
     if (event.type == NSEventTypeLeftMouseDown) {
         buttons = GERIUM_MOUSE_BUTTON_LEFT_DOWN;
@@ -307,10 +311,14 @@
             if ([event hasPreciseScrollingDeltas]) {
                 wheelX *= 0.01;
                 wheelY *= 0.01;
+                deltaX = 0;
+                deltaY = 0;
             }
         } else {
             wheelX = [event deltaX] * 0.1;
             wheelY = [event deltaY] * 0.1;
+            deltaX = 0;
+            deltaY = 0;
         }
     }
 
@@ -319,10 +327,10 @@
     newEvent.timestamp              = application->ticks();
     newEvent.mouse.id               = 0;
     newEvent.mouse.buttons          = buttons;
-    newEvent.mouse.absolute_x       = gerium_sint16_t(pos.x * application->scale());
-    newEvent.mouse.absolute_y       = gerium_sint16_t(pos.y * application->scale());
-    newEvent.mouse.delta_x          = newEvent.mouse.absolute_x - self.lastMouseEvent.absolute_x;
-    newEvent.mouse.delta_y          = newEvent.mouse.absolute_y - self.lastMouseEvent.absolute_y;
+    newEvent.mouse.absolute_x       = absoluteX;
+    newEvent.mouse.absolute_y       = absoluteY;
+    newEvent.mouse.delta_x          = deltaX;
+    newEvent.mouse.delta_y          = deltaY;
     newEvent.mouse.raw_delta_x      = newEvent.mouse.delta_x;
     newEvent.mouse.raw_delta_y      = newEvent.mouse.delta_y;
     newEvent.mouse.wheel_vertical   = wheelY;
