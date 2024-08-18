@@ -527,6 +527,9 @@ const glm::mat4& Model::getInverseWorldMatrix(gerium_uint32_t nodeIndex) const n
 }
 
 static void setSampler(gerium_renderer_t renderer, gerium_texture_h texture, const gltf::Sampler& sampler) {
+    if (texture.unused == UndefinedHandle) {
+        return;
+    }
     auto minFilter = GERIUM_FILTER_LINEAR;
     auto magFilter = GERIUM_FILTER_LINEAR;
     auto mipFilter = GERIUM_FILTER_LINEAR;
@@ -669,7 +672,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std
     std::vector<gerium_texture_h> textures;
     for (const auto& image : glTF.images) {
         const auto fullPath = path.parent_path() / image.uri;
-        if (gerium_file_exists_file(fullPath.string().c_str())) {
+        // if (gerium_file_exists_file(fullPath.string().c_str())) {
             gerium_file_t file;
             check(gerium_file_open(fullPath.string().c_str(), true, &file));
             auto size = gerium_file_get_size(file);
@@ -695,9 +698,9 @@ Model Model::loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std
             textures.push_back(texture);
 
             loader.loadTexture(texture, file, data);
-        } else {
-            textures.push_back({ UndefinedHandle });
-        }
+        // } else {
+        //     textures.push_back({ UndefinedHandle });
+        // }
     }
 
     auto& root    = glTF.scenes[glTF.scene];
@@ -807,7 +810,9 @@ Model Model::loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std
     }
 
     for (auto texture : textures) {
-        gerium_renderer_destroy_texture(renderer, texture);
+        if (texture.unused != UndefinedHandle) {
+            gerium_renderer_destroy_texture(renderer, texture);
+        }
     }
 
     for (auto buffer : buffers) {
