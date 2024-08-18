@@ -1470,7 +1470,7 @@ void Device::createVmaAllocator() {
 }
 
 void Device::createDynamicBuffer() {
-    _dynamicBufferSize = 1024 * 1024 * 250;
+    _dynamicBufferSize = 1024 * 1024 * 128;
 
     BufferCreation bc;
     bc.set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,

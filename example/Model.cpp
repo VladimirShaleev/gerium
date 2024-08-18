@@ -526,9 +526,42 @@ const glm::mat4& Model::getInverseWorldMatrix(gerium_uint32_t nodeIndex) const n
     return _inverseWorldMatrices[nodeIndex];
 }
 
-static void fillPbrMaterial(const gltf::Material& material,
+static void setSampler(gerium_renderer_t renderer, gerium_texture_h texture, const gltf::Sampler& sampler) {
+    auto minFilter = GERIUM_FILTER_LINEAR;
+    auto magFilter = GERIUM_FILTER_LINEAR;
+    auto mipFilter = GERIUM_FILTER_LINEAR;
+    auto addressU  = GERIUM_ADDRESS_MODE_REPEAT;
+    auto addressV  = GERIUM_ADDRESS_MODE_REPEAT;
+    auto addressW  = GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+    if (sampler.minFilter == gltf::Filter::Nearest) {
+        minFilter = GERIUM_FILTER_NEAREST;
+    }
+
+    if (sampler.magFilter == gltf::Filter::Nearest) {
+        magFilter = GERIUM_FILTER_NEAREST;
+    }
+
+    if (sampler.wrapS == gltf::Wrap::MirroredRepeat) {
+        addressU = GERIUM_ADDRESS_MODE_MIRRORED_REPEAT;
+    } else if (sampler.wrapS == gltf::Wrap::ClampToEdge) {
+        addressU = GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE;
+    }
+
+    if (sampler.wrapT == gltf::Wrap::MirroredRepeat) {
+        addressV = GERIUM_ADDRESS_MODE_MIRRORED_REPEAT;
+    } else if (sampler.wrapT == gltf::Wrap::ClampToEdge) {
+        addressV = GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE;
+    }
+    
+    gerium_renderer_texture_sampler(renderer, texture, minFilter, magFilter, mipFilter, addressU, addressV, addressW);
+}
+
+static void fillPbrMaterial(gerium_renderer_t renderer,
+                            const gltf::Material& material,
                             PBRMaterial& pbrMaterial,
                             const std::vector<gltf::Texture>& gltfTextures,
+                            const std::vector<gltf::Sampler>& gltfSamplers,
                             const std::vector<gerium_texture_h>& textures) {
     auto flags = material.doubleSided ? DrawFlags::DoubleSided : DrawFlags::None;
     if (material.alphaMode == "MASK") {
@@ -558,13 +591,15 @@ static void fillPbrMaterial(const gltf::Material& material,
                                                  : 1.0f;
 
         if (material.pbrMetallicRoughness.baseColorTexture.has) {
-            const auto links = gltfTextures[material.pbrMetallicRoughness.baseColorTexture.index];
+            const auto& links = gltfTextures[material.pbrMetallicRoughness.baseColorTexture.index];
             pbrMaterial.setDiffuse(textures[links.source]);
+            setSampler(renderer, textures[links.source], gltfSamplers[links.sampler]);
         }
 
         if (material.pbrMetallicRoughness.metallicRoughnessTexture.has) {
             const auto links = gltfTextures[material.pbrMetallicRoughness.metallicRoughnessTexture.index];
             pbrMaterial.setRoughness(textures[links.source]);
+            setSampler(renderer, textures[links.source], gltfSamplers[links.sampler]);
         }
     }
 
@@ -576,6 +611,7 @@ static void fillPbrMaterial(const gltf::Material& material,
     if (material.normalTexture.has) {
         const auto links = gltfTextures[material.normalTexture.index];
         pbrMaterial.setNormal(textures[links.source]);
+        setSampler(renderer, textures[links.source], gltfSamplers[links.sampler]);
     }
 
     // pbrMaterial.normalTextureIndex =
@@ -657,7 +693,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std
             gerium_texture_h texture;
             check(gerium_renderer_create_texture(renderer, &info, nullptr, &texture));
             textures.push_back(texture);
-            
+
             loader.loadTexture(texture, file, data);
         } else {
             textures.push_back({ UndefinedHandle });
@@ -755,7 +791,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, AsyncLoader& loader, const std
 
             auto& material = glTF.materials[primitive.material];
             PBRMaterial pbrMaterial(renderer);
-            fillPbrMaterial(material, pbrMaterial, glTF.textures, textures);
+            fillPbrMaterial(renderer, material, pbrMaterial, glTF.textures, glTF.samplers, textures);
 
             Mesh mesh(renderer);
             mesh.setNodeIndex(nodeIndex);
