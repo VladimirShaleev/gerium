@@ -9,10 +9,10 @@ android {
     defaultConfig {
         applicationId = "com.github.vladimirshaleev.gerium"
         minSdk = 21
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-        @Suppress("UnstableApiUsage") externalNativeBuild {
+        externalNativeBuild {
             cmake {
                 arguments += "-DGERIUM_BUILD_TESTS=OFF"
                 arguments += "-DANDROID_TOOLCHAIN=clang"
@@ -30,7 +30,6 @@ android {
     externalNativeBuild {
         cmake {
             path = file("../../../CMakeLists.txt")
-            version = "3.22.1"
         }
     }
 
