@@ -45,6 +45,13 @@ if(MSVC)
 elseif(ANDROID)
     set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/../../../../)
 elseif(APPLE)
+    if(CMAKE_GENERATOR STREQUAL Xcode)
+        if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL "")
+            set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+        else()
+            set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+        endif()
+    endif()
     set_target_properties(cpp-example PROPERTIES
         MACOSX_BUNDLE ON
         MACOSX_RPATH ON
