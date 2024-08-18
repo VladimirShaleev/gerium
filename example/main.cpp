@@ -351,8 +351,9 @@ gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium
             }
             if (!gerium_application_is_show_cursor(application) ||
                 gerium_application_get_platform(application) == GERIUM_RUNTIME_PLATFORM_ANDROID) {
-                gerium_float32_t pitch = event.mouse.raw_delta_y * -1.0f;
-                gerium_float32_t yaw   = event.mouse.raw_delta_x * 1.0f;
+                bool invY = gerium_application_get_platform(application) == GERIUM_RUNTIME_PLATFORM_MAC_OS;
+                gerium_float32_t pitch = event.mouse.raw_delta_y * (invY ? 0.5f : -0.5f);
+                gerium_float32_t yaw   = event.mouse.raw_delta_x * 0.5f;
                 camera->rotate(pitch, yaw, elapsed);
                 camera->zoom(event.mouse.wheel_vertical * move * -0.01f, elapsed);
             }
