@@ -624,7 +624,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             }
         } else if (lang == GERIUM_SHADER_LANGUAGE_GLSL || lang == GERIUM_SHADER_LANGUAGE_HLSL) {
             spirv = compile(
-                (const char*) stage.data, stage.size, lang, stageType, creation.name, stage.macro_count, stage.macros);
+                (const char*) stage.data, stage.size, lang, stageType, stage.name, stage.macro_count, stage.macros);
 
             shaderInfo.codeSize = spirv.size() * 4;
             shaderInfo.pCode    = spirv.data();
@@ -702,9 +702,32 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
 }
 
 PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
+    auto pc = creation;
+    std::vector<std::unique_ptr<gerium_uint8_t[]>> files;
+
+    for (uint32_t i = 0; i < pc.program.stagesCount; ++i) {
+        auto& stage = pc.program.stages[i];
+        if (!stage.data) {
+            auto fullpath = std::filesystem::path(stage.name);
+            if (!fullpath.is_absolute()) {
+                fullpath = std::filesystem::path(File::getAppDir()) / stage.name;
+            }
+            auto fullpathStr = fullpath.string();
+            auto file        = File::open(fullpathStr.c_str(), true);
+            auto data        = file->map();
+
+            files.emplace_back(new gerium_uint8_t[file->getSize()]);
+
+            stage.data = (gerium_cdata_t) files.back().get();
+            stage.size = file->getSize();
+
+            memcpy((void*) stage.data, data, stage.size);
+        }
+    }
+
     auto [handle, pipeline] = _pipelines.obtain_and_access();
 
-    const auto filename     = "pipeline-"s + std::to_string(calcPipelineHash(creation)) + ".cache"s;
+    const auto filename     = "pipeline-"s + std::to_string(calcPipelineHash(pc)) + ".cache"s;
     const auto cachePath    = std::filesystem::path(File::getCacheDir()) / filename;
     const auto cachePathStr = cachePath.string();
 
@@ -715,7 +738,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
     VkPipelineCacheCreateInfo cacheInfo{ VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
 
     ProgramCreation cacheProgram{};
-    const ProgramCreation* programCreation = &creation.program;
+    const ProgramCreation* programCreation = &pc.program;
 
     if (cacheExists) {
         /**
@@ -816,8 +839,8 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
 
     if (program->graphicsPipeline) {
         RenderPassCreation rc{};
-        rc.output             = creation.renderPass;
-        rc.name               = creation.name;
+        rc.output             = pc.renderPass;
+        rc.name               = pc.name;
         pipeline->renderPass  = createRenderPass(rc);
         pipeline->vkBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
@@ -825,27 +848,27 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         VkVertexInputAttributeDescription vertexAttributes[kMaxVertexAttributes];
         VkVertexInputBindingDescription vertexBindings[kMaxVertexBindings];
 
-        if (creation.vertexInput.numVertexAttributes) {
-            for (uint32_t i = 0; i < creation.vertexInput.numVertexAttributes; ++i) {
-                const auto& vertexAttribute = creation.vertexInput.vertexAttributes[i];
+        if (pc.vertexInput.numVertexAttributes) {
+            for (uint32_t i = 0; i < pc.vertexInput.numVertexAttributes; ++i) {
+                const auto& vertexAttribute = pc.vertexInput.vertexAttributes[i];
 
                 vertexAttributes[i] = { vertexAttribute.location,
                                         vertexAttribute.binding,
                                         toVkFormat(vertexAttribute.format),
                                         vertexAttribute.offset };
             }
-            vertexInput.vertexAttributeDescriptionCount = creation.vertexInput.numVertexAttributes;
+            vertexInput.vertexAttributeDescriptionCount = pc.vertexInput.numVertexAttributes;
             vertexInput.pVertexAttributeDescriptions    = vertexAttributes;
         } else {
             vertexInput.vertexAttributeDescriptionCount = 0;
             vertexInput.pVertexAttributeDescriptions    = nullptr;
         }
 
-        if (creation.vertexInput.numVertexBindings) {
-            vertexInput.vertexBindingDescriptionCount = creation.vertexInput.numVertexBindings;
+        if (pc.vertexInput.numVertexBindings) {
+            vertexInput.vertexBindingDescriptionCount = pc.vertexInput.numVertexBindings;
 
-            for (uint32_t i = 0; i < creation.vertexInput.numVertexBindings; ++i) {
-                const auto& vertexBinding = creation.vertexInput.vertexBindings[i];
+            for (uint32_t i = 0; i < pc.vertexInput.numVertexBindings; ++i) {
+                const auto& vertexBinding = pc.vertexInput.vertexBindings[i];
 
                 VkVertexInputRate vertexRate = vertexBinding.input_rate == GERIUM_VERTEX_RATE_PER_VERTEX
                                                    ? VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX
@@ -884,16 +907,16 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         viewportState.pScissors     = &scissor;
 
         VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-        rasterizer.depthClampEnable        = creation.rasterization->depth_clamp_enable;
+        rasterizer.depthClampEnable        = pc.rasterization->depth_clamp_enable;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
-        rasterizer.polygonMode             = toVkPolygonMode(creation.rasterization->polygon_mode);
-        rasterizer.lineWidth               = creation.rasterization->line_width;
-        rasterizer.cullMode                = toVkCullMode(creation.rasterization->cull_mode);
-        rasterizer.frontFace               = toVkFrontFace(creation.rasterization->front_face);
-        rasterizer.depthBiasEnable         = creation.rasterization->depth_bias_enable;
-        rasterizer.depthBiasConstantFactor = creation.rasterization->depth_bias_constant_factor;
-        rasterizer.depthBiasClamp          = creation.rasterization->depth_bias_clamp;
-        rasterizer.depthBiasSlopeFactor    = creation.rasterization->depth_bias_slope_factor;
+        rasterizer.polygonMode             = toVkPolygonMode(pc.rasterization->polygon_mode);
+        rasterizer.lineWidth               = pc.rasterization->line_width;
+        rasterizer.cullMode                = toVkCullMode(pc.rasterization->cull_mode);
+        rasterizer.frontFace               = toVkFrontFace(pc.rasterization->front_face);
+        rasterizer.depthBiasEnable         = pc.rasterization->depth_bias_enable;
+        rasterizer.depthBiasConstantFactor = pc.rasterization->depth_bias_constant_factor;
+        rasterizer.depthBiasClamp          = pc.rasterization->depth_bias_clamp;
+        rasterizer.depthBiasSlopeFactor    = pc.rasterization->depth_bias_slope_factor;
 
         VkPipelineMultisampleStateCreateInfo multisampling{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
         multisampling.sampleShadingEnable   = VK_FALSE;
@@ -906,34 +929,34 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         VkPipelineDepthStencilStateCreateInfo depthStencil{
             VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
         };
-        depthStencil.depthTestEnable       = creation.depthStencil->depth_test_enable;
-        depthStencil.depthWriteEnable      = creation.depthStencil->depth_write_enable;
-        depthStencil.depthCompareOp        = toVkCompareOp(creation.depthStencil->depth_compare_op);
-        depthStencil.depthBoundsTestEnable = creation.depthStencil->depth_bounds_test_enable;
-        depthStencil.stencilTestEnable     = creation.depthStencil->stencil_test_enable;
-        depthStencil.front.failOp          = toVkStencilOp(creation.depthStencil->front.fail_op);
-        depthStencil.front.passOp          = toVkStencilOp(creation.depthStencil->front.pass_op);
-        depthStencil.front.depthFailOp     = toVkStencilOp(creation.depthStencil->front.depth_fail_op);
-        depthStencil.front.compareOp       = toVkCompareOp(creation.depthStencil->front.compare_op);
-        depthStencil.front.compareMask     = creation.depthStencil->front.compare_mask;
-        depthStencil.front.writeMask       = creation.depthStencil->front.write_mask;
-        depthStencil.front.reference       = creation.depthStencil->front.reference;
-        depthStencil.back.failOp           = toVkStencilOp(creation.depthStencil->back.fail_op);
-        depthStencil.back.passOp           = toVkStencilOp(creation.depthStencil->back.pass_op);
-        depthStencil.back.depthFailOp      = toVkStencilOp(creation.depthStencil->back.depth_fail_op);
-        depthStencil.back.compareOp        = toVkCompareOp(creation.depthStencil->back.compare_op);
-        depthStencil.back.compareMask      = creation.depthStencil->back.compare_mask;
-        depthStencil.back.writeMask        = creation.depthStencil->back.write_mask;
-        depthStencil.back.reference        = creation.depthStencil->back.reference;
-        depthStencil.minDepthBounds        = creation.depthStencil->min_depth_bounds;
-        depthStencil.maxDepthBounds        = creation.depthStencil->max_depth_bounds;
+        depthStencil.depthTestEnable       = pc.depthStencil->depth_test_enable;
+        depthStencil.depthWriteEnable      = pc.depthStencil->depth_write_enable;
+        depthStencil.depthCompareOp        = toVkCompareOp(pc.depthStencil->depth_compare_op);
+        depthStencil.depthBoundsTestEnable = pc.depthStencil->depth_bounds_test_enable;
+        depthStencil.stencilTestEnable     = pc.depthStencil->stencil_test_enable;
+        depthStencil.front.failOp          = toVkStencilOp(pc.depthStencil->front.fail_op);
+        depthStencil.front.passOp          = toVkStencilOp(pc.depthStencil->front.pass_op);
+        depthStencil.front.depthFailOp     = toVkStencilOp(pc.depthStencil->front.depth_fail_op);
+        depthStencil.front.compareOp       = toVkCompareOp(pc.depthStencil->front.compare_op);
+        depthStencil.front.compareMask     = pc.depthStencil->front.compare_mask;
+        depthStencil.front.writeMask       = pc.depthStencil->front.write_mask;
+        depthStencil.front.reference       = pc.depthStencil->front.reference;
+        depthStencil.back.failOp           = toVkStencilOp(pc.depthStencil->back.fail_op);
+        depthStencil.back.passOp           = toVkStencilOp(pc.depthStencil->back.pass_op);
+        depthStencil.back.depthFailOp      = toVkStencilOp(pc.depthStencil->back.depth_fail_op);
+        depthStencil.back.compareOp        = toVkCompareOp(pc.depthStencil->back.compare_op);
+        depthStencil.back.compareMask      = pc.depthStencil->back.compare_mask;
+        depthStencil.back.writeMask        = pc.depthStencil->back.write_mask;
+        depthStencil.back.reference        = pc.depthStencil->back.reference;
+        depthStencil.minDepthBounds        = pc.depthStencil->min_depth_bounds;
+        depthStencil.maxDepthBounds        = pc.depthStencil->max_depth_bounds;
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment[kMaxImageOutputs];
-        if (creation.blendState.activeStates) {
-            assert(creation.blendState.activeStates == creation.renderPass.numColorFormats);
-            for (uint32_t i = 0; i < creation.blendState.activeStates; i++) {
-                const auto& writeMask  = creation.blendState.writeMasks[i];
-                const auto& blendState = creation.blendState.blendStates[i];
+        if (pc.blendState.activeStates) {
+            assert(pc.blendState.activeStates == pc.renderPass.numColorFormats);
+            for (uint32_t i = 0; i < pc.blendState.activeStates; i++) {
+                const auto& writeMask  = pc.blendState.writeMasks[i];
+                const auto& blendState = pc.blendState.blendStates[i];
 
                 colorBlendAttachment[i].blendEnable         = blendState.blend_enable;
                 colorBlendAttachment[i].srcColorBlendFactor = toVkBlendFactor(blendState.src_color_blend_factor);
@@ -945,7 +968,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
                 colorBlendAttachment[i].colorWriteMask      = toVkColorComponent(writeMask);
             }
         } else {
-            for (uint32_t i = 0; i < creation.renderPass.numColorFormats; ++i) {
+            for (uint32_t i = 0; i < pc.renderPass.numColorFormats; ++i) {
                 colorBlendAttachment[i]                = {};
                 colorBlendAttachment[i].blendEnable    = VK_FALSE;
                 colorBlendAttachment[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
@@ -954,15 +977,15 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         }
 
         VkPipelineColorBlendStateCreateInfo colorBlending{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-        colorBlending.logicOpEnable = creation.colorBlend->logic_op_enable;
-        colorBlending.logicOp       = toVkLogicOp(creation.colorBlend->logic_op);
+        colorBlending.logicOpEnable = pc.colorBlend->logic_op_enable;
+        colorBlending.logicOp       = toVkLogicOp(pc.colorBlend->logic_op);
         colorBlending.attachmentCount =
-            creation.blendState.activeStates ? creation.blendState.activeStates : creation.renderPass.numColorFormats;
+            pc.blendState.activeStates ? pc.blendState.activeStates : pc.renderPass.numColorFormats;
         colorBlending.pAttachments      = colorBlendAttachment;
-        colorBlending.blendConstants[0] = creation.colorBlend->blend_constants[0];
-        colorBlending.blendConstants[1] = creation.colorBlend->blend_constants[1];
-        colorBlending.blendConstants[2] = creation.colorBlend->blend_constants[2];
-        colorBlending.blendConstants[3] = creation.colorBlend->blend_constants[3];
+        colorBlending.blendConstants[0] = pc.colorBlend->blend_constants[0];
+        colorBlending.blendConstants[1] = pc.colorBlend->blend_constants[1];
+        colorBlending.blendConstants[2] = pc.colorBlend->blend_constants[2];
+        colorBlending.blendConstants[3] = pc.colorBlend->blend_constants[3];
 
         VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
@@ -1998,34 +2021,40 @@ std::vector<uint32_t> Device::compile(const char* code,
 
     class Includer : public shaderc::CompileOptions::IncluderInterface {
     public:
+        explicit Includer(const std::filesystem::path fullpath) : path(fullpath) {
+        }
+
         shaderc_include_result* GetInclude(const char* requested_source,
                                            shaderc_include_type type,
                                            const char* requesting_source,
                                            size_t include_depth) override {
             auto result = new shaderc_include_result{};
 
-            const auto path = std::filesystem::path(File::getAppDir()) / requested_source;
-            strings.push_back(path.string());
-
             result->source_name    = "";
             result->content        = "Include file not found";
             result->content_length = 22;
 
-            if (File::existsFile(strings.back().c_str())) {
-                result->source_name        = strings.back().c_str();
-                result->source_name_length = strings.back().length();
+            if (type == shaderc_include_type_relative) {
+                auto includePath = std::filesystem::path(requested_source);
+                if (!includePath.is_absolute()) {
+                    includePath = path / requested_source;
+                }
+                auto includePathStr = includePath.string();
+                if (File::existsFile(includePathStr.c_str())) {
+                    auto file       = File::open(includePathStr.c_str(), true);
+                    const auto size = file->getSize();
 
-                auto file       = File::open(result->source_name, true);
-                const auto size = file->getSize();
+                    includePaths.emplace_back(new char[includePathStr.length() + 1]{});
+                    files.emplace_back(new char[size + 1]{});
 
-                data.push_back({});
-                auto& content = data.back();
+                    memcpy((void*) includePaths.back().get(), includePathStr.c_str(), includePathStr.length());
+                    file->read((gerium_data_t) files.back().get(), (gerium_uint32_t) size);
 
-                content.resize(size);
-                file->read((gerium_data_t) content.data(), (gerium_uint32_t) size);
-
-                result->content        = content.data();
-                result->content_length = content.length();
+                    result->source_name        = includePaths.back().get();
+                    result->source_name_length = includePathStr.length();
+                    result->content            = files.back().get();
+                    result->content_length     = size;
+                }
             }
 
             return result;
@@ -2035,8 +2064,9 @@ std::vector<uint32_t> Device::compile(const char* code,
             delete data;
         }
 
-        std::vector<std::string> strings;
-        std::vector<std::string> data;
+        std::filesystem::path path;
+        std::vector<std::unique_ptr<const char[]>> includePaths;
+        std::vector<std::unique_ptr<const char[]>> files;
     };
 
     options.SetSourceLanguage(sourceLang);
@@ -2048,7 +2078,7 @@ std::vector<uint32_t> Device::compile(const char* code,
     options.SetAutoMapLocations(true);
     options.SetAutoBindUniforms(true);
     options.SetAutoSampledTextures(true);
-    options.SetIncluder(std::make_unique<Includer>());
+    options.SetIncluder(std::make_unique<Includer>(File::getAppDir() / std::filesystem::path(name).parent_path()));
 
     auto result = compiler.CompileGlslToSpv(code, size, kind, name, "main", options);
 

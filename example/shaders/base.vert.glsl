@@ -7,9 +7,13 @@ layout(location = 1) in vec2 texcoord;
 
 layout(location = 0) out vec2 outTexcoord;
 
-layout(binding = 0, set = 0) uniform SceneData scene;
+layout(binding = 0, set = 0) uniform SceneDataUBO {
+    SceneData scene;
+};
 
-layout(binding = 0, set = 1) uniform MeshData mesh;
+layout(binding = 0, set = 1) uniform MeshDataUBO {
+    MeshData mesh;
+};
 
 void main() {
     gl_Position = scene.viewProjection * mesh.world * vec4(position, 1.0);

@@ -36,51 +36,17 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    std::filesystem::path relative("shaders");
+    const auto presentVert = (relative / "present.vert.hlsl").string();
+    const auto presentFrag = (relative / "present.frag.glsl").string();
+
     gerium_shader_t shaders[2]{};
     shaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
     shaders[0].lang = GERIUM_SHADER_LANGUAGE_HLSL;
-    shaders[0].name = "present.vert.hlsl";
-    // shaders[0].data = "#version 450\n"
-    //                             "\n"
-    //                             "layout(location = 0) out vec2 vTexCoord;"
-    //                             "\n"
-    //                             "void main() {\n"
-    //                             "    vTexCoord.xy = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);\n"
-    //                             "    gl_Position = vec4(vTexCoord.xy * 2.0f - 1.0f, 0.0f, 1.0f);\n"
-    //                             "    gl_Position.y = -gl_Position.y;\n"
-    //                             "}\n";
-    shaders[0].data = "struct Output {\n"
-                      "    float4 pos : SV_POSITION;\n"
-                      "    float2 uv  : TEXCOORD0;\n"
-                      "};\n"
-                      "\n"
-                      "Output main(uint id : SV_VertexID) {\n"
-                      "    Output output;\n"
-                      "    output.uv.x = float((id << 1) & 2);\n"
-                      "    output.uv.y = float(id & 2);\n"
-                      "    output.pos.xy = output.uv.xy * 2.0f - 1.0f;\n"
-                      "    output.pos.z = 0.0f;\n"
-                      "    output.pos.w = 1.0f;\n"
-                      "    output.pos.y = -output.pos.y;\n"
-                      "    return output;\n"
-                      "}\n";
-    shaders[0].size = strlen((const char*) shaders[0].data);
-
+    shaders[0].name = presentVert.c_str();
     shaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
     shaders[1].lang = GERIUM_SHADER_LANGUAGE_GLSL;
-    shaders[1].name = "present.frag.glsl";
-    shaders[1].data = "#version 450\n"
-                      "\n"
-                      "layout(location = 0) in vec2 vTexCoord;\n"
-
-                      "layout(binding = 0) uniform sampler2D texColor;\n"
-
-                      "layout(location = 0) out vec4 outColor;\n"
-                      "\n"
-                      "void main() {\n"
-                      "    outColor = texture(texColor, vTexCoord);\n"
-                      "}\n";
-    shaders[1].size = strlen((const char*) shaders[1].data);
+    shaders[1].name = presentFrag.c_str();
 
     gerium_color_blend_state_t colorBlend{};
     gerium_depth_stencil_state_t depthStencilEmpty{};
@@ -219,50 +185,17 @@ void Application::initialize() {
         { 1, 8,  GERIUM_VERTEX_RATE_PER_VERTEX }
     };
 
+    std::filesystem::path relative("shaders");
+    const auto baseVert = (relative / "base.vert.glsl").string();
+    const auto baseFrag = (relative / "base.frag.glsl").string();
+
     gerium_shader_t baseShaders[2]{};
     baseShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
     baseShaders[0].lang = GERIUM_SHADER_LANGUAGE_GLSL;
-    baseShaders[0].name = "base.vert.glsl";
-    baseShaders[0].data = "#version 450\n"
-                          "\n"
-                          "layout(location = 0) in vec3 position;\n"
-                          "layout(location = 1) in vec2 texcoord;\n"
-                          "\n"
-                          "layout(location = 0) out vec2 outTexcoord;\n"
-                          "\n"
-                          "layout(binding = 0, set = 0) uniform SceneData {\n"
-                          "    mat4 viewProjection;\n"
-                          "    vec4 eye;\n"
-                          "} scene;\n"
-                          "\n"
-                          "layout(binding = 0, set = 1) uniform MeshData {\n"
-                          "    mat4 world;\n"
-                          "    mat4 inverseWorld;\n"
-                          "} mesh;\n"
-                          "\n"
-                          "void main() {\n"
-                          "    gl_Position = scene.viewProjection * mesh.world * vec4(position, 1.0);\n"
-                          "    outTexcoord = texcoord;\n"
-                          "}\n";
-    baseShaders[0].size = strlen((const char*) baseShaders[0].data);
-
+    baseShaders[0].name = baseVert.c_str();
     baseShaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
     baseShaders[1].lang = GERIUM_SHADER_LANGUAGE_GLSL;
-    baseShaders[1].name = "base.frag.glsl";
-    baseShaders[1].data = "#version 450\n"
-                          "\n"
-                          "layout(location = 0) in vec2 inTexcoord;\n"
-                          "\n"
-                          "layout(location = 0) out vec4 outColor;\n"
-                          "\n"
-                          "layout(binding = 1, set = 1) uniform sampler2D baseColor;\n"
-                          "layout(binding = 2, set = 1) uniform sampler2D normalColor;\n"
-                          "layout(binding = 3, set = 1) uniform sampler2D metallicRoughnessColor;\n"
-                          "\n"
-                          "void main() {\n"
-                          "    outColor = texture(baseColor, inTexcoord);\n"
-                          "}\n";
-    baseShaders[1].size = strlen((const char*) baseShaders[1].data);
+    baseShaders[1].name = baseFrag.c_str();
 
     gerium_color_blend_state_t colorBlend{};
     gerium_depth_stencil_state_t depthStencil{};
