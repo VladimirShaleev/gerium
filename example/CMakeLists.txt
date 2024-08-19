@@ -58,11 +58,16 @@ elseif(NOT APPLE)
 endif()
 
 function(copy_dir target src dst)
+    if(ANDROID)
+        set(OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/../../../../assets")
+    else()
+        set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>")
+    endif()
     add_custom_command(
         TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${src}"
-            "$<TARGET_FILE_DIR:${target}>/${dst}"
+            "${OUTPUT_PATH}/${dst}"
         COMMENT "Copying files")
 endfunction()
 

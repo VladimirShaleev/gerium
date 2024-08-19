@@ -1,3 +1,5 @@
+import java.util.Locale
+
 plugins {
     id("com.android.application")
 }
@@ -14,7 +16,6 @@ android {
         versionName = "1.0"
         externalNativeBuild {
             cmake {
-                arguments += "-DGERIUM_BUILD_TESTS=OFF"
                 arguments += "-DANDROID_TOOLCHAIN=clang"
                 arguments += "-DANDROID_STL=c++_static"
                 arguments += "-DCMAKE_TOOLCHAIN_FILE="
@@ -32,8 +33,10 @@ android {
             path = file("../../../CMakeLists.txt")
         }
     }
-
-    sourceSets["main"].assets {
-        srcDir(".cxx/assets")
+    applicationVariants.configureEach {
+        val variant =
+            name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+        tasks["merge${variant}Assets"].dependsOn("merge${variant}NativeLibs")
     }
+    sourceSets["main"].assets.srcDir(".cxx/assets")
 }
