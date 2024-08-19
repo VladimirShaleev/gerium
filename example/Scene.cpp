@@ -35,6 +35,10 @@ void Scene::update() {
         auto mat     = parentMat;
         auto updated = parentUpdated;
 
+        if (auto camera = getComponentNode<Camera>(node)) {
+            camera->update();
+        }
+
         if (auto transform = getComponentNode<Transform>(node)) {
             if (transform->updated || updated) {
                 transform->worldMatrix = *mat * transform->localMatrix;

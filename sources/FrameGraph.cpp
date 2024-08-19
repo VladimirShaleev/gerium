@@ -10,7 +10,7 @@ FrameGraph::~FrameGraph() {
 FrameGraph::FrameGraph(Renderer* renderer) : _renderer(renderer), _hasChanges(false), _nodeGraphCount(0) {
 }
 
-void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data) {
+void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t data) {
     const auto key = hash(name);
 
     if (_renderPassCache.contains(key)) {
@@ -481,7 +481,7 @@ void gerium_frame_graph_destroy(gerium_frame_graph_t frame_graph) {
 gerium_result_t gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
                                             gerium_utf8_t name,
                                             const gerium_render_pass_t* render_pass,
-                                            gerium_data_t* data) {
+                                            gerium_data_t data) {
     assert(frame_graph);
     GERIUM_ASSERT_ARG(name);
     GERIUM_ASSERT_ARG(render_pass);

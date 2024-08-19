@@ -16,14 +16,15 @@ public:
         Up
     };
 
-    explicit Camera(gerium_application_t application, gerium_renderer_t renderer) noexcept;
+    Camera() = default;
+    Camera(gerium_application_t application, gerium_renderer_t renderer) noexcept;
     ~Camera();
 
-    Camera(const Camera&) = delete;
-    Camera(Camera&&)      = delete;
+    Camera(const Camera& other);
+    Camera(Camera&& other);
 
-    Camera& operator=(const Camera&) = delete;
-    Camera& operator=(Camera&&)      = delete;
+    Camera& operator=(const Camera& other);
+    Camera& operator=(Camera&& other);
 
     void setSpeed(gerium_float32_t movementSpeed = 0.001f, gerium_float32_t rotationSpeed = 0.001f);
 
@@ -55,6 +56,8 @@ public:
     gerium_descriptor_set_h getDecriptorSet() const noexcept;
 
 private:
+    void copy(const Camera& other) noexcept;
+
     gerium_application_t _application{};
     gerium_renderer_t _renderer{};
 

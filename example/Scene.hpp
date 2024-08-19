@@ -1,8 +1,8 @@
 #ifndef SCENE_HPP
 #define SCENE_HPP
 
-#include "Model.hpp"
 #include "Camera.hpp"
+#include "Model.hpp"
 
 #include <entt/entt.hpp>
 
@@ -57,6 +57,16 @@ public:
             }
         }
         return result;
+    }
+
+    template <typename T>
+    T* getAnyComponentNode() noexcept {
+        for (auto entity : _registry.view<T>()) {
+            if (auto component = _registry.try_get<T>(entity)) {
+                return component;
+            }
+        }
+        return nullptr;
     }
 
 private:

@@ -1436,7 +1436,7 @@ gerium_public gerium_result_t
 gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
                             gerium_utf8_t name,
                             const gerium_render_pass_t* render_pass,
-                            gerium_data_t* data);
+                            gerium_data_t data);
 
 gerium_public gerium_result_t
 gerium_frame_graph_remove_pass(gerium_frame_graph_t frame_graph,

@@ -7,13 +7,6 @@ Camera::Camera(gerium_application_t application, gerium_renderer_t renderer) noe
     setPosition({ 0.0f, 0.0f, 0.0f });
     setRotation(0.0f, 0.0f);
     setPerpective(0.01f, 1000.0f, glm::radians(60.0f));
-
-    check(gerium_renderer_create_buffer(
-        _renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, 1, "scene_data", nullptr, sizeof(SceneData), &_data));
-    check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
-    gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
-
-    update();
 }
 
 Camera::~Camera() {
@@ -25,6 +18,34 @@ Camera::~Camera() {
         gerium_renderer_destroy_descriptor_set(_renderer, _descriptorSet);
         _descriptorSet = { UndefinedHandle };
     }
+}
+
+Camera::Camera(const Camera& other) {
+    copy(other);
+}
+
+Camera::Camera(Camera&& other) : _data(other._data), _descriptorSet(other._descriptorSet) {
+    other._data          = { UndefinedHandle };
+    other._descriptorSet = { UndefinedHandle };
+    copy(other);
+}
+
+Camera& Camera::operator=(const Camera& other) {
+    if (this != &other) {
+        copy(other);
+    }
+    return *this;
+}
+
+Camera& Camera::operator=(Camera&& other) {
+    if (this != &other) {
+        _data                = other._data;
+        _descriptorSet       = other._descriptorSet;
+        other._data          = { UndefinedHandle };
+        other._descriptorSet = { UndefinedHandle };
+        copy(other);
+    }
+    return *this;
 }
 
 void Camera::setSpeed(gerium_float32_t movementSpeed, gerium_float32_t rotationSpeed) {
@@ -69,6 +90,15 @@ void Camera::zoom(gerium_float32_t value, gerium_float32_t delta) {
 }
 
 void Camera::update() {
+    if (_data.unused == UndefinedHandle) {
+        check(gerium_renderer_create_buffer(
+            _renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, 1, "scene_data", nullptr, sizeof(SceneData), &_data));
+    }
+    if (_descriptorSet.unused == UndefinedHandle) {
+        check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
+        gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
+    }
+
     _fov   = std::clamp(_fov, glm::radians(30.0f), glm::radians(120.0f));
     _pitch = std::clamp(_pitch, glm::radians(-89.99f), glm::radians(89.99f));
     _yaw   = std::fmod(_yaw, M_PI * 2.0);
@@ -155,4 +185,23 @@ gerium_float32_t Camera::fov() const noexcept {
 
 gerium_descriptor_set_h Camera::getDecriptorSet() const noexcept {
     return _descriptorSet;
+}
+
+void Camera::copy(const Camera& other) noexcept {
+    _application    = other._application;
+    _renderer       = other._renderer;
+    _position       = other._position;
+    _front          = other._front;
+    _up             = other._up;
+    _right          = other._right;
+    _yaw            = other._yaw;
+    _pitch          = other._pitch;
+    _movementSpeed  = other._movementSpeed;
+    _rotationSpeed  = other._rotationSpeed;
+    _nearPlane      = other._nearPlane;
+    _farPlane       = other._farPlane;
+    _fov            = other._fov;
+    _view           = other._view;
+    _projection     = other._projection;
+    _viewProjection = other._viewProjection;
 }

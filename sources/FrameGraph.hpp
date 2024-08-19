@@ -26,7 +26,7 @@ using FrameGraphResourcePool   = ResourcePool<struct FrameGraphResource, FrameGr
 struct FrameGraphRenderPass {
     gerium_render_pass_t pass;
     gerium_utf8_t name;
-    gerium_data_t* data;
+    gerium_data_t data;
 };
 
 struct FrameGraphNode {
@@ -80,7 +80,7 @@ public:
     ~FrameGraph() override;
     FrameGraph(Renderer* renderer);
 
-    void addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t* data);
+    void addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t data);
     void removePass(gerium_utf8_t name);
 
     void addNode(gerium_utf8_t name,
