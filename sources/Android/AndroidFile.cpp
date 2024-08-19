@@ -78,7 +78,8 @@ void AndroidFile::initialize() {
 }
 
 gerium_utf8_t AndroidFile::copyFromAssets(gerium_utf8_t path, bool readOnly) {
-    if (readOnly && !existsFile(path)) {
+    const auto exists = std::filesystem::exists(path) && !std::filesystem::is_directory(path);
+    if (readOnly && !exists) {
         std::filesystem::path appDir = std::filesystem::path(AndroidFile::getAppDir());
         auto relative                = std::filesystem::relative(path, appDir).string();
         auto asset                   = AAssetManager_open(
@@ -120,7 +121,18 @@ gerium_utf8_t File::getAppDir() noexcept {
 
 bool File::existsFile(gerium_utf8_t path) noexcept {
     std::filesystem::path file = path;
-    return std::filesystem::exists(file) && !std::filesystem::is_directory(file);
+    if (std::filesystem::exists(file) && !std::filesystem::is_directory(file)) {
+        return true;
+    }
+    std::filesystem::path appDir = std::filesystem::path(getAppDir());
+    auto relative                = std::filesystem::relative(path, appDir).string();
+    auto asset                   = AAssetManager_open(
+            android::AndroidApplication::instance()->activity->assetManager, relative.c_str(), AASSET_MODE_BUFFER);
+    if (asset) {
+        AAsset_close(asset);
+        return true;
+    }
+    return false;
 }
 
 bool File::existsDir(gerium_utf8_t path) noexcept {

@@ -659,11 +659,11 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
     std::vector<gerium_texture_h> textures;
     for (const auto& image : glTF.images) {
         const auto fullPath = path.parent_path() / image.uri;
-        // if (gerium_file_exists_file(fullPath.string().c_str())) {
-        textures.push_back(resourceManager.loadTexture(fullPath));
-        // } else {
-        //     textures.push_back({ UndefinedHandle });
-        // }
+        if (gerium_file_exists_file(fullPath.string().c_str())) {
+            textures.push_back(resourceManager.loadTexture(fullPath));
+        } else {
+            textures.push_back({ UndefinedHandle });
+        }
     }
 
     auto& root    = glTF.scenes[glTF.scene];
