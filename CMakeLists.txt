@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.26)
 include(FetchContent)
 include(cmake/version.cmake)
 include(cmake/vcpkg_android.cmake)

@@ -28,9 +28,7 @@ set_target_properties(cpp-example PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF)
 
-set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
 if(MSVC)
-    set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
     target_compile_options(cpp-example PUBLIC /GR-)
     target_compile_options(cpp-example PRIVATE -DNOMINMAX)
     if(GERIUM_MSVC_DYNAMIC_RUNTIME)
@@ -43,15 +41,7 @@ if(MSVC)
     set_target_properties(cpp-example PROPERTIES
         WIN32_EXECUTABLE ON)
 elseif(ANDROID)
-    set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/../../../../)
 elseif(APPLE)
-    if(CMAKE_GENERATOR STREQUAL Xcode)
-        if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL "")
-            set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-        else()
-            set(ASSETS_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
-        endif()
-    endif()
     set_target_properties(cpp-example PROPERTIES
         MACOSX_BUNDLE ON
         MACOSX_RPATH ON
@@ -67,5 +57,15 @@ elseif(NOT APPLE)
     target_compile_options(cpp-example PUBLIC -fno-rtti)
 endif()
 
-file(COPY ${ASSETS_SRC}/Models/Sponza/glTF/ DESTINATION ${ASSETS_OUTPUT_PATH}/assets/models/sponza)
-file(COPY ${ASSETS_SRC}/Models/FlightHelmet/glTF/ DESTINATION ${ASSETS_OUTPUT_PATH}/assets/models/flight-helmet)
+function(copy_dir target src dst)
+    add_custom_command(
+        TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            "${src}"
+            "$<TARGET_FILE_DIR:${target}>/${dst}"
+        COMMENT "Copying files")
+endfunction()
+
+copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ shaders)
+copy_dir(cpp-example ${ASSETS_SRC}/Models/Sponza/glTF/ assets/models/sponza)
+copy_dir(cpp-example ${ASSETS_SRC}/Models/FlightHelmet/glTF/ assets/models/flight-helmet)
