@@ -63,15 +63,15 @@ void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     pipelines[0].shader_count  = std::size(shaders);
     pipelines[0].shaders       = shaders;
 
-    _technique = getApplication()->resourceManager().createTechnique("present", pipelines);
+    _technique     = getApplication()->resourceManager().createTechnique("present", pipelines);
+    _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
 
-    check(gerium_renderer_create_descriptor_set(renderer, &_descriptorSet));
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
 }
 
 void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    gerium_renderer_destroy_descriptor_set(renderer, _descriptorSet);
-    _technique = nullptr;
+    _descriptorSet = nullptr;
+    _technique     = nullptr;
 }
 
 Application::Application() {

@@ -32,7 +32,7 @@ public:
 
 private:
     Technique _technique{};
-    gerium_descriptor_set_h _descriptorSet{};
+    DescriptorSet _descriptorSet{};
 };
 
 class Application final {
