@@ -240,7 +240,7 @@ void Application::initialize() {
     auto modelFlightHelmet = Model::loadGlTF(_renderer, _resourceManager, flightHelmetDir.c_str());
 
     auto defaultTransform = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
-    auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.0008f, 0.0008f, 0.0008f)),
+    auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.15f, 0.15f, 0.15f)),
                                       glm::identity<glm::mat4>(),
                                       true };
     auto flightHelmetTransform =

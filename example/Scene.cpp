@@ -49,15 +49,7 @@ void Scene::update() {
         }
 
         if (auto model = getComponentNode<Model>(node); model) {
-            if (updated) {
-                for (auto& mesh : model->meshes()) {
-                    const auto hierarchy = model->getNode(mesh.getNodeIndex());
-                    if (hierarchy.parent < 0) {
-                        model->setMatrix(mesh.getNodeIndex(), *mat);
-                    }
-                }
-            }
-            model->updateMatrices();
+            model->updateMatrices(*mat, updated);
             model->updateMaterials();
         }
 

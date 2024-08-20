@@ -457,7 +457,7 @@ void Model::setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat) {
     changeNode(nodeIndex);
 }
 
-void Model::updateMatrices() {
+void Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
     gerium_uint32_t currentLevel = 0;
 
     while (currentLevel <= _maxLevel) {
@@ -466,14 +466,14 @@ void Model::updateMatrices() {
                 continue;
             }
 
-            if (!_updatedNodes[i]) {
+            if (!_updatedNodes[i] && !parentUpdated) {
                 continue;
             }
 
             _updatedNodes[i] = false;
 
             if (_nodes[i].parent < 0) {
-                _worldMatrices[i] = _localMatrices[i];
+                _worldMatrices[i] = parentMat * _localMatrices[i];
             } else {
                 const auto& parentMatrix = _worldMatrices[_nodes[i].parent];
                 _worldMatrices[i]        = parentMatrix * _localMatrices[i];
