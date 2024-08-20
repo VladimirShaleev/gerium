@@ -5,22 +5,29 @@
 
 class ResourceManager final {
 public:
-    void create(AsyncLoader& loader);
+    void create(AsyncLoader& loader, gerium_frame_graph_t frameGraph);
     void destroy();
     void update(gerium_float32_t elapsed);
 
     gerium_texture_h loadTexture(const std::filesystem::path& path);
+    gerium_technique_h loadTechnique(const std::string& name);
+    gerium_technique_h createTechnique(const std::string& name, const std::vector<gerium_pipeline_t> pipelines);
+
     void referenceTexture(gerium_texture_h handle);
+    void referenceTechnique(gerium_technique_h handle);
+
     void deleteTexture(gerium_texture_h handle);
+    void deleteTechnique(gerium_technique_h handle);
 
 private:
     enum Type {
-        Texture
+        Texture = 0,
+        Technique = 10000
     };
 
     struct Resource {
         Type type;
-        std::string path;
+        std::string name;
         gerium_uint64_t key;
         gerium_uint16_t handle;
         gerium_uint16_t reference;
@@ -33,6 +40,7 @@ private:
     static gerium_uint64_t calcKey(const std::string& path) noexcept;
 
     gerium_renderer_t _renderer{};
+    gerium_frame_graph_t _frameGraph{};
     AsyncLoader* _loader{};
     gerium_float64_t _ticks{};
     std::map<gerium_uint64_t, Resource> _resources;

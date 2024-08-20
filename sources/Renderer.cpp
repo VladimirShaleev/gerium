@@ -70,10 +70,6 @@ BufferHandle Renderer::referenceBuffer(BufferHandle handle) noexcept {
     return onReferenceBuffer(handle);
 }
 
-TechniqueHandle Renderer::referenceTechnique(TechniqueHandle handle) noexcept {
-    return onReferenceTechnique(handle);
-}
-
 DescriptorSetHandle Renderer::referenceDescriptorSet(DescriptorSetHandle handle) noexcept {
     return onReferenceDescriptorSet(handle);
 }
@@ -281,11 +277,6 @@ gerium_result_t gerium_renderer_texture_sampler(gerium_renderer_t renderer,
 gerium_buffer_h gerium_renderer_reference_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->referenceBuffer({ handle.unused });
-}
-
-gerium_technique_h gerium_renderer_reference_technique(gerium_renderer_t renderer, gerium_technique_h handle) {
-    assert(renderer);
-    return alias_cast<Renderer*>(renderer)->referenceTechnique({ handle.unused });
 }
 
 gerium_descriptor_set_h gerium_renderer_reference_descriptor_set(gerium_renderer_t renderer,

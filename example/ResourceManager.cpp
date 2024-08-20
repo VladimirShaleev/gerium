@@ -1,9 +1,10 @@
 #include "ResourceManager.hpp"
 
-void ResourceManager::create(AsyncLoader& loader) {
-    _renderer = loader.renderer();
-    _loader   = &loader;
-    _ticks    = 0.0;
+void ResourceManager::create(AsyncLoader& loader, gerium_frame_graph_t frameGraph) {
+    _renderer   = loader.renderer();
+    _frameGraph = frameGraph;
+    _loader     = &loader;
+    _ticks      = 0.0;
 }
 
 void ResourceManager::destroy() {
@@ -21,6 +22,9 @@ void ResourceManager::update(gerium_float32_t elapsed) {
                     case Texture:
                         gerium_renderer_destroy_texture(_renderer, { it->second.handle });
                         break;
+                    case Technique:
+                        gerium_renderer_destroy_technique(_renderer, { it->second.handle });
+                        break;
                 }
                 keys.push_back(it->first);
             }
@@ -28,7 +32,7 @@ void ResourceManager::update(gerium_float32_t elapsed) {
     }
     for (const auto& key : keys) {
         auto it = _resources.find(key);
-        _mapResource.erase(it->second.handle);
+        _mapResource.erase(it->second.type + it->second.handle);
         _resources.erase(it);
     }
 }
@@ -70,23 +74,68 @@ gerium_texture_h ResourceManager::loadTexture(const std::filesystem::path& path)
 
     auto& resource     = _resources[key];
     resource.type      = Texture;
-    resource.path      = pathStr;
+    resource.name      = pathStr;
     resource.key       = key;
     resource.handle    = texture.unused;
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
-    _mapResource[texture.unused] = &resource;
+    _mapResource[resource.type + resource.handle] = &resource;
 
     return texture;
 }
 
+gerium_technique_h ResourceManager::loadTechnique(const std::string& name) {
+    const auto key = calcKey(name);
+    if (auto it = _resources.find(key); it != _resources.end()) {
+        ++it->second.reference;
+        it->second.lastUsed = _ticks;
+        return { it->second.handle };
+    }
+    return { UndefinedHandle };
+}
+
+gerium_technique_h ResourceManager::createTechnique(const std::string& name,
+                                                    const std::vector<gerium_pipeline_t> pipelines) {
+    const auto key = calcKey(name);
+
+    if (auto it = _resources.find(key); it != _resources.end()) {
+        ++it->second.reference;
+        it->second.lastUsed = _ticks;
+        return { it->second.handle };
+    }
+
+    gerium_technique_h technique;
+    check(gerium_renderer_create_technique(
+        _renderer, _frameGraph, name.c_str(), (gerium_uint32_t) pipelines.size(), pipelines.data(), &technique));
+
+    auto& resource     = _resources[key];
+    resource.type      = Technique;
+    resource.name      = name;
+    resource.key       = key;
+    resource.handle    = technique.unused;
+    resource.reference = 1;
+    resource.lastUsed  = _ticks;
+
+    _mapResource[resource.type + resource.handle] = &resource;
+
+    return technique;
+}
+
 void ResourceManager::referenceTexture(gerium_texture_h handle) {
-    referenceResource(handle.unused);
+    referenceResource(Texture + handle.unused);
+}
+
+void ResourceManager::referenceTechnique(gerium_technique_h handle) {
+    referenceResource(Technique + handle.unused);
 }
 
 void ResourceManager::deleteTexture(gerium_texture_h handle) {
-    deleteResource(handle.unused);
+    deleteResource(Texture + handle.unused);
+}
+
+void ResourceManager::deleteTechnique(gerium_technique_h handle) {
+    deleteResource(Technique + handle.unused);
 }
 
 void ResourceManager::referenceResource(gerium_uint16_t handle) {

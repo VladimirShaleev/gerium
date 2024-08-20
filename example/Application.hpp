@@ -45,11 +45,11 @@ public:
     Scene& scene() noexcept {
         return _scene;
     }
-
-    gerium_technique_h baseTechnique() const noexcept {
-        return _baseTechnique;
+    
+    ResourceManager& resourceManager() noexcept {
+        return _resourceManager;
     }
-
+    
 private:
     void addPass(RenderPass& renderPass);
 

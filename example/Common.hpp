@@ -5,6 +5,8 @@
 
 #include <gerium/gerium.h>
 
+#include "Finally.hpp"
+
 #include <cmath>
 #include <filesystem>
 #include <limits>

@@ -60,7 +60,6 @@ private:
                           gerium_address_mode_t addressModeW) override;
 
     BufferHandle onReferenceBuffer(BufferHandle handle) noexcept override;
-    TechniqueHandle onReferenceTechnique(TechniqueHandle handle) noexcept override;
     DescriptorSetHandle onReferenceDescriptorSet(DescriptorSetHandle handle) noexcept override;
 
     void onDestroyBuffer(BufferHandle handle) noexcept override;

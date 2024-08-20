@@ -42,13 +42,9 @@ PBRMaterial& PBRMaterial::operator=(PBRMaterial&& pbrMaterial) noexcept {
 
 void PBRMaterial::setTechnique(gerium_technique_h technique) {
     if (_technique.unused != technique.unused) {
-        if (_technique.unused != UndefinedHandle) {
-            gerium_renderer_destroy_technique(_renderer, _technique);
-        }
+        _resourceManger->deleteTechnique(_technique);
         _technique = technique;
-        if (_technique.unused != UndefinedHandle) {
-            gerium_renderer_reference_technique(_renderer, _technique);
-        }
+        _resourceManger->referenceTechnique(_technique);
     }
 }
 
@@ -154,9 +150,7 @@ void PBRMaterial::copy(const PBRMaterial& pbrMaterial) noexcept {
 }
 
 void PBRMaterial::reference() noexcept {
-    if (_technique.unused != UndefinedHandle) {
-        gerium_renderer_reference_technique(_renderer, _technique);
-    }
+    _resourceManger->referenceTechnique(_technique);
     _resourceManger->referenceTexture(_diffuse);
     _resourceManger->referenceTexture(_roughness);
     _resourceManger->referenceTexture(_normal);
@@ -164,10 +158,7 @@ void PBRMaterial::reference() noexcept {
 }
 
 void PBRMaterial::destroy() noexcept {
-    if (_technique.unused != UndefinedHandle) {
-        gerium_renderer_destroy_technique(_renderer, _technique);
-        _technique = { UndefinedHandle };
-    }
+    _resourceManger->deleteTechnique(_technique);
     if (_data.unused != UndefinedHandle) {
         gerium_renderer_destroy_buffer(_renderer, _data);
         _data = { UndefinedHandle };
@@ -180,9 +171,10 @@ void PBRMaterial::destroy() noexcept {
     _resourceManger->deleteTexture(_roughness);
     _resourceManger->deleteTexture(_normal);
     _resourceManger->deleteTexture(_occlusion);
-    _diffuse = { UndefinedHandle };
+    _technique = { UndefinedHandle };
+    _diffuse   = { UndefinedHandle };
     _roughness = { UndefinedHandle };
-    _normal = { UndefinedHandle };
+    _normal    = { UndefinedHandle };
     _occlusion = { UndefinedHandle };
 }
 
@@ -723,14 +715,14 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
         auto& gltfMesh = glTF.meshes[node.mesh];
 
         for (const auto& primitive : gltfMesh.primitives) {
-            const auto positionAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "POSITION");
-            const auto tangentAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "TANGENT");
-            const auto normalAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "NORMAL");
-            const auto texcoordAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "TEXCOORD_0");
+            const auto positionAccessorIndex = gltf::attributeAccessorIndex(
+                primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "POSITION");
+            const auto tangentAccessorIndex = gltf::attributeAccessorIndex(
+                primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "TANGENT");
+            const auto normalAccessorIndex = gltf::attributeAccessorIndex(
+                primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "NORMAL");
+            const auto texcoordAccessorIndex = gltf::attributeAccessorIndex(
+                primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "TEXCOORD_0");
 
             gerium_buffer_h positions;
             gerium_buffer_h tangents;

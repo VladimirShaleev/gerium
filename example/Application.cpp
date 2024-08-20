@@ -5,11 +5,14 @@ void SimplePass::render(gerium_frame_graph_t frameGraph,
                         gerium_command_buffer_t commandBuffer,
                         gerium_uint32_t worker,
                         gerium_uint32_t totalWorkers) {
-    auto& scene = getApplication()->scene();
-    auto camera = scene.getAnyComponentNode<Camera>();
-    auto models = scene.getComponents<Model>();
+    auto& manager  = getApplication()->resourceManager();
+    auto& scene    = getApplication()->scene();
+    auto camera    = scene.getAnyComponentNode<Camera>();
+    auto models    = scene.getComponents<Model>();
+    auto technique = manager.loadTechnique("base");
+    deferred(manager.deleteTechnique(technique));
 
-    gerium_command_buffer_bind_technique(commandBuffer, getApplication()->baseTechnique());
+    gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
 
     for (auto model : models) {
@@ -52,7 +55,8 @@ void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     gerium_depth_stencil_state_t depthStencilEmpty{};
     gerium_rasterization_state_t rasterizationEmpty{};
     rasterizationEmpty.line_width = 1.0f;
-    gerium_pipeline_t pipelines[1]{};
+    std::vector<gerium_pipeline_t> pipelines;
+    pipelines.resize(1);
     pipelines[0].render_pass   = name().c_str();
     pipelines[0].rasterization = &rasterizationEmpty;
     pipelines[0].depth_stencil = &depthStencilEmpty;
@@ -60,8 +64,7 @@ void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     pipelines[0].shader_count  = std::size(shaders);
     pipelines[0].shaders       = shaders;
 
-    check(gerium_renderer_create_technique(
-        renderer, frameGraph, "present", std::size(pipelines), pipelines, &_technique));
+    _technique = getApplication()->resourceManager().createTechnique("present", pipelines);
 
     check(gerium_renderer_create_descriptor_set(renderer, &_descriptorSet));
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
@@ -69,7 +72,7 @@ void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
 
 void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     gerium_renderer_destroy_descriptor_set(renderer, _descriptorSet);
-    gerium_renderer_destroy_technique(renderer, _technique);
+    getApplication()->resourceManager().deleteTechnique(_technique);
 }
 
 Application::Application() {
@@ -138,11 +141,11 @@ void Application::initialize() {
     check(gerium_renderer_create(_application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
-    _asyncLoader.create(_application, _renderer);
-    _resourceManager.create(_asyncLoader);
-
     check(gerium_profiler_create(_renderer, &_profiler));
     check(gerium_frame_graph_create(_renderer, &_frameGraph));
+
+    _asyncLoader.create(_application, _renderer);
+    _resourceManager.create(_asyncLoader, _frameGraph);
 
     addPass(_presentPass);
     addPass(_simplePass);
@@ -216,7 +219,8 @@ void Application::initialize() {
     rasterization.depth_bias_slope_factor    = 0.0f;
     rasterization.line_width                 = 1.0f;
 
-    gerium_pipeline_t basePipelines[1]{};
+    std::vector<gerium_pipeline_t> basePipelines;
+    basePipelines.resize(1);
     basePipelines[0].render_pass            = _simplePass.name().c_str();
     basePipelines[0].rasterization          = &rasterization;
     basePipelines[0].depth_stencil          = &depthStencil;
@@ -228,8 +232,7 @@ void Application::initialize() {
     basePipelines[0].shader_count           = std::size(baseShaders);
     basePipelines[0].shaders                = baseShaders;
 
-    check(gerium_renderer_create_technique(
-        _renderer, _frameGraph, "base", std::size(basePipelines), basePipelines, &_baseTechnique));
+    _baseTechnique = _resourceManager.createTechnique("base", basePipelines);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
@@ -267,7 +270,7 @@ void Application::uninitialize() {
         _asyncLoader.destroy();
         _scene.clear();
 
-        gerium_renderer_destroy_technique(_renderer, _baseTechnique);
+        _resourceManager.deleteTechnique(_baseTechnique);
 
         for (auto it = _renderPasses.rbegin(); it != _renderPasses.rend(); ++it) {
             (*it)->uninitialize(_frameGraph, _renderer);
