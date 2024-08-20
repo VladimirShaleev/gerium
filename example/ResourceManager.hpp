@@ -28,6 +28,14 @@ public:
     void deleteTechnique(gerium_technique_h handle);
     void deleteBuffer(gerium_buffer_h handle);
 
+    gerium_renderer_t renderer() noexcept {
+        return _renderer;
+    }
+
+    gerium_frame_graph_t frameGraph() noexcept {
+        return _frameGraph;
+    }
+
 private:
     enum Type {
         Texture   = 0,
@@ -55,7 +63,7 @@ private:
     gerium_float64_t _ticks{};
     std::map<gerium_uint64_t, Resource> _resources;
     std::map<gerium_uint16_t, Resource*> _mapResource;
-    
+
     static gerium_uint32_t _bufferCount;
 };
 

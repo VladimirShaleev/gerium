@@ -1,7 +1,7 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
 
-#include "Common.hpp"
+#include "ResourceManager.hpp"
 
 struct SceneData {
     glm::mat4 viewProjection;
@@ -17,7 +17,7 @@ public:
     };
 
     Camera() = default;
-    Camera(gerium_application_t application, gerium_renderer_t renderer) noexcept;
+    Camera(gerium_application_t application, ResourceManager& resourceManager) noexcept;
     ~Camera();
 
     Camera(const Camera& other);
@@ -60,6 +60,7 @@ private:
 
     gerium_application_t _application{};
     gerium_renderer_t _renderer{};
+    ResourceManager* _resourceManager{};
 
     glm::vec3 _position{};
     glm::vec3 _front{};

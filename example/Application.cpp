@@ -243,7 +243,7 @@ void Application::createScene() {
     auto flightHelmet = _scene.addNode(root);
 
     _scene.addComponentToNode(root, defaultTransform);
-    _scene.addComponentToNode(root, Camera(_application, _renderer));
+    _scene.addComponentToNode(root, Camera(_application, _resourceManager));
     _scene.addComponentToNode(sponza, sponzaTransform);
     _scene.addComponentToNode(sponza, modelSponza);
     _scene.addComponentToNode(flightHelmet, flightHelmetTransform);

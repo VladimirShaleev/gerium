@@ -1,8 +1,9 @@
 #include "Camera.hpp"
 
-Camera::Camera(gerium_application_t application, gerium_renderer_t renderer) noexcept :
+Camera::Camera(gerium_application_t application, ResourceManager& resourceManager) noexcept :
     _application(application),
-    _renderer(renderer) {
+    _renderer(resourceManager.renderer()),
+    _resourceManager(&resourceManager) {
     setSpeed();
     setPosition({ 0.0f, 0.0f, 0.0f });
     setRotation(0.0f, 0.0f);
@@ -10,10 +11,7 @@ Camera::Camera(gerium_application_t application, gerium_renderer_t renderer) noe
 }
 
 Camera::~Camera() {
-    if (_data.unused != UndefinedHandle) {
-        gerium_renderer_destroy_buffer(_renderer, _data);
-        _data = { UndefinedHandle };
-    }
+    _resourceManager->deleteBuffer(_data);
     if (_descriptorSet.unused != UndefinedHandle) {
         gerium_renderer_destroy_descriptor_set(_renderer, _descriptorSet);
         _descriptorSet = { UndefinedHandle };
@@ -91,8 +89,8 @@ void Camera::zoom(gerium_float32_t value, gerium_float32_t delta) {
 
 void Camera::update() {
     if (_data.unused == UndefinedHandle) {
-        check(gerium_renderer_create_buffer(
-            _renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, 1, "scene_data", nullptr, sizeof(SceneData), &_data));
+        _data = _resourceManager->createBuffer(
+            GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "scene_data", nullptr, sizeof(SceneData));
     }
     if (_descriptorSet.unused == UndefinedHandle) {
         check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
@@ -188,20 +186,21 @@ gerium_descriptor_set_h Camera::getDecriptorSet() const noexcept {
 }
 
 void Camera::copy(const Camera& other) noexcept {
-    _application    = other._application;
-    _renderer       = other._renderer;
-    _position       = other._position;
-    _front          = other._front;
-    _up             = other._up;
-    _right          = other._right;
-    _yaw            = other._yaw;
-    _pitch          = other._pitch;
-    _movementSpeed  = other._movementSpeed;
-    _rotationSpeed  = other._rotationSpeed;
-    _nearPlane      = other._nearPlane;
-    _farPlane       = other._farPlane;
-    _fov            = other._fov;
-    _view           = other._view;
-    _projection     = other._projection;
-    _viewProjection = other._viewProjection;
+    _application     = other._application;
+    _renderer        = other._renderer;
+    _resourceManager = other._resourceManager;
+    _position        = other._position;
+    _front           = other._front;
+    _up              = other._up;
+    _right           = other._right;
+    _yaw             = other._yaw;
+    _pitch           = other._pitch;
+    _movementSpeed   = other._movementSpeed;
+    _rotationSpeed   = other._rotationSpeed;
+    _nearPlane       = other._nearPlane;
+    _farPlane        = other._farPlane;
+    _fov             = other._fov;
+    _view            = other._view;
+    _projection      = other._projection;
+    _viewProjection  = other._viewProjection;
 }
