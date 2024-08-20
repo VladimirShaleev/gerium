@@ -689,7 +689,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             }
             layout.setNumber               = reflSet.set;
             layout.createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layout.createInfo.bindingCount = layout.bindings.size();
+            layout.createInfo.bindingCount = (uint32_t) layout.bindings.size();
             layout.createInfo.pBindings    = layout.bindings.data();
         }
 
@@ -719,7 +719,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
             files.emplace_back(new gerium_uint8_t[file->getSize()]);
 
             stage.data = (gerium_cdata_t) files.back().get();
-            stage.size = file->getSize();
+            stage.size = (gerium_uint32_t) file->getSize();
 
             memcpy((void*) stage.data, data, stage.size);
         }
@@ -1035,7 +1035,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         gerium_uint32_t stageSizes[kMaxShaderStages]{};
 
         for (gerium_uint8_t i = 0; i < stages; ++i) {
-            stageSizes[i] = program->spirv[i].size() * 4;
+            stageSizes[i] = gerium_uint32_t(program->spirv[i].size() * 4);
             totalCacheSize += 5 + stageSizes[i];
         }
 
@@ -1691,8 +1691,8 @@ void Device::createImGui(Application* application) {
     initInfo.Queue               = _queueGraphic;
     initInfo.DescriptorPool      = _imguiPool;
     initInfo.RenderPass          = renderPass;
-    initInfo.MinImageCount       = _swapchainFramebuffers.size();
-    initInfo.ImageCount          = _swapchainFramebuffers.size();
+    initInfo.MinImageCount       = (uint32_t) _swapchainFramebuffers.size();
+    initInfo.ImageCount          = (uint32_t) _swapchainFramebuffers.size();
     initInfo.MSAASamples         = VK_SAMPLE_COUNT_1_BIT;
     initInfo.Subpass             = 0;
     initInfo.UseDynamicRendering = false;
@@ -1728,7 +1728,7 @@ void Device::createImGui(Application* application) {
     memcpy(dataFont, (void*) font.begin(), font.size());
     ImFontConfig config{};
     config.RasterizerDensity = fontD;
-    io.Fonts->AddFontFromMemoryTTF(dataFont, font.size(), fontSize * density, &config);
+    io.Fonts->AddFontFromMemoryTTF(dataFont, (int) font.size(), fontSize * density, &config);
     ImGui::GetStyle().ScaleAllSizes(density);
     ImGui_ImplVulkan_CreateFontsTexture();
 }

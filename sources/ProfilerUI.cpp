@@ -109,12 +109,12 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
 
             // if (device->profilerSupported()) {
             //  Draw time reference lines
-            sprintf(buf, "%3.4fms", maxDuration);
+            snprintf(buf, 128, "%3.4fms", maxDuration);
             draw_list->AddText({ cursor_pos.x, cursor_pos.y }, 0xff0000ff, buf);
             draw_list->AddLine(
                 { cursor_pos.x + rect_width, cursor_pos.y }, { cursor_pos.x + graph_width, cursor_pos.y }, 0xff0000ff);
 
-            sprintf(buf, "%3.4fms", maxDuration / 2.f);
+            snprintf(buf, 128, "%3.4fms", maxDuration / 2.f);
             draw_list->AddText({ cursor_pos.x, cursor_pos.y + widget_height / 2.f }, 0xff00ffff, buf);
             draw_list->AddLine({ cursor_pos.x + rect_width, cursor_pos.y + widget_height / 2.f },
                                { cursor_pos.x + graph_width, cursor_pos.y + widget_height / 2.f },
@@ -223,7 +223,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                         spaces[s + 1] = ' ';
                     }
 
-                    sprintf(buf, "%s%s: %2.4f", spaces, timestamp.name, timestamp.elapsed);
+                    snprintf(buf, 128, "%s%s: %2.4f", spaces, timestamp.name, timestamp.elapsed);
                     draw_list->AddText({ x + 12, y }, 0xffffffff, buf);
 
                     y += 16;

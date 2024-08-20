@@ -685,7 +685,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
         numNodes += node.children.size();
     }
 
-    model.resizeNodes(numNodes);
+    model.resizeNodes((gerium_uint32_t) numNodes);
 
     for (const auto& node : root.nodes) {
         nodesToVisit.push(node);
@@ -724,13 +724,13 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
 
         for (const auto& primitive : gltfMesh.primitives) {
             const auto positionAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), primitive.attributes.size(), "POSITION");
+                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "POSITION");
             const auto tangentAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), primitive.attributes.size(), "TANGENT");
+                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "TANGENT");
             const auto normalAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), primitive.attributes.size(), "NORMAL");
+                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "NORMAL");
             const auto texcoordAccessorIndex =
-                gltf::attributeAccessorIndex(primitive.attributes.data(), primitive.attributes.size(), "TEXCOORD_0");
+                gltf::attributeAccessorIndex(primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "TEXCOORD_0");
 
             gerium_buffer_h positions;
             gerium_buffer_h tangents;

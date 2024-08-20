@@ -52,7 +52,8 @@ elseif(APPLE)
         MACOSX_BUNDLE_LONG_VERSION_STRING "1.0.0"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
         XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@loader_path/Libraries"
-        XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES)
+        XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.github.vladimirshaleev.gerium")
 elseif(NOT APPLE)
     target_compile_options(cpp-example PUBLIC -fno-rtti)
 endif()
@@ -60,6 +61,8 @@ endif()
 function(copy_dir target src dst)
     if(ANDROID)
         set(OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/../../../../assets")
+    elseif(APPLE)
+        set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>/../Resources")
     else()
         set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>")
     endif()

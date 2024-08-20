@@ -604,12 +604,12 @@ void VkRenderer::loadThread() noexcept {
         const auto currentOffset    = _transferBufferOffset;
         _transferBufferOffset += alignedImageSize;
 
-        auto data = onMapBuffer(_transferBuffer, currentOffset, alignedImageSize);
+        auto data = onMapBuffer(_transferBuffer, (gerium_uint32_t) currentOffset, alignedImageSize);
         memcpy((void*) data, request.data, alignedImageSize);
         onUnmapBuffer(_transferBuffer);
 
         auto commandBuffer = _transferCommandPool.getPrimary(0, false);
-        commandBuffer->copyBuffer(_transferBuffer, request.texture, currentOffset);
+        commandBuffer->copyBuffer(_transferBuffer, request.texture, (gerium_uint32_t) currentOffset);
         commandBuffer->submit(QueueType::CopyTransfer, false);
 
         if (tasks.size() > _transferMaxTasks) {

@@ -12,7 +12,7 @@ MacOSFile::MacOSFile(gerium_uint64_t size) : MacOSFile(getTempFile().c_str(), si
 MacOSFile::MacOSFile(gerium_utf8_t path, gerium_uint64_t size) : unix::UnixFile(path, size) {
 }
 
-MacOSFile::MacOSFile(gerium_utf8_t path, bool readOnly) : unix::UnixFile(path, readOnly) {
+MacOSFile::MacOSFile(gerium_utf8_t path, bool readOnly) : unix::UnixFile(pathFromResources(path, readOnly, _resourcePath), readOnly) {
 }
 
 std::string MacOSFile::getPath(NSSearchPathDirectory directory) noexcept {
@@ -33,6 +33,17 @@ bool MacOSFile::exists(gerium_utf8_t path, bool isDir) noexcept {
     return exists && (isDirResult != NO) == isDir;
 }
 
+bool MacOSFile::resourceExists(gerium_utf8_t path) noexcept {
+    auto appDir   = getAppDir();
+    auto relative = std::filesystem::relative(path, appDir);
+    
+    NSString *extension = [NSString stringWithUTF8String:relative.extension().string().substr(1).c_str()];
+    NSString *fileName  = [NSString stringWithUTF8String:relative.replace_extension().string().c_str()];
+    NSString *filePath  = [[NSBundle mainBundle] pathForResource:fileName ofType:extension];
+    
+    return filePath != nil;
+}
+
 std::string MacOSFile::getTempFile() {
     NSString* dir = appendBundleId(NSTemporaryDirectory());
     NSString* file = [dir stringByAppendingPathComponent:[[NSUUID UUID] UUIDString].lowercaseString];
@@ -48,6 +59,25 @@ NSString* MacOSFile::appendBundleId(NSString* path) {
     return dir;
 }
 
+gerium_utf8_t MacOSFile::pathFromResources(gerium_utf8_t path, bool readOnly, std::string& resourcePath) {
+    if (readOnly && !exists(path, false)) {
+        auto appDir   = getAppDir();
+        auto relative = std::filesystem::relative(path, appDir);
+        
+        NSString *extension = [NSString stringWithUTF8String:relative.extension().string().substr(1).c_str()];
+        NSString *fileName  = [NSString stringWithUTF8String:relative.replace_extension().string().c_str()];
+        NSString *filePath  = [[NSBundle mainBundle] pathForResource:fileName ofType:extension];
+        
+        if (filePath == nil) {
+            return path;
+        }
+        
+        resourcePath = [filePath UTF8String];
+        return resourcePath.c_str();
+    }
+    return path;
+}
+
 } // namespace macos
 
 gerium_utf8_t File::getCacheDir() noexcept {
@@ -56,19 +86,12 @@ gerium_utf8_t File::getCacheDir() noexcept {
 }
 
 gerium_utf8_t File::getAppDir() noexcept {
-    //static auto dir = macos::MacOSFile::getPath(NSApplicationSupportDirectory);
-    //return dir.c_str();
-    static std::string dir;
-    char path[1025]{};
-    uint32_t size = 1024;
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        dir = std::filesystem::path(path).parent_path().parent_path().parent_path().parent_path().string();
-    }
+    static auto dir = macos::MacOSFile::getPath(NSApplicationSupportDirectory);
     return dir.c_str();
 }
 
 bool File::existsFile(gerium_utf8_t path) noexcept {
-    return macos::MacOSFile::exists(path, false);
+    return macos::MacOSFile::exists(path, false) || macos::MacOSFile::resourceExists(path);
 }
 
 bool File::existsDir(gerium_utf8_t path) noexcept {

@@ -49,7 +49,7 @@ gerium_texture_h ResourceManager::loadTexture(const std::filesystem::path& path)
     auto name = path.filename().string();
 
     int comp, width, height;
-    stbi_info_from_memory((const stbi_uc*) data, size, &width, &height, &comp);
+    stbi_info_from_memory((const stbi_uc*) data, (int) size, &width, &height, &comp);
 
     auto mipLevels = calcMipLevels(width, height);
 

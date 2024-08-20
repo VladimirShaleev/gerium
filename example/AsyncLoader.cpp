@@ -48,7 +48,7 @@ void AsyncLoader::loader() noexcept {
         for (auto task : tasks) {
             int widht, height, comp;
             task->image = (gerium_cdata_t) stbi_load_from_memory(
-                (const stbi_uc*) task->data, gerium_file_get_size(task->file), &widht, &height, &comp, 4);
+                (const stbi_uc*) task->data, (int) gerium_file_get_size(task->file), &widht, &height, &comp, 4);
 
             auto renderer = _renderer.load();
             if (renderer) {

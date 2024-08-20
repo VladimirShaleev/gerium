@@ -13,7 +13,7 @@
 
 namespace std { // add mi_* functions to std for vulkan headers
 
-inline mi_decl_restrict void* mi_malloc(size_t size) mi_attr_noexcept mi_attr_malloc mi_attr_alloc_size(1) {
+inline mi_decl_restrict void* mi_malloc(size_t size) mi_attr_noexcept mi_attr_alloc_size(1) {
     return mi_malloc(size);
 }
 

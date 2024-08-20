@@ -16,10 +16,14 @@ public:
 
     static std::string getPath(NSSearchPathDirectory directory) noexcept;
     static bool exists(gerium_utf8_t path, bool isDir) noexcept;
+    static bool resourceExists(gerium_utf8_t path) noexcept;
 
 private:
     static std::string getTempFile();
     static NSString* appendBundleId(NSString* path);
+    static gerium_utf8_t pathFromResources(gerium_utf8_t path, bool readOnly, std::string& resourcePath);
+    
+    std::string _resourcePath;
 };
 
 } // namespace gerium::macos

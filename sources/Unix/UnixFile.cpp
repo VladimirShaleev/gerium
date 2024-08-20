@@ -20,9 +20,11 @@ UnixFile::UnixFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _fil
 }
 
 UnixFile::UnixFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1), _data(nullptr), _dataSize(0) {
-    createDirs(path);
-
-    _file = ::open(path, (readOnly ? O_RDONLY : O_RDWR) | O_CREAT, S_IRUSR | (readOnly ? 0 : S_IWUSR));
+    if (!readOnly) {
+        createDirs(path);
+    }
+    
+    _file = ::open(path, readOnly ? O_RDONLY : (O_RDWR | O_CREAT), S_IRUSR | (readOnly ? 0 : S_IWUSR));
 
     if (_file < 0) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
