@@ -152,7 +152,7 @@ gerium_inline std::pair<gerium_scancode_t, gerium_key_code_t> toScanCode(gerium_
         case kVK_ANSI_KeypadDecimal:
             return { GERIUM_SCANCODE_NUMPAD_DECIMAL, numlock ? GERIUM_KEY_CODE_PERIOD : GERIUM_KEY_CODE_DELETE };
         case kVK_ANSI_KeypadDivide:
-            return { GERIUM_SCANCODE_NUMPAD_DEVIDE, GERIUM_KEY_CODE_DEVIDE };
+            return { GERIUM_SCANCODE_NUMPAD_DIVIDE, GERIUM_KEY_CODE_DIVIDE };
         case kVK_ANSI_KeypadEnter:
             return { GERIUM_SCANCODE_NUMPAD_ENTER, GERIUM_KEY_CODE_ENTER };
         case kVK_ANSI_KeypadEquals:

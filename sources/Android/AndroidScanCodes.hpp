@@ -351,7 +351,7 @@ gerium_inline gerium_scancode_t toScanCode(int32_t scanCode) noexcept {
         case ScanCode::ControlRight:
             return GERIUM_SCANCODE_CONTROL_RIGHT;
         case ScanCode::NumpadDivide:
-            return GERIUM_SCANCODE_NUMPAD_DEVIDE;
+            return GERIUM_SCANCODE_NUMPAD_DIVIDE;
         case ScanCode::PrintScreen:
             return GERIUM_SCANCODE_PRINT_SCREEN;
         case ScanCode::AltRight:
@@ -746,7 +746,7 @@ gerium_inline gerium_key_code_t toKeyCode(int32_t keycode) {
         case AKEYCODE_NUMPAD_9:
             return GERIUM_KEY_CODE_NUMPAD_9;
         case AKEYCODE_NUMPAD_DIVIDE:
-            return GERIUM_KEY_CODE_DEVIDE;
+            return GERIUM_KEY_CODE_DIVIDE;
         case AKEYCODE_NUMPAD_MULTIPLY:
             return GERIUM_KEY_CODE_MULTIPLY;
         case AKEYCODE_NUMPAD_SUBTRACT:

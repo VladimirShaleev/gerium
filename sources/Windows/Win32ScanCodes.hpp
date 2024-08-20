@@ -398,7 +398,7 @@ gerium_inline gerium_scancode_t toScanCode(ScanCode scanCode) noexcept {
         case ScanCode::BrowserHome:
             return GERIUM_SCANCODE_BROWSER_HOME;
         case ScanCode::NumpadDivide:
-            return GERIUM_SCANCODE_NUMPAD_DEVIDE;
+            return GERIUM_SCANCODE_NUMPAD_DIVIDE;
         case ScanCode::PrintScreen:
             return GERIUM_SCANCODE_PRINT_SCREEN;
         case ScanCode::AltRight:
@@ -585,7 +585,7 @@ gerium_inline gerium_key_code_t toKeyCode(USHORT vkey, gerium_scancode_t scancod
         case VK_DECIMAL:
             return GERIUM_KEY_CODE_DECIMAL;
         case VK_DIVIDE:
-            return GERIUM_KEY_CODE_DEVIDE;
+            return GERIUM_KEY_CODE_DIVIDE;
         case VK_NUMLOCK:
             return GERIUM_KEY_CODE_NUM_LOCK;
         case VK_SCROLL:
