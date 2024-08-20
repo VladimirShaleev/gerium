@@ -34,7 +34,7 @@ public:
         obj._obj = nullptr;
     }
 
-    ObjectPtr& operator=(nullptr_t) noexcept {
+    ObjectPtr& operator=(std::nullptr_t) noexcept {
         destroy();
         return *this;
     }

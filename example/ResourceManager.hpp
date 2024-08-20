@@ -16,7 +16,7 @@ public:
     Resource(const Resource& resource) noexcept;
     Resource(Resource&& resource) noexcept;
 
-    Resource& operator=(nullptr_t) noexcept;
+    Resource& operator=(std::nullptr_t) noexcept;
     Resource& operator=(const Resource& resource) noexcept;
     Resource& operator=(Resource&& resource) noexcept;
 
@@ -141,7 +141,7 @@ inline Resource<T>::Resource(Resource&& resource) noexcept :
 }
 
 template <typename T>
-inline Resource<T>& Resource<T>::operator=(nullptr_t) noexcept {
+inline Resource<T>& Resource<T>::operator=(std::nullptr_t) noexcept {
     destroy();
     return *this;
 }
