@@ -130,26 +130,7 @@ void Application::addPass(RenderPass& renderPass) {
     gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
 }
 
-void Application::initialize() {
-    constexpr auto debug =
-#ifdef NDEBUG
-        false;
-#else
-        true;
-#endif
-
-    check(gerium_renderer_create(_application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
-    gerium_renderer_set_profiler_enable(_renderer, true);
-
-    check(gerium_profiler_create(_renderer, &_profiler));
-    check(gerium_frame_graph_create(_renderer, &_frameGraph));
-
-    _asyncLoader.create(_application, _renderer);
-    _resourceManager.create(_asyncLoader, _frameGraph);
-
-    addPass(_presentPass);
-    addPass(_simplePass);
-
+void Application::createFrameGraph() {
     gerium_resource_input_t presentInputs[] = {
         { GERIUM_RESOURCE_TYPE_TEXTURE, "color" },
     };
@@ -177,7 +158,9 @@ void Application::initialize() {
         _frameGraph, _simplePass.name().c_str(), 0, nullptr, std::size(simpleOutputs), simpleOutputs));
 
     check(gerium_frame_graph_compile(_frameGraph));
+}
 
+void Application::createBaseTechnique() {
     gerium_vertex_attribute_t vertexAttributes[] = {
         { 0, 0, 0, GERIUM_FORMAT_R32G32B32_SFLOAT },
         { 1, 1, 0, GERIUM_FORMAT_R32G32_SFLOAT    }
@@ -233,7 +216,9 @@ void Application::initialize() {
     basePipelines[0].shaders                = baseShaders;
 
     _baseTechnique = _resourceManager.createTechnique("base", basePipelines);
+}
 
+void Application::createScene() {
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
     auto sponzaDir       = (appDir / "assets" / "models" / "sponza" / "Sponza.gltf").string();
@@ -263,6 +248,30 @@ void Application::initialize() {
     _scene.addComponentToNode(sponza, modelSponza);
     _scene.addComponentToNode(flightHelmet, flightHelmetTransform);
     _scene.addComponentToNode(flightHelmet, modelFlightHelmet);
+}
+
+void Application::initialize() {
+    constexpr auto debug =
+#ifdef NDEBUG
+        false;
+#else
+        true;
+#endif
+
+    check(gerium_renderer_create(_application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+    gerium_renderer_set_profiler_enable(_renderer, true);
+
+    check(gerium_profiler_create(_renderer, &_profiler));
+    check(gerium_frame_graph_create(_renderer, &_frameGraph));
+
+    _asyncLoader.create(_application, _renderer);
+    _resourceManager.create(_asyncLoader, _frameGraph);
+
+    addPass(_presentPass);
+    addPass(_simplePass);
+    createFrameGraph();
+    createBaseTechnique();
+    createScene();
 }
 
 void Application::uninitialize() {
