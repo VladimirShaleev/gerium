@@ -9,72 +9,23 @@ template <typename T>
 class Resource final {
 public:
     Resource() = default;
+    Resource(std::nullptr_t) noexcept;
+    Resource(ResourceManager* resourceManager, T handle) noexcept;
+    ~Resource();
 
-    Resource(std::nullptr_t) noexcept : Resource() {
-    }
+    Resource(const Resource& resource) noexcept;
+    Resource(Resource&& resource) noexcept;
 
-    Resource(ResourceManager* resourceManager, T handle) noexcept : _resourceManager(resourceManager), _handle(handle) {
-    }
+    Resource& operator=(nullptr_t) noexcept;
+    Resource& operator=(const Resource& resource) noexcept;
+    Resource& operator=(Resource&& resource) noexcept;
 
-    ~Resource() {
-        destroy();
-    }
+    operator T() const noexcept;
 
-    Resource(const Resource& resource) noexcept :
-        _resourceManager(resource._resourceManager),
-        _handle(resource._handle) {
-        if (_resourceManager) {
-            _resourceManager->reference(_handle);
-        }
-    }
-
-    Resource(Resource&& resource) noexcept : _resourceManager(resource._resourceManager), _handle(resource._handle) {
-        resource._resourceManager = nullptr;
-        resource._handle          = { UndefinedHandle };
-    }
-
-    Resource& operator=(nullptr_t) noexcept {
-        destroy();
-        return *this;
-    }
-
-    Resource& operator=(const Resource& resource) noexcept {
-        if (_handle.unused != resource._handle.unused) {
-            destroy();
-            _resourceManager = resource._resourceManager;
-            _handle          = resource._handle;
-            if (_resourceManager) {
-                _resourceManager->reference(_handle);
-            }
-        }
-        return *this;
-    }
-
-    Resource& operator=(Resource&& resource) noexcept {
-        if (_handle.unused != resource._handle.unused) {
-            destroy();
-            std::swap(_resourceManager, resource._resourceManager);
-            std::swap(_handle, resource._handle);
-        }
-        return *this;
-    }
-
-    operator T() const noexcept {
-        return _handle;
-    }
-
-    explicit operator bool() const noexcept {
-        return _resourceManager && _handle.unused != UndefinedHandle;
-    }
+    explicit operator bool() const noexcept;
 
 private:
-    void destroy() noexcept {
-        if (_resourceManager) {
-            _resourceManager->destroy(_handle);
-            _resourceManager = nullptr;
-            _handle          = { UndefinedHandle };
-        }
-    }
+    void destroy() noexcept;
 
     ResourceManager* _resourceManager{};
     T _handle{ UndefinedHandle };
@@ -156,5 +107,84 @@ private:
 
     static gerium_uint32_t _resourceCount;
 };
+
+
+template <typename T>
+inline Resource<T>::Resource(std::nullptr_t) noexcept : Resource() {
+}
+
+template <typename T>
+inline Resource<T>::Resource(ResourceManager* resourceManager, T handle) noexcept : _resourceManager(resourceManager), _handle(handle) {
+}
+
+template <typename T>
+inline Resource<T>::~Resource() {
+        destroy();
+    }
+
+template <typename T>
+    inline Resource<T>::Resource(const Resource& resource) noexcept :
+        _resourceManager(resource._resourceManager),
+        _handle(resource._handle) {
+        if (_resourceManager) {
+            _resourceManager->reference(_handle);
+        }
+    }
+
+template <typename T>
+    inline Resource<T>::Resource(Resource&& resource) noexcept : _resourceManager(resource._resourceManager), _handle(resource._handle) {
+        resource._resourceManager = nullptr;
+        resource._handle          = { UndefinedHandle };
+    }
+
+template <typename T>
+    inline Resource<T>& Resource<T>::operator=(nullptr_t) noexcept {
+        destroy();
+        return *this;
+    }
+
+template <typename T>
+    inline Resource<T>& Resource<T>::operator=(const Resource<T>& resource) noexcept {
+        if (_handle.unused != resource._handle.unused) {
+            destroy();
+            _resourceManager = resource._resourceManager;
+            _handle          = resource._handle;
+            if (_resourceManager) {
+                _resourceManager->reference(_handle);
+            }
+        }
+        return *this;
+    }
+
+template <typename T>
+   inline Resource<T>& Resource<T>::operator=(Resource<T>&& resource) noexcept {
+        if (_handle.unused != resource._handle.unused) {
+            destroy();
+            std::swap(_resourceManager, resource._resourceManager);
+            std::swap(_handle, resource._handle);
+        }
+        return *this;
+    }
+
+template <typename T>
+    inline Resource<T>::operator T() const noexcept {
+        return _handle;
+    }
+
+template <typename T>
+ inline Resource<T>::operator bool() const noexcept {
+        return _resourceManager && _handle.unused != UndefinedHandle;
+    }
+
+template <typename T>
+    inline void Resource<T>::destroy() noexcept {
+        if (_resourceManager) {
+            _resourceManager->destroy(_handle);
+            _resourceManager = nullptr;
+            _handle          = { UndefinedHandle };
+        }
+    }
+
+
 
 #endif
