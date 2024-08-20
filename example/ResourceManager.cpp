@@ -3,44 +3,44 @@
 void ResourceManager::create(AsyncLoader& loader) {
     _renderer = loader.renderer();
     _loader   = &loader;
+    _ticks    = 0.0;
 }
 
 void ResourceManager::destroy() {
-    std::vector<std::string> keys;
-    for (auto it = _textures.begin(); it != _textures.end(); ++it) {
-        if (it->second.reference == 0) {
-            gerium_renderer_destroy_texture(_renderer, it->second.handle);
-            keys.push_back(it->first);
-        }
-    }
-    for (const auto& key : keys) {
-        _textures.erase(key);
-    }
+    update(250000.0);
 }
 
 void ResourceManager::update(gerium_float32_t elapsed) {
     _ticks += elapsed;
 
-    std::vector<std::string> keys;
-    for (auto it = _textures.begin(); it != _textures.end(); ++it) {
+    std::vector<gerium_uint64_t> keys;
+    for (auto it = _resources.begin(); it != _resources.end(); ++it) {
         if (it->second.reference == 0) {
             if (_ticks - it->second.lastUsed > 240000.0) {
-                gerium_renderer_destroy_texture(_renderer, it->second.handle);
+                switch (it->second.type) {
+                    case Texture:
+                        gerium_renderer_destroy_texture(_renderer, { it->second.handle });
+                        break;
+                }
                 keys.push_back(it->first);
             }
         }
     }
     for (const auto& key : keys) {
-        _textures.erase(key);
+        auto it = _resources.find(key);
+        _mapResource.erase(it->second.handle);
+        _resources.erase(it);
     }
 }
 
 gerium_texture_h ResourceManager::loadTexture(const std::filesystem::path& path) {
-    auto pathStr = path.string();
-    if (auto it = _textures.find(pathStr); it != _textures.end()) {
+    const auto pathStr = path.string();
+    const auto key     = calcKey(pathStr);
+
+    if (auto it = _resources.find(key); it != _resources.end()) {
         ++it->second.reference;
         it->second.lastUsed = _ticks;
-        return it->second.handle;
+        return { it->second.handle };
     }
 
     gerium_file_t file;
@@ -68,43 +68,41 @@ gerium_texture_h ResourceManager::loadTexture(const std::filesystem::path& path)
 
     _loader->loadTexture(texture, file, data);
 
-    TextureResource resource{};
-    resource.handle    = texture;
+    auto& resource     = _resources[key];
+    resource.type      = Texture;
+    resource.path      = pathStr;
+    resource.key       = key;
+    resource.handle    = texture.unused;
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
-    _textures[path.string()] = resource;
+    _mapResource[texture.unused] = &resource;
+
     return texture;
 }
 
 void ResourceManager::referenceTexture(gerium_texture_h handle) {
-    if (handle.unused == UndefinedHandle) {
-        return;
-    }
-    auto it = _textures.begin();
-    for (; it != _textures.end(); ++it) {
-        if (it->second.handle.unused == handle.unused) {
-            break;
-        }
-    }
-    if (it != _textures.end()) {
-        ++it->second.reference;
-        it->second.lastUsed = _ticks;
-    }
+    referenceResource(handle.unused);
 }
 
 void ResourceManager::deleteTexture(gerium_texture_h handle) {
-    if (handle.unused == UndefinedHandle) {
-        return;
+    deleteResource(handle.unused);
+}
+
+void ResourceManager::referenceResource(gerium_uint16_t handle) {
+    if (auto it = _mapResource.find(handle); it != _mapResource.end()) {
+        ++it->second->reference;
+        it->second->lastUsed = _ticks;
     }
-    auto it = _textures.begin();
-    for (; it != _textures.end(); ++it) {
-        if (it->second.handle.unused == handle.unused) {
-            break;
-        }
+}
+
+void ResourceManager::deleteResource(gerium_uint16_t handle) {
+    if (auto it = _mapResource.find(handle); it != _mapResource.end()) {
+        --it->second->reference;
+        it->second->lastUsed = _ticks;
     }
-    if (it != _textures.end()) {
-        --it->second.reference;
-        it->second.lastUsed = _ticks;
-    }
+}
+
+gerium_uint64_t ResourceManager::calcKey(const std::string& path) noexcept {
+    return wyhash(path.c_str(), path.length(), 0, _wyp);
 }

@@ -13,7 +13,7 @@ public:
     void loadTexture(gerium_texture_h texture, gerium_file_t file, gerium_cdata_t data);
 
     gerium_renderer_t renderer() noexcept {
-        return _renderer;
+        return _renderer.load();
     }
 
 private:

@@ -24,6 +24,8 @@
 
 #include <stb_image.h>
 
+#include <wyhash.h>
+
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 
 inline void check(gerium_result_t result) {

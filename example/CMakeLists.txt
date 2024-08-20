@@ -22,6 +22,7 @@ target_link_libraries(cpp-example PRIVATE glm::glm-header-only)
 target_link_libraries(cpp-example PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(cpp-example PRIVATE EnTT::EnTT)
 target_include_directories(cpp-example PRIVATE ${Stb_INCLUDE_DIR})
+target_include_directories(cpp-example PRIVATE ${WYHASH_INCLUDE_DIRS})
 
 target_compile_features(cpp-example PRIVATE cxx_std_20)
 set_target_properties(cpp-example PROPERTIES

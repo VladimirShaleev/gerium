@@ -14,16 +14,29 @@ public:
     void deleteTexture(gerium_texture_h handle);
 
 private:
-    struct TextureResource {
-        gerium_texture_h handle;
+    enum Type {
+        Texture
+    };
+
+    struct Resource {
+        Type type;
+        std::string path;
+        gerium_uint64_t key;
+        gerium_uint16_t handle;
         gerium_uint16_t reference;
         gerium_float64_t lastUsed;
     };
 
-    gerium_renderer_t _renderer{}; 
+    void referenceResource(gerium_uint16_t handle);
+    void deleteResource(gerium_uint16_t handle);
+
+    static gerium_uint64_t calcKey(const std::string& path) noexcept;
+
+    gerium_renderer_t _renderer{};
     AsyncLoader* _loader{};
     gerium_float64_t _ticks{};
-    std::map<std::string, TextureResource> _textures;
+    std::map<gerium_uint64_t, Resource> _resources;
+    std::map<gerium_uint16_t, Resource*> _mapResource;
 };
 
 #endif
