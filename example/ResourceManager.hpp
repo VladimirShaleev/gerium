@@ -5,7 +5,7 @@
 
 class ResourceManager final {
 public:
-    void create(gerium_renderer_t renderer, AsyncLoader& loader);
+    void create(AsyncLoader& loader);
     void destroy();
     void update(gerium_float32_t elapsed);
 

@@ -630,8 +630,8 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
     buffers.resize(glTF.bufferViews.size());
     auto i = 0;
     for (const auto& buffer : glTF.buffers) {
-        const auto fullPath = path.parent_path() / buffer.uri;
-        check(gerium_file_open(fullPath.string().c_str(), true, &bufferFiles[i]));
+        const auto fullPath = (path.parent_path() / buffer.uri).string();
+        check(gerium_file_open(fullPath.c_str(), true, &bufferFiles[i]));
         bufferDatas[i] = (gerium_uint8_t*) gerium_file_map(bufferFiles[i]);
         ++i;
     }
@@ -658,8 +658,8 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
 
     std::vector<gerium_texture_h> textures;
     for (const auto& image : glTF.images) {
-        const auto fullPath = path.parent_path() / image.uri;
-        if (gerium_file_exists_file(fullPath.string().c_str())) {
+        const auto fullPath = (path.parent_path() / image.uri).string();
+        if (gerium_file_exists_file(fullPath.c_str())) {
             textures.push_back(resourceManager.loadTexture(fullPath));
         } else {
             textures.push_back({ UndefinedHandle });

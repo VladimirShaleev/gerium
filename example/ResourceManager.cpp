@@ -1,7 +1,7 @@
 #include "ResourceManager.hpp"
 
-void ResourceManager::create(gerium_renderer_t renderer, AsyncLoader& loader) {
-    _renderer = renderer;
+void ResourceManager::create(AsyncLoader& loader) {
+    _renderer = loader.renderer();
     _loader   = &loader;
 }
 
@@ -36,14 +36,15 @@ void ResourceManager::update(gerium_float32_t elapsed) {
 }
 
 gerium_texture_h ResourceManager::loadTexture(const std::filesystem::path& path) {
-    if (auto it = _textures.find(path.string()); it != _textures.end()) {
+    auto pathStr = path.string();
+    if (auto it = _textures.find(pathStr); it != _textures.end()) {
         ++it->second.reference;
         it->second.lastUsed = _ticks;
         return it->second.handle;
     }
 
     gerium_file_t file;
-    check(gerium_file_open(path.string().c_str(), true, &file));
+    check(gerium_file_open(pathStr.c_str(), true, &file));
     auto size = gerium_file_get_size(file);
     auto data = gerium_file_map(file);
     auto name = path.filename().string();

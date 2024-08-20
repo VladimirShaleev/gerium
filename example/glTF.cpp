@@ -332,8 +332,10 @@ void getMeshVertexBuffer(glTF& gltf,
 }
 
 void loadGlTF(glTF& gltf, const std::filesystem::path& path) {
+    auto pathStr = path.string();
+
     gerium_file_t file;
-    check(gerium_file_open(path.string().c_str(), true, &file));
+    check(gerium_file_open(pathStr.c_str(), true, &file));
 
     auto data     = (char*) gerium_file_map(file);
     auto jsonData = json::parse(data, data + gerium_file_get_size(file));

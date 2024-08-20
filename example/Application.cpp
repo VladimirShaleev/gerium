@@ -139,7 +139,7 @@ void Application::initialize() {
     gerium_renderer_set_profiler_enable(_renderer, true);
 
     _asyncLoader.create(_application, _renderer);
-    _resourceManager.create(_renderer, _asyncLoader);
+    _resourceManager.create(_asyncLoader);
 
     check(gerium_profiler_create(_renderer, &_profiler));
     check(gerium_frame_graph_create(_renderer, &_frameGraph));
@@ -233,11 +233,11 @@ void Application::initialize() {
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
-    auto sponzaDir       = appDir / "assets" / "models" / "sponza" / "Sponza.gltf";
-    auto flightHelmetDir = appDir / "assets" / "models" / "flight-helmet" / "FlightHelmet.gltf";
+    auto sponzaDir       = (appDir / "assets" / "models" / "sponza" / "Sponza.gltf").string();
+    auto flightHelmetDir = (appDir / "assets" / "models" / "flight-helmet" / "FlightHelmet.gltf").string();
 
-    auto modelSponza       = Model::loadGlTF(_renderer, _resourceManager, sponzaDir.string().c_str());
-    auto modelFlightHelmet = Model::loadGlTF(_renderer, _resourceManager, flightHelmetDir.string().c_str());
+    auto modelSponza       = Model::loadGlTF(_renderer, _resourceManager, sponzaDir.c_str());
+    auto modelFlightHelmet = Model::loadGlTF(_renderer, _resourceManager, flightHelmetDir.c_str());
 
     auto defaultTransform = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
     auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.0008f, 0.0008f, 0.0008f)),

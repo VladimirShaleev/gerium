@@ -47,7 +47,8 @@ void UnixFile::createDirs(gerium_utf8_t path) {
         auto currentPath = *dir.begin();
         for (auto it = ++dir.begin(); it != dir.end(); ++it) {
             currentPath /= *it;
-            ::mkdir(currentPath.string().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            auto currentPathStr = currentPath.string();
+            ::mkdir(currentPathStr.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         }
     }
 }
