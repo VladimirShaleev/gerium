@@ -18,13 +18,12 @@ public:
 
     Camera() = default;
     Camera(gerium_application_t application, ResourceManager& resourceManager) noexcept;
-    ~Camera();
+
+    Camera(Camera&& other)            = default;
+    Camera& operator=(Camera&& other) = default;
 
     Camera(const Camera& other);
-    Camera(Camera&& other);
-
     Camera& operator=(const Camera& other);
-    Camera& operator=(Camera&& other);
 
     void setSpeed(gerium_float32_t movementSpeed = 0.001f, gerium_float32_t rotationSpeed = 0.001f);
 
@@ -53,7 +52,7 @@ public:
     gerium_float32_t farPlane() const noexcept;
     gerium_float32_t fov() const noexcept;
 
-    gerium_descriptor_set_h getDecriptorSet() const noexcept;
+    DescriptorSet getDecriptorSet() const noexcept;
 
 private:
     void copy(const Camera& other) noexcept;
@@ -81,8 +80,8 @@ private:
     glm::mat4 _projection{};
     glm::mat4 _viewProjection{};
 
-    gerium_buffer_h _data{ UndefinedHandle };
-    gerium_descriptor_set_h _descriptorSet{ UndefinedHandle };
+    Buffer _data{};
+    DescriptorSet _descriptorSet{};
 };
 
 #endif

@@ -315,9 +315,9 @@ gerium_sint32_t attributeAccessorIndex(const Attribute* attributes,
 }
 
 void getMeshVertexBuffer(glTF& gltf,
-                         const std::vector<gerium_buffer_h>& buffers,
+                         const std::vector<::Buffer>& buffers,
                          gerium_sint32_t accessorIndex,
-                         gerium_buffer_h& out,
+                         ::Buffer& out,
                          gerium_uint32_t& offset) {
     if (accessorIndex != -1) {
         auto& bufferAccessor = gltf.accessors[accessorIndex];
@@ -326,7 +326,7 @@ void getMeshVertexBuffer(glTF& gltf,
         out    = buffers[bufferAccessor.bufferView];
         offset = bufferAccessor.byteOffset == INVALID_INT_VALUE ? 0 : bufferAccessor.byteOffset;
     } else {
-        out    = { std::numeric_limits<gerium_uint16_t>::max() };
+        out    = {};
         offset = 0;
     }
 }

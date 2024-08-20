@@ -19,30 +19,29 @@ struct MeshData {
 
 class PBRMaterial final {
 public:
-    explicit PBRMaterial(gerium_renderer_t renderer, ResourceManager& resourceManger);
-    ~PBRMaterial();
+    PBRMaterial(gerium_renderer_t renderer, ResourceManager& resourceManger);
+
+    PBRMaterial(PBRMaterial&& pbrMaterial) noexcept            = default;
+    PBRMaterial& operator=(PBRMaterial&& pbrMaterial) noexcept = default;
 
     PBRMaterial(const PBRMaterial& pbrMaterial) noexcept;
-    PBRMaterial(PBRMaterial&& pbrMaterial) noexcept;
-
     PBRMaterial& operator=(const PBRMaterial& pbrMaterial) noexcept;
-    PBRMaterial& operator=(PBRMaterial&& pbrMaterial) noexcept;
 
-    void setTechnique(gerium_technique_h technique);
-    gerium_technique_h getTechnique() const noexcept;
+    void setTechnique(Technique technique);
+    Technique getTechnique() const noexcept;
 
     void updateMeshData(const MeshData& meshData);
-    gerium_descriptor_set_h getDecriptorSet() const noexcept;
+    DescriptorSet getDecriptorSet() const noexcept;
 
-    void setDiffuse(gerium_texture_h handle) noexcept;
-    void setRoughness(gerium_texture_h handle) noexcept;
-    void setNormal(gerium_texture_h handle) noexcept;
-    void setOcclusion(gerium_texture_h handle) noexcept;
+    void setDiffuse(Texture handle) noexcept;
+    void setRoughness(Texture handle) noexcept;
+    void setNormal(Texture handle) noexcept;
+    void setOcclusion(Texture handle) noexcept;
 
-    gerium_texture_h getDiffuse() const noexcept;
-    gerium_texture_h getRoughness() const noexcept;
-    gerium_texture_h getNormal() const noexcept;
-    gerium_texture_h getOcclusion() const noexcept;
+    Texture getDiffuse() const noexcept;
+    Texture getRoughness() const noexcept;
+    Texture getNormal() const noexcept;
+    Texture getOcclusion() const noexcept;
 
     void setFactor(const glm::vec4& baseColorFactor, const glm::vec4& metallicRoughnessOcclusionFactor) noexcept;
     const glm::vec4& getBaseColorFactor() const noexcept;
@@ -54,23 +53,19 @@ public:
 
 private:
     void copy(const PBRMaterial& pbrMaterial) noexcept;
-    void reference() noexcept;
-    void destroy() noexcept;
-    void invalidate() noexcept;
-    void setTexture(gerium_texture_h& oldTexture, gerium_texture_h newTexture) noexcept;
 
     gerium_renderer_t _renderer{};
     ResourceManager* _resourceManger{};
 
-    gerium_technique_h _technique{ UndefinedHandle };
+    Technique _technique{};
 
-    gerium_buffer_h _data{ UndefinedHandle };
-    gerium_descriptor_set_h _descriptorSet{ UndefinedHandle };
+    Buffer _data{};
+    DescriptorSet _descriptorSet{};
 
-    gerium_texture_h _diffuse{ UndefinedHandle };
-    gerium_texture_h _roughness{ UndefinedHandle };
-    gerium_texture_h _normal{ UndefinedHandle };
-    gerium_texture_h _occlusion{ UndefinedHandle };
+    Texture _diffuse{};
+    Texture _roughness{};
+    Texture _normal{};
+    Texture _occlusion{};
 
     glm::vec4 _baseColorFactor{};
     glm::vec4 _metallicRoughnessOcclusionFactor{};
@@ -82,13 +77,12 @@ private:
 class Mesh final {
 public:
     explicit Mesh(gerium_renderer_t renderer, ResourceManager& resourceManger);
-    ~Mesh();
+
+    Mesh(Mesh&& mesh) noexcept            = default;
+    Mesh& operator=(Mesh&& mesh) noexcept = default;
 
     Mesh(const Mesh& mesh) noexcept;
-    Mesh(Mesh&& mesh) noexcept;
-
     Mesh& operator=(const Mesh& mesh) noexcept;
-    Mesh& operator=(Mesh&& mesh) noexcept;
 
     void setNodeIndex(gerium_uint32_t index) noexcept;
     gerium_uint32_t getNodeIndex() const noexcept;
@@ -96,20 +90,20 @@ public:
     void setMaterial(const PBRMaterial& material);
     PBRMaterial& getMaterial() noexcept;
 
-    void setIndices(gerium_buffer_h indices,
+    void setIndices(Buffer indices,
                     gerium_index_type_t type,
                     gerium_uint32_t offset,
                     gerium_uint32_t primitives) noexcept;
-    void setPositions(gerium_buffer_h positions, gerium_uint32_t offset) noexcept;
-    void setTexcoords(gerium_buffer_h texcoords, gerium_uint32_t offset) noexcept;
-    void setNormals(gerium_buffer_h normals, gerium_uint32_t offset) noexcept;
-    void setTangents(gerium_buffer_h tangents, gerium_uint32_t offset) noexcept;
+    void setPositions(Buffer positions, gerium_uint32_t offset) noexcept;
+    void setTexcoords(Buffer texcoords, gerium_uint32_t offset) noexcept;
+    void setNormals(Buffer normals, gerium_uint32_t offset) noexcept;
+    void setTangents(Buffer tangents, gerium_uint32_t offset) noexcept;
 
-    gerium_buffer_h getIndices() const noexcept;
-    gerium_buffer_h getPositions() const noexcept;
-    gerium_buffer_h getTexcoords() const noexcept;
-    gerium_buffer_h getNormals() const noexcept;
-    gerium_buffer_h getTangents() const noexcept;
+    Buffer getIndices() const noexcept;
+    Buffer getPositions() const noexcept;
+    Buffer getTexcoords() const noexcept;
+    Buffer getNormals() const noexcept;
+    Buffer getTangents() const noexcept;
 
     gerium_uint32_t getIndicesOffset() const noexcept;
     gerium_uint32_t getPositionsOffset() const noexcept;
@@ -122,21 +116,17 @@ public:
 
 private:
     void copy(const Mesh& mesh) noexcept;
-    void reference() noexcept;
-    void destroy() noexcept;
-    void invalidateBuffers() noexcept;
-    void setBuffer(gerium_buffer_h& oldBuffer, gerium_buffer_h newBuffer) noexcept;
 
     gerium_renderer_t _renderer{};
     ResourceManager* _resourceManger{};
 
     PBRMaterial _material;
 
-    gerium_buffer_h _indices{ UndefinedHandle };
-    gerium_buffer_h _positions{ UndefinedHandle };
-    gerium_buffer_h _texcoords{ UndefinedHandle };
-    gerium_buffer_h _normals{ UndefinedHandle };
-    gerium_buffer_h _tangents{ UndefinedHandle };
+    Buffer _indices{};
+    Buffer _positions{};
+    Buffer _texcoords{};
+    Buffer _normals{};
+    Buffer _tangents{};
 
     gerium_index_type_t _indexType{};
     gerium_uint32_t _indicesOffset{};
@@ -174,7 +164,9 @@ public:
     const glm::mat4& getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
     const glm::mat4& getInverseWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
 
-    static Model loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManager, const std::filesystem::path& path);
+    static Model loadGlTF(gerium_renderer_t renderer,
+                          ResourceManager& resourceManager,
+                          const std::filesystem::path& path);
 
 private:
     void changeNode(gerium_sint32_t nodeIndex) noexcept;

@@ -1,7 +1,7 @@
 #ifndef GLTF_HPP
 #define GLTF_HPP
 
-#include "Common.hpp"
+#include "ResourceManager.hpp"
 
 namespace gltf {
 
@@ -191,11 +191,11 @@ gerium_sint32_t attributeAccessorIndex(const Attribute* attributes,
                                        std::string_view attributeName);
 
 void getMeshVertexBuffer(glTF& gltf,
-                         const std::vector<gerium_buffer_h>& buffers,
+                         const std::vector<::Buffer>& buffers,
                          gerium_sint32_t accessorIndex,
-                         gerium_buffer_h& out,
+                         ::Buffer& out,
                          gerium_uint32_t& offset);
-                         
+
 void loadGlTF(glTF& gltf, const std::filesystem::path& path);
 
 } // namespace gltf

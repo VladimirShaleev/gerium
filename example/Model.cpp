@@ -8,57 +8,32 @@ PBRMaterial::PBRMaterial(gerium_renderer_t renderer, ResourceManager& resourceMa
     _resourceManger(&resourceManger) {
 }
 
-PBRMaterial::~PBRMaterial() {
-    destroy();
-}
-
 PBRMaterial::PBRMaterial(const PBRMaterial& pbrMaterial) noexcept {
     copy(pbrMaterial);
-    reference();
-}
-
-PBRMaterial::PBRMaterial(PBRMaterial&& pbrMaterial) noexcept {
-    copy(pbrMaterial);
-    pbrMaterial.invalidate();
 }
 
 PBRMaterial& PBRMaterial::operator=(const PBRMaterial& pbrMaterial) noexcept {
     if (this != &pbrMaterial) {
-        destroy();
         copy(pbrMaterial);
-        reference();
     }
     return *this;
 }
 
-PBRMaterial& PBRMaterial::operator=(PBRMaterial&& pbrMaterial) noexcept {
-    if (this != &pbrMaterial) {
-        destroy();
-        copy(pbrMaterial);
-        invalidate();
-    }
-    return *this;
+void PBRMaterial::setTechnique(Technique technique) {
+    _technique = technique;
 }
 
-void PBRMaterial::setTechnique(gerium_technique_h technique) {
-    if (_technique.unused != technique.unused) {
-        _resourceManger->deleteTechnique(_technique);
-        _technique = technique;
-        _resourceManger->referenceTechnique(_technique);
-    }
-}
-
-gerium_technique_h PBRMaterial::getTechnique() const noexcept {
+Technique PBRMaterial::getTechnique() const noexcept {
     return _technique;
 }
 
 void PBRMaterial::updateMeshData(const MeshData& meshData) {
-    if (_data.unused == UndefinedHandle) {
+    if (!_data) {
         _data = _resourceManger->createBuffer(
             GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData));
     }
-    if (_descriptorSet.unused == UndefinedHandle) {
-        check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
+    if (!_descriptorSet) {
+        _descriptorSet = _resourceManger->createDescriptorSet();
         gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
         gerium_renderer_bind_texture(_renderer, _descriptorSet, 1, _diffuse);
         gerium_renderer_bind_texture(_renderer, _descriptorSet, 2, _normal);
@@ -69,39 +44,39 @@ void PBRMaterial::updateMeshData(const MeshData& meshData) {
     gerium_renderer_unmap_buffer(_renderer, _data);
 }
 
-gerium_descriptor_set_h PBRMaterial::getDecriptorSet() const noexcept {
+DescriptorSet PBRMaterial::getDecriptorSet() const noexcept {
     return _descriptorSet;
 }
 
-void PBRMaterial::setDiffuse(gerium_texture_h handle) noexcept {
-    setTexture(_diffuse, handle);
+void PBRMaterial::setDiffuse(Texture handle) noexcept {
+    _diffuse = handle;
 }
 
-void PBRMaterial::setRoughness(gerium_texture_h handle) noexcept {
-    setTexture(_roughness, handle);
+void PBRMaterial::setRoughness(Texture handle) noexcept {
+    _roughness = handle;
 }
 
-void PBRMaterial::setNormal(gerium_texture_h handle) noexcept {
-    setTexture(_normal, handle);
+void PBRMaterial::setNormal(Texture handle) noexcept {
+    _normal = handle;
 }
 
-void PBRMaterial::setOcclusion(gerium_texture_h handle) noexcept {
-    setTexture(_occlusion, handle);
+void PBRMaterial::setOcclusion(Texture handle) noexcept {
+    _occlusion = handle;
 }
 
-gerium_texture_h PBRMaterial::getDiffuse() const noexcept {
+Texture PBRMaterial::getDiffuse() const noexcept {
     return _diffuse;
 }
 
-gerium_texture_h PBRMaterial::getRoughness() const noexcept {
+Texture PBRMaterial::getRoughness() const noexcept {
     return _roughness;
 }
 
-gerium_texture_h PBRMaterial::getNormal() const noexcept {
+Texture PBRMaterial::getNormal() const noexcept {
     return _normal;
 }
 
-gerium_texture_h PBRMaterial::getOcclusion() const noexcept {
+Texture PBRMaterial::getOcclusion() const noexcept {
     return _occlusion;
 }
 
@@ -133,62 +108,17 @@ DrawFlags PBRMaterial::getFlags() const noexcept {
 }
 
 void PBRMaterial::copy(const PBRMaterial& pbrMaterial) noexcept {
-    _renderer       = pbrMaterial._renderer;
-    _resourceManger = pbrMaterial._resourceManger;
-    _technique      = pbrMaterial._technique;
-
-    _diffuse   = pbrMaterial._diffuse;
-    _roughness = pbrMaterial._roughness;
-    _normal    = pbrMaterial._normal;
-    _occlusion = pbrMaterial._occlusion;
-
+    _renderer                         = pbrMaterial._renderer;
+    _resourceManger                   = pbrMaterial._resourceManger;
+    _technique                        = pbrMaterial._technique;
+    _diffuse                          = pbrMaterial._diffuse;
+    _roughness                        = pbrMaterial._roughness;
+    _normal                           = pbrMaterial._normal;
+    _occlusion                        = pbrMaterial._occlusion;
     _baseColorFactor                  = pbrMaterial._baseColorFactor;
     _metallicRoughnessOcclusionFactor = pbrMaterial._metallicRoughnessOcclusionFactor;
-
-    _alphaCutoff = pbrMaterial._alphaCutoff;
-    _flags       = pbrMaterial._flags;
-}
-
-void PBRMaterial::reference() noexcept {
-    _resourceManger->referenceTechnique(_technique);
-    _resourceManger->referenceTexture(_diffuse);
-    _resourceManger->referenceTexture(_roughness);
-    _resourceManger->referenceTexture(_normal);
-    _resourceManger->referenceTexture(_occlusion);
-}
-
-void PBRMaterial::destroy() noexcept {
-    _resourceManger->deleteTechnique(_technique);
-    _resourceManger->deleteBuffer(_data);
-    if (_descriptorSet.unused != UndefinedHandle) {
-        gerium_renderer_destroy_descriptor_set(_renderer, _descriptorSet);
-        _descriptorSet = { UndefinedHandle };
-    }
-    _resourceManger->deleteTexture(_diffuse);
-    _resourceManger->deleteTexture(_roughness);
-    _resourceManger->deleteTexture(_normal);
-    _resourceManger->deleteTexture(_occlusion);
-    _technique = { UndefinedHandle };
-    _diffuse   = { UndefinedHandle };
-    _roughness = { UndefinedHandle };
-    _normal    = { UndefinedHandle };
-    _occlusion = { UndefinedHandle };
-}
-
-void PBRMaterial::invalidate() noexcept {
-    _technique = { UndefinedHandle };
-    _diffuse   = { UndefinedHandle };
-    _roughness = { UndefinedHandle };
-    _normal    = { UndefinedHandle };
-    _occlusion = { UndefinedHandle };
-}
-
-void PBRMaterial::setTexture(gerium_texture_h& oldTexture, gerium_texture_h newTexture) noexcept {
-    if (oldTexture.unused != newTexture.unused) {
-        _resourceManger->deleteTexture(oldTexture);
-        oldTexture = newTexture;
-        _resourceManger->referenceTexture(oldTexture);
-    }
+    _alphaCutoff                      = pbrMaterial._alphaCutoff;
+    _flags                            = pbrMaterial._flags;
 }
 
 Mesh::Mesh(gerium_renderer_t renderer, ResourceManager& resourceManger) :
@@ -197,36 +127,13 @@ Mesh::Mesh(gerium_renderer_t renderer, ResourceManager& resourceManger) :
     _material(renderer, resourceManger) {
 }
 
-Mesh::~Mesh() {
-    destroy();
-}
-
 Mesh::Mesh(const Mesh& mesh) noexcept : _material(mesh._renderer, *mesh._resourceManger) {
     copy(mesh);
-    reference();
-}
-
-Mesh::Mesh(Mesh&& mesh) noexcept : _material(mesh._renderer, *mesh._resourceManger) {
-    copy(mesh);
-    mesh.invalidateBuffers();
 }
 
 Mesh& Mesh::operator=(const Mesh& mesh) noexcept {
     if (this != &mesh) {
-        destroy();
         copy(mesh);
-        reference();
-        _material = mesh._material;
-    }
-    return *this;
-}
-
-Mesh& Mesh::operator=(Mesh&& mesh) noexcept {
-    if (this != &mesh) {
-        destroy();
-        copy(mesh);
-        mesh.invalidateBuffers();
-        _material = mesh._material;
     }
     return *this;
 }
@@ -247,53 +154,53 @@ PBRMaterial& Mesh::getMaterial() noexcept {
     return _material;
 }
 
-void Mesh::setIndices(gerium_buffer_h indices,
+void Mesh::setIndices(Buffer indices,
                       gerium_index_type_t type,
                       gerium_uint32_t offset,
                       gerium_uint32_t primitives) noexcept {
-    setBuffer(_indices, indices);
+    _indices        = indices;
     _indexType      = type;
     _indicesOffset  = offset;
     _primitiveCount = primitives;
 }
 
-void Mesh::setPositions(gerium_buffer_h positions, gerium_uint32_t offset) noexcept {
-    setBuffer(_positions, positions);
+void Mesh::setPositions(Buffer positions, gerium_uint32_t offset) noexcept {
+    _positions       = positions;
     _positionsOffset = offset;
 }
 
-void Mesh::setTexcoords(gerium_buffer_h texcoords, gerium_uint32_t offset) noexcept {
-    setBuffer(_texcoords, texcoords);
+void Mesh::setTexcoords(Buffer texcoords, gerium_uint32_t offset) noexcept {
+    _texcoords       = texcoords;
     _texcoordsOffset = offset;
 }
 
-void Mesh::setNormals(gerium_buffer_h normals, gerium_uint32_t offset) noexcept {
-    setBuffer(_normals, normals);
+void Mesh::setNormals(Buffer normals, gerium_uint32_t offset) noexcept {
+    _normals       = normals;
     _normalsOffset = offset;
 }
 
-void Mesh::setTangents(gerium_buffer_h tangents, gerium_uint32_t offset) noexcept {
-    setBuffer(_tangents, tangents);
+void Mesh::setTangents(Buffer tangents, gerium_uint32_t offset) noexcept {
+    _tangents       = tangents;
     _tangentsOffset = offset;
 }
 
-gerium_buffer_h Mesh::getIndices() const noexcept {
+Buffer Mesh::getIndices() const noexcept {
     return _indices;
 }
 
-gerium_buffer_h Mesh::getPositions() const noexcept {
+Buffer Mesh::getPositions() const noexcept {
     return _positions;
 }
 
-gerium_buffer_h Mesh::getTexcoords() const noexcept {
+Buffer Mesh::getTexcoords() const noexcept {
     return _texcoords;
 }
 
-gerium_buffer_h Mesh::getNormals() const noexcept {
+Buffer Mesh::getNormals() const noexcept {
     return _normals;
 }
 
-gerium_buffer_h Mesh::getTangents() const noexcept {
+Buffer Mesh::getTangents() const noexcept {
     return _tangents;
 }
 
@@ -342,38 +249,6 @@ void Mesh::copy(const Mesh& mesh) noexcept {
     _tangentsOffset  = mesh._tangentsOffset;
     _primitiveCount  = mesh._primitiveCount;
     _nodeIndex       = mesh._nodeIndex;
-}
-
-void Mesh::reference() noexcept {
-    _resourceManger->referenceBuffer(_indices);
-    _resourceManger->referenceBuffer(_positions);
-    _resourceManger->referenceBuffer(_texcoords);
-    _resourceManger->referenceBuffer(_normals);
-    _resourceManger->referenceBuffer(_tangents);
-}
-
-void Mesh::destroy() noexcept {
-    _resourceManger->deleteBuffer(_indices);
-    _resourceManger->deleteBuffer(_positions);
-    _resourceManger->deleteBuffer(_texcoords);
-    _resourceManger->deleteBuffer(_normals);
-    _resourceManger->deleteBuffer(_tangents);
-}
-
-void Mesh::invalidateBuffers() noexcept {
-    _indices   = { UndefinedHandle };
-    _positions = { UndefinedHandle };
-    _texcoords = { UndefinedHandle };
-    _normals   = { UndefinedHandle };
-    _tangents  = { UndefinedHandle };
-}
-
-void Mesh::setBuffer(gerium_buffer_h& oldBuffer, gerium_buffer_h newBuffer) noexcept {
-    if (oldBuffer.unused != newBuffer.unused) {
-        _resourceManger->deleteBuffer(oldBuffer);
-        oldBuffer = newBuffer;
-        _resourceManger->referenceBuffer(oldBuffer);
-    }
 }
 
 Model::Model(gerium_renderer_t renderer) : _renderer(renderer) {
@@ -473,8 +348,8 @@ const glm::mat4& Model::getInverseWorldMatrix(gerium_uint32_t nodeIndex) const n
     return _inverseWorldMatrices[nodeIndex];
 }
 
-static void setSampler(gerium_renderer_t renderer, gerium_texture_h texture, const gltf::Sampler& sampler) {
-    if (texture.unused == UndefinedHandle) {
+static void setSampler(gerium_renderer_t renderer, Texture texture, const gltf::Sampler& sampler) {
+    if (!texture) {
         return;
     }
     auto minFilter = GERIUM_FILTER_LINEAR;
@@ -512,7 +387,7 @@ static void fillPbrMaterial(gerium_renderer_t renderer,
                             PBRMaterial& pbrMaterial,
                             const std::vector<gltf::Texture>& gltfTextures,
                             const std::vector<gltf::Sampler>& gltfSamplers,
-                            const std::vector<gerium_texture_h>& textures) {
+                            const std::vector<Texture>& textures) {
     auto flags = material.doubleSided ? DrawFlags::DoubleSided : DrawFlags::None;
     if (material.alphaMode == "MASK") {
         flags |= DrawFlags::AlphaMask;
@@ -585,7 +460,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
 
     std::vector<gerium_file_t> bufferFiles;
     std::vector<gerium_uint8_t*> bufferDatas;
-    std::vector<gerium_buffer_h> buffers;
+    std::vector<Buffer> buffers;
     bufferFiles.resize(glTF.buffers.size());
     bufferDatas.resize(glTF.buffers.size());
     buffers.resize(glTF.bufferViews.size());
@@ -615,13 +490,13 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
         gerium_file_destroy(bufferFile);
     }
 
-    std::vector<gerium_texture_h> textures;
+    std::vector<Texture> textures;
     for (const auto& image : glTF.images) {
         const auto fullPath = (path.parent_path() / image.uri).string();
         if (gerium_file_exists_file(fullPath.c_str())) {
             textures.push_back(resourceManager.loadTexture(fullPath));
         } else {
-            textures.push_back({ UndefinedHandle });
+            textures.push_back({});
         }
     }
 
@@ -691,10 +566,10 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
             const auto texcoordAccessorIndex = gltf::attributeAccessorIndex(
                 primitive.attributes.data(), (gerium_uint32_t) primitive.attributes.size(), "TEXCOORD_0");
 
-            gerium_buffer_h positions;
-            gerium_buffer_h tangents;
-            gerium_buffer_h normals;
-            gerium_buffer_h texcoords;
+            Buffer positions;
+            Buffer tangents;
+            Buffer normals;
+            Buffer texcoords;
             gerium_uint32_t positionsOffset;
             gerium_uint32_t tangentsOffset;
             gerium_uint32_t normalsOffset;
@@ -729,14 +604,6 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
 
             model.addMesh(mesh);
         }
-    }
-
-    for (auto texture : textures) {
-        resourceManager.deleteTexture(texture);
-    }
-
-    for (auto buffer : buffers) {
-        resourceManager.deleteBuffer(buffer);
     }
 
     model.updateMatrices();

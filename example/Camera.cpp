@@ -10,37 +10,12 @@ Camera::Camera(gerium_application_t application, ResourceManager& resourceManage
     setPerpective(0.01f, 1000.0f, glm::radians(60.0f));
 }
 
-Camera::~Camera() {
-    _resourceManager->deleteBuffer(_data);
-    if (_descriptorSet.unused != UndefinedHandle) {
-        gerium_renderer_destroy_descriptor_set(_renderer, _descriptorSet);
-        _descriptorSet = { UndefinedHandle };
-    }
-}
-
 Camera::Camera(const Camera& other) {
-    copy(other);
-}
-
-Camera::Camera(Camera&& other) : _data(other._data), _descriptorSet(other._descriptorSet) {
-    other._data          = { UndefinedHandle };
-    other._descriptorSet = { UndefinedHandle };
     copy(other);
 }
 
 Camera& Camera::operator=(const Camera& other) {
     if (this != &other) {
-        copy(other);
-    }
-    return *this;
-}
-
-Camera& Camera::operator=(Camera&& other) {
-    if (this != &other) {
-        _data                = other._data;
-        _descriptorSet       = other._descriptorSet;
-        other._data          = { UndefinedHandle };
-        other._descriptorSet = { UndefinedHandle };
         copy(other);
     }
     return *this;
@@ -88,12 +63,12 @@ void Camera::zoom(gerium_float32_t value, gerium_float32_t delta) {
 }
 
 void Camera::update() {
-    if (_data.unused == UndefinedHandle) {
+    if (!_data) {
         _data = _resourceManager->createBuffer(
             GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "scene_data", nullptr, sizeof(SceneData));
     }
-    if (_descriptorSet.unused == UndefinedHandle) {
-        check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
+    if (!_descriptorSet) {
+        _descriptorSet = _resourceManager->createDescriptorSet();
         gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
     }
 
@@ -181,7 +156,7 @@ gerium_float32_t Camera::fov() const noexcept {
     return _fov;
 }
 
-gerium_descriptor_set_h Camera::getDecriptorSet() const noexcept {
+DescriptorSet Camera::getDecriptorSet() const noexcept {
     return _descriptorSet;
 }
 

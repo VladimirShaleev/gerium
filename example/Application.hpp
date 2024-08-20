@@ -31,7 +31,7 @@ public:
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
 private:
-    gerium_technique_h _technique{};
+    Technique _technique{};
     gerium_descriptor_set_h _descriptorSet{};
 };
 
@@ -113,7 +113,7 @@ private:
     ResourceManager _resourceManager{};
     Scene _scene{};
 
-    gerium_technique_h _baseTechnique{};
+    Technique _baseTechnique{};
 };
 
 #endif

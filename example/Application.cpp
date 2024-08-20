@@ -10,7 +10,6 @@ void SimplePass::render(gerium_frame_graph_t frameGraph,
     auto camera    = scene.getAnyComponentNode<Camera>();
     auto models    = scene.getComponents<Model>();
     auto technique = manager.loadTechnique("base");
-    deferred(manager.deleteTechnique(technique));
 
     gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
@@ -72,7 +71,7 @@ void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
 
 void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     gerium_renderer_destroy_descriptor_set(renderer, _descriptorSet);
-    getApplication()->resourceManager().deleteTechnique(_technique);
+    _technique = nullptr;
 }
 
 Application::Application() {
@@ -279,7 +278,7 @@ void Application::uninitialize() {
         _asyncLoader.destroy();
         _scene.clear();
 
-        _resourceManager.deleteTechnique(_baseTechnique);
+        _baseTechnique = nullptr;
 
         for (auto it = _renderPasses.rbegin(); it != _renderPasses.rend(); ++it) {
             (*it)->uninitialize(_frameGraph, _renderer);
