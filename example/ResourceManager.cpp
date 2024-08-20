@@ -17,7 +17,9 @@ void ResourceManager::update(gerium_float32_t elapsed) {
     std::vector<gerium_uint64_t> keys;
     for (auto it = _resources.begin(); it != _resources.end(); ++it) {
         if (it->second.reference == 0) {
-            if (_ticks - it->second.lastUsed > 240000.0) {
+            if (it->second.type == DescriptorSetType) {
+                gerium_renderer_destroy_descriptor_set(_renderer, { it->second.handle });
+            } else if (_ticks - it->second.lastUsed > 240000.0) {
                 switch (it->second.type) {
                     case TextureType:
                         gerium_renderer_destroy_texture(_renderer, { it->second.handle });
@@ -28,8 +30,7 @@ void ResourceManager::update(gerium_float32_t elapsed) {
                     case BufferType:
                         gerium_renderer_destroy_buffer(_renderer, { it->second.handle });
                         break;
-                    case DescriptorSetType:
-                        gerium_renderer_destroy_descriptor_set(_renderer, { it->second.handle });
+                    default:
                         break;
                 }
                 keys.push_back(it->first);
