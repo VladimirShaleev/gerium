@@ -1103,10 +1103,6 @@ void Device::destroyPipeline(PipelineHandle handle) {
     _deletionQueue.push({ ResourceType::Pipeline, _currentFrame, handle });
 }
 
-void Device::addReferenceBuffer(BufferHandle handle) noexcept {
-    _buffers.addReference(handle);
-}
-
 void Device::addReferenceDescriptorSet(DescriptorSetHandle handle) noexcept {
     _descriptorSets.addReference(handle);
 }

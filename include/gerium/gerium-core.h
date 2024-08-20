@@ -1300,10 +1300,6 @@ gerium_renderer_texture_sampler(gerium_renderer_t renderer,
                                 gerium_address_mode_t address_mode_v,
                                 gerium_address_mode_t address_mode_w);
 
-gerium_public gerium_buffer_h
-gerium_renderer_reference_buffer(gerium_renderer_t renderer,
-                                 gerium_buffer_h handle);
-
 gerium_public gerium_descriptor_set_h
 gerium_renderer_reference_descriptor_set(gerium_renderer_t renderer,
                                          gerium_descriptor_set_h handle);

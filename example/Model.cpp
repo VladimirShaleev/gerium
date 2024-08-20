@@ -54,8 +54,8 @@ gerium_technique_h PBRMaterial::getTechnique() const noexcept {
 
 void PBRMaterial::updateMeshData(const MeshData& meshData) {
     if (_data.unused == UndefinedHandle) {
-        check(gerium_renderer_create_buffer(
-            _renderer, GERIUM_BUFFER_USAGE_UNIFORM_BIT, 1, "mesh_data", nullptr, sizeof(MeshData), &_data));
+        _data = _resourceManger->createBuffer(
+            GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData));
     }
     if (_descriptorSet.unused == UndefinedHandle) {
         check(gerium_renderer_create_descriptor_set(_renderer, &_descriptorSet));
@@ -159,10 +159,7 @@ void PBRMaterial::reference() noexcept {
 
 void PBRMaterial::destroy() noexcept {
     _resourceManger->deleteTechnique(_technique);
-    if (_data.unused != UndefinedHandle) {
-        gerium_renderer_destroy_buffer(_renderer, _data);
-        _data = { UndefinedHandle };
-    }
+    _resourceManger->deleteBuffer(_data);
     if (_descriptorSet.unused != UndefinedHandle) {
         gerium_renderer_destroy_descriptor_set(_renderer, _descriptorSet);
         _descriptorSet = { UndefinedHandle };
@@ -348,44 +345,19 @@ void Mesh::copy(const Mesh& mesh) noexcept {
 }
 
 void Mesh::reference() noexcept {
-    if (_indices.unused != UndefinedHandle) {
-        gerium_renderer_reference_buffer(_renderer, _indices);
-    }
-    if (_positions.unused != UndefinedHandle) {
-        gerium_renderer_reference_buffer(_renderer, _positions);
-    }
-    if (_texcoords.unused != UndefinedHandle) {
-        gerium_renderer_reference_buffer(_renderer, _texcoords);
-    }
-    if (_normals.unused != UndefinedHandle) {
-        gerium_renderer_reference_buffer(_renderer, _normals);
-    }
-    if (_tangents.unused != UndefinedHandle) {
-        gerium_renderer_reference_buffer(_renderer, _tangents);
-    }
+    _resourceManger->referenceBuffer(_indices);
+    _resourceManger->referenceBuffer(_positions);
+    _resourceManger->referenceBuffer(_texcoords);
+    _resourceManger->referenceBuffer(_normals);
+    _resourceManger->referenceBuffer(_tangents);
 }
 
 void Mesh::destroy() noexcept {
-    if (_indices.unused != UndefinedHandle) {
-        gerium_renderer_destroy_buffer(_renderer, _indices);
-        _indices = { UndefinedHandle };
-    }
-    if (_positions.unused != UndefinedHandle) {
-        gerium_renderer_destroy_buffer(_renderer, _positions);
-        _positions = { UndefinedHandle };
-    }
-    if (_texcoords.unused != UndefinedHandle) {
-        gerium_renderer_destroy_buffer(_renderer, _texcoords);
-        _texcoords = { UndefinedHandle };
-    }
-    if (_normals.unused != UndefinedHandle) {
-        gerium_renderer_destroy_buffer(_renderer, _normals);
-        _normals = { UndefinedHandle };
-    }
-    if (_tangents.unused != UndefinedHandle) {
-        gerium_renderer_destroy_buffer(_renderer, _tangents);
-        _tangents = { UndefinedHandle };
-    }
+    _resourceManger->deleteBuffer(_indices);
+    _resourceManger->deleteBuffer(_positions);
+    _resourceManger->deleteBuffer(_texcoords);
+    _resourceManger->deleteBuffer(_normals);
+    _resourceManger->deleteBuffer(_tangents);
 }
 
 void Mesh::invalidateBuffers() noexcept {
@@ -398,13 +370,9 @@ void Mesh::invalidateBuffers() noexcept {
 
 void Mesh::setBuffer(gerium_buffer_h& oldBuffer, gerium_buffer_h newBuffer) noexcept {
     if (oldBuffer.unused != newBuffer.unused) {
-        if (oldBuffer.unused != UndefinedHandle) {
-            gerium_renderer_destroy_buffer(_renderer, oldBuffer);
-        }
+        _resourceManger->deleteBuffer(oldBuffer);
         oldBuffer = newBuffer;
-        if (oldBuffer.unused != UndefinedHandle) {
-            gerium_renderer_reference_buffer(_renderer, oldBuffer);
-        }
+        _resourceManger->referenceBuffer(oldBuffer);
     }
 }
 
@@ -612,6 +580,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
     gltf::glTF glTF{};
     gltf::loadGlTF(glTF, path);
 
+    const auto pathStr = path.string();
     Model model(renderer);
 
     std::vector<gerium_file_t> bufferFiles;
@@ -634,14 +603,12 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
         auto bufferData = bufferDatas[bufferView.buffer] + offset;
         auto name       = "buffer_"s + (bufferView.name.length() ? bufferView.name : std::to_string(i));
 
-        gerium_buffer_h buffer;
-        check(gerium_renderer_create_buffer(renderer,
-                                            GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT,
-                                            false,
-                                            name.c_str(),
-                                            (gerium_cdata_t) bufferData,
-                                            bufferView.byteLength,
-                                            &buffers[i++]));
+        buffers[i++] = resourceManager.createBuffer(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT,
+                                                    false,
+                                                    pathStr,
+                                                    name,
+                                                    (gerium_cdata_t) bufferData,
+                                                    bufferView.byteLength);
     }
 
     for (auto& bufferFile : bufferFiles) {
@@ -769,7 +736,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
     }
 
     for (auto buffer : buffers) {
-        gerium_renderer_destroy_buffer(renderer, buffer);
+        resourceManager.deleteBuffer(buffer);
     }
 
     model.updateMatrices();

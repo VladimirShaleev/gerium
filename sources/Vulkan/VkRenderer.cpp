@@ -287,11 +287,6 @@ void VkRenderer::onTextureSampler(TextureHandle handle,
     }
 }
 
-BufferHandle VkRenderer::onReferenceBuffer(BufferHandle handle) noexcept {
-    _device->addReferenceBuffer(handle);
-    return handle;
-}
-
 DescriptorSetHandle VkRenderer::onReferenceDescriptorSet(DescriptorSetHandle handle) noexcept {
     _device->addReferenceDescriptorSet(handle);
     return handle;

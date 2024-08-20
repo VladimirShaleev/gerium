@@ -11,18 +11,28 @@ public:
 
     gerium_texture_h loadTexture(const std::filesystem::path& path);
     gerium_technique_h loadTechnique(const std::string& name);
+    gerium_buffer_h loadBuffer(const std::string& path, const std::string& name);
     gerium_technique_h createTechnique(const std::string& name, const std::vector<gerium_pipeline_t> pipelines);
+    gerium_buffer_h createBuffer(gerium_buffer_usage_flags_t bufferUsage,
+                                 gerium_bool_t dynamic,
+                                 const std::string& path,
+                                 const std::string& name,
+                                 gerium_cdata_t data,
+                                 gerium_uint32_t size);
 
     void referenceTexture(gerium_texture_h handle);
     void referenceTechnique(gerium_technique_h handle);
+    void referenceBuffer(gerium_buffer_h handle);
 
     void deleteTexture(gerium_texture_h handle);
     void deleteTechnique(gerium_technique_h handle);
+    void deleteBuffer(gerium_buffer_h handle);
 
 private:
     enum Type {
-        Texture = 0,
-        Technique = 10000
+        Texture   = 0,
+        Technique = 10000,
+        Buffer    = 20000
     };
 
     struct Resource {
@@ -45,6 +55,8 @@ private:
     gerium_float64_t _ticks{};
     std::map<gerium_uint64_t, Resource> _resources;
     std::map<gerium_uint16_t, Resource*> _mapResource;
+    
+    static gerium_uint32_t _bufferCount;
 };
 
 #endif
