@@ -3,7 +3,7 @@
 int main() {
     try {
         Application application;
-        application.run("sample", 800, 600);
+        application.run("sample", 1000, 800);
     } catch (...) {
         return 1;
     }
