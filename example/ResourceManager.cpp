@@ -93,7 +93,7 @@ Texture ResourceManager::loadTexture(const std::filesystem::path& path) {
     return { this, texture };
 }
 
-Technique ResourceManager::loadTechnique(const std::string& name) {
+Technique ResourceManager::getTechnique(const std::string& name) {
     const auto key = calcKey(name);
     if (auto it = _resources.find(key); it != _resources.end()) {
         ++it->second.reference;
@@ -103,7 +103,7 @@ Technique ResourceManager::loadTechnique(const std::string& name) {
     return {};
 }
 
-Buffer ResourceManager::loadBuffer(const std::string& path, const std::string& name) {
+Buffer ResourceManager::getBuffer(const std::string& path, const std::string& name) {
     const auto pathName = path + '|' + name;
     const auto key      = calcKey(pathName);
     if (auto it = _resources.find(key); it != _resources.end()) {
@@ -112,6 +112,26 @@ Buffer ResourceManager::loadBuffer(const std::string& path, const std::string& n
         return { this, { it->second.handle } };
     }
     return {};
+}
+
+Texture ResourceManager::createTexture(const gerium_texture_info_t& info, gerium_cdata_t data) {
+    const auto name = std::to_string(_resourceCount++) + '|' + (info.name ? info.name : "tex");
+    const auto key  = calcKey(name);
+
+    gerium_texture_h texture;
+    check(gerium_renderer_create_texture(_renderer, &info, data, &texture));
+
+    auto& resource     = _resources[key];
+    resource.type      = TextureType;
+    resource.name      = name;
+    resource.key       = key;
+    resource.handle    = texture.unused;
+    resource.reference = 1;
+    resource.lastUsed  = _ticks;
+
+    _mapResource[resource.type + resource.handle] = &resource;
+
+    return { this, texture };
 }
 
 Technique ResourceManager::createTechnique(const std::string& name, const std::vector<gerium_pipeline_t> pipelines) {

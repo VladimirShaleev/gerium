@@ -9,7 +9,7 @@ void SimplePass::render(gerium_frame_graph_t frameGraph,
     auto& scene    = getApplication()->scene();
     auto camera    = scene.getAnyComponentNode<Camera>();
     auto models    = scene.getComponents<Model>();
-    auto technique = manager.loadTechnique("base");
+    auto technique = manager.getTechnique("base");
 
     gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);

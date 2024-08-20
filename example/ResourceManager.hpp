@@ -92,8 +92,9 @@ public:
     void update(gerium_float32_t elapsed);
 
     Texture loadTexture(const std::filesystem::path& path);
-    Technique loadTechnique(const std::string& name);
-    Buffer loadBuffer(const std::string& path, const std::string& name);
+    Technique getTechnique(const std::string& name);
+    Buffer getBuffer(const std::string& path, const std::string& name);
+    Texture createTexture(const gerium_texture_info_t& info, gerium_cdata_t data);
     Technique createTechnique(const std::string& name, const std::vector<gerium_pipeline_t> pipelines);
     Buffer createBuffer(gerium_buffer_usage_flags_t bufferUsage,
                         gerium_bool_t dynamic,
