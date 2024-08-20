@@ -39,7 +39,7 @@ void ResourceManager::update(gerium_float32_t elapsed) {
     }
     for (const auto& key : keys) {
         auto it = _resources.find(key);
-        _mapResource.erase(it->second.type + it->second.handle);
+        _mapResources.erase(it->second.type + it->second.handle);
         _resources.erase(it);
     }
 }
@@ -88,7 +88,7 @@ Texture ResourceManager::loadTexture(const std::filesystem::path& path) {
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
-    _mapResource[resource.type + resource.handle] = &resource;
+    _mapResources[resource.type + resource.handle] = &resource;
 
     return { this, texture };
 }
@@ -129,7 +129,7 @@ Texture ResourceManager::createTexture(const gerium_texture_info_t& info, gerium
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
-    _mapResource[resource.type + resource.handle] = &resource;
+    _mapResources[resource.type + resource.handle] = &resource;
 
     return { this, texture };
 }
@@ -155,7 +155,7 @@ Technique ResourceManager::createTechnique(const std::string& name, const std::v
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
-    _mapResource[resource.type + resource.handle] = &resource;
+    _mapResources[resource.type + resource.handle] = &resource;
 
     return { this, technique };
 }
@@ -186,7 +186,7 @@ Buffer ResourceManager::createBuffer(gerium_buffer_usage_flags_t bufferUsage,
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
-    _mapResource[resource.type + resource.handle] = &resource;
+    _mapResources[resource.type + resource.handle] = &resource;
 
     return { this, buffer };
 }
@@ -206,7 +206,7 @@ DescriptorSet ResourceManager::createDescriptorSet() {
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
-    _mapResource[resource.type + resource.handle] = &resource;
+    _mapResources[resource.type + resource.handle] = &resource;
 
     return { this, descriptorSet };
 }
@@ -244,14 +244,14 @@ void ResourceManager::destroy(gerium_descriptor_set_h handle) {
 }
 
 void ResourceManager::referenceResource(gerium_uint16_t handle) {
-    if (auto it = _mapResource.find(handle); it != _mapResource.end()) {
+    if (auto it = _mapResources.find(handle); it != _mapResources.end()) {
         ++it->second->reference;
         it->second->lastUsed = _ticks;
     }
 }
 
 void ResourceManager::destroyResource(gerium_uint16_t handle) {
-    if (auto it = _mapResource.find(handle); it != _mapResource.end()) {
+    if (auto it = _mapResources.find(handle); it != _mapResources.end()) {
         --it->second->reference;
         it->second->lastUsed = _ticks;
     }

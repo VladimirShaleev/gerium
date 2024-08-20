@@ -103,7 +103,7 @@ private:
     AsyncLoader* _loader{};
     gerium_float64_t _ticks{};
     std::map<gerium_uint64_t, Resource> _resources;
-    std::map<gerium_uint16_t, Resource*> _mapResource;
+    std::map<gerium_uint16_t, Resource*> _mapResources;
 
     static gerium_uint32_t _resourceCount;
 };
