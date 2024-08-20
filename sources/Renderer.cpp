@@ -66,10 +66,6 @@ void Renderer::textureSampler(TextureHandle handle,
     onTextureSampler(handle, minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW);
 }
 
-DescriptorSetHandle Renderer::referenceDescriptorSet(DescriptorSetHandle handle) noexcept {
-    return onReferenceDescriptorSet(handle);
-}
-
 void Renderer::destroyBuffer(BufferHandle handle) noexcept {
     onDestroyBuffer(handle);
 }
@@ -268,12 +264,6 @@ gerium_result_t gerium_renderer_texture_sampler(gerium_renderer_t renderer,
         alias_cast<Renderer*>(renderer)->textureSampler(
             { handle.unused }, min_filter, mag_filter, mip_filter, address_mode_u, address_mode_v, address_mode_w);
     GERIUM_END_SAFE_BLOCK
-}
-
-gerium_descriptor_set_h gerium_renderer_reference_descriptor_set(gerium_renderer_t renderer,
-                                                                 gerium_descriptor_set_h handle) {
-    assert(renderer);
-    return alias_cast<Renderer*>(renderer)->referenceDescriptorSet({ handle.unused });
 }
 
 void gerium_renderer_destroy_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {

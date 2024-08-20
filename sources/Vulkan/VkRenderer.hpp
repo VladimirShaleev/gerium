@@ -59,8 +59,6 @@ private:
                           gerium_address_mode_t addressModeV,
                           gerium_address_mode_t addressModeW) override;
 
-    DescriptorSetHandle onReferenceDescriptorSet(DescriptorSetHandle handle) noexcept override;
-
     void onDestroyBuffer(BufferHandle handle) noexcept override;
     void onDestroyTexture(TextureHandle handle) noexcept override;
     void onDestroyTechnique(TechniqueHandle handle) noexcept override;
