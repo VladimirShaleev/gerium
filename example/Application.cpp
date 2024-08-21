@@ -106,41 +106,6 @@ void Application::addPass(RenderPass& renderPass) {
     gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
 }
 
-void Application::createFrameGraph() {
-    gerium_resource_input_t presentInputs[] = {
-        { GERIUM_RESOURCE_TYPE_TEXTURE, "color" },
-    };
-
-    gerium_resource_output_t simpleOutputs[2]{};
-    simpleOutputs[0].type             = GERIUM_RESOURCE_TYPE_ATTACHMENT;
-    simpleOutputs[0].name             = "color";
-    simpleOutputs[0].format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
-    simpleOutputs[0].auto_scale       = 1.0f;
-    simpleOutputs[0].render_pass_op   = GERIUM_RENDER_PASS_OP_CLEAR;
-    simpleOutputs[0].color_write_mask = GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT |
-                                        GERIUM_COLOR_COMPONENT_B_BIT | GERIUM_COLOR_COMPONENT_A_BIT;
-    simpleOutputs[0].clear_color_attachment = { 1.0f, 0.0f, 1.0f, 1.0f };
-
-    simpleOutputs[1].type                           = GERIUM_RESOURCE_TYPE_ATTACHMENT;
-    simpleOutputs[1].name                           = "depth";
-    simpleOutputs[1].format                         = GERIUM_FORMAT_D32_SFLOAT;
-    simpleOutputs[1].auto_scale                     = 1.0f;
-    simpleOutputs[1].render_pass_op                 = GERIUM_RENDER_PASS_OP_CLEAR;
-    simpleOutputs[1].clear_depth_stencil_attachment = { 1.0f, 0 };
-
-    check(gerium_frame_graph_add_node(
-        _frameGraph, _presentPass.name().c_str(), std::size(presentInputs), presentInputs, 0, nullptr));
-    check(gerium_frame_graph_add_node(
-        _frameGraph, _simplePass.name().c_str(), 0, nullptr, std::size(simpleOutputs), simpleOutputs));
-
-    check(gerium_frame_graph_compile(_frameGraph));
-}
-
-void Application::createBaseTechnique() {
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-    _baseTechnique = _resourceManager.loadTechnique(appDir / "techniques" / "base.yaml");
-}
-
 void Application::createScene() {
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
@@ -192,8 +157,11 @@ void Application::initialize() {
 
     addPass(_presentPass);
     addPass(_simplePass);
-    createFrameGraph();
-    createBaseTechnique();
+    
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    _resourceManager.loadFrameGraph(appDir / "frame-graphs" / "main.yaml");
+    _baseTechnique = _resourceManager.loadTechnique(appDir / "techniques" / "base.yaml");
+    
     createScene();
 }
 

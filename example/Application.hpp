@@ -52,8 +52,6 @@ public:
     
 private:
     void addPass(RenderPass& renderPass);
-    void createFrameGraph();
-    void createBaseTechnique();
     void createScene();
 
     void initialize();

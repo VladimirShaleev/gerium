@@ -42,6 +42,7 @@ public:
     void destroy();
     void update(gerium_float32_t elapsed);
 
+    void loadFrameGraph(const std::filesystem::path& path);
     Texture loadTexture(const std::filesystem::path& path);
     Technique loadTechnique(const std::filesystem::path& path);
     Technique getTechnique(const std::string& name);

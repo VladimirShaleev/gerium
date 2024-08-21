@@ -1,0 +1,38 @@
+frame graph:
+  - name: present_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: color
+    outputs: []
+
+  - name: simple_pass
+    inputs: []
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: color
+        external: false
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        width: 0
+        height: 0
+        auto scale: 1.0f
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        color write mask:
+          - GERIUM_COLOR_COMPONENT_R_BIT
+          - GERIUM_COLOR_COMPONENT_G_BIT
+          - GERIUM_COLOR_COMPONENT_B_BIT
+          - GERIUM_COLOR_COMPONENT_A_BIT
+        color blend attachment:
+          blend enable: false
+          src color blend factor: GERIUM_BLEND_FACTOR_ZERO
+          dst color blend factor: GERIUM_BLEND_FACTOR_ZERO
+          color blend op: GERIUM_BLEND_OP_ADD
+          src alpha blend factor: GERIUM_BLEND_FACTOR_ZERO
+          dst alpha blend factor: GERIUM_BLEND_FACTOR_ZERO
+          alpha blend op: GERIUM_BLEND_OP_ADD
+        clear color attachment: [1.0, 0.0, 1.0, 1.0]
+
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: depth
+        format: GERIUM_FORMAT_D32_SFLOAT
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        clear depth stencil attachment: [1.0, 0]

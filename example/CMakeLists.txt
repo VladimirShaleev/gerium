@@ -81,5 +81,6 @@ endfunction()
 
 copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ shaders)
 copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/techniques/ techniques)
+copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/frame-graphs/ frame-graphs)
 copy_dir(cpp-example ${ASSETS_SRC}/Models/Sponza/glTF/ assets/models/sponza)
 copy_dir(cpp-example ${ASSETS_SRC}/Models/FlightHelmet/glTF/ assets/models/flight-helmet)

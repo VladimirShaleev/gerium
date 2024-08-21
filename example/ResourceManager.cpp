@@ -45,6 +45,32 @@ void ResourceManager::update(gerium_float32_t elapsed) {
     }
 }
 
+void ResourceManager::loadFrameGraph(const std::filesystem::path& path) {
+    const auto pathStr = path.string();
+
+    gerium_file_t file;
+    check(gerium_file_open(pathStr.c_str(), true, &file));
+    deferred(gerium_file_destroy(file));
+
+    auto data = gerium_file_map(file);
+
+    YAML::resetBuffer();
+    auto yaml = YAML::Load(std::string((const char*) data, gerium_file_get_size(file)));
+
+    const auto nodes = yaml["frame graph"].as<std::vector<YAML::FrameGraphNode>>();
+
+    for (const auto& node : nodes) {
+        check(gerium_frame_graph_add_node(_frameGraph,
+                                          node.name.c_str(),
+                                          node.inputs.size(),
+                                          node.inputs.data(),
+                                          node.outputs.size(),
+                                          node.outputs.data()));
+    }
+
+    check(gerium_frame_graph_compile(_frameGraph));
+}
+
 Texture ResourceManager::loadTexture(const std::filesystem::path& path) {
     const auto pathStr = path.string();
     const auto key     = calcKey(pathStr);
@@ -106,14 +132,14 @@ Technique ResourceManager::loadTechnique(const std::filesystem::path& path) {
     YAML::resetBuffer();
     auto yaml = YAML::Load(std::string((const char*) data, gerium_file_get_size(file)));
 
-    const auto name = yaml["name"].as<std::string>();
+    const auto name      = yaml["name"].as<std::string>();
     const auto pipelines = yaml["pipelines"].as<std::vector<gerium_pipeline_t>>();
 
     return createTechnique(name, pipelines);
 }
 
 Technique ResourceManager::getTechnique(const std::string& name) {
-    auto nameTech = name + "|tech";
+    auto nameTech  = name + "|tech";
     const auto key = calcKey(nameTech);
     if (auto it = _resources.find(key); it != _resources.end()) {
         ++it->second.reference;
@@ -155,7 +181,7 @@ Texture ResourceManager::createTexture(const gerium_texture_info_t& info, gerium
 }
 
 Technique ResourceManager::createTechnique(const std::string& name, const std::vector<gerium_pipeline_t>& pipelines) {
-    auto nameTech = name + "|tech";
+    auto nameTech  = name + "|tech";
     const auto key = calcKey(nameTech);
 
     if (auto it = _resources.find(key); it != _resources.end()) {
