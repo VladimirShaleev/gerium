@@ -11,9 +11,11 @@
 #include <filesystem>
 #include <limits>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <queue>
 #include <string_view>
+
+#include <nlohmann/json.hpp>
+#include <yaml-cpp/yaml.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -27,6 +29,8 @@
 #include <stb_image.h>
 
 #include <wyhash.h>
+
+#include <magic_enum.hpp>
 
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 

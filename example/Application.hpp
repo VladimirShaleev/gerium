@@ -75,8 +75,6 @@ private:
                                 gerium_uint32_t totalWorkers,
                                 gerium_data_t data);
 
-    static std::string stateToString(gerium_application_state_t state) noexcept;
-
     template <typename Func>
     bool cppCall(Func&& func) noexcept {
         try {

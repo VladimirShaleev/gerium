@@ -38,32 +38,9 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    std::filesystem::path relative("shaders");
-    const auto presentVert = (relative / "present.vert.hlsl").string();
-    const auto presentFrag = (relative / "present.frag.glsl").string();
-
-    gerium_shader_t shaders[2]{};
-    shaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
-    shaders[0].lang = GERIUM_SHADER_LANGUAGE_HLSL;
-    shaders[0].name = presentVert.c_str();
-    shaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
-    shaders[1].lang = GERIUM_SHADER_LANGUAGE_GLSL;
-    shaders[1].name = presentFrag.c_str();
-
-    gerium_color_blend_state_t colorBlend{};
-    gerium_depth_stencil_state_t depthStencilEmpty{};
-    gerium_rasterization_state_t rasterizationEmpty{};
-    rasterizationEmpty.line_width = 1.0f;
-    std::vector<gerium_pipeline_t> pipelines;
-    pipelines.resize(1);
-    pipelines[0].render_pass   = name().c_str();
-    pipelines[0].rasterization = &rasterizationEmpty;
-    pipelines[0].depth_stencil = &depthStencilEmpty;
-    pipelines[0].color_blend   = &colorBlend;
-    pipelines[0].shader_count  = std::size(shaders);
-    pipelines[0].shaders       = shaders;
-
-    _technique     = getApplication()->resourceManager().createTechnique("present", pipelines);
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    
+    _technique = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "present.yaml");
     _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
@@ -160,61 +137,8 @@ void Application::createFrameGraph() {
 }
 
 void Application::createBaseTechnique() {
-    gerium_vertex_attribute_t vertexAttributes[] = {
-        { 0, 0, 0, GERIUM_FORMAT_R32G32B32_SFLOAT },
-        { 1, 1, 0, GERIUM_FORMAT_R32G32_SFLOAT    }
-    };
-
-    gerium_vertex_binding_t vertexBindings[] = {
-        { 0, 12, GERIUM_VERTEX_RATE_PER_VERTEX },
-        { 1, 8,  GERIUM_VERTEX_RATE_PER_VERTEX }
-    };
-
-    std::filesystem::path relative("shaders");
-    const auto baseVert = (relative / "base.vert.glsl").string();
-    const auto baseFrag = (relative / "base.frag.glsl").string();
-
-    gerium_shader_t baseShaders[2]{};
-    baseShaders[0].type = GERIUM_SHADER_TYPE_VERTEX;
-    baseShaders[0].lang = GERIUM_SHADER_LANGUAGE_GLSL;
-    baseShaders[0].name = baseVert.c_str();
-    baseShaders[1].type = GERIUM_SHADER_TYPE_FRAGMENT;
-    baseShaders[1].lang = GERIUM_SHADER_LANGUAGE_GLSL;
-    baseShaders[1].name = baseFrag.c_str();
-
-    gerium_color_blend_state_t colorBlend{};
-    gerium_depth_stencil_state_t depthStencil{};
-    depthStencil.depth_test_enable        = 1;
-    depthStencil.depth_write_enable       = 1;
-    depthStencil.depth_bounds_test_enable = 0;
-    depthStencil.stencil_test_enable      = 0;
-    depthStencil.depth_compare_op         = GERIUM_COMPARE_OP_LESS_OR_EQUAL;
-
-    gerium_rasterization_state_t rasterization{};
-    rasterization.polygon_mode               = GERIUM_POLYGON_MODE_FILL;
-    rasterization.cull_mode                  = GERIUM_CULL_MODE_BACK;
-    rasterization.front_face                 = GERIUM_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterization.depth_clamp_enable         = 0;
-    rasterization.depth_bias_enable          = 0;
-    rasterization.depth_bias_constant_factor = 0.0f;
-    rasterization.depth_bias_clamp           = 0.0f;
-    rasterization.depth_bias_slope_factor    = 0.0f;
-    rasterization.line_width                 = 1.0f;
-
-    std::vector<gerium_pipeline_t> basePipelines;
-    basePipelines.resize(1);
-    basePipelines[0].render_pass            = _simplePass.name().c_str();
-    basePipelines[0].rasterization          = &rasterization;
-    basePipelines[0].depth_stencil          = &depthStencil;
-    basePipelines[0].color_blend            = &colorBlend;
-    basePipelines[0].vertex_attribute_count = std::size(vertexAttributes);
-    basePipelines[0].vertex_attributes      = vertexAttributes;
-    basePipelines[0].vertex_binding_count   = std::size(vertexBindings);
-    basePipelines[0].vertex_bindings        = vertexBindings;
-    basePipelines[0].shader_count           = std::size(baseShaders);
-    basePipelines[0].shaders                = baseShaders;
-
-    _baseTechnique = _resourceManager.createTechnique("base", basePipelines);
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    _baseTechnique = _resourceManager.loadTechnique(appDir / "techniques" / "base.yaml");
 }
 
 void Application::createScene() {
@@ -398,8 +322,8 @@ void Application::frame(gerium_float32_t elapsed) {
 }
 
 void Application::state(gerium_application_state_t state) {
-    const auto stateStr = stateToString(state);
-    gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_DEBUG, stateStr.c_str());
+    const auto stateStr = magic_enum::enum_name(state);
+    gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_DEBUG, stateStr.data());
 
     switch (state) {
         case GERIUM_APPLICATION_STATE_INITIALIZE:
@@ -460,39 +384,4 @@ gerium_bool_t Application::render(gerium_frame_graph_t frameGraph,
         [renderPass, frameGraph, renderer, commandBuffer, worker, totalWorkers]() {
         renderPass->render(frameGraph, renderer, commandBuffer, worker, totalWorkers);
     });
-}
-
-std::string Application::stateToString(gerium_application_state_t state) noexcept {
-    switch (state) {
-        case GERIUM_APPLICATION_STATE_CREATE:
-            return "GERIUM_APPLICATION_STATE_CREATE";
-        case GERIUM_APPLICATION_STATE_DESTROY:
-            return "GERIUM_APPLICATION_STATE_DESTROY";
-        case GERIUM_APPLICATION_STATE_INITIALIZE:
-            return "GERIUM_APPLICATION_STATE_INITIALIZE";
-        case GERIUM_APPLICATION_STATE_UNINITIALIZE:
-            return "GERIUM_APPLICATION_STATE_UNINITIALIZE";
-        case GERIUM_APPLICATION_STATE_GOT_FOCUS:
-            return "GERIUM_APPLICATION_STATE_GOT_FOCUS";
-        case GERIUM_APPLICATION_STATE_LOST_FOCUS:
-            return "GERIUM_APPLICATION_STATE_LOST_FOCUS";
-        case GERIUM_APPLICATION_STATE_VISIBLE:
-            return "GERIUM_APPLICATION_STATE_VISIBLE";
-        case GERIUM_APPLICATION_STATE_INVISIBLE:
-            return "GERIUM_APPLICATION_STATE_INVISIBLE";
-        case GERIUM_APPLICATION_STATE_NORMAL:
-            return "GERIUM_APPLICATION_STATE_NORMAL";
-        case GERIUM_APPLICATION_STATE_MINIMIZE:
-            return "GERIUM_APPLICATION_STATE_MINIMIZE";
-        case GERIUM_APPLICATION_STATE_MAXIMIZE:
-            return "GERIUM_APPLICATION_STATE_MAXIMIZE";
-        case GERIUM_APPLICATION_STATE_FULLSCREEN:
-            return "GERIUM_APPLICATION_STATE_FULLSCREEN";
-        case GERIUM_APPLICATION_STATE_RESIZE:
-            return "GERIUM_APPLICATION_STATE_RESIZE";
-        case GERIUM_APPLICATION_STATE_RESIZED:
-            return "GERIUM_APPLICATION_STATE_RESIZED";
-        default:
-            return "GERIUM_APPLICATION_STATE_UNKNOWN";
-    }
 }

@@ -1,4 +1,5 @@
 #include "ResourceManager.hpp"
+#include "Converters.hpp"
 
 void ResourceManager::create(AsyncLoader& loader, gerium_frame_graph_t frameGraph) {
     _renderer   = loader.renderer();
@@ -93,8 +94,27 @@ Texture ResourceManager::loadTexture(const std::filesystem::path& path) {
     return { this, texture };
 }
 
+Technique ResourceManager::loadTechnique(const std::filesystem::path& path) {
+    const auto pathStr = path.string();
+
+    gerium_file_t file;
+    check(gerium_file_open(pathStr.c_str(), true, &file));
+    deferred(gerium_file_destroy(file));
+
+    auto data = gerium_file_map(file);
+
+    YAML::resetBuffer();
+    auto yaml = YAML::Load(std::string((const char*) data, gerium_file_get_size(file)));
+
+    const auto name = yaml["name"].as<std::string>();
+    const auto pipelines = yaml["pipelines"].as<std::vector<gerium_pipeline_t>>();
+
+    return createTechnique(name, pipelines);
+}
+
 Technique ResourceManager::getTechnique(const std::string& name) {
-    const auto key = calcKey(name);
+    auto nameTech = name + "|tech";
+    const auto key = calcKey(nameTech);
     if (auto it = _resources.find(key); it != _resources.end()) {
         ++it->second.reference;
         it->second.lastUsed = _ticks;
@@ -134,8 +154,9 @@ Texture ResourceManager::createTexture(const gerium_texture_info_t& info, gerium
     return { this, texture };
 }
 
-Technique ResourceManager::createTechnique(const std::string& name, const std::vector<gerium_pipeline_t> pipelines) {
-    const auto key = calcKey(name);
+Technique ResourceManager::createTechnique(const std::string& name, const std::vector<gerium_pipeline_t>& pipelines) {
+    auto nameTech = name + "|tech";
+    const auto key = calcKey(nameTech);
 
     if (auto it = _resources.find(key); it != _resources.end()) {
         ++it->second.reference;
@@ -149,7 +170,7 @@ Technique ResourceManager::createTechnique(const std::string& name, const std::v
 
     auto& resource     = _resources[key];
     resource.type      = TechniqueType;
-    resource.name      = name;
+    resource.name      = nameTech;
     resource.key       = key;
     resource.handle    = technique.unused;
     resource.reference = 1;

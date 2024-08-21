@@ -15,9 +15,12 @@
     "spirv-reflect",
     "marl",
     "glm",
+
     "nlohmann-json",
+    "yaml-cpp",
     "entt",
-    "stb"
+    "stb",
+    "magic-enum"
   ],
   "overrides": [
     { "name": "wyhash", "version": "2023-01-25" }
