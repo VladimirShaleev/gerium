@@ -586,6 +586,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
             auto& material = glTF.materials[primitive.material];
             PBRMaterial pbrMaterial(renderer, resourceManager);
             fillPbrMaterial(renderer, material, pbrMaterial, glTF.textures, glTF.samplers, textures);
+            pbrMaterial.setTechnique(resourceManager.getTechnique("base"));
 
             Mesh mesh(renderer, resourceManager);
             mesh.setNodeIndex(nodeIndex);

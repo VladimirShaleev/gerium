@@ -37,6 +37,6 @@ void main() {
     metalness *= rm.b;
 
     outColor = texture(baseColor, inTexcoord);
-    outNormal = vec4(normal * 0.5 + 0.5, 0.0);
+    outNormal = vec4(normal, 0.0);
     outMetallicRoughness = vec4(occlusion, roughness, metalness, 0.0);
 }

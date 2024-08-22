@@ -1,18 +1,14 @@
 #include "Application.hpp"
 
-void SimplePass::render(gerium_frame_graph_t frameGraph,
-                        gerium_renderer_t renderer,
-                        gerium_command_buffer_t commandBuffer,
-                        gerium_uint32_t worker,
-                        gerium_uint32_t totalWorkers) {
-    auto& manager  = getApplication()->resourceManager();
-    auto& scene    = getApplication()->scene();
-    auto camera    = scene.getAnyComponentNode<Camera>();
-    auto models    = scene.getComponents<Model>();
-    auto technique = manager.getTechnique("base");
-
-    gerium_command_buffer_bind_technique(commandBuffer, technique);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+void GBufferPass::render(gerium_frame_graph_t frameGraph,
+                         gerium_renderer_t renderer,
+                         gerium_command_buffer_t commandBuffer,
+                         gerium_uint32_t worker,
+                         gerium_uint32_t totalWorkers) {
+    auto& manager = getApplication()->resourceManager();
+    auto& scene   = getApplication()->scene();
+    auto camera   = scene.getAnyComponentNode<Camera>();
+    auto models   = scene.getComponents<Model>();
 
     for (auto model : models) {
         for (auto& mesh : model->meshes()) {
@@ -23,6 +19,8 @@ void SimplePass::render(gerium_frame_graph_t frameGraph,
             if (((gerium_buffer_h) mesh.getTangents()).unused == 65535) {
                 continue;
             }
+            gerium_command_buffer_bind_technique(commandBuffer, mesh.getMaterial().getTechnique());
+            gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
             gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh.getMaterial().getDecriptorSet(), 1);
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getPositions(), 0, mesh.getPositionsOffset());
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTexcoords(), 1, mesh.getTexcoordsOffset());
@@ -51,14 +49,10 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
                           gerium_command_buffer_t commandBuffer,
                           gerium_uint32_t worker,
                           gerium_uint32_t totalWorkers) {
-    auto& manager  = getApplication()->resourceManager();
-    auto& scene    = getApplication()->scene();
-    auto camera    = scene.getAnyComponentNode<Camera>();
-    auto models    = scene.getComponents<Model>();
-    auto technique = manager.getTechnique("base");
-
-    gerium_command_buffer_bind_technique(commandBuffer, technique);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+    auto& manager = getApplication()->resourceManager();
+    auto& scene   = getApplication()->scene();
+    auto camera   = scene.getAnyComponentNode<Camera>();
+    auto models   = scene.getComponents<Model>();
 
     for (auto model : models) {
         for (auto& mesh : model->meshes()) {
@@ -66,6 +60,8 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
                 mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
                 continue;
             }
+            gerium_command_buffer_bind_technique(commandBuffer, mesh.getMaterial().getTechnique());
+            gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
             gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh.getMaterial().getDecriptorSet(), 1);
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getPositions(), 0, mesh.getPositionsOffset());
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTexcoords(), 1, mesh.getTexcoordsOffset());
@@ -76,18 +72,42 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
     }
 }
 
+void LightPass::render(gerium_frame_graph_t frameGraph,
+                       gerium_renderer_t renderer,
+                       gerium_command_buffer_t commandBuffer,
+                       gerium_uint32_t worker,
+                       gerium_uint32_t totalWorkers) {
+    auto& manager  = getApplication()->resourceManager();
+    auto technique = manager.getTechnique("base");
+
+    gerium_command_buffer_bind_technique(commandBuffer, technique);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
+    gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+}
+
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
     _technique     = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "present.yaml");
     _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
 
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "light");
 }
 
 void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     _descriptorSet = nullptr;
     _technique     = nullptr;
+}
+
+void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
+}
+
+void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
 }
 
 Application::Application() {
@@ -195,8 +215,9 @@ void Application::initialize() {
     _resourceManager.create(_asyncLoader, _frameGraph);
 
     addPass(_presentPass);
-    addPass(_simplePass);
+    addPass(_gbufferPass);
     addPass(_depthPrePass);
+    addPass(_lightPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph(appDir / "frame-graphs" / "main.yaml");

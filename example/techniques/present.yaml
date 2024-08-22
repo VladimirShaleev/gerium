@@ -4,7 +4,7 @@ pipelines:
     shaders:
       - type: GERIUM_SHADER_TYPE_VERTEX
         lang: GERIUM_SHADER_LANGUAGE_HLSL
-        name: shaders/present.vert.hlsl
+        name: shaders/screen.vert.hlsl
       - type: GERIUM_SHADER_TYPE_FRAGMENT
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/present.frag.glsl

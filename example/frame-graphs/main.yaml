@@ -2,7 +2,7 @@ frame graph:
   - name: present_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: color
+        name: light
     outputs: []
 
   - name: gbuffer_pass
@@ -22,7 +22,7 @@ frame graph:
         clear color attachment: [1.0, 1.0, 1.0, 1.0]
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: normal
-        format: GERIUM_FORMAT_A2R10G10B10_UNORM
+        format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         color write mask:
           - GERIUM_COLOR_COMPONENT_R_BIT
@@ -49,3 +49,22 @@ frame graph:
         format: GERIUM_FORMAT_D32_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         clear depth stencil attachment: [1.0, 0]
+
+  - name: light_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: color
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: normal
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: metallic_roughness
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: light
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
+        color write mask:
+          - GERIUM_COLOR_COMPONENT_R_BIT
+          - GERIUM_COLOR_COMPONENT_G_BIT
+          - GERIUM_COLOR_COMPONENT_B_BIT
+          - GERIUM_COLOR_COMPONENT_A_BIT

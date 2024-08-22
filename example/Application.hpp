@@ -4,9 +4,9 @@
 #include "RenderPass.hpp"
 #include "Scene.hpp"
 
-class SimplePass final : public RenderPass {
+class GBufferPass final : public RenderPass {
 public:
-    SimplePass() : RenderPass("gbuffer_pass") {
+    GBufferPass() : RenderPass("gbuffer_pass") {
     }
 
     void render(gerium_frame_graph_t frameGraph,
@@ -45,6 +45,24 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
+};
+
+class LightPass final : public RenderPass {
+public:
+    LightPass() : RenderPass("light_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+             
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+   
+private:
+    DescriptorSet _descriptorSet{};
 };
 
 class Application final {
@@ -113,9 +131,10 @@ private:
     gerium_profiler_t _profiler{};
     gerium_frame_graph_t _frameGraph{};
 
-    SimplePass _simplePass{};
+    GBufferPass _gbufferPass{};
     PresentPass _presentPass{};
     DepthPrePass _depthPrePass{};
+    LightPass _lightPass{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};
