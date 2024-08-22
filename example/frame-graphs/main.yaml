@@ -6,7 +6,9 @@ frame graph:
     outputs: []
 
   - name: simple_pass
-    inputs: []
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: depth
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: color
@@ -31,6 +33,9 @@ frame graph:
           alpha blend op: GERIUM_BLEND_OP_ADD
         clear color attachment: [1.0, 0.0, 1.0, 1.0]
 
+  - name: depth_pre_pass
+    inputs: []
+    outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: depth
         format: GERIUM_FORMAT_D32_SFLOAT

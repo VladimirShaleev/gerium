@@ -173,7 +173,7 @@ RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, co
 
             if (hasDepthOrStencil(format)) {
                 creation.output.depth(format, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-                creation.output.setDepthStencilOperations(info.texture.operation, GERIUM_RENDER_PASS_OP_LOAD);
+                creation.output.setDepthStencilOperations(GERIUM_RENDER_PASS_OP_LOAD, GERIUM_RENDER_PASS_OP_LOAD);
             } else {
                 creation.output.color(format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, GERIUM_RENDER_PASS_OP_LOAD);
             }

@@ -37,10 +37,36 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
 }
 
+void DepthPrePass::render(gerium_frame_graph_t frameGraph,
+                          gerium_renderer_t renderer,
+                          gerium_command_buffer_t commandBuffer,
+                          gerium_uint32_t worker,
+                          gerium_uint32_t totalWorkers) {
+    auto& manager  = getApplication()->resourceManager();
+    auto& scene    = getApplication()->scene();
+    auto camera    = scene.getAnyComponentNode<Camera>();
+    auto models    = scene.getComponents<Model>();
+    auto technique = manager.getTechnique("base");
+
+    gerium_command_buffer_bind_technique(commandBuffer, technique);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+
+    for (auto model : models) {
+        for (auto& mesh : model->meshes()) {
+            gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh.getMaterial().getDecriptorSet(), 1);
+            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getPositions(), 0, mesh.getPositionsOffset());
+            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTexcoords(), 1, mesh.getTexcoordsOffset());
+            gerium_command_buffer_bind_index_buffer(
+                commandBuffer, mesh.getIndices(), mesh.getIndicesOffset(), mesh.getIndexType());
+            gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh.getPrimitiveCount(), 0, 0, 1);
+        }
+    }
+}
+
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
-    
-    _technique = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "present.yaml");
+
+    _technique     = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "present.yaml");
     _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
@@ -157,11 +183,12 @@ void Application::initialize() {
 
     addPass(_presentPass);
     addPass(_simplePass);
-    
+    addPass(_depthPrePass);
+
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph(appDir / "frame-graphs" / "main.yaml");
     _baseTechnique = _resourceManager.loadTechnique(appDir / "techniques" / "base.yaml");
-    
+
     createScene();
 }
 

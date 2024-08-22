@@ -1572,7 +1572,7 @@ void Device::createSwapchain(Application* application) {
     if (_swapchainRenderPass == Undefined) {
         RenderPassCreation rc{};
         rc.setName("SwapchainRenderPass");
-        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OP_CLEAR);
+        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OP_DONT_CARE);
         rc.output.depth(VK_FORMAT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         rc.output.setDepthStencilOperations(GERIUM_RENDER_PASS_OP_CLEAR, GERIUM_RENDER_PASS_OP_CLEAR);
         _swapchainRenderPass = createRenderPass(rc);

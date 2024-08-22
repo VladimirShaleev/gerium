@@ -35,6 +35,18 @@ private:
     DescriptorSet _descriptorSet{};
 };
 
+class DepthPrePass final : public RenderPass {
+public:
+    DepthPrePass() : RenderPass("depth_pre_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+};
+
 class Application final {
 public:
     Application();
@@ -103,6 +115,7 @@ private:
 
     SimplePass _simplePass{};
     PresentPass _presentPass{};
+    DepthPrePass _depthPrePass{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};
