@@ -664,6 +664,31 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             layout.hash = 0;
             for (uint32_t binding = 0; binding < reflSet.binding_count; ++binding) {
                 const SpvReflectDescriptorBinding& reflBinding = *(reflSet.bindings[binding]);
+                if (uniqueBinding.contains(reflBinding.binding)) {
+                    auto it =
+                        std::find_if(layout.bindings.begin(), layout.bindings.end(), [&reflBinding](const auto& item) {
+                        return item.binding == reflBinding.binding;
+                    });
+                    if (it != layout.bindings.end()) {
+                        auto& layoutBinding = *it;
+                        layoutBinding.stageFlags |= static_cast<VkShaderStageFlagBits>(module.shader_stage);
+                        layout.hash = hash(layoutBinding.stageFlags, layout.hash);
+
+                        auto descriptorType  = static_cast<VkDescriptorType>(reflBinding.descriptor_type);
+                        auto descriptorCount = 1;
+                        if (descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+                            descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+                        }
+                        for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
+                            descriptorCount *= reflBinding.array.dims[iDim];
+                        }
+
+                        if (layoutBinding.descriptorType != descriptorType || layoutBinding.descriptorCount != descriptorCount) {
+                            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+                        }
+                    }
+                    continue; 
+                }
                 layout.bindings.push_back({});
                 VkDescriptorSetLayoutBinding& layoutBinding = layout.bindings.back();
                 layoutBinding.binding                       = reflBinding.binding;
@@ -677,9 +702,6 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 }
                 layoutBinding.stageFlags = static_cast<VkShaderStageFlagBits>(module.shader_stage);
 
-                if (uniqueBinding.contains(reflBinding.binding)) {
-                    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-                }
                 uniqueBinding.insert(reflBinding.binding);
 
                 layout.hash = hash(layoutBinding.binding, layout.hash);

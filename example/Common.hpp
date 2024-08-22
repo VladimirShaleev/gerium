@@ -5,6 +5,9 @@
 
 #include <gerium/gerium.h>
 
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include <imgui.h>
+
 #include "Finally.hpp"
 
 #include <cmath>

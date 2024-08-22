@@ -15,6 +15,7 @@ GERIUM_FLAGS(DrawFlags);
 struct MeshData {
     glm::mat4 world;
     glm::mat4 inverseWorld;
+    glm::vec4 metallicRoughnessOcclusionFactor;
 };
 
 class PBRMaterial final {

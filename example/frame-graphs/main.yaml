@@ -5,33 +5,41 @@ frame graph:
         name: color
     outputs: []
 
-  - name: simple_pass
+  - name: gbuffer_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: depth
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: color
-        external: false
         format: GERIUM_FORMAT_R8G8B8A8_UNORM
-        width: 0
-        height: 0
-        auto scale: 1.0f
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         color write mask:
           - GERIUM_COLOR_COMPONENT_R_BIT
           - GERIUM_COLOR_COMPONENT_G_BIT
           - GERIUM_COLOR_COMPONENT_B_BIT
           - GERIUM_COLOR_COMPONENT_A_BIT
-        color blend attachment:
-          blend enable: false
-          src color blend factor: GERIUM_BLEND_FACTOR_ZERO
-          dst color blend factor: GERIUM_BLEND_FACTOR_ZERO
-          color blend op: GERIUM_BLEND_OP_ADD
-          src alpha blend factor: GERIUM_BLEND_FACTOR_ZERO
-          dst alpha blend factor: GERIUM_BLEND_FACTOR_ZERO
-          alpha blend op: GERIUM_BLEND_OP_ADD
-        clear color attachment: [1.0, 0.0, 1.0, 1.0]
+        clear color attachment: [1.0, 1.0, 1.0, 1.0]
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: normal
+        format: GERIUM_FORMAT_A2R10G10B10_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        color write mask:
+          - GERIUM_COLOR_COMPONENT_R_BIT
+          - GERIUM_COLOR_COMPONENT_G_BIT
+          - GERIUM_COLOR_COMPONENT_B_BIT
+          - GERIUM_COLOR_COMPONENT_A_BIT
+        clear color attachment: [1.0, 1.0, 1.0, 1.0]
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: metallic_roughness
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        color write mask:
+          - GERIUM_COLOR_COMPONENT_R_BIT
+          - GERIUM_COLOR_COMPONENT_G_BIT
+          - GERIUM_COLOR_COMPONENT_B_BIT
+          - GERIUM_COLOR_COMPONENT_A_BIT
+        clear color attachment: [1.0, 1.0, 1.0, 1.0]
 
   - name: depth_pre_pass
     inputs: []

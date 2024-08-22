@@ -312,8 +312,8 @@ void Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
             } else {
                 const auto& parentMatrix = _worldMatrices[_nodes[i].parent];
                 _worldMatrices[i]        = parentMatrix * _localMatrices[i];
-                _inverseWorldMatrices[i] = glm::inverse(_worldMatrices[i]);
             }
+            _inverseWorldMatrices[i] = glm::inverse(_worldMatrices[i]);
         }
 
         ++currentLevel;
@@ -324,8 +324,9 @@ void Model::updateMaterials() {
     for (auto& mesh : _meshes) {
         auto& material = mesh.getMaterial();
         MeshData meshData;
-        meshData.world        = _worldMatrices[mesh.getNodeIndex()];
-        meshData.inverseWorld = _inverseWorldMatrices[mesh.getNodeIndex()];
+        meshData.world                            = _worldMatrices[mesh.getNodeIndex()];
+        meshData.inverseWorld                     = _inverseWorldMatrices[mesh.getNodeIndex()];
+        meshData.metallicRoughnessOcclusionFactor = material.getMetallicRoughnessOcclusionFactor();
         material.updateMeshData(meshData);
     }
 }
@@ -428,27 +429,20 @@ static void fillPbrMaterial(gerium_renderer_t renderer,
         }
     }
 
-    pbrMaterial.setFactor(baseColorFactor, metallicRoughnessOcclusionFactor);
-
-    // pbrMaterial.occlusionTextureIndex =
-    //     getMaterialTexture((material.occlusion_texture.has) ? material.occlusion_texture.index : -1);
-
     if (material.normalTexture.has) {
         const auto links = gltfTextures[material.normalTexture.index];
         pbrMaterial.setNormal(textures[links.source]);
         setSampler(renderer, textures[links.source], gltfSamplers[links.sampler]);
     }
 
-    // pbrMaterial.normalTextureIndex =
-    //     getMaterialTexture((material.normal_texture.has) ? material.normal_texture.index : -1);
-
-    // if (material.occlusion_texture.has) {
-    //     if (material.occlusion_texture.strength != vision_flow::graphic::gltf::INVALID_FLOAT_VALUE) {
-    //         pbrMaterial.metallicRoughnessOcclusionFactor.z = material.occlusion_texture.strength;
-    //     } else {
-    //         pbrMaterial.metallicRoughnessOcclusionFactor.z = 1.0f;
-    //     }
-    // }
+    if (material.occlusionTexture.has) {
+        if (material.occlusionTexture.strength != gltf::INVALID_FLOAT_VALUE) {
+            metallicRoughnessOcclusionFactor.z = material.occlusionTexture.strength;
+        } else {
+            metallicRoughnessOcclusionFactor.z = 1.0f;
+        }
+    }
+    pbrMaterial.setFactor(baseColorFactor, metallicRoughnessOcclusionFactor);
 }
 
 Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManager, const std::filesystem::path& path) {

@@ -9,6 +9,7 @@ struct SceneData {
 struct MeshData {
     mat4 world;
     mat4 inverseWorld;
+    vec4 metallicRoughnessOcclusionFactor;
 };
 
 #endif

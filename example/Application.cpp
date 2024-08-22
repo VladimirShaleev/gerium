@@ -16,9 +16,18 @@ void SimplePass::render(gerium_frame_graph_t frameGraph,
 
     for (auto model : models) {
         for (auto& mesh : model->meshes()) {
+            if (mesh.getMaterial().getFlags() != DrawFlags::None &&
+                mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
+                continue;
+            }
+            if (((gerium_buffer_h) mesh.getTangents()).unused == 65535) {
+                continue;
+            }
             gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh.getMaterial().getDecriptorSet(), 1);
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getPositions(), 0, mesh.getPositionsOffset());
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTexcoords(), 1, mesh.getTexcoordsOffset());
+            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getNormals(), 2, mesh.getNormalsOffset());
+            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTangents(), 3, mesh.getTangentsOffset());
             gerium_command_buffer_bind_index_buffer(
                 commandBuffer, mesh.getIndices(), mesh.getIndicesOffset(), mesh.getIndexType());
             gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh.getPrimitiveCount(), 0, 0, 1);
@@ -53,6 +62,10 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
 
     for (auto model : models) {
         for (auto& mesh : model->meshes()) {
+            if (mesh.getMaterial().getFlags() != DrawFlags::None &&
+                mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
+                continue;
+            }
             gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh.getMaterial().getDecriptorSet(), 1);
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getPositions(), 0, mesh.getPositionsOffset());
             gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTexcoords(), 1, mesh.getTexcoordsOffset());

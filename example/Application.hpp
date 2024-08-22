@@ -6,7 +6,7 @@
 
 class SimplePass final : public RenderPass {
 public:
-    SimplePass() : RenderPass("simple_pass") {
+    SimplePass() : RenderPass("gbuffer_pass") {
     }
 
     void render(gerium_frame_graph_t frameGraph,
@@ -57,11 +57,11 @@ public:
     Scene& scene() noexcept {
         return _scene;
     }
-    
+
     ResourceManager& resourceManager() noexcept {
         return _resourceManager;
     }
-    
+
 private:
     void addPass(RenderPass& renderPass);
     void createScene();

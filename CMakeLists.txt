@@ -144,6 +144,9 @@ target_sources(gerium PRIVATE ${IMGUI_SOURCES})
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+target_include_directories(gerium PUBLIC
+    $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include>)
 
 target_precompile_headers(gerium PRIVATE "sources/Gerium.hpp")
 target_compile_features(gerium PRIVATE cxx_std_20)
@@ -151,8 +154,7 @@ set_target_properties(gerium PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF
     POSITION_INDEPENDENT_CODE ON
-    WINDOWS_EXPORT_ALL_SYMBOLS OFF
-    PUBLIC_HEADER "${GERIUM_INCLUDE}")
+    WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 if(BUILD_SHARED_LIBS)
     set_target_properties(gerium PROPERTIES 
         VERSION ${PROJECT_VERSION} 

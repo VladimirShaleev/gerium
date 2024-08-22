@@ -247,7 +247,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
         static const char* items[]         = { "33ms", "16ms", "8ms", "4ms", "2ms" };
         static const float max_durations[] = { 33.f, 16.f, 8.f, 4.f, 2.f };
 
-        static int max_duration_index = 4;
+        static int max_duration_index = 2;
         if (ImGui::Combo("Graph Max", &max_duration_index, items, IM_ARRAYSIZE(items))) {
             maxDuration = max_durations[max_duration_index];
         }
