@@ -305,6 +305,7 @@ private:
     VkExtent2D _swapchainExtent{};
     RenderPassHandle _swapchainRenderPass{ Undefined };
     std::vector<FramebufferHandle> _swapchainFramebuffers{};
+    std::set<TextureHandle> _swapchainImages{};
     gerium_uint32_t _swapchainImageIndex{};
     gerium_uint32_t _currentFrame{};
     gerium_uint32_t _previousFrame{ MaxFrames - 1 };

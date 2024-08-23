@@ -1634,6 +1634,7 @@ void Device::createSwapchain(Application* application) {
 
     for (uint32_t i = 0; i < swapchainImages; ++i) {
         auto [colorHandle, color] = _textures.obtain_and_access();
+        _swapchainImages.insert(colorHandle);
 
         color->vkImage = images[i];
         color->sampler = Undefined;
@@ -2286,6 +2287,10 @@ void Device::deleteResources(bool forceDelete) {
                     }
                     if (texture->vkImage && texture->vmaAllocation) {
                         vmaDestroyImage(_vmaAllocator, texture->vkImage, texture->vmaAllocation);
+                    } else if (texture->vkImage && !_swapchainImages.contains(resource.handle)) {
+                        _vkTable.vkDestroyImage(_device, texture->vkImage, getAllocCalls());
+                    } else {
+                        _swapchainImages.erase(TextureHandle{ resource.handle });
                     }
                 }
                 _textures.release(resource.handle);
