@@ -71,9 +71,14 @@ function(copy_dir target src dst)
     else()
         set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>")
     endif()
+    if(CMAKE_VERSION VERSION_LESS "3.26.0")
+        set(COPY_ARG copy_directory)
+    else()
+        set(COPY_ARG copy_directory_if_different)
+    endif()
     add_custom_command(
         TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        COMMAND ${CMAKE_COMMAND} -E ${COPY_ARG}
             "${src}"
             "${OUTPUT_PATH}/${dst}"
         COMMENT "Copying files")

@@ -76,7 +76,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
         prevPaused = true;
     }
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 260));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 320));
     if (ImGui::Begin("GPU Profiler", show, ImGuiWindowFlags_NoScrollbar)) {
         ImGui::Text("GPU Memory Total %uMB", totalMemoryUsed);
 
@@ -156,7 +156,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                     }*/
 
                     rect_height = (float) timestamp.elapsed / maxDuration * widget_height;
-                    draw_list->AddRectFilled({ frame_x, cursor_pos.y + widget_height - rect_height },
+                    draw_list->AddRectFilled({ frame_x, std::max(cursor_pos.y + widget_height - rect_height, cursor_pos.y) },
                                              { frame_x + rect_width, cursor_pos.y + widget_height },
                                              color);
                 }
