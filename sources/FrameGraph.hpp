@@ -133,8 +133,8 @@ private:
     std::array<FrameGraphNodeHandle, kMaxNodes> _sortedNodes;
     std::array<FrameGraphNodeHandle, kMaxNodes> _stack;
     std::array<uint8_t, kMaxNodes> _visited;
-    std::array<TextureHandle, kMaxOutputs> _freeList;
     std::array<FrameGraphNodeHandle, kMaxNodes> _allocations;
+    std::set<TextureHandle> _freeList;
 };
 
 } // namespace gerium

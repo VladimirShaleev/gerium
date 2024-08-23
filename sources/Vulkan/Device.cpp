@@ -403,7 +403,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     VmaAllocationCreateInfo memoryInfo{};
     memoryInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    if (creation.alias == Undefined) { //  || !_imageAliasingSupported) {
+    if (creation.alias == Undefined || !_imageAliasingSupported) {
         check(vmaCreateImage(
             _vmaAllocator, &imageInfo, &memoryInfo, &texture->vkImage, &texture->vmaAllocation, nullptr));
 
@@ -1403,16 +1403,16 @@ void Device::createDevice(gerium_uint32_t threadCount) {
         return strcmp(extension, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME) == 0;
     }) != std::end(extensions);
 
-    // VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV aliasingFeatures{
-    //     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEDICATED_ALLOCATION_IMAGE_ALIASING_FEATURES_NV
-    // };
-    // VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-    // features.pNext = (void*) &aliasingFeatures;
+    VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV aliasingFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEDICATED_ALLOCATION_IMAGE_ALIASING_FEATURES_NV
+    };
+    VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    features.pNext = (void*) &aliasingFeatures;
 
-    // if (_deviceProperties2Supported) {
-    //     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &features);
-    //     _imageAliasingSupported = aliasingFeatures.dedicatedAllocationImageAliasing;
-    // }
+    if (_deviceProperties2Supported) {
+        _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &features);
+        _imageAliasingSupported = aliasingFeatures.dedicatedAllocationImageAliasing;
+    }
 
     size_t queueCreateInfoCount                 = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[4] = {};
@@ -1446,7 +1446,7 @@ void Device::createDevice(gerium_uint32_t threadCount) {
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-    createInfo.pNext                   = nullptr; // _deviceProperties2Supported ? (void*) &features : nullptr;
+    createInfo.pNext                   = _deviceProperties2Supported ? (void*) &features : nullptr;
     createInfo.queueCreateInfoCount    = (uint32_t) queueCreateInfoCount;
     createInfo.pQueueCreateInfos       = queueCreateInfos;
     createInfo.enabledLayerCount       = (uint32_t) layers.size();

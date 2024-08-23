@@ -172,7 +172,7 @@ void FrameGraph::compile() {
         item = Undefined;
     }
 
-    gerium_uint32_t _freeListCount = 0;
+    _freeList.clear();
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
@@ -211,9 +211,20 @@ void FrameGraph::compile() {
                         .setSize(info.width, info.height, info.depth)
                         .setFlags(1, true, false);
 
-                    if (_freeListCount) {
-                        auto alias = _freeList[--_freeListCount];
-                        creation.setAlias(alias);
+                    if (!_freeList.empty()) {
+                        gerium_texture_info_t info;
+                        auto it = _freeList.begin();
+                        for (; it != _freeList.end(); ++it) {
+                            _renderer->getTextureInfo(*it, info);
+                            if (creation.format == info.format && creation.width <= info.width &&
+                                creation.height <= info.height && creation.depth <= info.depth) {
+                                break;
+                            }
+                        }
+                        if (it != _freeList.end()) {
+                            creation.setAlias(*it);
+                            _freeList.erase(it);
+                        }
                     }
 
                     if (resource->info.texture.handle == Undefined) {
@@ -234,7 +245,7 @@ void FrameGraph::compile() {
             if (!resource->external && resource->refCount == 0) {
                 if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT ||
                     resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
-                    _freeList[_freeListCount++] = resource->info.texture.handle;
+                    _freeList.insert(resource->info.texture.handle);
                 }
             }
         }
