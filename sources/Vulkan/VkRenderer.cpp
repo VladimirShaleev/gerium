@@ -72,6 +72,10 @@ void VkRenderer::onSetProfilerEnable(bool enable) noexcept {
     _device->setProfilerEnable(enable);
 }
 
+bool VkRenderer::onIsSupportedFormat(gerium_format_t format) noexcept {
+    return _device->isSupportedFormat(format);
+}
+
 void VkRenderer::onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept {
     _device->getTextureInfo(handle, info);
 }

@@ -34,6 +34,7 @@ private:
     bool onGetProfilerEnable() const noexcept override;
     void onSetProfilerEnable(bool enable) noexcept override;
 
+    bool onIsSupportedFormat(gerium_format_t format) noexcept override;
     void onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept override;
 
     BufferHandle onCreateBuffer(const BufferCreation& creation) override;

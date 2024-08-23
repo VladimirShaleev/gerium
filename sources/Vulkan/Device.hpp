@@ -60,6 +60,8 @@ public:
     SamplerHandle getTextureSampler(TextureHandle texture) const noexcept;
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
+    bool isSupportedFormat(gerium_format_t format) noexcept;
+
     uint32_t totalMemoryUsed();
 
     const vk::DispatchLoaderDynamic& vkTable() const noexcept {

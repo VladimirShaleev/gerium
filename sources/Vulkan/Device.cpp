@@ -401,7 +401,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     imageInfo.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VmaAllocationCreateInfo memoryInfo{};
-    memoryInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    memoryInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     if (creation.alias == Undefined) { //  || !_imageAliasingSupported) {
         check(vmaCreateImage(
@@ -683,11 +683,12 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                             descriptorCount *= reflBinding.array.dims[iDim];
                         }
 
-                        if (layoutBinding.descriptorType != descriptorType || layoutBinding.descriptorCount != descriptorCount) {
+                        if (layoutBinding.descriptorType != descriptorType ||
+                            layoutBinding.descriptorCount != descriptorCount) {
                             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
                         }
                     }
-                    continue; 
+                    continue;
                 }
                 layout.bindings.push_back({});
                 VkDescriptorSetLayoutBinding& layoutBinding = layout.bindings.back();
@@ -1260,6 +1261,23 @@ SamplerHandle Device::getTextureSampler(TextureHandle texture) const noexcept {
 
 void Device::linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept {
     _textures.access(texture)->sampler = sampler;
+}
+
+bool Device::isSupportedFormat(gerium_format_t format) noexcept {
+    const auto vkFormat = toVkFormat(format);
+
+    VkFormatProperties properties;
+    _vkTable.vkGetPhysicalDeviceFormatProperties(_physicalDevice, vkFormat, &properties);
+
+    if (hasDepthOrStencil(vkFormat)) {
+        constexpr auto flags = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        return (properties.optimalTilingFeatures & flags) == flags;
+    } else {
+        constexpr auto flags = VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_BLIT_SRC_BIT |
+                               VK_FORMAT_FEATURE_BLIT_DST_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT |
+                               VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+        return (properties.optimalTilingFeatures & flags) == flags;
+    }
 }
 
 uint32_t Device::totalMemoryUsed() {

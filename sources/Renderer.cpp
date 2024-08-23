@@ -18,6 +18,10 @@ void Renderer::setProfilerEnable(bool enable) noexcept {
     onSetProfilerEnable(enable);
 }
 
+bool Renderer::isSupportedFormat(gerium_format_t format) noexcept {
+    return onIsSupportedFormat(format);
+}
+
 void Renderer::getTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept {
     onGetTextureInfo(handle, info);
 }
@@ -154,6 +158,11 @@ gerium_bool_t gerium_renderer_get_profiler_enable(gerium_renderer_t renderer) {
 void gerium_renderer_set_profiler_enable(gerium_renderer_t renderer, gerium_bool_t enable) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->setProfilerEnable(enable);
+}
+
+gerium_bool_t gerium_renderer_is_supported_format(gerium_renderer_t renderer, gerium_format_t format) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->isSupportedFormat(format);
 }
 
 void gerium_renderer_get_texture_info(gerium_renderer_t renderer,
