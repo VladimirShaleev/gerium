@@ -356,15 +356,15 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     auto [handle, texture] = _textures.obtain_and_access();
 
     texture->vkFormat = toVkFormat(creation.format);
-    texture->size   = creation.width * creation.height * creation.depth * vk::blockSize((vk::Format) texture->vkFormat);
-    texture->width  = creation.width;
-    texture->height = creation.height;
-    texture->depth  = creation.depth;
-    texture->mipmaps = creation.mipmaps;
-    texture->flags   = creation.flags;
-    texture->type    = creation.type;
-    texture->name    = intern(creation.name);
-    texture->sampler = Undefined;
+    texture->size     = calcTextureSize(creation.width, creation.height, creation.depth, creation.format);
+    texture->width    = creation.width;
+    texture->height   = creation.height;
+    texture->depth    = creation.depth;
+    texture->mipmaps  = creation.mipmaps;
+    texture->flags    = creation.flags;
+    texture->type     = creation.type;
+    texture->name     = intern(creation.name);
+    texture->sampler  = Undefined;
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -400,10 +400,11 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     imageInfo.pQueueFamilyIndices   = nullptr;
     imageInfo.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VmaAllocationCreateInfo memoryInfo{};
-    memoryInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    if (creation.alias == Undefined) {
+        VmaAllocationCreateInfo memoryInfo{};
+        memoryInfo.flags          = VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT;
+        memoryInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    if (creation.alias == Undefined || !_imageAliasingSupported) {
         check(vmaCreateImage(
             _vmaAllocator, &imageInfo, &memoryInfo, &texture->vkImage, &texture->vmaAllocation, nullptr));
 
@@ -411,6 +412,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
             vmaSetAllocationName(_vmaAllocator, texture->vmaAllocation, texture->name);
         }
     } else {
+        _vkTable.vkDeviceWaitIdle(_device);
         auto aliasTexture = _textures.access(creation.alias);
         check(vmaCreateAliasingImage(_vmaAllocator, aliasTexture->vmaAllocation, &imageInfo, &texture->vkImage));
     }
@@ -1311,10 +1313,6 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     const auto layers     = selectValidationLayers();
     const auto extensions = selectExtensions();
 
-    _deviceProperties2Supported = std::find_if(extensions.cbegin(), extensions.cend(), [](const auto& extension) {
-        return strcmp(extension, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) == 0;
-    }) != std::end(extensions);
-
     if (layers.empty()) {
         _enableDebugNames = false;
     }
@@ -1403,17 +1401,6 @@ void Device::createDevice(gerium_uint32_t threadCount) {
         return strcmp(extension, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME) == 0;
     }) != std::end(extensions);
 
-    VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV aliasingFeatures{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEDICATED_ALLOCATION_IMAGE_ALIASING_FEATURES_NV
-    };
-    VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-    features.pNext = (void*) &aliasingFeatures;
-
-    if (_deviceProperties2Supported) {
-        _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &features);
-        _imageAliasingSupported = aliasingFeatures.dedicatedAllocationImageAliasing;
-    }
-
     size_t queueCreateInfoCount                 = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[4] = {};
 
@@ -1446,7 +1433,7 @@ void Device::createDevice(gerium_uint32_t threadCount) {
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-    createInfo.pNext                   = _deviceProperties2Supported ? (void*) &features : nullptr;
+    createInfo.pNext                   = nullptr;
     createInfo.queueCreateInfoCount    = (uint32_t) queueCreateInfoCount;
     createInfo.pQueueCreateInfos       = queueCreateInfos;
     createInfo.enabledLayerCount       = (uint32_t) layers.size();
@@ -2526,9 +2513,8 @@ std::vector<const char*> Device::selectValidationLayers() {
 
 std::vector<const char*> Device::selectExtensions() {
     std::vector<std::pair<const char*, bool>> extensions = {
-        { VK_KHR_SURFACE_EXTENSION_NAME,                          true  },
-        { onGetSurfaceExtension(),                                true  },
-        { VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, false }
+        { VK_KHR_SURFACE_EXTENSION_NAME, true },
+        { onGetSurfaceExtension(),       true }
     };
 
     if (_enableValidations) {
@@ -2542,7 +2528,6 @@ std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device)
     std::vector<std::pair<const char*, bool>> extensions = {
         { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
         { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false },
-    // { VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, false },
 #ifdef __APPLE__
         { "VK_KHR_portability_subset",         true  },
 #endif

@@ -174,6 +174,129 @@ gerium_inline gerium_uint8_t calcMipLevels(T width, T height) noexcept {
     return static_cast<gerium_uint8_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 }
 
+gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
+    switch (format) {
+        case GERIUM_FORMAT_R8_UNORM:
+            return 1;
+        case GERIUM_FORMAT_R8_SNORM:
+            return 1;
+        case GERIUM_FORMAT_R8_UINT:
+            return 1;
+        case GERIUM_FORMAT_R8_SINT:
+            return 1;
+        case GERIUM_FORMAT_R8G8_UNORM:
+            return 2;
+        case GERIUM_FORMAT_R8G8_SNORM:
+            return 2;
+        case GERIUM_FORMAT_R8G8_UINT:
+            return 2;
+        case GERIUM_FORMAT_R8G8_SINT:
+            return 2;
+        case GERIUM_FORMAT_R8G8B8_UNORM:
+            return 3;
+        case GERIUM_FORMAT_R8G8B8_SNORM:
+            return 3;
+        case GERIUM_FORMAT_R8G8B8_UINT:
+            return 3;
+        case GERIUM_FORMAT_R8G8B8_SINT:
+            return 3;
+        case GERIUM_FORMAT_R8G8B8_SRGB:
+            return 3;
+        case GERIUM_FORMAT_R4G4B4A4_UNORM:
+            return 2;
+        case GERIUM_FORMAT_R5G5B5A1_UNORM:
+            return 2;
+        case GERIUM_FORMAT_R8G8B8A8_UNORM:
+            return 4;
+        case GERIUM_FORMAT_R8G8B8A8_SNORM:
+            return 4;
+        case GERIUM_FORMAT_R8G8B8A8_UINT:
+            return 4;
+        case GERIUM_FORMAT_R8G8B8A8_SINT:
+            return 4;
+        case GERIUM_FORMAT_R8G8B8A8_SRGB:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_UNORM:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_UINT:
+            return 4;
+        case GERIUM_FORMAT_R16_UINT:
+            return 2;
+        case GERIUM_FORMAT_R16_SINT:
+            return 2;
+        case GERIUM_FORMAT_R16_SFLOAT:
+            return 2;
+        case GERIUM_FORMAT_R16G16_UINT:
+            return 4;
+        case GERIUM_FORMAT_R16G16_SINT:
+            return 4;
+        case GERIUM_FORMAT_R16G16_SFLOAT:
+            return 4;
+        case GERIUM_FORMAT_R16G16B16_UINT:
+            return 6;
+        case GERIUM_FORMAT_R16G16B16_SINT:
+            return 6;
+        case GERIUM_FORMAT_R16G16B16_SFLOAT:
+            return 6;
+        case GERIUM_FORMAT_R16G16B16A16_UINT:
+            return 8;
+        case GERIUM_FORMAT_R16G16B16A16_SINT:
+            return 8;
+        case GERIUM_FORMAT_R16G16B16A16_SFLOAT:
+            return 8;
+        case GERIUM_FORMAT_R32_UINT:
+            return 4;
+        case GERIUM_FORMAT_R32_SINT:
+            return 4;
+        case GERIUM_FORMAT_R32_SFLOAT:
+            return 4;
+        case GERIUM_FORMAT_R32G32_UINT:
+            return 8;
+        case GERIUM_FORMAT_R32G32_SINT:
+            return 8;
+        case GERIUM_FORMAT_R32G32_SFLOAT:
+            return 8;
+        case GERIUM_FORMAT_R32G32B32_UINT:
+            return 12;
+        case GERIUM_FORMAT_R32G32B32_SINT:
+            return 12;
+        case GERIUM_FORMAT_R32G32B32_SFLOAT:
+            return 12;
+        case GERIUM_FORMAT_R32G32B32A32_UINT:
+            return 16;
+        case GERIUM_FORMAT_R32G32B32A32_SINT:
+            return 16;
+        case GERIUM_FORMAT_R32G32B32A32_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_B10G11R11_UFLOAT:
+            return 4;
+        case GERIUM_FORMAT_E5B9G9R9_UFLOAT:
+            return 4;
+        case GERIUM_FORMAT_D16_UNORM:
+            return 2;
+        case GERIUM_FORMAT_X8_D24_UNORM:
+            return 4;
+        case GERIUM_FORMAT_D32_SFLOAT:
+            return 4;
+        case GERIUM_FORMAT_S8_UINT:
+            return 1;
+        case GERIUM_FORMAT_D24_UNORM_S8_UINT:
+            return 4;
+        case GERIUM_FORMAT_D32_SFLOAT_S8_UINT:
+            return 5;
+        default:
+            assert(!"unreachable code");
+            return 0;
+    }
+}
+
+gerium_inline gerium_uint32_t calcTextureSize(gerium_uint16_t width,
+                                              gerium_uint16_t height,
+                                              gerium_uint16_t depth,
+                                              gerium_format_t format) noexcept {
+    return width * height * depth * formatBlockSize(format);
+}
+
 } // namespace gerium
 
 #endif

@@ -212,12 +212,15 @@ void FrameGraph::compile() {
                         .setFlags(1, true, false);
 
                     if (!_freeList.empty()) {
+                        const auto size =
+                            calcTextureSize(creation.width, creation.height, creation.depth, creation.format);
+
                         gerium_texture_info_t info;
                         auto it = _freeList.begin();
                         for (; it != _freeList.end(); ++it) {
                             _renderer->getTextureInfo(*it, info);
-                            if (creation.format == info.format && creation.width <= info.width &&
-                                creation.height <= info.height && creation.depth <= info.depth) {
+                            const auto freeSize = calcTextureSize(info.width, info.height, info.depth, info.format);
+                            if (size <= freeSize) {
                                 break;
                             }
                         }

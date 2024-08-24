@@ -341,9 +341,7 @@ private:
     uint32_t _ssboAlignment{};
     bool _profilerSupported{};
     bool _profilerEnabled{};
-    bool _deviceProperties2Supported{};
     bool _memoryBudgetSupported{};
-    bool _imageAliasingSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};
