@@ -392,6 +392,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         ++worker;
     }
 
+    TextureHandle depthTextures[10];
+    gerium_uint32_t depthTextureCount = 0;
+
     CommandBuffer* secondaryCommandBuffers[100];
     gerium_uint32_t numSecondaryCommandBuffers = 0;
 
@@ -438,6 +441,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                         resource->info.texture.handle, ResourceState::Undefined, ResourceState::DepthWrite, 0, 1);
                     cb->clearDepthStencil(resource->info.texture.clearDepthStencil.depth,
                                           resource->info.texture.clearDepthStencil.value);
+                    depthTextures[depthTextureCount++] = resource->info.texture.handle;
                 } else {
                     cb->addImageBarrier(
                         resource->info.texture.handle, ResourceState::Undefined, ResourceState::RenderTarget, 0, 1);
@@ -528,6 +532,10 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         ++totalWorkerIndex;
     }
     cb->popMarker();
+
+    for (int i = 0; i < depthTextureCount; ++i) {
+        cb->addImageBarrier(depthTextures[i], ResourceState::DepthWrite, ResourceState::DepthRead, 0, 1);
+    }
 
     cb->popMarker();
     _device->submit(cb);

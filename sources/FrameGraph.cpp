@@ -7,13 +7,20 @@ FrameGraph::~FrameGraph() {
     clear();
 }
 
-FrameGraph::FrameGraph(Renderer* renderer) : _renderer(renderer), _hasChanges(false), _nodeGraphCount(0) {
+FrameGraph::FrameGraph(Renderer* renderer) :
+    _logger(Logger::create("gerium:frame-graph")),
+    _renderer(renderer),
+    _hasChanges(false),
+    _nodeGraphCount(0) {
 }
 
 void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t data) {
     const auto key = hash(name);
 
     if (_renderPassCache.contains(key)) {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name](auto& stream) {
+            stream << "Render pass '" << name << "' already exists in frame graph";
+        });
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_EXISTS;
     }
 
@@ -34,6 +41,9 @@ void FrameGraph::removePass(gerium_utf8_t name) {
     if (auto it = _renderPassCache.find(key); it != _renderPassCache.end()) {
         _renderPassCache.erase(it);
     } else {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name](auto& stream) {
+            stream << "Render pass '" << name << "' not found";
+        });
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
     }
 
@@ -48,6 +58,9 @@ void FrameGraph::addNode(gerium_utf8_t name,
     const auto key = hash(name);
 
     if (_nodeCache.contains(key)) {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name](auto& stream) {
+            stream << "Node '" << name << "' already exists in frame graph";
+        });
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_EXISTS;
     }
 
@@ -293,6 +306,9 @@ void FrameGraph::compile() {
         if (auto it = _renderPassCache.find(hash(node->name)); it != _renderPassCache.end()) {
             node->pass = it->second;
         } else {
+            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name = node->name](auto& stream) {
+                stream << "Render pass '" << name << "' not found";
+            });
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
         }
     }
@@ -436,6 +452,9 @@ void FrameGraph::computeEdges(FrameGraphNode* node) {
         auto outputResource = getResource(inputResource->name);
 
         if (outputResource == nullptr && !inputResource->external) {
+            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name = node->name](auto& stream) {
+                stream << "Failed to calculate output resources for adjacent node '" << name << "'";
+            });
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
         }
 

@@ -2,6 +2,7 @@
 #define GERIUM_FRAME_GRAPH_HPP
 
 #include "Handles.hpp"
+#include "Logger.hpp"
 #include "ObjectPtr.hpp"
 #include "Renderer.hpp"
 
@@ -116,6 +117,7 @@ private:
 
     void calcFramebufferSize(FrameGraphResourceInfo& info) const noexcept;
 
+    ObjectPtr<Logger> _logger;
     Renderer* _renderer;
     bool _hasChanges;
 

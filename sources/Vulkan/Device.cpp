@@ -2156,6 +2156,8 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
             break;
     }
 
+    auto isSwapchain = false;
+
     uint32_t attachmentCount = 0;
     for (; attachmentCount < output.numColorFormats; ++attachmentCount) {
         VkAttachmentLoadOp colorOp;
@@ -2191,6 +2193,10 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
         VkAttachmentReference& colorAttachmentRef = colorAttachmentsRef[attachmentCount];
         colorAttachmentRef.attachment             = attachmentCount;
         colorAttachmentRef.layout                 = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        if (colorAttachment.finalLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+            isSwapchain = true;
+        }
     }
 
     if (output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
@@ -2221,16 +2227,25 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
 
     VkSubpassDependency dependencies[kMaxImageOutputs + 1];
     uint32_t dependencyCount = 0;
-    for (; dependencyCount < output.numColorFormats; ++dependencyCount) {
-        auto& dependency      = dependencies[dependencyCount];
-        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass = 0;
-    }
 
-    if (output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
-        auto& dependency      = dependencies[dependencyCount++];
-        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass = 0;
+    if (isSwapchain) {
+        auto& dependency           = dependencies[dependencyCount++];
+        dependency.srcSubpass      = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass      = 0;
+        dependency.srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask   = VK_ACCESS_NONE;
+        dependency.dstAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        dependency.dependencyFlags = 0;
+
+        auto& dependency2           = dependencies[dependencyCount++];
+        dependency2.srcSubpass      = 0;
+        dependency2.dstSubpass      = VK_SUBPASS_EXTERNAL;
+        dependency2.srcStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency2.dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency2.srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        dependency2.dstAccessMask   = VK_ACCESS_NONE;
+        dependency2.dependencyFlags = 0;
     }
 
     VkRenderPassCreateInfo createInfo{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
@@ -2238,6 +2253,8 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     createInfo.pAttachments    = attachmets;
     createInfo.subpassCount    = 1;
     createInfo.pSubpasses      = &subpass;
+    createInfo.dependencyCount = dependencyCount;
+    createInfo.pDependencies   = dependencies;
 
     VkRenderPass renderPass;
     check(_vkTable.vkCreateRenderPass(_device, &createInfo, getAllocCalls(), &renderPass));
