@@ -67,6 +67,9 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
             continue;
         }
+        if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
+            continue;
+        }
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
         gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh->getMaterial().getDecriptorSet(), 1);
@@ -106,6 +109,13 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
 
     if (PresentPass::drawBBox()) {
         for (auto mesh : scene.visibleMeshes()) {
+            if (mesh->getMaterial().getFlags() != DrawFlags::None &&
+                mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
+                continue;
+            }
+            if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
+                continue;
+            }
             const auto& bbox    = mesh->worldBoundingBox();
             const glm::vec3& p1 = bbox.min();
             const glm::vec3& p2 = bbox.max();
