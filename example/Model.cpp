@@ -338,6 +338,9 @@ void Model::updateMaterials() {
     }
 }
 
+void Model::update() {
+}
+
 const glm::mat4& Model::getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept {
     return _localMatrices[nodeIndex];
 }

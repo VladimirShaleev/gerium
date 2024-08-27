@@ -2,14 +2,24 @@
 #define SCENE_HPP
 
 #include "Camera.hpp"
+#include "EntityComponentSystem.hpp"
 #include "Model.hpp"
 
-#include <entt/entt.hpp>
+class Transform : public Component {
+public:
+    Transform() : localMatrix(glm::identity<glm::mat4>()), updated(true) {
+    }
+    
+    explicit Transform(const glm::mat4& mat) : localMatrix(mat), updated(true) {
+    }
 
-struct Transform {
     glm::mat4 localMatrix;
     glm::mat4 worldMatrix;
     bool updated;
+
+    void update() override {
+
+    }
 };
 
 enum class Intersection {
@@ -33,7 +43,7 @@ private:
 
     SceneNode* _parent{};
     std::vector<SceneNode*> _childrens;
-    entt::registry::entity_type _entity;
+    Entity _entity;
 };
 
 class Scene {
@@ -46,39 +56,31 @@ public:
 
     template <typename T>
     T& addComponentToNode(SceneNode* node, const T& component) {
-        return _registry.emplace<T>(node->_entity, component);
+        return *_registry.addComponent(node->_entity, component);
     }
 
     template <typename T>
     T* getComponentNode(SceneNode* node) noexcept {
-        return _registry.try_get<T>(node->_entity);
+        return _registry.getComponent<T>(node->_entity);
     }
 
     template <typename T>
-    std::vector<T*> getComponents() noexcept {
-        std::vector<T*> result;
-        for (auto entity : _registry.view<T>()) {
-            if (auto component = _registry.try_get<T>(entity)) {
-                result.push_back(component);
-            }
-        }
-        return result;
+    void getComponents(gerium_uint16_t& count, T** results) noexcept {
+        _registry.getComponents<T>(count, results);
     }
 
     template <typename T>
     T* getAnyComponentNode() noexcept {
-        for (auto entity : _registry.view<T>()) {
-            if (auto component = _registry.try_get<T>(entity)) {
-                return component;
-            }
-        }
-        return nullptr;
+        gerium_uint16_t count = 1;
+        T* results[1];
+        _registry.getComponents<T>(count, results);
+        return count ? results[0] : nullptr;
     }
 
 private:
     SceneNode* allocateNode();
 
-    entt::registry _registry{};
+    Registry<Camera, Transform, Model> _registry{};
     std::vector<std::shared_ptr<SceneNode>> _nodes{};
     SceneNode* _root{};
     SceneData _sceneData{};

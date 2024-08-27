@@ -18,7 +18,6 @@
 
     "nlohmann-json",
     "yaml-cpp",
-    "entt",
     "stb",
     "magic-enum"
   ],

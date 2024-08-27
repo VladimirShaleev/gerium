@@ -2,6 +2,7 @@
 #define MODEL_HPP
 
 #include "Common.hpp"
+#include "EntityComponentSystem.hpp"
 #include "ResourceManager.hpp"
 
 enum class DrawFlags {
@@ -144,13 +145,14 @@ private:
     BoundingBox _box;
 };
 
-class Model final {
+class Model final : public Component {
 public:
     struct Node {
         gerium_sint32_t parent : 24;
         gerium_sint32_t level  : 8;
     };
 
+    Model() = default;
     explicit Model(gerium_renderer_t renderer);
 
     void addMesh(const Mesh& mesh);
@@ -164,6 +166,8 @@ public:
     void setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat);
     void updateMatrices(const glm::mat4& parentMat = glm::identity<glm::mat4>(), bool parentUpdated = false);
     void updateMaterials();
+
+    void update() override;
 
     const glm::mat4& getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept;
     const glm::mat4& getWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;

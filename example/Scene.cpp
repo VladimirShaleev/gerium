@@ -5,9 +5,7 @@
 
 SceneNode* Scene::root() {
     if (!_root) {
-        _registry      = entt::registry();
-        _root          = allocateNode();
-        _root->_entity = _registry.create();
+        _root = allocateNode();
     }
     return _root;
 }
@@ -19,7 +17,6 @@ SceneNode* Scene::addNode(SceneNode* parent) {
         node->_parent = parent;
         parent->_childrens.push_back(node);
     }
-    node->_entity = _registry.create();
     return node;
 }
 
@@ -60,9 +57,7 @@ void Scene::update() {
 }
 
 void Scene::clear() {
-    for (auto& node : _nodes) {
-        _registry.destroy(node->_entity);
-    }
+    _registry.clear();
     _nodes.clear();
     _root = nullptr;
 }

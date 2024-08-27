@@ -1,6 +1,7 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
 
+#include "EntityComponentSystem.hpp"
 #include "ResourceManager.hpp"
 
 struct SceneData {
@@ -8,7 +9,7 @@ struct SceneData {
     glm::vec4 eye;
 };
 
-class Camera final {
+class Camera final : public Component {
 public:
     enum Movement {
         Forward,
@@ -34,7 +35,7 @@ public:
     void move(Movement direction, gerium_float32_t value, gerium_float32_t delta);
     void zoom(gerium_float32_t value, gerium_float32_t delta);
 
-    void update();
+    void update() override;
 
     const glm::mat4& view() const noexcept;
     const glm::mat4& projection() const noexcept;

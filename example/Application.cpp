@@ -8,9 +8,13 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     auto& manager = getApplication()->resourceManager();
     auto& scene   = getApplication()->scene();
     auto camera   = scene.getAnyComponentNode<Camera>();
-    auto models   = scene.getComponents<Model>();
+    std::vector<Model*> models;
+    models.resize(1000);
+    gerium_uint16_t modelCount = 1000;
+    scene.getComponents<Model>(modelCount, models.data());
 
-    for (auto model : models) {
+    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
+        auto model = models[i];
         for (auto& mesh : model->meshes()) {
             if (mesh.getMaterial().getFlags() != DrawFlags::None &&
                 mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
@@ -58,9 +62,13 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
     auto& manager = getApplication()->resourceManager();
     auto& scene   = getApplication()->scene();
     auto camera   = scene.getAnyComponentNode<Camera>();
-    auto models   = scene.getComponents<Model>();
+    std::vector<Model*> models;
+    models.resize(1000);
+    gerium_uint16_t modelCount = 1000;
+    scene.getComponents<Model>(modelCount, models.data());
 
-    for (auto model : models) {
+    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
+        auto model = models[i];
         for (auto& mesh : model->meshes()) {
             if (mesh.getMaterial().getFlags() != DrawFlags::None &&
                 mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
@@ -86,8 +94,12 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     auto& manager  = getApplication()->resourceManager();
     auto& scene   = getApplication()->scene();
     auto camera   = scene.getAnyComponentNode<Camera>();
-    auto models   = scene.getComponents<Model>();
     auto technique = manager.getTechnique("base");
+
+    std::vector<Model*> models;
+    models.resize(1000);
+    gerium_uint16_t modelCount = 1000;
+    scene.getComponents<Model>(modelCount, models.data());
 
     gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
@@ -103,7 +115,8 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
 
     auto dataV = (glm::vec3*) gerium_renderer_map_buffer(renderer, _vertices, 0, sizeof(glm::vec3) * _maxPoints);
 
-    for (auto model : models) {
+    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
+        auto model = models[i];
         for (auto& mesh : model->meshes()) {
             const auto& matrix = model->getWorldMatrix(mesh.getNodeIndex());
             const auto& bbox   = mesh.boundingBox();
@@ -254,10 +267,8 @@ void Application::createScene() {
     auto modelSponza       = Model::loadGlTF(_renderer, _resourceManager, sponzaDir.c_str());
     auto modelFlightHelmet = Model::loadGlTF(_renderer, _resourceManager, flightHelmetDir.c_str());
 
-    auto defaultTransform = Transform{ glm::identity<glm::mat4>(), glm::identity<glm::mat4>(), true };
-    auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.15f, 0.15f, 0.15f)),
-                                      glm::identity<glm::mat4>(),
-                                      true };
+    auto defaultTransform = Transform{ glm::identity<glm::mat4>() };
+    auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.15f, 0.15f, 0.15f)) };
 
     auto root   = _scene.root();
     auto sponza = _scene.addNode(root);
@@ -272,9 +283,7 @@ void Application::createScene() {
             auto transform =
                 Transform{ glm::rotate(glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.125f, 0.125f, 0.125f)),
                                        glm::radians(-90.0f),
-                                       glm::vec3(0.0f, 1.0f, 0.0f)),
-                           glm::identity<glm::mat4>(),
-                           true };
+                                       glm::vec3(0.0f, 1.0f, 0.0f)) };
             transform.localMatrix =
                 glm::translate(glm::identity<glm::mat4>(), glm::vec3(x * 0.1f, 0, y * 0.1f)) * transform.localMatrix;
 
