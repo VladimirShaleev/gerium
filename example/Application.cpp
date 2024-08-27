@@ -16,6 +16,9 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     for (gerium_uint16_t i = 0; i < modelCount; ++i) {
         auto model = models[i];
         for (auto& mesh : model->meshes()) {
+            if (!mesh.isVisible()) {
+                continue;
+            }
             if (mesh.getMaterial().getFlags() != DrawFlags::None &&
                 mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
                 continue;
@@ -76,6 +79,9 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
     for (gerium_uint16_t i = 0; i < modelCount; ++i) {
         auto model = models[i];
         for (auto& mesh : model->meshes()) {
+            if (!mesh.isVisible()) {
+                continue;
+            }
             if (mesh.getMaterial().getFlags() != DrawFlags::None &&
                 mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
                 continue;
@@ -124,11 +130,12 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     for (gerium_uint16_t i = 0; i < modelCount; ++i) {
         auto model = models[i];
         for (auto& mesh : model->meshes()) {
-            const auto& matrix = model->getWorldMatrix(mesh.getNodeIndex());
-            const auto& bbox   = mesh.boundingBox();
-
-            const glm::vec3 p1 = matrix * glm::vec4(bbox.min, 1.0f);
-            const glm::vec3 p2 = matrix * glm::vec4(bbox.max, 1.0f);
+            if (!mesh.isVisible()) {
+                continue;
+            }
+            const auto& bbox    = mesh.worldBoundingBox();
+            const glm::vec3& p1 = bbox.min;
+            const glm::vec3& p2 = bbox.max;
 
             dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
             dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
@@ -459,6 +466,7 @@ void Application::frame(gerium_float32_t elapsed) {
 
     _resourceManager.update(elapsed);
     _scene.update();
+    _scene.culling();
 
     gerium_renderer_render(_renderer, _frameGraph);
     gerium_renderer_present(_renderer);

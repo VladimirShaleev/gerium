@@ -117,6 +117,12 @@ public:
     gerium_uint32_t getPrimitiveCount() const noexcept;
 
     const BoundingBox& boundingBox() const noexcept;
+    const BoundingBox& worldBoundingBox() const noexcept;
+
+    void updateBox(const glm::mat4& matrix) noexcept;
+
+    bool isVisible() const noexcept;
+    void visible(bool show) noexcept;
 
 private:
     void copy(const Mesh& mesh) noexcept;
@@ -143,6 +149,8 @@ private:
     gerium_uint32_t _nodeIndex{};
 
     BoundingBox _box;
+    BoundingBox _worldBox;
+    bool _visible;
 };
 
 class Model final : public Component {

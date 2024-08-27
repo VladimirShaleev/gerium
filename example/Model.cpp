@@ -238,6 +238,23 @@ const BoundingBox& Mesh::boundingBox() const noexcept {
     return _box;
 }
 
+const BoundingBox& Mesh::worldBoundingBox() const noexcept {
+    return _worldBox;
+}
+
+void Mesh::updateBox(const glm::mat4& matrix) noexcept {
+    _worldBox.min = matrix * glm::vec4(_box.min, 1.0f);
+    _worldBox.max = matrix * glm::vec4(_box.max, 1.0f);
+}
+
+bool Mesh::isVisible() const noexcept {
+    return _visible;
+}
+
+void Mesh::visible(bool show) noexcept {
+    _visible = show;
+}
+
 void Mesh::copy(const Mesh& mesh) noexcept {
     _renderer        = mesh._renderer;
     _resourceManger  = mesh._resourceManger;
@@ -256,6 +273,8 @@ void Mesh::copy(const Mesh& mesh) noexcept {
     _primitiveCount  = mesh._primitiveCount;
     _nodeIndex       = mesh._nodeIndex;
     _box             = mesh._box;
+    _worldBox        = mesh._worldBox;
+    _visible         = mesh._visible;
 }
 
 Model::Model(gerium_renderer_t renderer) : _renderer(renderer) {
@@ -301,7 +320,7 @@ void Model::setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat) {
 
 void Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
     gerium_uint32_t currentLevel = 0;
-
+    bool hasChanges              = false;
     while (currentLevel <= _maxLevel) {
         for (gerium_uint32_t i = 0; i < _nodes.size(); ++i) {
             if (_nodes[i].level != currentLevel) {
@@ -320,10 +339,19 @@ void Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
                 const auto& parentMatrix = _worldMatrices[_nodes[i].parent];
                 _worldMatrices[i]        = parentMatrix * _localMatrices[i];
             }
+
             _inverseWorldMatrices[i] = glm::inverse(_worldMatrices[i]);
+            hasChanges               = true;
         }
 
         ++currentLevel;
+    }
+
+    if (hasChanges) {
+        for (auto& mesh : meshes()) {
+            const auto& matrix = getWorldMatrix(mesh.getNodeIndex());
+            mesh.updateBox(matrix);
+        }
     }
 }
 

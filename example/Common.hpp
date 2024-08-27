@@ -60,7 +60,7 @@ struct Plane {
     }
 
     gerium_float32_t getDistanceToPlane(const glm::vec3& point) const noexcept {
-        return glm::dot(normal, point) - distance;
+        return glm::dot(normal, point) + distance;
     }
 };
 

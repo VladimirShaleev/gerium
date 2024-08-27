@@ -22,12 +22,6 @@ public:
     }
 };
 
-enum class Intersection {
-    None,
-    Partial,
-    Full
-};
-
 class SceneNode {
 public:
     SceneNode* parent() noexcept {
@@ -52,8 +46,9 @@ public:
     SceneNode* addNode(SceneNode* parent);
 
     void update();
+    void culling();
     void clear();
-
+    
     template <typename T>
     T* addComponentToNode(SceneNode* node, const T& component) {
         return _registry.addComponent(node->_entity, component);

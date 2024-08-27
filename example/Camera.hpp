@@ -9,7 +9,11 @@ struct SceneData {
     glm::vec4 eye;
 };
 
-class Scene;
+enum class Intersection {
+    None,
+    Partial,
+    Full
+};
 
 class Camera final : public Component {
 public:
@@ -38,6 +42,9 @@ public:
     void zoom(gerium_float32_t value, gerium_float32_t delta);
 
     void update(Entity& entity, gerium_data_t data) override;
+
+    Intersection test(const glm::vec3& point) const noexcept;
+    Intersection test(const BoundingBox& bbox) const noexcept;
 
     bool isActive() const noexcept;
     void activate() noexcept;

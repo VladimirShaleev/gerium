@@ -54,6 +54,22 @@ void Scene::update() {
     }
 }
 
+void Scene::culling() {
+    auto camera = getAnyComponentNode<Camera>();
+
+    std::vector<Model*> models;
+    models.resize(1000);
+    gerium_uint16_t modelCount = 1000;
+    getComponents<Model>(modelCount, models.data());
+
+    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
+        auto model = models[i];
+        for (auto& mesh : model->meshes()) {
+            mesh.visible(camera->test(mesh.worldBoundingBox()) != Intersection::None);
+        }
+    }
+}
+
 void Scene::clear() {
     _registry.clear();
     _nodes.clear();

@@ -147,6 +147,38 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     gerium_renderer_unmap_buffer(_renderer, _data);
 }
 
+Intersection Camera::test(const glm::vec3& point) const noexcept {
+    bool onPlane = false;
+    for (int i = 0; i < 6; ++i) {
+        if (_frustum[i].getDistanceToPlane(point) < 0.0f) {
+            return Intersection::None;
+        }
+    }
+    return Intersection::Full;
+}
+
+Intersection Camera::test(const BoundingBox& bbox) const noexcept {
+    const glm::vec3& p1 = bbox.min;
+    const glm::vec3& p2 = bbox.max;
+
+    int result = (test(glm::vec3(p1.x, p1.y, p1.z)) != Intersection::None ? 1 : 0) +
+                 (test(glm::vec3(p2.x, p1.y, p1.z)) != Intersection::None ? 1 : 0) +
+                 (test(glm::vec3(p2.x, p1.y, p2.z)) != Intersection::None ? 1 : 0) +
+                 (test(glm::vec3(p1.x, p1.y, p2.z)) != Intersection::None ? 1 : 0) +
+                 (test(glm::vec3(p1.x, p2.y, p1.z)) != Intersection::None ? 1 : 0) +
+                 (test(glm::vec3(p2.x, p2.y, p1.z)) != Intersection::None ? 1 : 0) +
+                 (test(glm::vec3(p2.x, p2.y, p2.z)) != Intersection::None ? 1 : 0) +
+                 (test(glm::vec3(p1.x, p2.y, p2.z)) != Intersection::None ? 1 : 0);
+
+    if (result == 0) {
+        return Intersection::None;
+    }
+    if (result < 6) {
+        return Intersection::Partial;
+    }
+    return Intersection::Full;
+}
+
 bool Camera::isActive() const noexcept {
     return _active == this;
 }
