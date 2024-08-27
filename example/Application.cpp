@@ -294,10 +294,6 @@ void Application::createScene() {
     _scene.addComponentToNode(sponza, sponzaTransform);
     _scene.addComponentToNode(sponza, modelSponza);
 
-    camera2->setPosition({ 0.0f, 3.2, -0.0f });
-    camera2->setRotation(M_PI_2, -M_PI_2);
-    camera2->activate();
-
     for (int x = -10; x < 10; ++x) {
         for (int y = -2; y < 2; ++y) {
             auto transform =
@@ -312,6 +308,10 @@ void Application::createScene() {
             _scene.addComponentToNode(flightHelmet, modelFlightHelmet);
         }
     }
+
+    camera2->setPosition({ 0.0f, 3.2, -0.0f });
+    camera2->setRotation(M_PI_2, -M_PI_2);
+    camera2->activate();
 }
 
 void Application::initialize() {

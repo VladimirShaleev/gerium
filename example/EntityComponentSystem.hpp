@@ -154,7 +154,7 @@ public:
         const auto index = _indices[_head++];
         auto component   = new (access(index)) C();
 
-        return { index };
+        return index;
     }
 
     void release(gerium_uint16_t index) noexcept override {

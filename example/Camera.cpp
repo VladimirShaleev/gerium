@@ -129,10 +129,10 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     _frustum[TopFace].distance = _viewProjection[3][3] - _viewProjection[3][1];
     _frustum[TopFace].normalize();
 
-    _frustum[NearFace].normal.x = _viewProjection[0][3] + _viewProjection[0][2];
-    _frustum[NearFace].normal.y = _viewProjection[1][3] + _viewProjection[1][2];
-    _frustum[NearFace].normal.z = _viewProjection[2][3] + _viewProjection[2][2];
-    _frustum[NearFace].distance = _viewProjection[3][3] + _viewProjection[3][2];
+    _frustum[NearFace].normal.x = _viewProjection[0][2];
+    _frustum[NearFace].normal.y = _viewProjection[1][2];
+    _frustum[NearFace].normal.z = _viewProjection[2][2];
+    _frustum[NearFace].distance = _viewProjection[3][2];
     _frustum[NearFace].normalize();
 
     _frustum[FarFace].normal.x = _viewProjection[0][3] - _viewProjection[0][2];
@@ -161,22 +161,31 @@ Intersection Camera::test(const BoundingBox& bbox) const noexcept {
     const glm::vec3& p1 = bbox.min;
     const glm::vec3& p2 = bbox.max;
 
-    int result = (test(glm::vec3(p1.x, p1.y, p1.z)) != Intersection::None ? 1 : 0) +
-                 (test(glm::vec3(p2.x, p1.y, p1.z)) != Intersection::None ? 1 : 0) +
-                 (test(glm::vec3(p2.x, p1.y, p2.z)) != Intersection::None ? 1 : 0) +
-                 (test(glm::vec3(p1.x, p1.y, p2.z)) != Intersection::None ? 1 : 0) +
-                 (test(glm::vec3(p1.x, p2.y, p1.z)) != Intersection::None ? 1 : 0) +
-                 (test(glm::vec3(p2.x, p2.y, p1.z)) != Intersection::None ? 1 : 0) +
-                 (test(glm::vec3(p2.x, p2.y, p2.z)) != Intersection::None ? 1 : 0) +
-                 (test(glm::vec3(p1.x, p2.y, p2.z)) != Intersection::None ? 1 : 0);
+    const glm::vec3 points[] = { glm::vec3(p1.x, p1.y, p1.z), glm::vec3(p2.x, p1.y, p1.z), glm::vec3(p2.x, p1.y, p2.z),
+                                 glm::vec3(p1.x, p1.y, p2.z), glm::vec3(p1.x, p2.y, p1.z), glm::vec3(p2.x, p2.y, p1.z),
+                                 glm::vec3(p2.x, p2.y, p2.z), glm::vec3(p1.x, p2.y, p2.z) };
 
-    if (result == 0) {
-        return Intersection::None;
+    int total = 0;
+
+    for (int i = 0; i < 6; ++i) {
+        int count    = 8;
+        bool pointIn = true;
+
+        for (auto& point : points) {
+            if (_frustum[i].getDistanceToPlane(point) < 0.0f) {
+                pointIn = false;
+                --count;
+            }
+        }
+
+        if (count == 0) {
+            return Intersection::None;
+        }
+
+        total += pointIn ? 1 : 0;
     }
-    if (result < 6) {
-        return Intersection::Partial;
-    }
-    return Intersection::Full;
+
+    return total == 6 ? Intersection::Full : Intersection::Partial;
 }
 
 bool Camera::isActive() const noexcept {
