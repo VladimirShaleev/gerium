@@ -91,11 +91,6 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     auto camera    = scene.getActiveCamera();
     auto technique = manager.getTechnique("base");
 
-    std::vector<Model*> models;
-    models.resize(1000);
-    gerium_uint16_t modelCount = 1000;
-    scene.getComponents<Model>(modelCount, models.data());
-
     gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
