@@ -151,41 +151,41 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
 
         auto invV = glm::inverse(primaryCamera->viewProjection());
 
-        const auto point0 = invV * glm::vec4(-1.0f, -1.0f, nearPlane, 1.0f);
-        const auto point1 = invV * glm::vec4(-1.0f, -1.0f, farPlane, 1.0f);
-        const auto point2 = invV * glm::vec4(1.0f, -1.0f, nearPlane, 1.0f);
-        const auto point3 = invV * glm::vec4(1.0f, -1.0f, farPlane, 1.0f);
-        const auto point4 = invV * glm::vec4(-1.0f, 1.0f, nearPlane, 1.0f);
-        const auto point5 = invV * glm::vec4(-1.0f, 1.0f, farPlane, 1.0f);
-        const auto point6 = invV * glm::vec4(1.0f, 1.0f, nearPlane, 1.0f);
-        const auto point7 = invV * glm::vec4(1.0f, 1.0f, farPlane, 1.0f);
+        const glm::vec4 point0 = invV * glm::vec4(-1.0f, -1.0f, nearPlane, 1.0f);
+        const glm::vec4 point1 = invV * glm::vec4(-1.0f, -1.0f, farPlane, 1.0f);
+        const glm::vec4 point2 = invV * glm::vec4(1.0f, -1.0f, nearPlane, 1.0f);
+        const glm::vec4 point3 = invV * glm::vec4(1.0f, -1.0f, farPlane, 1.0f);
+        const glm::vec4 point4 = invV * glm::vec4(-1.0f, 1.0f, nearPlane, 1.0f);
+        const glm::vec4 point5 = invV * glm::vec4(-1.0f, 1.0f, farPlane, 1.0f);
+        const glm::vec4 point6 = invV * glm::vec4(1.0f, 1.0f, nearPlane, 1.0f);
+        const glm::vec4 point7 = invV * glm::vec4(1.0f, 1.0f, farPlane, 1.0f);
 
-        dataV[vertices++] = glm::vec3(point0.xyz) / point0.w;
-        dataV[vertices++] = glm::vec3(point1.xyz) / point1.w;
-        dataV[vertices++] = glm::vec3(point2.xyz) / point2.w;
-        dataV[vertices++] = glm::vec3(point3.xyz) / point3.w;
-        dataV[vertices++] = glm::vec3(point4.xyz) / point4.w;
-        dataV[vertices++] = glm::vec3(point5.xyz) / point5.w;
-        dataV[vertices++] = glm::vec3(point6.xyz) / point6.w;
-        dataV[vertices++] = glm::vec3(point7.xyz) / point7.w;
+        dataV[vertices++] = glm::vec3(point0.xyz()) / point0.w;
+        dataV[vertices++] = glm::vec3(point1.xyz()) / point1.w;
+        dataV[vertices++] = glm::vec3(point2.xyz()) / point2.w;
+        dataV[vertices++] = glm::vec3(point3.xyz()) / point3.w;
+        dataV[vertices++] = glm::vec3(point4.xyz()) / point4.w;
+        dataV[vertices++] = glm::vec3(point5.xyz()) / point5.w;
+        dataV[vertices++] = glm::vec3(point6.xyz()) / point6.w;
+        dataV[vertices++] = glm::vec3(point7.xyz()) / point7.w;
 
-        dataV[vertices++] = glm::vec3(point0.xyz) / point0.w;
-        dataV[vertices++] = glm::vec3(point2.xyz) / point2.w;
-        dataV[vertices++] = glm::vec3(point2.xyz) / point2.w;
-        dataV[vertices++] = glm::vec3(point6.xyz) / point6.w;
-        dataV[vertices++] = glm::vec3(point6.xyz) / point6.w;
-        dataV[vertices++] = glm::vec3(point4.xyz) / point4.w;
-        dataV[vertices++] = glm::vec3(point4.xyz) / point4.w;
-        dataV[vertices++] = glm::vec3(point0.xyz) / point0.w;
+        dataV[vertices++] = glm::vec3(point0.xyz()) / point0.w;
+        dataV[vertices++] = glm::vec3(point2.xyz()) / point2.w;
+        dataV[vertices++] = glm::vec3(point2.xyz()) / point2.w;
+        dataV[vertices++] = glm::vec3(point6.xyz()) / point6.w;
+        dataV[vertices++] = glm::vec3(point6.xyz()) / point6.w;
+        dataV[vertices++] = glm::vec3(point4.xyz()) / point4.w;
+        dataV[vertices++] = glm::vec3(point4.xyz()) / point4.w;
+        dataV[vertices++] = glm::vec3(point0.xyz()) / point0.w;
 
-        dataV[vertices++] = glm::vec3(point1.xyz) / point1.w;
-        dataV[vertices++] = glm::vec3(point3.xyz) / point3.w;
-        dataV[vertices++] = glm::vec3(point3.xyz) / point3.w;
-        dataV[vertices++] = glm::vec3(point7.xyz) / point7.w;
-        dataV[vertices++] = glm::vec3(point7.xyz) / point7.w;
-        dataV[vertices++] = glm::vec3(point5.xyz) / point5.w;
-        dataV[vertices++] = glm::vec3(point5.xyz) / point5.w;
-        dataV[vertices++] = glm::vec3(point1.xyz) / point1.w;
+        dataV[vertices++] = glm::vec3(point1.xyz()) / point1.w;
+        dataV[vertices++] = glm::vec3(point3.xyz()) / point3.w;
+        dataV[vertices++] = glm::vec3(point3.xyz()) / point3.w;
+        dataV[vertices++] = glm::vec3(point7.xyz()) / point7.w;
+        dataV[vertices++] = glm::vec3(point7.xyz()) / point7.w;
+        dataV[vertices++] = glm::vec3(point5.xyz()) / point5.w;
+        dataV[vertices++] = glm::vec3(point5.xyz()) / point5.w;
+        dataV[vertices++] = glm::vec3(point1.xyz()) / point1.w;
     }
 
     gerium_renderer_unmap_buffer(renderer, _vertices);
