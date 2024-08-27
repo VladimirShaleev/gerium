@@ -158,8 +158,8 @@ Intersection Camera::test(const glm::vec3& point) const noexcept {
 }
 
 Intersection Camera::test(const BoundingBox& bbox) const noexcept {
-    const glm::vec3& p1 = bbox.min;
-    const glm::vec3& p2 = bbox.max;
+    const glm::vec3& p1 = bbox.min();
+    const glm::vec3& p2 = bbox.max();
 
     const glm::vec3 points[] = { glm::vec3(p1.x, p1.y, p1.z), glm::vec3(p2.x, p1.y, p1.z), glm::vec3(p2.x, p1.y, p2.z),
                                  glm::vec3(p1.x, p1.y, p2.z), glm::vec3(p1.x, p2.y, p1.z), glm::vec3(p2.x, p2.y, p1.z),

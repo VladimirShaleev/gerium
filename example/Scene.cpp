@@ -25,6 +25,8 @@ void Scene::update() {
     std::queue<std::tuple<glm::mat4*, bool, SceneNode*>> nodes;
     nodes.push({ &rootMat, false, root() });
 
+    bool transformUpdated = false;
+
     while (!nodes.empty()) {
         auto& [parentMat, parentUpdated, node] = nodes.front();
         nodes.pop();
@@ -37,12 +39,15 @@ void Scene::update() {
                 transform->worldMatrix = *mat * transform->localMatrix;
                 transform->updated     = false;
                 updated                = true;
+                transformUpdated       = true;
             }
             mat = &transform->worldMatrix;
         }
 
         if (auto model = getComponentNode<Model>(node); model) {
-            model->updateMatrices(*mat, updated);
+            if (model->updateMatrices(*mat, updated)) {
+                transformUpdated = true;
+            }
             model->updateMaterials();
         }
 
@@ -52,22 +57,43 @@ void Scene::update() {
             nodes.push({ mat, updated, child });
         }
     }
+
+    if (transformUpdated) {
+        if (_bvh) {
+            delete _bvh;
+        }
+        _bvh = BVHNode::build(*this);
+    }
 }
 
 void Scene::culling() {
     auto camera = getAnyComponentNode<Camera>();
 
-    std::vector<Model*> models;
-    models.resize(1000);
-    gerium_uint16_t modelCount = 1000;
-    getComponents<Model>(modelCount, models.data());
+    _visibleMeshes.clear();
 
-    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
-        auto model = models[i];
-        for (auto& mesh : model->meshes()) {
-            mesh.visible(camera->test(mesh.worldBoundingBox()) != Intersection::None);
+    std::function<void(const BVHNode*)> teshMesh;
+    teshMesh = [this, camera, &teshMesh](const BVHNode* node) {
+        if (camera->test(node->bbox()) == Intersection::None) {
+            return;
         }
-    }
+        if (node->leaf()) {
+            for (auto mesh : node->meshes()) {
+                if (camera->test(mesh->worldBoundingBox()) != Intersection::None) {
+                    mesh->visible(true);
+                    _visibleMeshes.push_back(mesh);
+                } else {
+                    mesh->visible(false);
+                }
+            }
+        }
+        if (node->left()) {
+            teshMesh(node->left());
+        }
+        if (node->right()) {
+            teshMesh(node->right());
+        }
+    };
+    teshMesh(_bvh);
 }
 
 void Scene::clear() {

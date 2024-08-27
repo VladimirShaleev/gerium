@@ -167,8 +167,7 @@ void Mesh::setIndices(Buffer indices,
 void Mesh::setPositions(Buffer positions, gerium_uint32_t offset, const glm::vec3& min, const glm::vec3& max) noexcept {
     _positions       = positions;
     _positionsOffset = offset;
-    _box.min         = min;
-    _box.max         = max;
+    _box             = BoundingBox(min, max);
 }
 
 void Mesh::setTexcoords(Buffer texcoords, gerium_uint32_t offset) noexcept {
@@ -243,8 +242,7 @@ const BoundingBox& Mesh::worldBoundingBox() const noexcept {
 }
 
 void Mesh::updateBox(const glm::mat4& matrix) noexcept {
-    _worldBox.min = matrix * glm::vec4(_box.min, 1.0f);
-    _worldBox.max = matrix * glm::vec4(_box.max, 1.0f);
+    _worldBox = BoundingBox(matrix * glm::vec4(_box.min(), 1.0f), matrix * glm::vec4(_box.max(), 1.0f));
 }
 
 bool Mesh::isVisible() const noexcept {
@@ -318,7 +316,7 @@ void Model::setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat) {
     changeNode(nodeIndex);
 }
 
-void Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
+bool Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
     gerium_uint32_t currentLevel = 0;
     bool hasChanges              = false;
     while (currentLevel <= _maxLevel) {
@@ -353,6 +351,8 @@ void Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
             mesh.updateBox(matrix);
         }
     }
+
+    return hasChanges;
 }
 
 void Model::updateMaterials() {

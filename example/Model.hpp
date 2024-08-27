@@ -172,7 +172,7 @@ public:
     const Node& getNode(gerium_sint32_t nodeIndex) const noexcept;
 
     void setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat);
-    void updateMatrices(const glm::mat4& parentMat = glm::identity<glm::mat4>(), bool parentUpdated = false);
+    bool updateMatrices(const glm::mat4& parentMat = glm::identity<glm::mat4>(), bool parentUpdated = false);
     void updateMaterials();
 
     void update(Entity& entity, gerium_data_t data) override;

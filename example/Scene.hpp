@@ -1,6 +1,7 @@
 #ifndef SCENE_HPP
 #define SCENE_HPP
 
+#include "BVHNode.hpp"
 #include "Camera.hpp"
 #include "EntityComponentSystem.hpp"
 #include "Model.hpp"
@@ -9,7 +10,7 @@ class Transform : public Component {
 public:
     Transform() : localMatrix(glm::identity<glm::mat4>()), updated(true) {
     }
-    
+
     explicit Transform(const glm::mat4& mat) : localMatrix(mat), updated(true) {
     }
 
@@ -18,7 +19,6 @@ public:
     bool updated;
 
     void update(Entity& entity, gerium_data_t data) override {
-
     }
 };
 
@@ -48,7 +48,7 @@ public:
     void update();
     void culling();
     void clear();
-    
+
     template <typename T>
     T* addComponentToNode(SceneNode* node, const T& component) {
         return _registry.addComponent(node->_entity, component);
@@ -84,12 +84,18 @@ public:
         return nullptr;
     }
 
+    const std::vector<Mesh*>& visibleMeshes() const noexcept {
+        return _visibleMeshes;
+    }
+
 private:
     SceneNode* allocateNode();
 
     Registry<Camera, Transform, Model> _registry{};
     std::vector<std::shared_ptr<SceneNode>> _nodes{};
     SceneNode* _root{};
+    BVHNode* _bvh{};
+    std::vector<Mesh*> _visibleMeshes{};
     SceneData _sceneData{};
 };
 

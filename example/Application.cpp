@@ -8,35 +8,25 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     auto& manager = getApplication()->resourceManager();
     auto& scene   = getApplication()->scene();
     auto camera   = scene.getActiveCamera();
-    std::vector<Model*> models;
-    models.resize(1000);
-    gerium_uint16_t modelCount = 1000;
-    scene.getComponents<Model>(modelCount, models.data());
 
-    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
-        auto model = models[i];
-        for (auto& mesh : model->meshes()) {
-            if (!mesh.isVisible()) {
-                continue;
-            }
-            if (mesh.getMaterial().getFlags() != DrawFlags::None &&
-                mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
-                continue;
-            }
-            if (((gerium_buffer_h) mesh.getTangents()).unused == 65535) {
-                continue;
-            }
-            gerium_command_buffer_bind_technique(commandBuffer, mesh.getMaterial().getTechnique());
-            gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
-            gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh.getMaterial().getDecriptorSet(), 1);
-            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getPositions(), 0, mesh.getPositionsOffset());
-            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTexcoords(), 1, mesh.getTexcoordsOffset());
-            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getNormals(), 2, mesh.getNormalsOffset());
-            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTangents(), 3, mesh.getTangentsOffset());
-            gerium_command_buffer_bind_index_buffer(
-                commandBuffer, mesh.getIndices(), mesh.getIndicesOffset(), mesh.getIndexType());
-            gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh.getPrimitiveCount(), 0, 0, 1);
+    for (auto mesh : scene.visibleMeshes()) {
+        if (mesh->getMaterial().getFlags() != DrawFlags::None &&
+            mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
+            continue;
         }
+        if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
+            continue;
+        }
+        gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh->getMaterial().getDecriptorSet(), 1);
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTexcoords(), 1, mesh->getTexcoordsOffset());
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getNormals(), 2, mesh->getNormalsOffset());
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTangents(), 3, mesh->getTangentsOffset());
+        gerium_command_buffer_bind_index_buffer(
+            commandBuffer, mesh->getIndices(), mesh->getIndicesOffset(), mesh->getIndexType());
+        gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh->getPrimitiveCount(), 0, 0, 1);
     }
 }
 
@@ -71,30 +61,20 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
     auto& manager = getApplication()->resourceManager();
     auto& scene   = getApplication()->scene();
     auto camera   = scene.getActiveCamera();
-    std::vector<Model*> models;
-    models.resize(1000);
-    gerium_uint16_t modelCount = 1000;
-    scene.getComponents<Model>(modelCount, models.data());
 
-    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
-        auto model = models[i];
-        for (auto& mesh : model->meshes()) {
-            if (!mesh.isVisible()) {
-                continue;
-            }
-            if (mesh.getMaterial().getFlags() != DrawFlags::None &&
-                mesh.getMaterial().getFlags() != DrawFlags::DoubleSided) {
-                continue;
-            }
-            gerium_command_buffer_bind_technique(commandBuffer, mesh.getMaterial().getTechnique());
-            gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
-            gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh.getMaterial().getDecriptorSet(), 1);
-            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getPositions(), 0, mesh.getPositionsOffset());
-            gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh.getTexcoords(), 1, mesh.getTexcoordsOffset());
-            gerium_command_buffer_bind_index_buffer(
-                commandBuffer, mesh.getIndices(), mesh.getIndicesOffset(), mesh.getIndexType());
-            gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh.getPrimitiveCount(), 0, 0, 1);
+    for (auto mesh : scene.visibleMeshes()) {
+        if (mesh->getMaterial().getFlags() != DrawFlags::None &&
+            mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
+            continue;
         }
+        gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh->getMaterial().getDecriptorSet(), 1);
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTexcoords(), 1, mesh->getTexcoordsOffset());
+        gerium_command_buffer_bind_index_buffer(
+            commandBuffer, mesh->getIndices(), mesh->getIndicesOffset(), mesh->getIndexType());
+        gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh->getPrimitiveCount(), 0, 0, 1);
     }
 }
 
@@ -127,47 +107,38 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
 
     auto dataV = (glm::vec3*) gerium_renderer_map_buffer(renderer, _vertices, 0, sizeof(glm::vec3) * _maxPoints);
 
-    for (gerium_uint16_t i = 0; i < modelCount; ++i) {
-        auto model = models[i];
-        for (auto& mesh : model->meshes()) {
-            if (!mesh.isVisible()) {
-                continue;
-            }
-            const auto& bbox    = mesh.worldBoundingBox();
-            const glm::vec3& p1 = bbox.min;
-            const glm::vec3& p2 = bbox.max;
+    for (auto mesh : scene.visibleMeshes()) {
+        const auto& bbox    = mesh->worldBoundingBox();
+        const glm::vec3& p1 = bbox.min();
+        const glm::vec3& p2 = bbox.max();
 
-            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
-            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+        dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+        dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
 
-            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
-            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+        dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+        dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
 
-            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
-            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
-            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
-            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
-            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+        dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+        dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+        dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+        dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
 
-            if (vertices >= _maxPoints) {
-                break;
-            }
-        }
         if (vertices >= _maxPoints) {
             break;
         }
