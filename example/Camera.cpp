@@ -101,6 +101,42 @@ void Camera::update() {
     _projection     = glm::perspective(_fov, aspect, _nearPlane, _farPlane);
     _view           = glm::lookAt(_position, _position + _front, _up);
     _viewProjection = _projection * _view;
+    
+    _frustum[LeftFace].normal.x = _viewProjection[0][3] + _viewProjection[0][0];
+    _frustum[LeftFace].normal.y = _viewProjection[1][3] + _viewProjection[1][0];
+    _frustum[LeftFace].normal.z = _viewProjection[2][3] + _viewProjection[2][0];
+    _frustum[LeftFace].distance = _viewProjection[3][3] + _viewProjection[3][0];
+    _frustum[LeftFace].normalize();
+
+    _frustum[RightFace].normal.x = _viewProjection[0][3] - _viewProjection[0][0];
+    _frustum[RightFace].normal.y = _viewProjection[1][3] - _viewProjection[1][0];
+    _frustum[RightFace].normal.z = _viewProjection[2][3] - _viewProjection[2][0];
+    _frustum[RightFace].distance = _viewProjection[3][3] - _viewProjection[3][0];
+    _frustum[RightFace].normalize();
+
+    _frustum[BottomFace].normal.x = _viewProjection[0][3] + _viewProjection[0][1];
+    _frustum[BottomFace].normal.y = _viewProjection[1][3] + _viewProjection[1][1];
+    _frustum[BottomFace].normal.z = _viewProjection[2][3] + _viewProjection[2][1];
+    _frustum[BottomFace].distance = _viewProjection[3][3] + _viewProjection[3][1];
+    _frustum[BottomFace].normalize();
+
+    _frustum[TopFace].normal.x = _viewProjection[0][3] - _viewProjection[0][1];
+    _frustum[TopFace].normal.y = _viewProjection[1][3] - _viewProjection[1][1];
+    _frustum[TopFace].normal.z = _viewProjection[2][3] - _viewProjection[2][1];
+    _frustum[TopFace].distance = _viewProjection[3][3] - _viewProjection[3][1];
+    _frustum[TopFace].normalize();
+
+    _frustum[NearFace].normal.x = _viewProjection[0][3] + _viewProjection[0][2];
+    _frustum[NearFace].normal.y = _viewProjection[1][3] + _viewProjection[1][2];
+    _frustum[NearFace].normal.z = _viewProjection[2][3] + _viewProjection[2][2];
+    _frustum[NearFace].distance = _viewProjection[3][3] + _viewProjection[3][2];
+    _frustum[NearFace].normalize();
+
+    _frustum[FarFace].normal.x = _viewProjection[0][3] - _viewProjection[0][2];
+    _frustum[FarFace].normal.y = _viewProjection[1][3] - _viewProjection[1][2];
+    _frustum[FarFace].normal.z = _viewProjection[2][3] - _viewProjection[2][2];
+    _frustum[FarFace].distance = _viewProjection[3][3] - _viewProjection[3][2];
+    _frustum[FarFace].normalize();
 
     auto data            = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
     data->viewProjection = _viewProjection;

@@ -22,8 +22,8 @@ constexpr uint8_t  kMaxVertexBindings       = 16;
 constexpr uint8_t  kMaxVertexAttributes     = 16;
 constexpr uint8_t  kMaxShaderStages         = 5;
 constexpr uint8_t  kMaxTechniquePasses      = 20;
-constexpr uint32_t kGlobalPoolElements      = 1024;
-constexpr uint32_t kDescriptorSetsPoolSize  = 1024;
+constexpr uint32_t kGlobalPoolElements      = 4096;
+constexpr uint32_t kDescriptorSetsPoolSize  = 4096;
 
 struct SamplerHandle : Handle {};
 struct DescriptorSetLayoutHandle : Handle {};

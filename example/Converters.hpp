@@ -72,6 +72,17 @@ struct convert<gerium_polygon_mode_t> {
 };
 
 template <>
+struct convert<gerium_primitive_topology_t> {
+    static Node encode(const gerium_primitive_topology_t& rhs) {
+        throw YAML::Exception(YAML::Mark(), "Not implemented");
+    }
+
+    static bool decode(const Node& node, gerium_primitive_topology_t& rhs) {
+        return decodeEnum(node, rhs);
+    }
+};
+
+template <>
 struct convert<gerium_cull_mode_t> {
     static Node encode(const gerium_cull_mode_t& rhs) {
         throw YAML::Exception(YAML::Mark(), "Not implemented");
@@ -232,7 +243,9 @@ struct convert<gerium_rasterization_state_t> {
     }
 
     static bool decode(const Node& node, gerium_rasterization_state_t& rhs) {
-        rhs.polygon_mode       = node["polygon mode"].as<gerium_polygon_mode_t>(GERIUM_POLYGON_MODE_FILL);
+        rhs.polygon_mode = node["polygon mode"].as<gerium_polygon_mode_t>(GERIUM_POLYGON_MODE_FILL);
+        rhs.primitive_topology =
+            node["primitive topology"].as<gerium_primitive_topology_t>(GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         rhs.cull_mode          = node["cull mode"].as<gerium_cull_mode_t>(GERIUM_CULL_MODE_NONE);
         rhs.front_face         = node["front face"].as<gerium_front_face_t>(GERIUM_FRONT_FACE_COUNTER_CLOCKWISE);
         rhs.depth_clamp_enable = node["depth clamp enable"].as<bool>(false);
@@ -387,7 +400,8 @@ struct convert<gerium_pipeline_t> {
             node["vertex bindings"].as<std::vector<gerium_vertex_binding_t>>(std::vector<gerium_vertex_binding_t>{});
         const auto shaders = node["shaders"].as<std::vector<gerium_shader_t>>();
         gerium_rasterization_state_t defaultRasterization{};
-        defaultRasterization.line_width = 1.0f;
+        defaultRasterization.primitive_topology = GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        defaultRasterization.line_width         = 1.0f;
 
         rhs.render_pass   = allocate(node["render pass"].as<std::string>());
         rhs.rasterization = allocate(node["rasterization"].as<gerium_rasterization_state_t>(defaultRasterization));

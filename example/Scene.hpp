@@ -12,6 +12,12 @@ struct Transform {
     bool updated;
 };
 
+enum class Intersection {
+    None,
+    Partial,
+    Full
+};
+
 class SceneNode {
 public:
     SceneNode* parent() noexcept {

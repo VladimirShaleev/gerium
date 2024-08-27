@@ -55,6 +55,15 @@ public:
     DescriptorSet getDecriptorSet() const noexcept;
 
 private:
+    enum FrustumPlane {
+        NearFace,
+        FarFace,
+        RightFace,
+        LeftFace,
+        TopFace,
+        BottomFace
+    };
+
     void copy(const Camera& other) noexcept;
 
     gerium_application_t _application{};
@@ -79,6 +88,8 @@ private:
     glm::mat4 _view{};
     glm::mat4 _projection{};
     glm::mat4 _viewProjection{};
+
+    Plane _frustum[6]{};
 
     Buffer _data{};
     DescriptorSet _descriptorSet{};

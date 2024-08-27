@@ -42,6 +42,12 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
     gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
+
+     if (ImGui::Begin("Settings")) {
+        ImGui::Checkbox("Draw bbox", &_drawBBox);
+     }
+     
+    ImGui::End();
 }
 
 void DepthPrePass::render(gerium_frame_graph_t frameGraph,
@@ -78,11 +84,75 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_uint32_t worker,
                        gerium_uint32_t totalWorkers) {
     auto& manager  = getApplication()->resourceManager();
+    auto& scene   = getApplication()->scene();
+    auto camera   = scene.getAnyComponentNode<Camera>();
+    auto models   = scene.getComponents<Model>();
     auto technique = manager.getTechnique("base");
 
     gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+
+    ///////////////////
+    // TODO: For test only
+
+    if (!PresentPass::drawBBox()) {
+        return;
+    }
+    gerium_uint32_t vertices = 0;
+
+    auto dataV = (glm::vec3*) gerium_renderer_map_buffer(renderer, _vertices, 0, sizeof(glm::vec3) * _maxPoints);
+
+    for (auto model : models) {
+        for (auto& mesh : model->meshes()) {
+            const auto& matrix = model->getWorldMatrix(mesh.getNodeIndex());
+            const auto& bbox   = mesh.boundingBox();
+
+            const glm::vec3 p1 = matrix * glm::vec4(bbox.min, 1.0f);
+            const glm::vec3 p2 = matrix * glm::vec4(bbox.max, 1.0f);
+
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+
+            if (vertices >= _maxPoints) {
+                break;
+            }
+        }
+        if (vertices >= _maxPoints) {
+            break;
+        }
+    }
+
+    gerium_renderer_unmap_buffer(renderer, _vertices);
+
+    gerium_command_buffer_bind_technique(commandBuffer, _lines);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+    gerium_command_buffer_bind_vertex_buffer(commandBuffer, _vertices, 0, 0);
+    gerium_command_buffer_draw(commandBuffer, 0, vertices, 0, 1);
 }
 
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -99,15 +169,26 @@ void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
     _technique     = nullptr;
 }
 
+bool PresentPass::_drawBBox{};
+
 void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+
     _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
+    
+    _maxPoints = 24 * 1000;
+    _vertices = getApplication()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_VERTEX_BIT, true, "", "lines_vertices", nullptr, sizeof(glm::vec3) * _maxPoints);
+    _lines = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "lines.yaml");
 }
 
 void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     _descriptorSet = nullptr;
+    _lines     = nullptr;
+    _vertices      = nullptr;
 }
 
 Application::Application() {
@@ -158,7 +239,6 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
 
 void Application::addPass(RenderPass& renderPass) {
     renderPass.setApplication(this);
-    renderPass.initialize(_frameGraph, _renderer);
     _renderPasses.push_back(&renderPass);
 
     gerium_render_pass_t pass{ prepare, resize, render };
@@ -178,23 +258,31 @@ void Application::createScene() {
     auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.15f, 0.15f, 0.15f)),
                                       glm::identity<glm::mat4>(),
                                       true };
-    auto flightHelmetTransform =
-        Transform{ glm::rotate(glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.125f, 0.125f, 0.125f)),
-                               glm::radians(-90.0f),
-                               glm::vec3(0.0f, 1.0f, 0.0f)),
-                   glm::identity<glm::mat4>(),
-                   true };
 
-    auto root         = _scene.root();
-    auto sponza       = _scene.addNode(root);
-    auto flightHelmet = _scene.addNode(root);
+    auto root   = _scene.root();
+    auto sponza = _scene.addNode(root);
 
     _scene.addComponentToNode(root, defaultTransform);
     _scene.addComponentToNode(root, Camera(_application, _resourceManager));
     _scene.addComponentToNode(sponza, sponzaTransform);
     _scene.addComponentToNode(sponza, modelSponza);
-    _scene.addComponentToNode(flightHelmet, flightHelmetTransform);
-    _scene.addComponentToNode(flightHelmet, modelFlightHelmet);
+
+    for (int x = -10; x < 10; ++x) {
+        for (int y = -2; y < 2; ++y) {
+            auto transform =
+                Transform{ glm::rotate(glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.125f, 0.125f, 0.125f)),
+                                       glm::radians(-90.0f),
+                                       glm::vec3(0.0f, 1.0f, 0.0f)),
+                           glm::identity<glm::mat4>(),
+                           true };
+            transform.localMatrix =
+                glm::translate(glm::identity<glm::mat4>(), glm::vec3(x * 0.1f, 0, y * 0.1f)) * transform.localMatrix;
+
+            auto flightHelmet = _scene.addNode(root);
+            _scene.addComponentToNode(flightHelmet, transform);
+            _scene.addComponentToNode(flightHelmet, modelFlightHelmet);
+        }
+    }
 }
 
 void Application::initialize() {
@@ -222,6 +310,10 @@ void Application::initialize() {
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph(appDir / "frame-graphs" / "main.yaml");
     _baseTechnique = _resourceManager.loadTechnique(appDir / "techniques" / "base.yaml");
+
+    for (auto& renderPass : _renderPasses) {
+        renderPass->initialize(_frameGraph, _renderer);
+    }
 
     createScene();
 }

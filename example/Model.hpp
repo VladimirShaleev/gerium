@@ -95,7 +95,7 @@ public:
                     gerium_index_type_t type,
                     gerium_uint32_t offset,
                     gerium_uint32_t primitives) noexcept;
-    void setPositions(Buffer positions, gerium_uint32_t offset) noexcept;
+    void setPositions(Buffer positions, gerium_uint32_t offset, const glm::vec3& min, const glm::vec3& max) noexcept;
     void setTexcoords(Buffer texcoords, gerium_uint32_t offset) noexcept;
     void setNormals(Buffer normals, gerium_uint32_t offset) noexcept;
     void setTangents(Buffer tangents, gerium_uint32_t offset) noexcept;
@@ -114,6 +114,8 @@ public:
 
     gerium_index_type_t getIndexType() const noexcept;
     gerium_uint32_t getPrimitiveCount() const noexcept;
+
+    const BoundingBox& boundingBox() const noexcept;
 
 private:
     void copy(const Mesh& mesh) noexcept;
@@ -138,6 +140,8 @@ private:
 
     gerium_uint32_t _primitiveCount{};
     gerium_uint32_t _nodeIndex{};
+
+    BoundingBox _box;
 };
 
 class Model final {

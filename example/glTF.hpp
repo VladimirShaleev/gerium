@@ -194,7 +194,9 @@ void getMeshVertexBuffer(glTF& gltf,
                          const std::vector<::Buffer>& buffers,
                          gerium_sint32_t accessorIndex,
                          ::Buffer& out,
-                         gerium_uint32_t& offset);
+                         gerium_uint32_t& offset,
+                         glm::vec3* min = nullptr,
+                         glm::vec3* max = nullptr);
 
 void loadGlTF(glTF& gltf, const std::filesystem::path& path);
 

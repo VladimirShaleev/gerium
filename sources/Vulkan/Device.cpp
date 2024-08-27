@@ -910,7 +910,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{
             VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
         };
-        inputAssembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        inputAssembly.topology               = toVkPrimitiveTopology(pc.rasterization->primitive_topology);
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
         VkViewport viewport = {};
@@ -1432,6 +1432,25 @@ void Device::createDevice(gerium_uint32_t threadCount) {
         info.pQueuePriorities = priorities;
     }
 
+    VkPhysicalDeviceFeatures deviceFeatures;
+    _vkTable.vkGetPhysicalDeviceFeatures(_physicalDevice, &deviceFeatures);
+
+    VkPhysicalDeviceFeatures features{};
+    features.geometryShader            = deviceFeatures.geometryShader;
+    features.logicOp                   = deviceFeatures.logicOp;
+    features.multiDrawIndirect         = deviceFeatures.multiDrawIndirect;
+    features.drawIndirectFirstInstance = deviceFeatures.drawIndirectFirstInstance;
+    features.depthClamp                = deviceFeatures.depthClamp;
+    features.depthBiasClamp            = deviceFeatures.depthBiasClamp;
+    features.fillModeNonSolid          = deviceFeatures.fillModeNonSolid;
+    features.depthBounds               = deviceFeatures.depthBounds;
+    features.wideLines                 = deviceFeatures.wideLines;
+    features.largePoints               = deviceFeatures.largePoints;
+    features.alphaToOne                = deviceFeatures.alphaToOne;
+    features.multiViewport             = deviceFeatures.multiViewport;
+    features.samplerAnisotropy         = deviceFeatures.samplerAnisotropy;
+    features.textureCompressionETC2    = deviceFeatures.textureCompressionETC2;
+
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
     createInfo.pNext                   = nullptr;
     createInfo.queueCreateInfoCount    = (uint32_t) queueCreateInfoCount;
@@ -1440,7 +1459,7 @@ void Device::createDevice(gerium_uint32_t threadCount) {
     createInfo.ppEnabledLayerNames     = layers.data();
     createInfo.enabledExtensionCount   = (uint32_t) extensions.size();
     createInfo.ppEnabledExtensionNames = extensions.data();
-    createInfo.pEnabledFeatures        = nullptr;
+    createInfo.pEnabledFeatures        = &features;
 
     check(_vkTable.vkCreateDevice(_physicalDevice, &createInfo, getAllocCalls(), &_device));
     _vkTable.init(vk::Device(_device));

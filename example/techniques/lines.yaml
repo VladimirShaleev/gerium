@@ -1,0 +1,58 @@
+name: lines
+pipelines:
+  - render pass: aabb
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_LINE
+      primitive topology: GERIUM_PRIMITIVE_TOPOLOGY_LINE_LIST
+      cull mode: GERIUM_CULL_MODE_NONE
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+      depth clamp enable: 0
+      depth bias enable: 0
+      depth bias constant factor: 0.0
+      depth bias clamp: 0.0
+      depth bias slope factor: 0.0
+      line width: 1.0
+    depth stencil:
+      depth test enable: false
+      depth write enable: false
+      depth bounds test enable: false
+      stencil test enable: false
+      depth compare op: GERIUM_COMPARE_OP_LESS_OR_EQUAL
+      front:
+        fail op: GERIUM_STENCIL_OP_KEEP
+        pass op: GERIUM_STENCIL_OP_KEEP
+        depth fail op: GERIUM_STENCIL_OP_KEEP
+        compare op: GERIUM_COMPARE_OP_NEVER
+        compare mask: 0
+        write mask: 0
+        reference: 0
+      back:
+        fail op: GERIUM_STENCIL_OP_KEEP
+        pass op: GERIUM_STENCIL_OP_KEEP
+        depth fail op: GERIUM_STENCIL_OP_KEEP
+        compare op: GERIUM_COMPARE_OP_NEVER
+        compare mask: 0
+        write mask: 0
+        reference: 0
+      min depth bounds: 0.0
+      max depth bounds: 0.0
+    color blend:
+      logic op enable: false
+      logic op: GERIUM_LOGIC_OP_CLEAR
+      blend constants: [0.0, 0.0, 0.0, 0.0]
+    vertex attributes:
+      - location: 0
+        binding: 0
+        offset: 0
+        format: GERIUM_FORMAT_R32G32B32_SFLOAT
+    vertex bindings:
+      - binding: 0
+        stride: 12
+        input rate: GERIUM_VERTEX_RATE_PER_VERTEX
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/lines.glsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/lines.glsl

@@ -261,6 +261,14 @@ gerium_inline VkPolygonMode toVkPolygonMode(gerium_polygon_mode_t polygonMode) n
     return modes[int(polygonMode)];
 }
 
+gerium_inline VkPrimitiveTopology toVkPrimitiveTopology(gerium_primitive_topology_t primitiveTopology) noexcept {
+    constexpr VkPrimitiveTopology topologies[] = {
+        VK_PRIMITIVE_TOPOLOGY_POINT_LIST,    VK_PRIMITIVE_TOPOLOGY_LINE_LIST,      VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
+    };
+    return topologies[int(primitiveTopology)];
+}
+
 gerium_inline VkCullModeFlags toVkCullMode(gerium_cull_mode_t cullMode) noexcept {
     constexpr VkCullModeFlags modes[] = {
         VK_CULL_MODE_NONE, VK_CULL_MODE_FRONT_BIT, VK_CULL_MODE_BACK_BIT, VK_CULL_MODE_FRONT_AND_BACK

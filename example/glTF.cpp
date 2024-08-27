@@ -318,10 +318,24 @@ void getMeshVertexBuffer(glTF& gltf,
                          const std::vector<::Buffer>& buffers,
                          gerium_sint32_t accessorIndex,
                          ::Buffer& out,
-                         gerium_uint32_t& offset) {
+                         gerium_uint32_t& offset,
+                         glm::vec3* min,
+                         glm::vec3* max) {
     if (accessorIndex != -1) {
         auto& bufferAccessor = gltf.accessors[accessorIndex];
         auto& bufferView     = gltf.bufferViews[bufferAccessor.bufferView];
+
+        if (min) {
+            min->x = bufferAccessor.min[0];
+            min->y = bufferAccessor.min[1];
+            min->z = bufferAccessor.min[2];
+        }
+
+        if (max) {
+            max->x = bufferAccessor.max[0];
+            max->y = bufferAccessor.max[1];
+            max->z = bufferAccessor.max[2];
+        }
 
         out    = buffers[bufferAccessor.bufferView];
         offset = bufferAccessor.byteOffset == INVALID_INT_VALUE ? 0 : bufferAccessor.byteOffset;

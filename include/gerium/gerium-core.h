@@ -548,6 +548,17 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_PRIMITIVE_TOPOLOGY_POINT_LIST     = 0,
+    GERIUM_PRIMITIVE_TOPOLOGY_LINE_LIST      = 1,
+    GERIUM_PRIMITIVE_TOPOLOGY_LINE_STRIP     = 2,
+    GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST  = 3,
+    GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP = 4,
+    GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN   = 5,
+    GERIUM_PRIMITIVE_TOPOLOGY_MAX_ENUM       = 0x7FFFFFFF
+} gerium_primitive_topology_t;
+
+typedef enum
+{
     GERIUM_CULL_MODE_NONE           = 0,
     GERIUM_CULL_MODE_FRONT          = 1,
     GERIUM_CULL_MODE_BACK           = 2,
@@ -846,15 +857,16 @@ typedef struct
 
 typedef struct
 {
-    gerium_polygon_mode_t polygon_mode;
-    gerium_cull_mode_t    cull_mode;
-    gerium_front_face_t   front_face;
-    gerium_bool_t         depth_clamp_enable;
-    gerium_bool_t         depth_bias_enable;
-    gerium_float32_t      depth_bias_constant_factor;
-    gerium_float32_t      depth_bias_clamp;
-    gerium_float32_t      depth_bias_slope_factor;
-    gerium_float32_t      line_width;
+    gerium_polygon_mode_t       polygon_mode;
+    gerium_primitive_topology_t primitive_topology;
+    gerium_cull_mode_t          cull_mode;
+    gerium_front_face_t         front_face;
+    gerium_bool_t               depth_clamp_enable;
+    gerium_bool_t               depth_bias_enable;
+    gerium_float32_t            depth_bias_constant_factor;
+    gerium_float32_t            depth_bias_clamp;
+    gerium_float32_t            depth_bias_slope_factor;
+    gerium_float32_t            line_width;
 } gerium_rasterization_state_t;
 
 typedef struct

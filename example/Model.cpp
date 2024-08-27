@@ -164,9 +164,11 @@ void Mesh::setIndices(Buffer indices,
     _primitiveCount = primitives;
 }
 
-void Mesh::setPositions(Buffer positions, gerium_uint32_t offset) noexcept {
+void Mesh::setPositions(Buffer positions, gerium_uint32_t offset, const glm::vec3& min, const glm::vec3& max) noexcept {
     _positions       = positions;
     _positionsOffset = offset;
+    _box.min         = min;
+    _box.max         = max;
 }
 
 void Mesh::setTexcoords(Buffer texcoords, gerium_uint32_t offset) noexcept {
@@ -232,6 +234,10 @@ gerium_uint32_t Mesh::getPrimitiveCount() const noexcept {
     return _primitiveCount;
 }
 
+const BoundingBox& Mesh::boundingBox() const noexcept {
+    return _box;
+}
+
 void Mesh::copy(const Mesh& mesh) noexcept {
     _renderer        = mesh._renderer;
     _resourceManger  = mesh._resourceManger;
@@ -249,6 +255,7 @@ void Mesh::copy(const Mesh& mesh) noexcept {
     _tangentsOffset  = mesh._tangentsOffset;
     _primitiveCount  = mesh._primitiveCount;
     _nodeIndex       = mesh._nodeIndex;
+    _box             = mesh._box;
 }
 
 Model::Model(gerium_renderer_t renderer) : _renderer(renderer) {
@@ -568,7 +575,9 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
             gerium_uint32_t tangentsOffset;
             gerium_uint32_t normalsOffset;
             gerium_uint32_t texcoordsOffset;
-            getMeshVertexBuffer(glTF, buffers, positionAccessorIndex, positions, positionsOffset);
+            glm::vec3 min{};
+            glm::vec3 max{};
+            getMeshVertexBuffer(glTF, buffers, positionAccessorIndex, positions, positionsOffset, &min, &max);
             getMeshVertexBuffer(glTF, buffers, tangentAccessorIndex, tangents, tangentsOffset);
             getMeshVertexBuffer(glTF, buffers, normalAccessorIndex, normals, normalsOffset);
             getMeshVertexBuffer(glTF, buffers, texcoordAccessorIndex, texcoords, texcoordsOffset);
@@ -590,7 +599,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
 
             Mesh mesh(renderer, resourceManager);
             mesh.setNodeIndex(nodeIndex);
-            mesh.setPositions(positions, positionsOffset);
+            mesh.setPositions(positions, positionsOffset, min, max);
             mesh.setTangents(tangents, tangentsOffset);
             mesh.setNormals(normals, normalsOffset);
             mesh.setTexcoords(texcoords, texcoordsOffset);

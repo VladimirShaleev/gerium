@@ -49,4 +49,24 @@ inline gerium_uint32_t calcMipLevels(T width, T height) noexcept {
     return static_cast<gerium_uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 }
 
+struct Plane {
+    glm::vec3 normal;
+    gerium_float32_t distance;
+
+    void normalize() noexcept {
+        auto invLength = 1.0f / glm::length(normal);
+        normal *= invLength;
+        distance *= invLength;
+    }
+
+    gerium_float32_t getDistanceToPlane(const glm::vec3& point) const noexcept {
+        return glm::dot(normal, point) - distance;
+    }
+};
+
+struct BoundingBox {
+    glm::vec3 min;
+    glm::vec3 max;
+};
+
 #endif

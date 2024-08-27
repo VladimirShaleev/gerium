@@ -30,9 +30,14 @@ public:
     void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
+    static bool drawBBox() noexcept {
+        return _drawBBox;
+    }
+
 private:
     Technique _technique{};
     DescriptorSet _descriptorSet{};
+    static bool _drawBBox;
 };
 
 class DepthPrePass final : public RenderPass {
@@ -63,6 +68,10 @@ public:
    
 private:
     DescriptorSet _descriptorSet{};
+
+    int _maxPoints{};
+    Buffer _vertices{};
+    Technique _lines{};
 };
 
 class Application final {
