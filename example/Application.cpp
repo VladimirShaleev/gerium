@@ -100,56 +100,102 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     ///////////////////
     // TODO: For test only
 
-    if (!PresentPass::drawBBox()) {
-        return;
-    }
     gerium_uint32_t vertices = 0;
 
     auto dataV = (glm::vec3*) gerium_renderer_map_buffer(renderer, _vertices, 0, sizeof(glm::vec3) * _maxPoints);
 
-    for (auto mesh : scene.visibleMeshes()) {
-        const auto& bbox    = mesh->worldBoundingBox();
-        const glm::vec3& p1 = bbox.min();
-        const glm::vec3& p2 = bbox.max();
+    if (PresentPass::drawBBox()) {
+        for (auto mesh : scene.visibleMeshes()) {
+            const auto& bbox    = mesh->worldBoundingBox();
+            const glm::vec3& p1 = bbox.min();
+            const glm::vec3& p2 = bbox.max();
 
-        dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
-        dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
 
-        dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
-        dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
 
-        dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
-        dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
-        dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
-        dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
-        dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p1.z);
+            dataV[vertices++] = glm::vec3(p2.x, p2.y, p2.z);
+            dataV[vertices++] = glm::vec3(p2.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p1.y, p2.z);
+            dataV[vertices++] = glm::vec3(p1.x, p2.y, p2.z);
 
-        if (vertices >= _maxPoints) {
-            break;
+            if (vertices >= _maxPoints) {
+                break;
+            }
         }
+    }
+
+    if (PresentPass::camera2()) {
+        auto primaryCamera = scene.getAnyComponentNode<Camera>();
+
+        const auto nearPlane = 0.0f;
+        const auto farPlane  = 0.995f;
+
+        auto invV = glm::inverse(primaryCamera->viewProjection());
+
+        const auto point0 = invV * glm::vec4(-1.0f, -1.0f, nearPlane, 1.0f);
+        const auto point1 = invV * glm::vec4(-1.0f, -1.0f, farPlane, 1.0f);
+        const auto point2 = invV * glm::vec4(1.0f, -1.0f, nearPlane, 1.0f);
+        const auto point3 = invV * glm::vec4(1.0f, -1.0f, farPlane, 1.0f);
+        const auto point4 = invV * glm::vec4(-1.0f, 1.0f, nearPlane, 1.0f);
+        const auto point5 = invV * glm::vec4(-1.0f, 1.0f, farPlane, 1.0f);
+        const auto point6 = invV * glm::vec4(1.0f, 1.0f, nearPlane, 1.0f);
+        const auto point7 = invV * glm::vec4(1.0f, 1.0f, farPlane, 1.0f);
+
+        dataV[vertices++] = glm::vec3(point0.xyz) / point0.w;
+        dataV[vertices++] = glm::vec3(point1.xyz) / point1.w;
+        dataV[vertices++] = glm::vec3(point2.xyz) / point2.w;
+        dataV[vertices++] = glm::vec3(point3.xyz) / point3.w;
+        dataV[vertices++] = glm::vec3(point4.xyz) / point4.w;
+        dataV[vertices++] = glm::vec3(point5.xyz) / point5.w;
+        dataV[vertices++] = glm::vec3(point6.xyz) / point6.w;
+        dataV[vertices++] = glm::vec3(point7.xyz) / point7.w;
+
+        dataV[vertices++] = glm::vec3(point0.xyz) / point0.w;
+        dataV[vertices++] = glm::vec3(point2.xyz) / point2.w;
+        dataV[vertices++] = glm::vec3(point2.xyz) / point2.w;
+        dataV[vertices++] = glm::vec3(point6.xyz) / point6.w;
+        dataV[vertices++] = glm::vec3(point6.xyz) / point6.w;
+        dataV[vertices++] = glm::vec3(point4.xyz) / point4.w;
+        dataV[vertices++] = glm::vec3(point4.xyz) / point4.w;
+        dataV[vertices++] = glm::vec3(point0.xyz) / point0.w;
+
+        dataV[vertices++] = glm::vec3(point1.xyz) / point1.w;
+        dataV[vertices++] = glm::vec3(point3.xyz) / point3.w;
+        dataV[vertices++] = glm::vec3(point3.xyz) / point3.w;
+        dataV[vertices++] = glm::vec3(point7.xyz) / point7.w;
+        dataV[vertices++] = glm::vec3(point7.xyz) / point7.w;
+        dataV[vertices++] = glm::vec3(point5.xyz) / point5.w;
+        dataV[vertices++] = glm::vec3(point5.xyz) / point5.w;
+        dataV[vertices++] = glm::vec3(point1.xyz) / point1.w;
     }
 
     gerium_renderer_unmap_buffer(renderer, _vertices);
 
-    gerium_command_buffer_bind_technique(commandBuffer, _lines);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
-    gerium_command_buffer_bind_vertex_buffer(commandBuffer, _vertices, 0, 0);
-    gerium_command_buffer_draw(commandBuffer, 0, vertices, 0, 1);
+    if (vertices) {
+        gerium_command_buffer_bind_technique(commandBuffer, _lines);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, _vertices, 0, 0);
+        gerium_command_buffer_draw(commandBuffer, 0, vertices, 0, 1);
+    }
 }
 
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
