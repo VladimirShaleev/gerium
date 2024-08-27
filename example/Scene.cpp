@@ -32,10 +32,6 @@ void Scene::update() {
         auto mat     = parentMat;
         auto updated = parentUpdated;
 
-        if (auto camera = getComponentNode<Camera>(node)) {
-            camera->update();
-        }
-
         if (auto transform = getComponentNode<Transform>(node)) {
             if (transform->updated || updated) {
                 transform->worldMatrix = *mat * transform->localMatrix;
@@ -49,6 +45,8 @@ void Scene::update() {
             model->updateMatrices(*mat, updated);
             model->updateMaterials();
         }
+
+        _registry.update(node->_entity, (gerium_data_t) this);
 
         for (auto& child : node->childrens()) {
             nodes.push({ mat, updated, child });

@@ -7,7 +7,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t totalWorkers) {
     auto& manager = getApplication()->resourceManager();
     auto& scene   = getApplication()->scene();
-    auto camera   = scene.getAnyComponentNode<Camera>();
+    auto camera   = scene.getActiveCamera();
     std::vector<Model*> models;
     models.resize(1000);
     gerium_uint16_t modelCount = 1000;
@@ -47,10 +47,16 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
     gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
 
-     if (ImGui::Begin("Settings")) {
+    if (ImGui::Begin("Settings")) {
         ImGui::Checkbox("Draw bbox", &_drawBBox);
-     }
-     
+        ImGui::Checkbox("Camera 2", &_camera2);
+
+        Camera* camera[2];
+        gerium_uint16_t count = 2;
+        getApplication()->scene().getComponents<Camera>(count, camera);
+        camera[_camera2 ? 1 : 0]->activate();
+    }
+
     ImGui::End();
 }
 
@@ -61,7 +67,7 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
                           gerium_uint32_t totalWorkers) {
     auto& manager = getApplication()->resourceManager();
     auto& scene   = getApplication()->scene();
-    auto camera   = scene.getAnyComponentNode<Camera>();
+    auto camera   = scene.getActiveCamera();
     std::vector<Model*> models;
     models.resize(1000);
     gerium_uint16_t modelCount = 1000;
@@ -92,8 +98,8 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_uint32_t worker,
                        gerium_uint32_t totalWorkers) {
     auto& manager  = getApplication()->resourceManager();
-    auto& scene   = getApplication()->scene();
-    auto camera   = scene.getAnyComponentNode<Camera>();
+    auto& scene    = getApplication()->scene();
+    auto camera    = scene.getActiveCamera();
     auto technique = manager.getTechnique("base");
 
     std::vector<Model*> models;
@@ -184,6 +190,8 @@ void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
 
 bool PresentPass::_drawBBox{};
 
+bool PresentPass::_camera2{};
+
 void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
@@ -191,16 +199,16 @@ void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t re
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
-    
+
     _maxPoints = 24 * 1000;
-    _vertices = getApplication()->resourceManager().createBuffer(
+    _vertices  = getApplication()->resourceManager().createBuffer(
         GERIUM_BUFFER_USAGE_VERTEX_BIT, true, "", "lines_vertices", nullptr, sizeof(glm::vec3) * _maxPoints);
     _lines = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "lines.yaml");
 }
 
 void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     _descriptorSet = nullptr;
-    _lines     = nullptr;
+    _lines         = nullptr;
     _vertices      = nullptr;
 }
 
@@ -275,8 +283,13 @@ void Application::createScene() {
 
     _scene.addComponentToNode(root, defaultTransform);
     _scene.addComponentToNode(root, Camera(_application, _resourceManager));
+    auto camera2 = _scene.addComponentToNode(root, Camera(_application, _resourceManager));
     _scene.addComponentToNode(sponza, sponzaTransform);
     _scene.addComponentToNode(sponza, modelSponza);
+
+    camera2->setPosition({ 0.0f, 3.2, -0.0f });
+    camera2->setRotation(M_PI_2, -M_PI_2);
+    camera2->activate();
 
     for (int x = -10; x < 10; ++x) {
         for (int y = -2; y < 2; ++y) {

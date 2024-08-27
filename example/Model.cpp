@@ -338,7 +338,7 @@ void Model::updateMaterials() {
     }
 }
 
-void Model::update() {
+void Model::update(Entity& entity, gerium_data_t data) {
 }
 
 const glm::mat4& Model::getLocalMatrix(gerium_uint32_t nodeIndex) const noexcept {

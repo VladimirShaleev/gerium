@@ -62,7 +62,10 @@ void Camera::zoom(gerium_float32_t value, gerium_float32_t delta) {
     _fov += value * delta;
 }
 
-void Camera::update() {
+void Camera::update(Entity& entity, gerium_data_t data) {
+    if (_active == nullptr) {
+        _active = this;
+    }
     if (!_data) {
         _data = _resourceManager->createBuffer(
             GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "scene_data", nullptr, sizeof(SceneData));
@@ -101,7 +104,7 @@ void Camera::update() {
     _projection     = glm::perspective(_fov, aspect, _nearPlane, _farPlane);
     _view           = glm::lookAt(_position, _position + _front, _up);
     _viewProjection = _projection * _view;
-    
+
     _frustum[LeftFace].normal.x = _viewProjection[0][3] + _viewProjection[0][0];
     _frustum[LeftFace].normal.y = _viewProjection[1][3] + _viewProjection[1][0];
     _frustum[LeftFace].normal.z = _viewProjection[2][3] + _viewProjection[2][0];
@@ -138,10 +141,18 @@ void Camera::update() {
     _frustum[FarFace].distance = _viewProjection[3][3] - _viewProjection[3][2];
     _frustum[FarFace].normalize();
 
-    auto data            = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
-    data->viewProjection = _viewProjection;
-    data->eye            = glm::vec4(_front, 1.0f);
+    auto ptr            = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
+    ptr->viewProjection = _viewProjection;
+    ptr->eye            = glm::vec4(_front, 1.0f);
     gerium_renderer_unmap_buffer(_renderer, _data);
+}
+
+bool Camera::isActive() const noexcept {
+    return _active == this;
+}
+
+void Camera::activate() noexcept {
+    _active = this;
 }
 
 const glm::mat4& Camera::view() const noexcept {
@@ -215,3 +226,5 @@ void Camera::copy(const Camera& other) noexcept {
     _projection      = other._projection;
     _viewProjection  = other._viewProjection;
 }
+
+Camera* Camera::_active{};

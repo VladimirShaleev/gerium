@@ -34,10 +34,15 @@ public:
         return _drawBBox;
     }
 
+    static bool camera2() noexcept {
+        return _camera2;
+    }
+
 private:
     Technique _technique{};
     DescriptorSet _descriptorSet{};
     static bool _drawBBox;
+    static bool _camera2;
 };
 
 class DepthPrePass final : public RenderPass {

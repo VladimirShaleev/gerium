@@ -17,7 +17,7 @@ public:
     glm::mat4 worldMatrix;
     bool updated;
 
-    void update() override {
+    void update(Entity& entity, gerium_data_t data) override {
 
     }
 };
@@ -55,8 +55,8 @@ public:
     void clear();
 
     template <typename T>
-    T& addComponentToNode(SceneNode* node, const T& component) {
-        return *_registry.addComponent(node->_entity, component);
+    T* addComponentToNode(SceneNode* node, const T& component) {
+        return _registry.addComponent(node->_entity, component);
     }
 
     template <typename T>
@@ -75,6 +75,18 @@ public:
         T* results[1];
         _registry.getComponents<T>(count, results);
         return count ? results[0] : nullptr;
+    }
+
+    Camera* getActiveCamera() noexcept {
+        Camera* camera[10];
+        gerium_uint16_t count = 10;
+        _registry.getComponents<Camera>(count, camera);
+        for (gerium_uint16_t i = 0; i < count; ++i) {
+            if (camera[i]->isActive()) {
+                return camera[i];
+            }
+        }
+        return nullptr;
     }
 
 private:

@@ -9,6 +9,8 @@ struct SceneData {
     glm::vec4 eye;
 };
 
+class Scene;
+
 class Camera final : public Component {
 public:
     enum Movement {
@@ -35,7 +37,10 @@ public:
     void move(Movement direction, gerium_float32_t value, gerium_float32_t delta);
     void zoom(gerium_float32_t value, gerium_float32_t delta);
 
-    void update() override;
+    void update(Entity& entity, gerium_data_t data) override;
+
+    bool isActive() const noexcept;
+    void activate() noexcept;
 
     const glm::mat4& view() const noexcept;
     const glm::mat4& projection() const noexcept;
@@ -94,6 +99,8 @@ private:
 
     Buffer _data{};
     DescriptorSet _descriptorSet{};
+
+    static Camera* _active;
 };
 
 #endif

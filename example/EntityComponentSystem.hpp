@@ -28,7 +28,7 @@ private:
 class Component {
 public:
     virtual ~Component()  = default;
-    virtual void update() = 0;
+    virtual void update(Entity& entity, gerium_data_t data) = 0;
 
 private:
     template <typename C>
@@ -291,6 +291,18 @@ public:
     template <typename C>
     void getComponents(gerium_uint16_t& count, C** results) noexcept {
         getPool<C>().getComponents(count, results);
+    }
+
+    void update(Entity& entity, gerium_data_t data) {
+        if (entity._index == NoneIndex) {
+            return;
+        }
+        auto current = _poolRefs[entity._pool]->access(entity._index);
+        current->update(entity, data);
+        while (current->_next != NoneIndex) {
+            current = _poolRefs[current->_nextPool]->access(current->_next);
+            current->update(entity, data);
+        }
     }
 
     void clear() noexcept {
