@@ -54,6 +54,10 @@ public:
     DepthPrePass() : RenderPass("depth_pre_pass") {
     }
 
+    gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
+                            gerium_renderer_t renderer,
+                            gerium_uint32_t maxWorkers) override;
+
     void render(gerium_frame_graph_t frameGraph,
                 gerium_renderer_t renderer,
                 gerium_command_buffer_t commandBuffer,

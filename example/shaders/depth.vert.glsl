@@ -9,9 +9,9 @@ layout(binding = 0, set = 0) uniform SceneDataUBO {
 };
 
 layout(binding = 0, set = 1) uniform MeshDataUBO {
-    MeshData mesh;
+    MeshData mesh[200];
 };
 
 void main() {
-    gl_Position = scene.viewProjection * mesh.world * vec4(position, 1.0);
+    gl_Position = scene.viewProjection * mesh[gl_InstanceIndex].world * vec4(position, 1.0);
 }

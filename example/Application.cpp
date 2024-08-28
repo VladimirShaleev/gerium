@@ -68,34 +68,31 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     ImGui::End();
 }
 
+gerium_uint32_t DepthPrePass::prepare(gerium_frame_graph_t frameGraph,
+                                      gerium_renderer_t renderer,
+                                      gerium_uint32_t maxWorkers) {
+    return (gerium_uint32_t) getApplication()->scene().instances().size();
+}
+
 void DepthPrePass::render(gerium_frame_graph_t frameGraph,
                           gerium_renderer_t renderer,
                           gerium_command_buffer_t commandBuffer,
                           gerium_uint32_t worker,
                           gerium_uint32_t totalWorkers) {
-    auto& manager = getApplication()->resourceManager();
-    auto& scene   = getApplication()->scene();
-    auto camera   = scene.getActiveCamera();
+    auto& manager         = getApplication()->resourceManager();
+    auto& scene           = getApplication()->scene();
+    auto camera           = scene.getActiveCamera();
+    const auto& instances = scene.instances();
 
-    const auto& viewProjection = camera->viewProjection();
+    auto batchSize     = int((instances.size() + totalWorkers - 1) / totalWorkers);
+    auto instanceIndex = int(worker) * batchSize;
+    if (instanceIndex + batchSize > instances.size()) {
+        batchSize = int(instances.size()) - instanceIndex;
+    }
 
-    auto meshes = scene.visibleMeshes();
-    std::sort(meshes.begin(), meshes.end(), [&viewProjection](const auto mesh1, const auto mesh2) {
-        gerium_technique_h tech1 = mesh1->getMaterial().getTechnique();
-        gerium_technique_h tech2 = mesh2->getMaterial().getTechnique();
-        if (tech1.unused < tech2.unused) {
-            return true;
-        } else if (tech1.unused > tech2.unused) {
-            return false;
-        }
-
-        const auto point1 = viewProjection * glm::vec4(mesh1->worldBoundingBox().getCentroid(), 1.0f);
-        const auto point2 = viewProjection * glm::vec4(mesh2->worldBoundingBox().getCentroid(), 1.0f);
-
-        return point1.w < point2.w;
-    });
-
-    for (auto mesh : meshes) {
+    for (int i = 0; i < batchSize; ++i) {
+        const auto instance = instances[instanceIndex + i];
+        const auto mesh     = instance->mesh;
         if (mesh->getMaterial().getFlags() != DrawFlags::None &&
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
             continue;
@@ -105,12 +102,12 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
         }
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
         gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, mesh->getMaterial().getDecriptorSet(), 1);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, instance->descriptorSet, 1);
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTexcoords(), 1, mesh->getTexcoordsOffset());
         gerium_command_buffer_bind_index_buffer(
             commandBuffer, mesh->getIndices(), mesh->getIndicesOffset(), mesh->getIndexType());
-        gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh->getPrimitiveCount(), 0, 0, 1);
+        gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh->getPrimitiveCount(), 0, 0, instance->count);
     }
 }
 
