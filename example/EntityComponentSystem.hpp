@@ -159,7 +159,7 @@ public:
 
     void release(gerium_uint16_t index) noexcept override {
         access(index)->~Component();
-        std::memset(&_components[index], 0, sizeof(C));
+        std::memset((void*) &_components[index], 0, sizeof(C));
 
         _indices[--_head] = index;
     }
@@ -192,13 +192,13 @@ private:
 };
 
 template <typename...>
-struct index;
+struct IndexType;
 
 template <typename T, typename... R>
-struct index<T, T, R...> : std::integral_constant<size_t, 0> {};
+struct IndexType<T, T, R...> : std::integral_constant<size_t, 0> {};
 
 template <typename T, typename F, typename... R>
-struct index<T, F, R...> : std::integral_constant<size_t, 1 + index<T, R...>::value> {};
+struct IndexType<T, F, R...> : std::integral_constant<size_t, 1 + IndexType<T, R...>::value> {};
 
 template <typename... Components>
 class Registry {
@@ -319,7 +319,7 @@ private:
     template <typename C>
     constexpr gerium_uint16_t getPoolIndex() const noexcept {
         static_assert(std::is_base_of_v<Component, C>, "C must inheritance from Component");
-        return index<C, Components...>::value;
+        return IndexType<C, Components...>::value;
     }
 
     constexpr Component* getLastComponent(const Entity& entity) noexcept {
