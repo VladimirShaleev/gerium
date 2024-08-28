@@ -12,11 +12,11 @@ layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec3 outTangent;
 layout(location = 3) out vec3 outBitangent;
 
-layout(std140, set = 0, binding = 0) uniform SceneDataUBO {
+layout(std140, binding = 0, set = 0) uniform SceneDataUBO {
     SceneData scene;
 };
 
-layout(std140, set = 1, binding = 0) uniform MeshDataUBO {
+layout(std140, binding = 0, set = 1) uniform MeshDataUBO {
     MeshData mesh;
 };
 

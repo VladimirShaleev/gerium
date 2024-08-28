@@ -373,6 +373,9 @@ void CommandBuffer::onBindTechnique(TechniqueHandle handle) noexcept {
         auto pipelineObj = _device->_pipelines.access(pipeline);
         _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
         _currentPipeline = pipeline;
+        for (auto& set : _currentDescriptorSets) {
+            set = VK_NULL_HANDLE;
+        }
     }
 }
 
@@ -410,6 +413,10 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
 
     auto vkDescriptorSet = _device->updateDescriptorSet(handle, layoutHandle, _currentFrameGraph);
 
+    if (_currentDescriptorSets[set] == vkDescriptorSet) {
+        return;
+    }
+
     uint32_t offsets[kMaxDescriptorsPerSet];
     gerium_uint32_t bufferCount = 0;
 
@@ -428,6 +435,8 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
                                                &vkDescriptorSet,
                                                bufferCount,
                                                offsets);
+
+    _currentDescriptorSets[set] = vkDescriptorSet;
 }
 
 void CommandBuffer::onDraw(gerium_uint32_t firstVertex,

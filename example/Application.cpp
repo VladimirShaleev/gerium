@@ -9,7 +9,29 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     auto& scene   = getApplication()->scene();
     auto camera   = scene.getActiveCamera();
 
-    for (auto mesh : scene.visibleMeshes()) {
+    const auto& viewProjection = camera->viewProjection();
+
+    auto meshes = scene.visibleMeshes();
+    std::sort(meshes.begin(), meshes.end(), [&viewProjection](const auto& mesh1, const auto& mesh2) {
+        gerium_technique_h tech1 = mesh1->getMaterial().getTechnique();
+        gerium_technique_h tech2 = mesh2->getMaterial().getTechnique();
+        if (tech1.unused < tech2.unused) {
+            return true;
+        } else if (tech1.unused > tech2.unused) {
+            return false;
+        }
+        const auto& bbox1Min = viewProjection * glm::vec4(mesh1->worldBoundingBox().min(), 1.0f);
+        const auto& bbox1Max = viewProjection * glm::vec4(mesh1->worldBoundingBox().max(), 1.0f);
+        const auto& bbox2Min = viewProjection * glm::vec4(mesh2->worldBoundingBox().min(), 1.0f);
+        const auto& bbox2Max = viewProjection * glm::vec4(mesh2->worldBoundingBox().max(), 1.0f);
+
+        const auto z1 = std::max(bbox1Min.z, bbox1Max.z);
+        const auto z2 = std::max(bbox2Min.z, bbox2Max.z);
+
+        return z1 < z2;
+    });
+
+    for (auto mesh : meshes) {
         if (mesh->getMaterial().getFlags() != DrawFlags::None &&
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
             continue;
@@ -477,14 +499,14 @@ void Application::pollInput(gerium_float32_t elapsed) {
     if (gerium_application_get_platform(_application) != GERIUM_RUNTIME_PLATFORM_ANDROID) {
         gerium_application_show_cursor(_application, showCursor);
     }
-
-    if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
-        return;
-    }
 }
 
 void Application::frame(gerium_float32_t elapsed) {
     pollInput(elapsed);
+
+    if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
+        return;
+    }
 
     _resourceManager.update(elapsed);
     _scene.update();
