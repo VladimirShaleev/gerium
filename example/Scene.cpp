@@ -5,7 +5,7 @@
 
 void Scene::create(ResourceManager* resourceManger) {
     _resourceManger = resourceManger;
-    _instanceDescriptorSets.resize(100);
+    _instanceDescriptorSets.resize(200);
     for (auto& set : _instanceDescriptorSets) {
         set = _resourceManger->createDescriptorSet();
     }

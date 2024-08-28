@@ -1,6 +1,6 @@
 name: lines
 pipelines:
-  - render pass: aabb
+  - render pass: light_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_LINE
       primitive topology: GERIUM_PRIMITIVE_TOPOLOGY_LINE_LIST
