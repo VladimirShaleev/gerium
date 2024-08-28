@@ -20,6 +20,8 @@ public:
     Resource& operator=(const Resource& resource) noexcept;
     Resource& operator=(Resource&& resource) noexcept;
 
+    operator T() noexcept;
+
     operator const T() const noexcept;
 
     explicit operator bool() const noexcept;
@@ -169,6 +171,11 @@ inline Resource<T>& Resource<T>::operator=(Resource<T>&& resource) noexcept {
         std::swap(_handle, resource._handle);
     }
     return *this;
+}
+
+template <typename T>
+inline Resource<T>::operator T() noexcept {
+    return _handle;
 }
 
 template <typename T>
