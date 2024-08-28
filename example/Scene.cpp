@@ -3,6 +3,14 @@
 #include <queue>
 #include <stack>
 
+void Scene::create(ResourceManager* resourceManger) {
+    _resourceManger = resourceManger;
+    _instanceDescriptorSets.resize(100);
+    for (auto& set : _instanceDescriptorSets) {
+        set = _resourceManger->createDescriptorSet();
+    }
+}
+
 SceneNode* Scene::root() {
     if (!_root) {
         _root = allocateNode();
@@ -94,9 +102,46 @@ void Scene::culling() {
         }
     };
     cullingMesh(_bvh);
+
+    _instances.clear();
+    _instancesLinear.clear();
+
+    int descriptorSetIndex = 0;
+    auto renderer = _resourceManger->renderer();
+
+    for (const auto mesh : _visibleMeshes) {
+        const auto hash    = mesh->hash();
+        auto& meshInstance = _instances[hash];
+        if (!meshInstance.mesh) {
+            meshInstance.mesh  = mesh;
+            meshInstance.datas = _resourceManger->createBuffer(
+                GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData) * 200);
+            meshInstance.ptr =
+                (MeshData*) gerium_renderer_map_buffer(renderer, meshInstance.datas, 0, 0);
+            meshInstance.descriptorSet = _instanceDescriptorSets[descriptorSetIndex++];
+            gerium_renderer_bind_buffer(renderer, meshInstance.descriptorSet, 0, meshInstance.datas);
+            gerium_renderer_bind_texture(renderer, meshInstance.descriptorSet, 1, mesh->getMaterial().getDiffuse());
+            gerium_renderer_bind_texture(renderer, meshInstance.descriptorSet, 2, mesh->getMaterial().getNormal());
+            gerium_renderer_bind_texture(renderer, meshInstance.descriptorSet, 3, mesh->getMaterial().getRoughness());
+        }
+        assert(meshInstance.count < 200);
+        *meshInstance.ptr = mesh->getMaterial().meshData();
+        ++meshInstance.ptr;
+        ++meshInstance.count;
+    }
+
+    _instancesLinear.resize(_instances.size());
+
+    int i = 0;
+    for (auto& [_, instance] : _instances) {
+        gerium_renderer_unmap_buffer(renderer, instance.datas);
+        _instancesLinear[i++] = &instance;
+    }
 }
 
 void Scene::clear() {
+    _instances.clear();
+    _instanceDescriptorSets.clear();
     _registry.clear();
     _nodes.clear();
     _root = nullptr;

@@ -17,13 +17,13 @@ layout(std140, binding = 0, set = 0) uniform SceneDataUBO {
 };
 
 layout(std140, binding = 0, set = 1) uniform MeshDataUBO {
-    MeshData mesh;
+    MeshData mesh[200];
 };
 
 void main() {
-    gl_Position  = scene.viewProjection * mesh.world * vec4(position, 1.0);
+    gl_Position  = scene.viewProjection * mesh[gl_InstanceIndex].world * vec4(position, 1.0);
     outTexcoord  = texcoord;
-    outNormal    = normalize(mat3(mesh.inverseWorld) * normal);
-    outTangent   = normalize(mat3(mesh.inverseWorld) * tangent.xyz);
+    outNormal    = normalize(mat3(mesh[gl_InstanceIndex].inverseWorld) * normal);
+    outTangent   = normalize(mat3(mesh[gl_InstanceIndex].inverseWorld) * tangent.xyz);
     outBitangent = cross(outNormal, outTangent) * tangent.w;
 }

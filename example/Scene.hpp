@@ -40,8 +40,18 @@ private:
     Entity _entity;
 };
 
+struct MeshInstance {
+    Mesh* mesh{};
+    int count{};
+    Buffer datas{};
+    DescriptorSet descriptorSet{};
+    MeshData* ptr{};
+};
+
 class Scene {
 public:
+    void create(ResourceManager* resourceManger);
+
     SceneNode* root();
     SceneNode* addNode(SceneNode* parent);
 
@@ -88,14 +98,22 @@ public:
         return _visibleMeshes;
     }
 
+    const std::vector<MeshInstance*>& instances() const noexcept {
+        return _instancesLinear;
+    }
+
 private:
     SceneNode* allocateNode();
 
+    ResourceManager* _resourceManger{};
     Registry<Camera, Transform, Model> _registry{};
     std::vector<std::shared_ptr<SceneNode>> _nodes{};
     SceneNode* _root{};
     BVHNode* _bvh{};
     std::vector<Mesh*> _visibleMeshes{};
+    std::unordered_map<gerium_uint64_t, MeshInstance> _instances{};
+    std::vector<DescriptorSet> _instanceDescriptorSets{};
+    std::vector<MeshInstance*> _instancesLinear{};
     SceneData _sceneData{};
 };
 

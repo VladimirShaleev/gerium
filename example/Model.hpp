@@ -54,6 +54,10 @@ public:
     gerium_float32_t getAlphaCutoff() const noexcept;
     DrawFlags getFlags() const noexcept;
 
+    const MeshData& meshData() const noexcept;
+
+    gerium_uint64_t hash() const noexcept;
+
 private:
     void copy(const PBRMaterial& pbrMaterial) noexcept;
 
@@ -75,6 +79,10 @@ private:
 
     gerium_float32_t _alphaCutoff{};
     DrawFlags _flags{ DrawFlags::None };
+
+    MeshData _meshData{};
+
+    mutable gerium_uint64_t _hash{};
 };
 
 class Mesh final {
@@ -125,6 +133,8 @@ public:
     bool isVisible() const noexcept;
     void visible(bool show) noexcept;
 
+    gerium_uint64_t hash() const noexcept;
+
 private:
     void copy(const Mesh& mesh) noexcept;
 
@@ -152,6 +162,8 @@ private:
     BoundingBox _box;
     BoundingBox _worldBox;
     bool _visible;
+
+    mutable gerium_uint64_t _hash{};
 };
 
 class Model final : public Component {

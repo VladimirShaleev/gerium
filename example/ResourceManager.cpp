@@ -20,6 +20,10 @@ void ResourceManager::update(gerium_float32_t elapsed) {
         if (it->second.reference == 0) {
             if (it->second.type == DescriptorSetType) {
                 gerium_renderer_destroy_descriptor_set(_renderer, { it->second.handle });
+                keys.push_back(it->first);
+            } else if (it->second.type == BufferType) {
+                gerium_renderer_destroy_buffer(_renderer, { it->second.handle });
+                keys.push_back(it->first);
             } else if (_ticks - it->second.lastUsed > 240000.0) {
                 switch (it->second.type) {
                     case TextureType:
@@ -28,9 +32,9 @@ void ResourceManager::update(gerium_float32_t elapsed) {
                     case TechniqueType:
                         gerium_renderer_destroy_technique(_renderer, { it->second.handle });
                         break;
-                    case BufferType:
-                        gerium_renderer_destroy_buffer(_renderer, { it->second.handle });
-                        break;
+                    // case BufferType:
+                    //     gerium_renderer_destroy_buffer(_renderer, { it->second.handle });
+                    //     break;
                     default:
                         break;
                 }

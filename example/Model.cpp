@@ -21,6 +21,7 @@ PBRMaterial& PBRMaterial::operator=(const PBRMaterial& pbrMaterial) noexcept {
 
 void PBRMaterial::setTechnique(Technique technique) {
     _technique = technique;
+    _hash      = 0;
 }
 
 Technique PBRMaterial::getTechnique() const noexcept {
@@ -28,6 +29,8 @@ Technique PBRMaterial::getTechnique() const noexcept {
 }
 
 void PBRMaterial::updateMeshData(const MeshData& meshData) {
+    _meshData = meshData;
+
     if (!_data) {
         _data = _resourceManger->createBuffer(
             GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData));
@@ -50,18 +53,22 @@ DescriptorSet PBRMaterial::getDecriptorSet() const noexcept {
 
 void PBRMaterial::setDiffuse(Texture handle) noexcept {
     _diffuse = handle;
+    _hash    = 0;
 }
 
 void PBRMaterial::setRoughness(Texture handle) noexcept {
     _roughness = handle;
+    _hash      = 0;
 }
 
 void PBRMaterial::setNormal(Texture handle) noexcept {
     _normal = handle;
+    _hash   = 0;
 }
 
 void PBRMaterial::setOcclusion(Texture handle) noexcept {
     _occlusion = handle;
+    _hash      = 0;
 }
 
 Texture PBRMaterial::getDiffuse() const noexcept {
@@ -84,6 +91,7 @@ void PBRMaterial::setFactor(const glm::vec4& baseColorFactor,
                             const glm::vec4& metallicRoughnessOcclusionFactor) noexcept {
     _baseColorFactor                  = baseColorFactor;
     _metallicRoughnessOcclusionFactor = metallicRoughnessOcclusionFactor;
+    _hash                             = 0;
 }
 
 const glm::vec4& PBRMaterial::getBaseColorFactor() const noexcept {
@@ -97,6 +105,7 @@ const glm::vec4& PBRMaterial::getMetallicRoughnessOcclusionFactor() const noexce
 void PBRMaterial::setAlpha(gerium_float32_t alphaCutoff, DrawFlags flags) noexcept {
     _alphaCutoff = alphaCutoff;
     _flags       = flags;
+    _hash        = 0;
 }
 
 gerium_float32_t PBRMaterial::getAlphaCutoff() const noexcept {
@@ -105,6 +114,31 @@ gerium_float32_t PBRMaterial::getAlphaCutoff() const noexcept {
 
 DrawFlags PBRMaterial::getFlags() const noexcept {
     return _flags;
+}
+
+const MeshData& PBRMaterial::meshData() const noexcept {
+    return _meshData;
+}
+
+gerium_uint64_t PBRMaterial::hash() const noexcept {
+    if (!_hash) {
+        auto technique = ((gerium_technique_h) _technique).unused;
+        auto diffuse   = ((gerium_texture_h) _diffuse).unused;
+        auto roughness = ((gerium_texture_h) _roughness).unused;
+        auto normal    = ((gerium_texture_h) _normal).unused;
+        auto occlusion = ((gerium_texture_h) _occlusion).unused;
+
+        _hash = wyhash(&technique, sizeof(technique), 0, _wyp);
+        _hash = wyhash(&diffuse, sizeof(diffuse), _hash, _wyp);
+        _hash = wyhash(&roughness, sizeof(roughness), _hash, _wyp);
+        _hash = wyhash(&normal, sizeof(normal), _hash, _wyp);
+        _hash = wyhash(&occlusion, sizeof(occlusion), _hash, _wyp);
+        _hash = wyhash(&_baseColorFactor.x, sizeof(_baseColorFactor), _hash, _wyp);
+        _hash = wyhash(&_metallicRoughnessOcclusionFactor.x, sizeof(_metallicRoughnessOcclusionFactor), _hash, _wyp);
+        _hash = wyhash(&_alphaCutoff, sizeof(_alphaCutoff), _hash, _wyp);
+        _hash = wyhash(&_flags, sizeof(_flags), _hash, _wyp);
+    }
+    return _hash;
 }
 
 void PBRMaterial::copy(const PBRMaterial& pbrMaterial) noexcept {
@@ -148,6 +182,7 @@ gerium_uint32_t Mesh::getNodeIndex() const noexcept {
 
 void Mesh::setMaterial(const PBRMaterial& material) {
     _material = material;
+    _hash     = 0;
 }
 
 PBRMaterial& Mesh::getMaterial() noexcept {
@@ -162,27 +197,32 @@ void Mesh::setIndices(Buffer indices,
     _indexType      = type;
     _indicesOffset  = offset;
     _primitiveCount = primitives;
+    _hash           = 0;
 }
 
 void Mesh::setPositions(Buffer positions, gerium_uint32_t offset, const glm::vec3& min, const glm::vec3& max) noexcept {
     _positions       = positions;
     _positionsOffset = offset;
     _box             = BoundingBox(min, max);
+    _hash            = 0;
 }
 
 void Mesh::setTexcoords(Buffer texcoords, gerium_uint32_t offset) noexcept {
     _texcoords       = texcoords;
     _texcoordsOffset = offset;
+    _hash            = 0;
 }
 
 void Mesh::setNormals(Buffer normals, gerium_uint32_t offset) noexcept {
     _normals       = normals;
     _normalsOffset = offset;
+    _hash          = 0;
 }
 
 void Mesh::setTangents(Buffer tangents, gerium_uint32_t offset) noexcept {
     _tangents       = tangents;
     _tangentsOffset = offset;
+    _hash           = 0;
 }
 
 Buffer Mesh::getIndices() const noexcept {
@@ -251,6 +291,31 @@ bool Mesh::isVisible() const noexcept {
 
 void Mesh::visible(bool show) noexcept {
     _visible = show;
+}
+
+gerium_uint64_t Mesh::hash() const noexcept {
+    if (!_hash) {
+        auto indices   = ((gerium_buffer_h) _indices).unused;
+        auto positions = ((gerium_buffer_h) _positions).unused;
+        auto texcoords = ((gerium_buffer_h) _texcoords).unused;
+        auto normals   = ((gerium_buffer_h) _normals).unused;
+        auto tangents  = ((gerium_buffer_h) _tangents).unused;
+
+        _hash = _material.hash();
+        _hash = wyhash(&indices, sizeof(indices), _hash, _wyp);
+        _hash = wyhash(&positions, sizeof(positions), _hash, _wyp);
+        _hash = wyhash(&texcoords, sizeof(texcoords), _hash, _wyp);
+        _hash = wyhash(&normals, sizeof(normals), _hash, _wyp);
+        _hash = wyhash(&tangents, sizeof(tangents), _hash, _wyp);
+        _hash = wyhash(&_indexType, sizeof(_indexType), _hash, _wyp);
+        _hash = wyhash(&_indicesOffset, sizeof(_indicesOffset), _hash, _wyp);
+        _hash = wyhash(&_positionsOffset, sizeof(_positionsOffset), _hash, _wyp);
+        _hash = wyhash(&_texcoordsOffset, sizeof(_texcoordsOffset), _hash, _wyp);
+        _hash = wyhash(&_normalsOffset, sizeof(_normalsOffset), _hash, _wyp);
+        _hash = wyhash(&_tangentsOffset, sizeof(_tangentsOffset), _hash, _wyp);
+        _hash = wyhash(&_primitiveCount, sizeof(_primitiveCount), _hash, _wyp);
+    }
+    return _hash;
 }
 
 void Mesh::copy(const Mesh& mesh) noexcept {

@@ -30,7 +30,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
         colors.resize(maxFrames * 32);
         perFrameActive.resize(maxFrames);
 
-        maxDuration  = 2.0f;
+        maxDuration  = 8.0f;
         currentFrame = 0;
         minTime = maxTime = averageTime = 0.f;
 
