@@ -2,6 +2,7 @@
 #define CAMERA_HPP
 
 #include "EntityComponentSystem.hpp"
+#include "Primitives.hpp"
 #include "ResourceManager.hpp"
 
 struct SceneData {

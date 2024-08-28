@@ -3,6 +3,7 @@
 
 #include "Common.hpp"
 #include "EntityComponentSystem.hpp"
+#include "Primitives.hpp"
 #include "ResourceManager.hpp"
 
 enum class DrawFlags {

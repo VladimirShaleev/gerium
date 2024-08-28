@@ -71,8 +71,8 @@ void Scene::culling() {
 
     _visibleMeshes.clear();
 
-    std::function<void(const BVHNode*)> teshMesh;
-    teshMesh = [this, camera, &teshMesh](const BVHNode* node) {
+    std::function<void(const BVHNode*)> cullingMesh;
+    cullingMesh = [this, camera, &cullingMesh](const BVHNode* node) {
         if (camera->test(node->bbox()) == Intersection::None) {
             return;
         }
@@ -87,13 +87,13 @@ void Scene::culling() {
             }
         }
         if (node->left()) {
-            teshMesh(node->left());
+            cullingMesh(node->left());
         }
         if (node->right()) {
-            teshMesh(node->right());
+            cullingMesh(node->right());
         }
     };
-    teshMesh(_bvh);
+    cullingMesh(_bvh);
 }
 
 void Scene::clear() {
