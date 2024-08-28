@@ -362,6 +362,8 @@ bool VkRenderer::onNewFrame() {
 }
 
 void VkRenderer::onRender(FrameGraph& frameGraph) {
+    const auto maxWorkers = _application->workerThreadCount();
+
     gerium_uint16_t width, height;
     getSwapchainSize(width, height);
 
@@ -383,8 +385,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
         allTotalWorkers[worker] = 1;
         if (auto pass = frameGraph.getPass(node->pass); pass->pass.prepare) {
-            allTotalWorkers[worker] =
-                pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, pass->data);
+            allTotalWorkers[worker] = std::min(
+                pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, maxWorkers, pass->data),
+                maxWorkers);
             if (allTotalWorkers[worker] == 0) {
                 error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
             }
@@ -475,8 +478,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             marl::WaitGroup waitAll(totalWorkers);
             numSecondaryCommandBuffers = 0;
             for (gerium_uint32_t worker = 0; worker < totalWorkers; ++worker) {
-                auto thread    = worker % _application->workerThreadCount();
-                auto secondary = _device->getSecondaryCommandBuffer(thread, renderPass, framebuffer);
+                auto secondary = _device->getSecondaryCommandBuffer(worker, renderPass, framebuffer);
                 secondary->bindRenderer(this);
                 secondary->setFramebufferHeight(height);
                 secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);

@@ -244,7 +244,7 @@ gerium_float32_t Camera::fov() const noexcept {
     return _fov;
 }
 
-DescriptorSet Camera::getDecriptorSet() const noexcept {
+const DescriptorSet& Camera::getDecriptorSet() const noexcept {
     return _descriptorSet;
 }
 

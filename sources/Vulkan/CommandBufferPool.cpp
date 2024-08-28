@@ -510,7 +510,7 @@ void CommandBufferPool::create(Device& device,
     VkCommandBuffer buffers[100] = {};
 
     for (gerium_uint32_t frame = 0; frame < device.MaxFrames; ++frame) {
-        for (gerium_uint32_t thread = 0; thread < numThreads; ++thread) {
+        for (gerium_uint32_t thread = 0; thread < _threadCount; ++thread) {
             const auto poolIndex = getPoolIndex(frame, thread);
 
             VkCommandBufferAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };

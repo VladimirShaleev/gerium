@@ -14,7 +14,9 @@ public:
     virtual void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
     virtual void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
 
-    virtual gerium_uint32_t prepare(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
+    virtual gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
+                                    gerium_renderer_t renderer,
+                                    gerium_uint32_t maxWorkers);
     virtual void resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
     virtual void render(gerium_frame_graph_t frameGraph,
                         gerium_renderer_t renderer,

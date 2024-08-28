@@ -9,7 +9,9 @@ void RenderPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t r
 void RenderPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
 }
 
-gerium_uint32_t RenderPass::prepare(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+gerium_uint32_t RenderPass::prepare(gerium_frame_graph_t frameGraph,
+                                    gerium_renderer_t renderer,
+                                    gerium_uint32_t maxWorkers) {
     return 1;
 }
 

@@ -9,6 +9,10 @@ public:
     GBufferPass() : RenderPass("gbuffer_pass") {
     }
 
+    gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
+                            gerium_renderer_t renderer,
+                            gerium_uint32_t maxWorkers) override;
+
     void render(gerium_frame_graph_t frameGraph,
                 gerium_renderer_t renderer,
                 gerium_command_buffer_t commandBuffer,
@@ -67,10 +71,10 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
-             
+
     void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-   
+
 private:
     DescriptorSet _descriptorSet{};
 
@@ -108,7 +112,10 @@ private:
     static gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed);
     static gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium_application_state_t state);
 
-    static gerium_uint32_t prepare(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer, gerium_data_t data);
+    static gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
+                                   gerium_renderer_t renderer,
+                                   gerium_uint32_t maxWorkers,
+                                   gerium_data_t data);
     static gerium_bool_t resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer, gerium_data_t data);
     static gerium_bool_t render(gerium_frame_graph_t frameGraph,
                                 gerium_renderer_t renderer,

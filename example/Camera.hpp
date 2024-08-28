@@ -66,7 +66,7 @@ public:
     gerium_float32_t farPlane() const noexcept;
     gerium_float32_t fov() const noexcept;
 
-    DescriptorSet getDecriptorSet() const noexcept;
+    const DescriptorSet& getDecriptorSet() const noexcept;
 
 private:
     enum FrustumPlane {

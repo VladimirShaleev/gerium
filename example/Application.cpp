@@ -1,18 +1,30 @@
 #include "Application.hpp"
 
+gerium_uint32_t GBufferPass::prepare(gerium_frame_graph_t frameGraph,
+                                     gerium_renderer_t renderer,
+                                     gerium_uint32_t maxWorkers) {
+    return (gerium_uint32_t) getApplication()->scene().instances().size();
+}
+
 void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_renderer_t renderer,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    auto& manager = getApplication()->resourceManager();
-    auto& scene   = getApplication()->scene();
-    auto camera   = scene.getActiveCamera();
-
+    auto& manager         = getApplication()->resourceManager();
+    auto& scene           = getApplication()->scene();
+    auto camera           = scene.getActiveCamera();
     const auto& instances = scene.instances();
 
-    for (const auto instance : instances) {
-        const auto mesh = instance->mesh;
+    auto batchSize     = int((instances.size() + totalWorkers - 1) / totalWorkers);
+    auto instanceIndex = int(worker) * batchSize;
+    if (instanceIndex + batchSize > instances.size()) {
+        batchSize = int(instances.size()) - instanceIndex;
+    }
+
+    for (int i = 0; i < batchSize; ++i) {
+        const auto instance = instances[instanceIndex + i];
+        const auto mesh     = instance->mesh;
         if (mesh->getMaterial().getFlags() != DrawFlags::None &&
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
             continue;
@@ -554,10 +566,13 @@ gerium_bool_t Application::state(gerium_application_t application,
     });
 }
 
-gerium_uint32_t Application::prepare(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer, gerium_data_t data) {
+gerium_uint32_t Application::prepare(gerium_frame_graph_t frameGraph,
+                                     gerium_renderer_t renderer,
+                                     gerium_uint32_t maxWorkers,
+                                     gerium_data_t data) {
     auto renderPass = (RenderPass*) data;
-    return renderPass->getApplication()->cppCallInt([renderPass, frameGraph, renderer]() {
-        return renderPass->prepare(frameGraph, renderer);
+    return renderPass->getApplication()->cppCallInt([renderPass, frameGraph, renderer, maxWorkers]() {
+        return renderPass->prepare(frameGraph, renderer, maxWorkers);
     });
 }
 

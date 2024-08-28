@@ -31,7 +31,7 @@ public:
     PBRMaterial& operator=(const PBRMaterial& pbrMaterial) noexcept;
 
     void setTechnique(Technique technique);
-    Technique getTechnique() const noexcept;
+    const Technique& getTechnique() const noexcept;
 
     void updateMeshData(const MeshData& meshData);
     DescriptorSet getDecriptorSet() const noexcept;
@@ -41,10 +41,10 @@ public:
     void setNormal(Texture handle) noexcept;
     void setOcclusion(Texture handle) noexcept;
 
-    Texture getDiffuse() const noexcept;
-    Texture getRoughness() const noexcept;
-    Texture getNormal() const noexcept;
-    Texture getOcclusion() const noexcept;
+    const Texture& getDiffuse() const noexcept;
+    const Texture& getRoughness() const noexcept;
+    const Texture& getNormal() const noexcept;
+    const Texture& getOcclusion() const noexcept;
 
     void setFactor(const glm::vec4& baseColorFactor, const glm::vec4& metallicRoughnessOcclusionFactor) noexcept;
     const glm::vec4& getBaseColorFactor() const noexcept;
@@ -110,11 +110,11 @@ public:
     void setNormals(Buffer normals, gerium_uint32_t offset) noexcept;
     void setTangents(Buffer tangents, gerium_uint32_t offset) noexcept;
 
-    Buffer getIndices() const noexcept;
-    Buffer getPositions() const noexcept;
-    Buffer getTexcoords() const noexcept;
-    Buffer getNormals() const noexcept;
-    Buffer getTangents() const noexcept;
+    const Buffer& getIndices() const noexcept;
+    const Buffer& getPositions() const noexcept;
+    const Buffer& getTexcoords() const noexcept;
+    const Buffer& getNormals() const noexcept;
+    const Buffer& getTangents() const noexcept;
 
     gerium_uint32_t getIndicesOffset() const noexcept;
     gerium_uint32_t getPositionsOffset() const noexcept;

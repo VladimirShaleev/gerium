@@ -44,7 +44,7 @@ struct MeshInstance {
     Mesh* mesh{};
     int count{};
     Buffer datas{};
-    DescriptorSet descriptorSet{};
+    gerium_descriptor_set_h descriptorSet{UndefinedHandle};
     MeshData* ptr{};
 };
 

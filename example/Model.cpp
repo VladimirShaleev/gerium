@@ -24,7 +24,7 @@ void PBRMaterial::setTechnique(Technique technique) {
     _hash      = 0;
 }
 
-Technique PBRMaterial::getTechnique() const noexcept {
+const Technique& PBRMaterial::getTechnique() const noexcept {
     return _technique;
 }
 
@@ -71,19 +71,19 @@ void PBRMaterial::setOcclusion(Texture handle) noexcept {
     _hash      = 0;
 }
 
-Texture PBRMaterial::getDiffuse() const noexcept {
+const Texture& PBRMaterial::getDiffuse() const noexcept {
     return _diffuse;
 }
 
-Texture PBRMaterial::getRoughness() const noexcept {
+const Texture& PBRMaterial::getRoughness() const noexcept {
     return _roughness;
 }
 
-Texture PBRMaterial::getNormal() const noexcept {
+const Texture& PBRMaterial::getNormal() const noexcept {
     return _normal;
 }
 
-Texture PBRMaterial::getOcclusion() const noexcept {
+const Texture& PBRMaterial::getOcclusion() const noexcept {
     return _occlusion;
 }
 
@@ -225,23 +225,23 @@ void Mesh::setTangents(Buffer tangents, gerium_uint32_t offset) noexcept {
     _hash           = 0;
 }
 
-Buffer Mesh::getIndices() const noexcept {
+const Buffer& Mesh::getIndices() const noexcept {
     return _indices;
 }
 
-Buffer Mesh::getPositions() const noexcept {
+const Buffer& Mesh::getPositions() const noexcept {
     return _positions;
 }
 
-Buffer Mesh::getTexcoords() const noexcept {
+const Buffer& Mesh::getTexcoords() const noexcept {
     return _texcoords;
 }
 
-Buffer Mesh::getNormals() const noexcept {
+const Buffer& Mesh::getNormals() const noexcept {
     return _normals;
 }
 
-Buffer Mesh::getTangents() const noexcept {
+const Buffer& Mesh::getTangents() const noexcept {
     return _tangents;
 }
 

@@ -1195,7 +1195,9 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
                                             FrameGraph* frameGraph) {
     auto descriptorSet  = _descriptorSets.access(handle);
     auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
-    auto& descriptors   = descriptorSet->descriptors[pipelineLayout->data.hash];
+
+    marl::lock lock(_descriptorPoolMutex);
+    auto& descriptors = descriptorSet->descriptors[pipelineLayout->data.hash];
 
     if (descriptorSet->hasResources) {
         for (gerium_uint16_t binding = 0; binding < kMaxDescriptorsPerSet; ++binding) {
@@ -1219,7 +1221,6 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
             allocInfo.descriptorSetCount = 1;
             allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
 
-            marl::lock lock(_descriptorPoolMutex);
             check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &vkDescriptorSet));
         }
 

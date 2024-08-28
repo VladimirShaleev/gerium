@@ -761,6 +761,7 @@ typedef void
 typedef gerium_uint32_t
 (*gerium_frame_graph_prepare_func_t)(gerium_frame_graph_t frame_graph,
                                      gerium_renderer_t renderer,
+                                     gerium_uint32_t max_workers,
                                      gerium_data_t data);
 
 typedef gerium_bool_t

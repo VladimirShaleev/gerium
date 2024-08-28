@@ -20,7 +20,7 @@ public:
     Resource& operator=(const Resource& resource) noexcept;
     Resource& operator=(Resource&& resource) noexcept;
 
-    operator T() const noexcept;
+    operator const T() const noexcept;
 
     explicit operator bool() const noexcept;
 
@@ -172,7 +172,7 @@ inline Resource<T>& Resource<T>::operator=(Resource<T>&& resource) noexcept {
 }
 
 template <typename T>
-inline Resource<T>::operator T() const noexcept {
+inline Resource<T>::operator const T() const noexcept {
     return _handle;
 }
 
