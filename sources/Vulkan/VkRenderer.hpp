@@ -30,6 +30,7 @@ private:
     };
 
     void createTransferBuffer();
+    void sendTextureToGraphic();
 
     bool onGetProfilerEnable() const noexcept override;
     void onSetProfilerEnable(bool enable) noexcept override;
@@ -85,6 +86,7 @@ private:
 
     ObjectPtr<Application> _application;
     ObjectPtr<Device> _device;
+    bool _isSupportedTransferQueue;
     gerium_uint16_t _width;
     gerium_uint16_t _height;
     gerium_utf8_t _currentRenderPassName;

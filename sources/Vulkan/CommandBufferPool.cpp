@@ -182,17 +182,6 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
     _device->vkTable().vkCmdCopyBufferToImage(
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     addImageBarrier(dst, ResourceState::CopyDest, ResourceState::CopySource, 0, 1, queue, queue);
-
-    addImageBarrier(dst,
-                    ResourceState::CopySource,
-                    isTransfer ? ResourceState::CopySource : ResourceState::ShaderResource,
-                    0,
-                    1,
-                    queue);
-
-    if (dstTexture->mipmaps > 1) {
-        addImageBarrier(dst, ResourceState::Undefined, ResourceState::CopyDest, 0, 1, queue);
-    }
 }
 
 void CommandBuffer::generateMipmaps(TextureHandle handle) {

@@ -6,6 +6,7 @@ namespace gerium::vulkan {
 VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noexcept :
     _application(application),
     _device(std::move(device)),
+    _isSupportedTransferQueue(false),
     _width(0),
     _height(0),
     _currentRenderPassName(nullptr),
@@ -22,7 +23,9 @@ VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noe
 VkRenderer::~VkRenderer() {
     _loadEvent.signal();
     _loadThreadEnd.signal();
-    _loadTread.join();
+    if (_isSupportedTransferQueue) {
+        _loadTread.join();
+    }
 }
 
 PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
@@ -40,6 +43,7 @@ PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
 
 void VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
     _device->create(application(), version, debug);
+    _isSupportedTransferQueue = _device->isSupportedTransferQueue();
     createTransferBuffer();
 }
 
@@ -55,13 +59,55 @@ void VkRenderer::createTransferBuffer() {
 
     _transferCommandPool.create(*_device.get(), 1, _transferMaxTasks, QueueType::CopyTransfer);
 
-    auto scheduler = marl::Scheduler::get();
+    if (_isSupportedTransferQueue) {
+        auto scheduler = marl::Scheduler::get();
 
-    _loadTread = std::thread([this, scheduler]() {
-        scheduler->bind();
-        defer(scheduler->unbind());
-        loadThread();
-    });
+        _loadTread = std::thread([this, scheduler]() {
+            scheduler->bind();
+            defer(scheduler->unbind());
+            loadThread();
+        });
+    }
+}
+
+void VkRenderer::sendTextureToGraphic() {
+    if (!_isSupportedTransferQueue) {
+        if (!_loadRequests.empty()) {
+            auto request = _loadRequests.front();
+            _loadRequests.pop();
+
+            gerium_texture_info_t info;
+            onGetTextureInfo(request.texture, info);
+
+            const auto blockSize        = vk::blockSize((vk::Format) toVkFormat(info.format));
+            const auto alignedImageSize = align(info.width * info.height * blockSize, 4);
+
+            auto data = onMapBuffer(_transferBuffer, 0, alignedImageSize);
+            memcpy((void*) data, request.data, alignedImageSize);
+            onUnmapBuffer(_transferBuffer);
+
+            auto commandBuffer = _transferCommandPool.getPrimary(0, false);
+            commandBuffer->copyBuffer(_transferBuffer, request.texture);
+            commandBuffer->submit(QueueType::CopyTransfer);
+
+            _transferToGraphic.push(request);
+        }
+    }
+
+    if (_isSupportedTransferQueue) {
+        _transferToGraphicMutex.lock();
+    }
+    defer(if (_isSupportedTransferQueue) _transferToGraphicMutex.unlock());
+    if (!_transferToGraphic.empty()) {
+        auto commandBuffer = _device->getPrimaryCommandBuffer(false);
+        while (!_transferToGraphic.empty()) {
+            const auto& request = _transferToGraphic.front();
+            commandBuffer->generateMipmaps(request.texture);
+            _finishedRequests.push(request);
+            _transferToGraphic.pop();
+        }
+        _device->submit(commandBuffer);
+    }
 }
 
 bool VkRenderer::onGetProfilerEnable() const noexcept {
@@ -266,9 +312,13 @@ void VkRenderer::onAsyncUploadTextureData(TextureHandle handle,
                                           gerium_cdata_t textureData,
                                           gerium_texture_loaded_func_t callback,
                                           gerium_data_t data) {
-    marl::lock lock(_loadRequestsMutex);
-    _loadRequests.push({ textureData, handle, callback, data });
-    _loadEvent.signal();
+    if (_isSupportedTransferQueue) {
+        marl::lock lock(_loadRequestsMutex);
+        _loadRequests.push({ textureData, handle, callback, data });
+        _loadEvent.signal();
+    } else {
+        _loadRequests.push({ textureData, handle, callback, data });
+    }
 }
 
 void VkRenderer::onTextureSampler(TextureHandle handle,
@@ -347,17 +397,7 @@ bool VkRenderer::onNewFrame() {
         return false;
     }
 
-    marl::lock lock(_transferToGraphicMutex);
-    if (!_transferToGraphic.empty()) {
-        auto commandBuffer = _device->getPrimaryCommandBuffer(false);
-        while (!_transferToGraphic.empty()) {
-            const auto& request = _transferToGraphic.front();
-            commandBuffer->generateMipmaps(request.texture);
-            _finishedRequests.push(request);
-            _transferToGraphic.pop();
-        }
-        _device->submit(commandBuffer);
-    }
+    sendTextureToGraphic();
     return true;
 }
 

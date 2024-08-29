@@ -2454,7 +2454,7 @@ int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
 }
 
 Device::QueueFamilies Device::getQueueFamilies(VkPhysicalDevice device) {
-    QueueFamilies result;
+    QueueFamilies result{};
 
     int index                 = 0;
     VkBool32 surfaceSupported = VK_FALSE;
@@ -2505,6 +2505,7 @@ Device::QueueFamilies Device::getQueueFamilies(VkPhysicalDevice device) {
 
     if (!result.transfer.has_value()) {
         result.transfer = result.graphic;
+        result.transferIsGraphic = true;
     }
 
     return result;
@@ -2547,6 +2548,7 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
     unmapBuffer(stagingBuffer);
 
     _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
+    _frameCommandBuffer->generateMipmaps(handle);
     destroyBuffer(stagingBuffer);
 
     finishLoadTexture(handle);

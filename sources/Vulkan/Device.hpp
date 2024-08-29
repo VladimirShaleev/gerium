@@ -152,6 +152,10 @@ public:
         info.name    = texture->name;
     }
 
+    bool isSupportedTransferQueue() const noexcept {
+        return !_queueFamilies.transferIsGraphic;
+    }
+
 protected:
     VkInstance instance() const noexcept {
         return _instance;
@@ -190,6 +194,7 @@ private:
         std::optional<QueueFamily> compute;
         std::optional<QueueFamily> present;
         std::optional<QueueFamily> transfer;
+        bool transferIsGraphic;
 
         bool isComplete() const noexcept {
             return graphic.has_value() && compute.has_value() && present.has_value() && transfer.has_value();
