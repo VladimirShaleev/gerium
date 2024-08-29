@@ -30,25 +30,6 @@ const Technique& PBRMaterial::getTechnique() const noexcept {
 
 void PBRMaterial::updateMeshData(const MeshData& meshData) {
     _meshData = meshData;
-
-    if (!_data) {
-        _data = _resourceManger->createBuffer(
-            GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData));
-    }
-    if (!_descriptorSet) {
-        _descriptorSet = _resourceManger->createDescriptorSet();
-        gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
-        gerium_renderer_bind_texture(_renderer, _descriptorSet, 1, _diffuse);
-        gerium_renderer_bind_texture(_renderer, _descriptorSet, 2, _normal);
-        gerium_renderer_bind_texture(_renderer, _descriptorSet, 3, _roughness);
-    }
-    auto data = (MeshData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
-    *data     = meshData;
-    gerium_renderer_unmap_buffer(_renderer, _data);
-}
-
-DescriptorSet PBRMaterial::getDecriptorSet() const noexcept {
-    return _descriptorSet;
 }
 
 void PBRMaterial::setDiffuse(Texture handle) noexcept {
@@ -424,9 +405,8 @@ void Model::updateMaterials() {
     for (auto& mesh : _meshes) {
         auto& material = mesh.getMaterial();
         MeshData meshData;
-        meshData.world                            = _worldMatrices[mesh.getNodeIndex()];
-        meshData.inverseWorld                     = _inverseWorldMatrices[mesh.getNodeIndex()];
-        meshData.metallicRoughnessOcclusionFactor = material.getMetallicRoughnessOcclusionFactor();
+        meshData.world        = _worldMatrices[mesh.getNodeIndex()];
+        meshData.inverseWorld = _inverseWorldMatrices[mesh.getNodeIndex()];
         material.updateMeshData(meshData);
     }
 }

@@ -5,11 +5,6 @@
 #include "Primitives.hpp"
 #include "ResourceManager.hpp"
 
-struct SceneData {
-    glm::mat4 viewProjection;
-    glm::vec4 eye;
-};
-
 enum class Intersection {
     None,
     Partial,

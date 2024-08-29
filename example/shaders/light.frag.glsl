@@ -9,5 +9,5 @@ layout(binding = 2) uniform sampler2D texMetallicRoughness;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    outColor = texture(texAlbedo, texCoord);
+    outColor = texture(texNormal, texCoord) * 0.5 + 0.5;
 }

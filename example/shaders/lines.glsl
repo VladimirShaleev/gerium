@@ -6,7 +6,7 @@
 
 layout(location = 0) in vec3 position;
 
-layout(binding = 0, set = 0) uniform SceneDataUBO {
+layout(binding = 0, set = SCENE_DATA_SET) uniform SceneDataUBO {
     SceneData scene;
 };
 

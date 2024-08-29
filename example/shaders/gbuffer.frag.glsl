@@ -11,13 +11,9 @@ layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outNormal;
 layout(location = 2) out vec4 outMetallicRoughness;
 
-layout(binding = 1, set = 1) uniform sampler2D baseColor;
-layout(binding = 2, set = 1) uniform sampler2D normalColor;
-layout(binding = 3, set = 1) uniform sampler2D metallicRoughnessColor;
-
-layout(std140, set = 1, binding = 0) uniform MeshDataUBO {
-    MeshData mesh;
-};
+layout(binding = 0, set = TEXTURE_SET) uniform sampler2D baseColor;
+layout(binding = 1, set = TEXTURE_SET) uniform sampler2D normalColor;
+layout(binding = 2, set = TEXTURE_SET) uniform sampler2D metallicRoughnessColor;
 
 void main() {
     vec3 T = normalize(inTangent);
@@ -28,13 +24,10 @@ void main() {
     vec3 bumpNormal = 2.0 * texture(normalColor, inTexcoord).rgb - vec3(1.0);
     vec3 normal = normalize(TBN * bumpNormal);
 
-    float roughness = mesh.metallicRoughnessOcclusionFactor.r;
-    float metalness = mesh.metallicRoughnessOcclusionFactor.g;
-    float occlusion = mesh.metallicRoughnessOcclusionFactor.b;
     vec4 rm = texture(metallicRoughnessColor, inTexcoord);
-    occlusion *= rm.r;
-    roughness *= rm.g;
-    metalness *= rm.b;
+    float occlusion = rm.r;
+    float roughness = rm.g;
+    float metalness = rm.b;
 
     outColor = texture(baseColor, inTexcoord);
     outNormal = vec4(normal, 0.0);

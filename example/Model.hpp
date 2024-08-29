@@ -14,12 +14,6 @@ enum class DrawFlags {
 };
 GERIUM_FLAGS(DrawFlags);
 
-struct MeshData {
-    glm::mat4 world;
-    glm::mat4 inverseWorld;
-    glm::vec4 metallicRoughnessOcclusionFactor;
-};
-
 class PBRMaterial final {
 public:
     PBRMaterial(gerium_renderer_t renderer, ResourceManager& resourceManger);
@@ -34,7 +28,6 @@ public:
     const Technique& getTechnique() const noexcept;
 
     void updateMeshData(const MeshData& meshData);
-    DescriptorSet getDecriptorSet() const noexcept;
 
     void setDiffuse(Texture handle) noexcept;
     void setRoughness(Texture handle) noexcept;
@@ -65,9 +58,6 @@ private:
     ResourceManager* _resourceManger{};
 
     Technique _technique{};
-
-    Buffer _data{};
-    DescriptorSet _descriptorSet{};
 
     Texture _diffuse{};
     Texture _roughness{};

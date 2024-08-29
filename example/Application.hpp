@@ -18,6 +18,12 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
+                
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    
+private:
+    std::array<DescriptorSet, 4> _descriptorSets{};
 };
 
 class PresentPass final : public RenderPass {
@@ -63,6 +69,12 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    
+private:
+    std::array<DescriptorSet, 4> _descriptorSets{};
 };
 
 class LightPass final : public RenderPass {

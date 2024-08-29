@@ -47,7 +47,15 @@ public:
 
     void finishLoadTexture(TextureHandle handle);
 
-    void bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput = nullptr);
+    void bind(DescriptorSetHandle handle,
+              uint16_t binding,
+              Handle resource,
+              gerium_utf8_t resourceInput = nullptr,
+              bool dynamic                = false);
+    void bind(DescriptorSetHandle handle,
+              uint16_t binding,
+              BufferHandle resource,
+              gerium_utf8_t resourceInput = nullptr);
     VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle,
                                         DescriptorSetLayoutHandle layoutHandle,
                                         FrameGraph* frameGraph);
@@ -143,8 +151,6 @@ public:
         info.type    = texture->type;
         info.name    = texture->name;
     }
-
-    static constexpr gerium_uint32_t MaxFrames = 2;
 
 protected:
     VkInstance instance() const noexcept {
@@ -297,9 +303,9 @@ private:
     VkDescriptorPool _descriptorPool{};
     VkDescriptorPool _imguiPool{};
     VmaAllocator _vmaAllocator{};
-    VkSemaphore _imageAvailableSemaphores[MaxFrames]{};
-    VkSemaphore _renderFinishedSemaphores[MaxFrames]{};
-    VkFence _inFlightFences[MaxFrames]{};
+    VkSemaphore _imageAvailableSemaphores[kMaxFrames]{};
+    VkSemaphore _renderFinishedSemaphores[kMaxFrames]{};
+    VkFence _inFlightFences[kMaxFrames]{};
     VkSwapchainKHR _swapchain{};
     VkSurfaceFormatKHR _swapchainFormat{};
     VkExtent2D _swapchainExtent{};
@@ -308,7 +314,7 @@ private:
     std::set<TextureHandle> _swapchainImages{};
     gerium_uint32_t _swapchainImageIndex{};
     gerium_uint32_t _currentFrame{};
-    gerium_uint32_t _previousFrame{ MaxFrames - 1 };
+    gerium_uint32_t _previousFrame{ kMaxFrames - 1 };
     gerium_uint32_t _absoluteFrame{};
     uint32_t _dynamicBufferSize{};
     uint32_t _dynamicAllocatedSize{};

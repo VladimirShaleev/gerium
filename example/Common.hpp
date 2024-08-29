@@ -8,8 +8,6 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 
-#include "Finally.hpp"
-
 #include <cmath>
 #include <filesystem>
 #include <limits>
@@ -22,7 +20,7 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_FORCE_SWIZZLE 
+#define GLM_FORCE_SWIZZLE
 // #define GLM_FORCE_MESSAGES
 // https://github.com/g-truc/glm/issues/1269
 #include <glm/detail/setup.hpp>
@@ -35,6 +33,9 @@
 #include <wyhash.h>
 
 #include <magic_enum.hpp>
+
+#include "Finally.hpp"
+#include "shaders/common/types.h"
 
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 

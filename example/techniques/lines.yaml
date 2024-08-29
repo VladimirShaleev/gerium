@@ -35,7 +35,7 @@ pipelines:
         write mask: 0
         reference: 0
       min depth bounds: 0.0
-      max depth bounds: 0.0
+      max depth bounds: 1.0
     color blend:
       logic op enable: false
       logic op: GERIUM_LOGIC_OP_CLEAR

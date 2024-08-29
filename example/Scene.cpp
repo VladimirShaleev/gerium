@@ -5,8 +5,13 @@
 
 void Scene::create(ResourceManager* resourceManger) {
     _resourceManger = resourceManger;
-    _instanceDescriptorSets.resize(200);
-    for (auto& set : _instanceDescriptorSets) {
+
+    for (auto& meshData : _meshDatas) {
+        meshData = _resourceManger->createBuffer(
+            GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData) * MAX_INSTANCES);
+    }
+
+    for (auto& set : _textureSets) {
         set = _resourceManger->createDescriptorSet();
     }
 }
@@ -106,33 +111,34 @@ void Scene::culling() {
     _instances.clear();
     _instancesLinear.clear();
 
-    int descriptorSetIndex = 0;
     auto renderer = _resourceManger->renderer();
 
+    int i = 0;
     for (const auto mesh : _visibleMeshes) {
-        const auto hash    = mesh->hash();
-        auto& meshInstance = _instances[hash];
-        if (!meshInstance.mesh) {
-            meshInstance.mesh  = mesh;
-            meshInstance.datas = _resourceManger->createBuffer(
-                GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData) * 200);
-            meshInstance.ptr =
-                (MeshData*) gerium_renderer_map_buffer(renderer, meshInstance.datas, 0, 0);
-            meshInstance.descriptorSet = _instanceDescriptorSets[descriptorSetIndex++];
-            gerium_renderer_bind_buffer(renderer, meshInstance.descriptorSet, 0, meshInstance.datas);
-            gerium_renderer_bind_texture(renderer, meshInstance.descriptorSet, 1, mesh->getMaterial().getDiffuse());
-            gerium_renderer_bind_texture(renderer, meshInstance.descriptorSet, 2, mesh->getMaterial().getNormal());
-            gerium_renderer_bind_texture(renderer, meshInstance.descriptorSet, 3, mesh->getMaterial().getRoughness());
+        if (i == kMaxDraws) {
+            break;
         }
-        assert(meshInstance.count < 200);
+        auto& meshInstance = _instances[mesh->hash()];
+        if (!meshInstance.mesh) {
+            meshInstance.mesh       = mesh;
+            meshInstance.datas      = _meshDatas[i];
+            meshInstance.ptr        = (MeshData*) gerium_renderer_map_buffer(renderer, meshInstance.datas, 0, 0);
+            meshInstance.textureSet = _textureSets[i];
+            gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 0, mesh->getMaterial().getDiffuse());
+            gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 1, mesh->getMaterial().getNormal());
+            gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 2, mesh->getMaterial().getRoughness());
+            ++i;
+        }
+        if (++meshInstance.count > MAX_INSTANCES) {
+            continue;
+        }
         *meshInstance.ptr = mesh->getMaterial().meshData();
         ++meshInstance.ptr;
-        ++meshInstance.count;
     }
 
     _instancesLinear.resize(_instances.size());
 
-    int i = 0;
+    i = 0;
     for (auto& [_, instance] : _instances) {
         gerium_renderer_unmap_buffer(renderer, instance.datas);
         _instancesLinear[i++] = &instance;
@@ -141,7 +147,12 @@ void Scene::culling() {
 
 void Scene::clear() {
     _instances.clear();
-    _instanceDescriptorSets.clear();
+    for (auto& set : _textureSets) {
+        set = nullptr;
+    }
+    for (auto& meshData : _meshDatas) {
+        meshData = nullptr;
+    }
     _registry.clear();
     _nodes.clear();
     _root = nullptr;

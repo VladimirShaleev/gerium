@@ -12,12 +12,12 @@ layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec3 outTangent;
 layout(location = 3) out vec3 outBitangent;
 
-layout(std140, binding = 0, set = 0) uniform SceneDataUBO {
+layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneDataUBO {
     SceneData scene;
 };
 
-layout(std140, binding = 0, set = 1) uniform MeshDataUBO {
-    MeshData mesh[200];
+layout(std140, binding = 0, set = MESH_DATA_SET) uniform MeshDataUBO {
+    MeshData mesh[MAX_INSTANCES];
 };
 
 void main() {

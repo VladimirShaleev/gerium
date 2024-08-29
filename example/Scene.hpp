@@ -43,8 +43,8 @@ private:
 struct MeshInstance {
     Mesh* mesh{};
     int count{};
-    Buffer datas{};
-    gerium_descriptor_set_h descriptorSet{UndefinedHandle};
+    gerium_buffer_h datas{ UndefinedHandle };
+    gerium_descriptor_set_h textureSet{ UndefinedHandle };
     MeshData* ptr{};
 };
 
@@ -103,6 +103,8 @@ public:
     }
 
 private:
+    static constexpr int kMaxDraws = 500;
+
     SceneNode* allocateNode();
 
     ResourceManager* _resourceManger{};
@@ -111,8 +113,9 @@ private:
     SceneNode* _root{};
     BVHNode* _bvh{};
     std::vector<Mesh*> _visibleMeshes{};
+    std::array<Buffer, kMaxDraws> _meshDatas{};
+    std::array<DescriptorSet, kMaxDraws> _textureSets{};
     std::unordered_map<gerium_uint64_t, MeshInstance> _instances{};
-    std::vector<DescriptorSet> _instanceDescriptorSets{};
     std::vector<MeshInstance*> _instancesLinear{};
     SceneData _sceneData{};
 };

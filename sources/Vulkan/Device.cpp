@@ -63,7 +63,7 @@ Device::~Device() {
             _vkTable.vkDestroySwapchainKHR(_device, _swapchain, getAllocCalls());
         }
 
-        for (uint32_t i = 0; i < MaxFrames; ++i) {
+        for (uint32_t i = 0; i < kMaxFrames; ++i) {
             _vkTable.vkDestroySemaphore(_device, _imageAvailableSemaphores[i], getAllocCalls());
             _vkTable.vkDestroySemaphore(_device, _renderFinishedSemaphores[i], getAllocCalls());
             _vkTable.vkDestroyFence(_device, _inFlightFences[i], getAllocCalls());
@@ -1141,6 +1141,8 @@ void* Device::mapBuffer(BufferHandle handle, uint32_t offset, uint32_t size) {
         uint8_t* mappedMemory = _dynamicBufferMapped + buffer->mappedOffset;
         _dynamicAllocatedSize += size;
 
+        assert(_dynamicAllocatedSize < _dynamicBufferSize * (_currentFrame + 1));
+
         return (void*) mappedMemory;
     }
 
@@ -1174,20 +1176,26 @@ void Device::finishLoadTexture(TextureHandle handle) {
     texture->loaded = true;
 }
 
-void Device::bind(DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput) {
+void Device::bind(
+    DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput, bool dynamic) {
     auto descriptorSet = _descriptorSets.access(handle);
 
     if (descriptorSet->bindings[binding] != resource) {
         descriptorSet->bindings[binding]  = resource;
         descriptorSet->resources[binding] = resourceInput; // intern(resourceInput);
         for (auto& [_, descriptors] : descriptorSet->descriptors) {
-            descriptors.noChanges = false;
+            descriptors.noChanges = dynamic;
         }
     } else if (resource == Undefined && resourceInput) {
         descriptorSet->resources[binding] = intern(resourceInput);
     }
 
     descriptorSet->hasResources = descriptorSet->hasResources != 0 || resourceInput != nullptr;
+}
+
+void Device::bind(DescriptorSetHandle handle, uint16_t binding, BufferHandle resource, gerium_utf8_t resourceInput) {
+    auto dynamic = _buffers.access(resource)->parent != Undefined;
+    bind(handle, binding, (Handle) resource, resourceInput, dynamic);
 }
 
 VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
@@ -1212,7 +1220,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
     }
 
     if (!descriptors.noChanges) {
-        descriptors.current   = (descriptors.current + 1) % MaxFrames;
+        descriptors.current   = (descriptors.current + 1) % kMaxFrames;
         auto& vkDescriptorSet = descriptors.vkDescriptorSet[descriptors.current];
 
         if (vkDescriptorSet == VK_NULL_HANDLE) {
@@ -1477,13 +1485,13 @@ void Device::createDevice(gerium_uint32_t threadCount) {
 void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
     if (_profilerSupported) {
         VkProfiler* profiler;
-        Object::create<VkProfiler>(profiler, *this, gpuTimeQueriesPerFrame, MaxFrames);
+        Object::create<VkProfiler>(profiler, *this, gpuTimeQueriesPerFrame, kMaxFrames);
         _profiler = profiler;
         profiler->destroy();
 
         VkQueryPoolCreateInfo createInfo{ VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
         createInfo.queryType          = VK_QUERY_TYPE_TIMESTAMP;
-        createInfo.queryCount         = gpuTimeQueriesPerFrame * 2 * MaxFrames;
+        createInfo.queryCount         = gpuTimeQueriesPerFrame * 2 * kMaxFrames;
         createInfo.pipelineStatistics = 0;
         check(_vkTable.vkCreateQueryPool(_device, &createInfo, getAllocCalls(), &_queryPool));
 
@@ -1532,12 +1540,12 @@ void Device::createVmaAllocator() {
 }
 
 void Device::createDynamicBuffer() {
-    _dynamicBufferSize = 1024 * 1024 * 128;
+    _dynamicBufferSize = align(1024 * 1024 * 128, _uboAlignment);
 
     BufferCreation bc;
     bc.set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,
            ResourceUsageType::Staging,
-           _dynamicBufferSize * MaxFrames)
+           _dynamicBufferSize * kMaxFrames)
         .setPersistent(true)
         .setName("Dynamic_Persistent_Buffer");
     _dynamicBuffer       = createBuffer(bc);
@@ -1571,7 +1579,7 @@ void Device::createSynchronizations() {
     VkFenceCreateInfo fenceInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (uint32_t i = 0; i < MaxFrames; ++i) {
+    for (uint32_t i = 0; i < kMaxFrames; ++i) {
         check(_vkTable.vkCreateSemaphore(_device, &semaphoreInfo, getAllocCalls(), &_imageAvailableSemaphores[i]));
         check(_vkTable.vkCreateSemaphore(_device, &semaphoreInfo, getAllocCalls(), &_renderFinishedSemaphores[i]));
         check(_vkTable.vkCreateFence(_device, &fenceInfo, getAllocCalls(), &_inFlightFences[i]));
@@ -2523,7 +2531,7 @@ Device::Swapchain Device::getSwapchain() {
 
 void Device::frameCountersAdvance() noexcept {
     _previousFrame = _currentFrame;
-    _currentFrame  = (_currentFrame + 1) % MaxFrames;
+    _currentFrame  = (_currentFrame + 1) % kMaxFrames;
     ++_absoluteFrame;
 }
 

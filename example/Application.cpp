@@ -32,9 +32,11 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
             continue;
         }
+        gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, instance->datas);
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, instance->descriptorSet, 1);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, instance->textureSet, TEXTURE_SET);
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTexcoords(), 1, mesh->getTexcoordsOffset());
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getNormals(), 2, mesh->getNormalsOffset());
@@ -100,9 +102,10 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
         if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
             continue;
         }
+        gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, instance->datas);
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, instance->descriptorSet, 1);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTexcoords(), 1, mesh->getTexcoordsOffset());
         gerium_command_buffer_bind_index_buffer(
@@ -250,6 +253,30 @@ void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
 bool PresentPass::_drawBBox{};
 
 bool PresentPass::_camera2{};
+
+void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    for (auto& set : _descriptorSets) {
+        set = getApplication()->resourceManager().createDescriptorSet();
+    }
+}
+
+void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    for (auto& set : _descriptorSets) {
+        set = nullptr;
+    }
+}
+
+void DepthPrePass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    for (auto& set : _descriptorSets) {
+        set = getApplication()->resourceManager().createDescriptorSet();
+    }
+}
+
+void DepthPrePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    for (auto& set : _descriptorSets) {
+        set = nullptr;
+    }
+}
 
 void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();

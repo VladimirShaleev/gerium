@@ -81,7 +81,6 @@ private:
     RenderPassHandle _currentRenderPass{ Undefined };
     FramebufferHandle _currentFramebuffer{ Undefined };
     PipelineHandle _currentPipeline{ Undefined };
-    VkDescriptorSet _currentDescriptorSets[kMaxDescriptorsPerSet]{};
     VkClearValue _clearColors[kMaxImageOutputs]{};
     VkClearValue _clearDepthStencil{};
     gerium_uint16_t _framebufferHeight{};

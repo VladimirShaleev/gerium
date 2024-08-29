@@ -14,7 +14,7 @@ namespace gerium::vulkan {
 
 // clang-format off
 
-constexpr uint32_t kMaxFrames               = 2; // TODO: duplicated in Device
+constexpr uint32_t kMaxFrames               = 2;
 constexpr uint8_t  kMaxImageOutputs         = 8;
 constexpr uint8_t  kMaxDescriptorSetLayouts = 8;
 constexpr uint8_t  kMaxDescriptorsPerSet    = 16;
