@@ -21,9 +21,7 @@ public:
 private:
     static std::string getTempFile();
     static NSString* appendBundleId(NSString* path);
-    static gerium_utf8_t pathFromResources(gerium_utf8_t path, bool readOnly, std::string& resourcePath);
-    
-    std::string _resourcePath;
+    static gerium_utf8_t pathFromResources(gerium_utf8_t path, bool readOnly);
 };
 
 } // namespace gerium::macos

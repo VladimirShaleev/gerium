@@ -13,7 +13,7 @@ MacOSFile::MacOSFile(gerium_utf8_t path, gerium_uint64_t size) : unix::UnixFile(
 }
 
 MacOSFile::MacOSFile(gerium_utf8_t path, bool readOnly) :
-    unix::UnixFile(pathFromResources(path, readOnly, _resourcePath), readOnly) {
+    unix::UnixFile(pathFromResources(path, readOnly), readOnly) {
 }
 
 std::string MacOSFile::getPath(NSSearchPathDirectory directory) noexcept {
@@ -62,7 +62,7 @@ NSString* MacOSFile::appendBundleId(NSString* path) {
     return dir;
 }
 
-gerium_utf8_t MacOSFile::pathFromResources(gerium_utf8_t path, bool readOnly, std::string& resourcePath) {
+gerium_utf8_t MacOSFile::pathFromResources(gerium_utf8_t path, bool readOnly) {
     if (readOnly && !exists(path, false)) {
         auto appDir   = getAppDir();
         auto relative = std::filesystem::relative(path, appDir);
@@ -77,6 +77,7 @@ gerium_utf8_t MacOSFile::pathFromResources(gerium_utf8_t path, bool readOnly, st
             return path;
         }
 
+        static std::string resourcePath;
         resourcePath = [filePath UTF8String];
         return resourcePath.c_str();
     }
