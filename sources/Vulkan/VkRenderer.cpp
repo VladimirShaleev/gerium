@@ -385,8 +385,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
         allTotalWorkers[worker] = 1;
         if (auto pass = frameGraph.getPass(node->pass); pass->pass.prepare) {
-            allTotalWorkers[worker] = std::min(
+            allTotalWorkers[worker] = std::clamp(
                 pass->pass.prepare(alias_cast<gerium_frame_graph_t>(&frameGraph), this, maxWorkers, pass->data),
+                (gerium_uint32_t) 1,
                 maxWorkers);
             if (allTotalWorkers[worker] == 0) {
                 error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
