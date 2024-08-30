@@ -403,7 +403,8 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
     gerium_uint32_t bufferCount = 0;
 
     for (const auto& binding : layout->data.bindings) {
-        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
+        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
+            binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
             offsets[bufferCount] = _device->_buffers.access(descriptorSet->bindings[binding.binding])->globalOffset;
             ++bufferCount;
         }

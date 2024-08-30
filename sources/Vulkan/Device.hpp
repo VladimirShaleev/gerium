@@ -220,7 +220,7 @@ private:
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
     void createDescriptorPool();
     void createVmaAllocator();
-    void createDynamicBuffer();
+    void createDynamicBuffers();
     void createDefaultSampler();
     void createDefaultTexture();
     void createSynchronizations();
@@ -321,10 +321,14 @@ private:
     gerium_uint32_t _currentFrame{};
     gerium_uint32_t _previousFrame{ kMaxFrames - 1 };
     gerium_uint32_t _absoluteFrame{};
-    uint32_t _dynamicBufferSize{};
-    uint32_t _dynamicAllocatedSize{};
-    BufferHandle _dynamicBuffer{ Undefined };
-    uint8_t* _dynamicBufferMapped{};
+    uint32_t _dynamicUBOSize{};
+    uint32_t _dynamicSSBOSize{};
+    uint32_t _dynamicUBOAllocatedSize{};
+    uint32_t _dynamicSSBOAllocatedSize{};
+    BufferHandle _dynamicUBO{ Undefined };
+    BufferHandle _dynamicSSBO{ Undefined };
+    uint8_t* _dynamicUBOMapped{};
+    uint8_t* _dynamicSSBOMapped{};
     SamplerHandle _defaultSampler{ Undefined };
     TextureHandle _defaultTexture{ Undefined };
 
@@ -348,8 +352,7 @@ private:
 
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};
-    uint32_t _uboAlignment{};
-    uint32_t _ssboAlignment{};
+    uint32_t _alignment{};
     bool _profilerSupported{};
     bool _profilerEnabled{};
     bool _memoryBudgetSupported{};

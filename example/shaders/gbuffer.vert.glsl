@@ -16,8 +16,8 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneDataUBO {
     SceneData scene;
 };
 
-layout(std140, binding = 0, set = MESH_DATA_SET) uniform MeshDataUBO {
-    MeshData mesh[MAX_INSTANCES];
+layout(std140, binding = 0, set = MESH_DATA_SET) readonly buffer MeshDataSSBO {
+    MeshData mesh[];
 };
 
 void main() {

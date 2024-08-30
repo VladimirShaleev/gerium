@@ -116,7 +116,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createProfiler(32);
     createDescriptorPool();
     createVmaAllocator();
-    createDynamicBuffer();
+    createDynamicBuffers();
     createDefaultSampler();
     createDefaultTexture();
     createSynchronizations();
@@ -156,7 +156,8 @@ bool Device::newFrame() {
         _frameCommandBuffer = nullptr;
     }
 
-    _dynamicAllocatedSize = _dynamicBufferSize * _currentFrame;
+    _dynamicUBOAllocatedSize  = _dynamicUBOSize * _currentFrame;
+    _dynamicSSBOAllocatedSize = _dynamicSSBOSize * _currentFrame;
 
     if (_profilerEnabled) {
         _profiler->resetTimestamps();
@@ -250,12 +251,13 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     buffer->name         = intern(creation.name);
     buffer->parent       = Undefined;
 
-    constexpr auto dynamicBufferFlags =
-        GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT;
+    constexpr auto dynamicBufferFlags = GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT |
+                                        GERIUM_BUFFER_USAGE_UNIFORM_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT;
 
     const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
-        buffer->parent = _dynamicBuffer;
+        const auto useSSBO = (creation.usageFlags & GERIUM_BUFFER_USAGE_UNIFORM_BIT) == 0;
+        buffer->parent = useSSBO ? _dynamicSSBO : _dynamicUBO;
         return handle;
     }
 
@@ -680,6 +682,8 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                         auto descriptorCount = 1;
                         if (descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
                             descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+                        } else if (descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+                            descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
                         }
                         for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
                             descriptorCount *= reflBinding.array.dims[iDim];
@@ -699,6 +703,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 layoutBinding.descriptorCount = 1;
                 if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
                     layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+                }
+                if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+                    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
                 }
                 for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
                     layoutBinding.descriptorCount *= reflBinding.array.dims[iDim];
@@ -1131,17 +1138,28 @@ void Device::destroyPipeline(PipelineHandle handle) {
 void* Device::mapBuffer(BufferHandle handle, uint32_t offset, uint32_t size) {
     auto buffer = _buffers.access(handle);
 
-    size = align(size ? size : buffer->size, _uboAlignment);
+    size = align(size ? size : buffer->size, _alignment);
 
-    if (buffer->parent == _dynamicBuffer) {
-        buffer->globalOffset = _dynamicAllocatedSize;
-        buffer->mappedOffset = _dynamicAllocatedSize + offset;
+    if (buffer->parent == _dynamicUBO) {
+        buffer->globalOffset = _dynamicUBOAllocatedSize;
+        buffer->mappedOffset = _dynamicUBOAllocatedSize + offset;
         buffer->mappedSize   = size;
 
-        uint8_t* mappedMemory = _dynamicBufferMapped + buffer->mappedOffset;
-        _dynamicAllocatedSize += size;
+        uint8_t* mappedMemory = _dynamicUBOMapped + buffer->mappedOffset;
+        _dynamicUBOAllocatedSize += size;
 
-        assert(_dynamicAllocatedSize < _dynamicBufferSize * (_currentFrame + 1));
+        assert(_dynamicUBOAllocatedSize < _dynamicUBOSize * (_currentFrame + 1));
+
+        return (void*) mappedMemory;
+    } else if (buffer->parent == _dynamicSSBO) {
+        buffer->globalOffset = _dynamicSSBOAllocatedSize;
+        buffer->mappedOffset = _dynamicSSBOAllocatedSize + offset;
+        buffer->mappedSize   = size;
+
+        uint8_t* mappedMemory = _dynamicSSBOMapped + buffer->mappedOffset;
+        _dynamicSSBOAllocatedSize += size;
+
+        assert(_dynamicSSBOAllocatedSize < _dynamicSSBOSize * (_currentFrame + 1));
 
         return (void*) mappedMemory;
     }
@@ -1387,8 +1405,8 @@ void Device::createPhysicalDevice() {
 
     _vkTable.vkGetPhysicalDeviceProperties(_physicalDevice, &_deviceProperties);
     _vkTable.vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_deviceMemProperties);
-    _uboAlignment  = (uint32_t) _deviceProperties.limits.minUniformBufferOffsetAlignment;
-    _ssboAlignment = (uint32_t) _deviceProperties.limits.minStorageBufferOffsetAlignment;
+    _alignment = (uint32_t) std::max(_deviceProperties.limits.minUniformBufferOffsetAlignment,
+                                     _deviceProperties.limits.minStorageBufferOffsetAlignment);
 
     _profilerSupported =
         _deviceProperties.limits.timestampPeriod != 0 && _deviceProperties.limits.timestampComputeAndGraphics;
@@ -1539,17 +1557,32 @@ void Device::createVmaAllocator() {
     check(vmaCreateAllocator(&createInfo, &_vmaAllocator));
 }
 
-void Device::createDynamicBuffer() {
-    _dynamicBufferSize = align(1024 * 1024 * 64, _uboAlignment);
+void Device::createDynamicBuffers() {
+    const auto maxUBO = std::min((int) _deviceProperties.limits.maxUniformBufferRange, 65536);
+    _dynamicUBOSize   = align(maxUBO, _alignment);
 
-    BufferCreation bc;
-    bc.set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,
-           ResourceUsageType::Staging,
-           _dynamicBufferSize * kMaxFrames)
+    BufferCreation bcUBO;
+    bcUBO
+        .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT |
+                 GERIUM_BUFFER_USAGE_STORAGE_BIT,
+             ResourceUsageType::Staging,
+             _dynamicUBOSize * kMaxFrames)
         .setPersistent(true)
-        .setName("Dynamic_Persistent_Buffer");
-    _dynamicBuffer       = createBuffer(bc);
-    _dynamicBufferMapped = (uint8_t*) _buffers.access(_dynamicBuffer)->mappedData;
+        .setName("Dynamic_Persistent_UBO");
+    _dynamicUBO       = createBuffer(bcUBO);
+    _dynamicUBOMapped = (uint8_t*) _buffers.access(_dynamicUBO)->mappedData;
+
+    _dynamicSSBOSize = align(1024 * 1024 * 256, _alignment);
+
+    BufferCreation bcSSBO;
+    bcSSBO
+        .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT,
+             ResourceUsageType::Staging,
+             _dynamicSSBOSize * kMaxFrames)
+        .setPersistent(true)
+        .setName("Dynamic_Persistent_SSBO");
+    _dynamicSSBO       = createBuffer(bcSSBO);
+    _dynamicSSBOMapped = (uint8_t*) _buffers.access(_dynamicSSBO)->mappedData;
 }
 
 void Device::createDefaultSampler() {
@@ -1990,13 +2023,16 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 descriptorWrite[i].pBufferInfo = &bufferInfo[i];
                 break;
             }
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: {
                 if (resource == Undefined) {
                     continue;
                 }
-                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-
                 auto buffer = _buffers.access(resource);
+
+                descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
+                                                        ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+                                                        : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
                 if (buffer->parent != Undefined) {
                     bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
@@ -2504,7 +2540,7 @@ Device::QueueFamilies Device::getQueueFamilies(VkPhysicalDevice device) {
     }
 
     if (!result.transfer.has_value()) {
-        result.transfer = result.graphic;
+        result.transfer          = result.graphic;
         result.transferIsGraphic = true;
     }
 

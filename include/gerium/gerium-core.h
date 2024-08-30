@@ -677,6 +677,7 @@ typedef enum
     GERIUM_BUFFER_USAGE_VERTEX_BIT  = 1,
     GERIUM_BUFFER_USAGE_INDEX_BIT   = 2,
     GERIUM_BUFFER_USAGE_UNIFORM_BIT = 4,
+    GERIUM_BUFFER_USAGE_STORAGE_BIT = 8,
     GERIUM_BUFFER_USAGE_MAX_ENUM    = 0x7FFFFFFF
 } gerium_buffer_usage_flags_t;
 GERIUM_FLAGS(gerium_buffer_usage_flags_t)

@@ -8,7 +8,7 @@ void Scene::create(ResourceManager* resourceManger) {
 
     for (auto& meshData : _meshDatas) {
         meshData = _resourceManger->createBuffer(
-            GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData) * MAX_INSTANCES);
+            GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData) * MAX_INSTANCES);
     }
 
     for (auto& set : _textureSets) {
