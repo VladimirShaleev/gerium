@@ -29,9 +29,6 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
             continue;
         }
-        if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
-            continue;
-        }
         gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, instance->datas);
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
         gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
@@ -97,9 +94,6 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
         const auto mesh     = instance->mesh;
         if (mesh->getMaterial().getFlags() != DrawFlags::None &&
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
-            continue;
-        }
-        if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
             continue;
         }
         gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, instance->datas);

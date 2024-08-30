@@ -658,6 +658,13 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
             getMeshVertexBuffer(glTF, buffers, normalAccessorIndex, normals, normalsOffset);
             getMeshVertexBuffer(glTF, buffers, texcoordAccessorIndex, texcoords, texcoordsOffset);
 
+            if (((gerium_buffer_h) positions).unused == UndefinedHandle ||
+                ((gerium_buffer_h) tangents).unused == UndefinedHandle ||
+                ((gerium_buffer_h) normals).unused == UndefinedHandle ||
+                ((gerium_buffer_h) texcoords).unused == UndefinedHandle) {
+                continue;
+            }
+
             auto& indicesAccessor = glTF.accessors[primitive.indices];
             auto indexType        = indicesAccessor.componentType == gltf::ComponentType::UnsignedShort
                                         ? GERIUM_INDEX_TYPE_UINT16
