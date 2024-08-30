@@ -23,6 +23,7 @@ constexpr uint8_t  kMaxVertexAttributes     = 16;
 constexpr uint8_t  kMaxShaderStages         = 5;
 constexpr uint8_t  kMaxTechniquePasses      = 20;
 constexpr uint32_t kGlobalPoolElements      = 4096;
+constexpr uint32_t kBindlessPoolElements    = 1024;
 constexpr uint32_t kDescriptorSetsPoolSize  = 4096;
 
 struct SamplerHandle : Handle {};
@@ -130,7 +131,9 @@ struct DescriptorSetLayoutData {
     uint32_t setNumber;
     gerium_uint64_t hash;
     VkDescriptorSetLayoutCreateInfo createInfo;
+    VkDescriptorSetLayoutBindingFlagsCreateInfo bindlessInfo;
     std::vector<VkDescriptorSetLayoutBinding> bindings;
+    std::vector<VkDescriptorBindingFlags> bindlessFlags;
 };
 
 struct DescriptorSetLayoutCreation {

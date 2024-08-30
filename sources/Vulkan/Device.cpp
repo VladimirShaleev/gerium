@@ -579,10 +579,15 @@ DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& cre
 DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetLayoutCreation& creation) {
     auto [handle, descriptorSetLayout] = _descriptorSetLayouts.obtain_and_access();
 
-    descriptorSetLayout->data = *creation.setLayout;
+    descriptorSetLayout->data                      = *creation.setLayout;
+    descriptorSetLayout->data.createInfo.pBindings = descriptorSetLayout->data.bindings.data();
+    if (_bindlessSupported) {
+        descriptorSetLayout->data.bindlessInfo.pBindingFlags = descriptorSetLayout->data.bindlessFlags.data();
+        descriptorSetLayout->data.createInfo.pNext           = &descriptorSetLayout->data.bindlessInfo;
+    }
 
     check(_vkTable.vkCreateDescriptorSetLayout(
-        _device, &creation.setLayout->createInfo, getAllocCalls(), &descriptorSetLayout->vkDescriptorSetLayout));
+        _device, &descriptorSetLayout->data.createInfo, getAllocCalls(), &descriptorSetLayout->vkDescriptorSetLayout));
     return handle;
 }
 
@@ -697,7 +702,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                     continue;
                 }
                 layout.bindings.push_back({});
+                layout.bindlessFlags.push_back({});
                 VkDescriptorSetLayoutBinding& layoutBinding = layout.bindings.back();
+                VkDescriptorBindingFlags& bindingFlags      = layout.bindlessFlags.back();
                 layoutBinding.binding                       = reflBinding.binding;
                 layoutBinding.descriptorType  = static_cast<VkDescriptorType>(reflBinding.descriptor_type);
                 layoutBinding.descriptorCount = 1;
@@ -706,6 +713,11 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 }
                 if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
                     layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+                }
+                if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+                    layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
+                    bindingFlags =
+                        VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
                 }
                 for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
                     layoutBinding.descriptorCount *= reflBinding.array.dims[iDim];
@@ -723,6 +735,14 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             layout.createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             layout.createInfo.bindingCount = (uint32_t) layout.bindings.size();
             layout.createInfo.pBindings    = layout.bindings.data();
+            if (_bindlessSupported) {
+                layout.bindlessInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+                layout.bindlessInfo.bindingCount  = layout.bindlessFlags.size();
+                layout.bindlessInfo.pBindingFlags = layout.bindlessFlags.data();
+
+                layout.createInfo.pNext = &layout.bindlessInfo;
+                layout.createInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
+            }
         }
 
         setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
@@ -1540,8 +1560,13 @@ void Device::createDescriptorPool() {
         { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       kGlobalPoolElements     }
     };
 
+    VkDescriptorPoolCreateFlags flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    if (_bindlessSupported) {
+        flags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT;
+    }
+
     VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-    poolInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.flags         = flags;
     poolInfo.maxSets       = kDescriptorSetsPoolSize;
     poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(poolSizes[0]);
     poolInfo.pPoolSizes    = poolSizes;
