@@ -356,6 +356,7 @@ private:
     bool _profilerSupported{};
     bool _profilerEnabled{};
     bool _memoryBudgetSupported{};
+    bool _bindlessSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};

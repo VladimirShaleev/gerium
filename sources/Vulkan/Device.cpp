@@ -257,7 +257,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
         const auto useSSBO = (creation.usageFlags & GERIUM_BUFFER_USAGE_UNIFORM_BIT) == 0;
-        buffer->parent = useSSBO ? _dynamicSSBO : _dynamicUBO;
+        buffer->parent     = useSSBO ? _dynamicSSBO : _dynamicUBO;
         return handle;
     }
 
@@ -1460,34 +1460,41 @@ void Device::createDevice(gerium_uint32_t threadCount) {
         info.pQueuePriorities = priorities;
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures;
-    _vkTable.vkGetPhysicalDeviceFeatures(_physicalDevice, &deviceFeatures);
+    VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
+    };
+    VkPhysicalDeviceFeatures2 deviceFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, &indexingFeatures };
+    _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures);
 
-    VkPhysicalDeviceFeatures features{};
-    features.geometryShader            = deviceFeatures.geometryShader;
-    features.logicOp                   = deviceFeatures.logicOp;
-    features.multiDrawIndirect         = deviceFeatures.multiDrawIndirect;
-    features.drawIndirectFirstInstance = deviceFeatures.drawIndirectFirstInstance;
-    features.depthClamp                = deviceFeatures.depthClamp;
-    features.depthBiasClamp            = deviceFeatures.depthBiasClamp;
-    features.fillModeNonSolid          = deviceFeatures.fillModeNonSolid;
-    features.depthBounds               = deviceFeatures.depthBounds;
-    features.wideLines                 = deviceFeatures.wideLines;
-    features.largePoints               = deviceFeatures.largePoints;
-    features.alphaToOne                = deviceFeatures.alphaToOne;
-    features.multiViewport             = deviceFeatures.multiViewport;
-    features.samplerAnisotropy         = deviceFeatures.samplerAnisotropy;
-    features.textureCompressionETC2    = deviceFeatures.textureCompressionETC2;
+    _bindlessSupported = indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray;
+
+    VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    features.features.geometryShader            = deviceFeatures.features.geometryShader;
+    features.features.logicOp                   = deviceFeatures.features.logicOp;
+    features.features.multiDrawIndirect         = deviceFeatures.features.multiDrawIndirect;
+    features.features.drawIndirectFirstInstance = deviceFeatures.features.drawIndirectFirstInstance;
+    features.features.depthClamp                = deviceFeatures.features.depthClamp;
+    features.features.depthBiasClamp            = deviceFeatures.features.depthBiasClamp;
+    features.features.fillModeNonSolid          = deviceFeatures.features.fillModeNonSolid;
+    features.features.depthBounds               = deviceFeatures.features.depthBounds;
+    features.features.wideLines                 = deviceFeatures.features.wideLines;
+    features.features.largePoints               = deviceFeatures.features.largePoints;
+    features.features.alphaToOne                = deviceFeatures.features.alphaToOne;
+    features.features.multiViewport             = deviceFeatures.features.multiViewport;
+    features.features.samplerAnisotropy         = deviceFeatures.features.samplerAnisotropy;
+    features.features.textureCompressionETC2    = deviceFeatures.features.textureCompressionETC2;
+    if (_bindlessSupported) {
+        features.pNext = &indexingFeatures;
+    }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-    createInfo.pNext                   = nullptr;
+    createInfo.pNext                   = &features;
     createInfo.queueCreateInfoCount    = (uint32_t) queueCreateInfoCount;
     createInfo.pQueueCreateInfos       = queueCreateInfos;
     createInfo.enabledLayerCount       = (uint32_t) layers.size();
     createInfo.ppEnabledLayerNames     = layers.data();
     createInfo.enabledExtensionCount   = (uint32_t) extensions.size();
     createInfo.ppEnabledExtensionNames = extensions.data();
-    createInfo.pEnabledFeatures        = &features;
 
     check(_vkTable.vkCreateDevice(_physicalDevice, &createInfo, getAllocCalls(), &_device));
     _vkTable.init(vk::Device(_device));
