@@ -827,6 +827,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         } else {
             cacheExists = false;
             cacheData   = nullptr;
+            cacheFile   = nullptr;
         }
     }
 
