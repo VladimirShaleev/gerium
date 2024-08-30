@@ -101,7 +101,6 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
         gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
-        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTexcoords(), 1, mesh->getTexcoordsOffset());
         gerium_command_buffer_bind_index_buffer(
             commandBuffer, mesh->getIndices(), mesh->getIndicesOffset(), mesh->getIndexType());
         gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh->getPrimitiveCount(), 0, 0, instance->count);

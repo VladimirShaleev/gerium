@@ -115,7 +115,7 @@ void Scene::culling() {
 
     int i = 0;
     for (const auto mesh : _visibleMeshes) {
-        if (i == kMaxDraws) {
+        if (_instances.size() == kMaxDraws) {
             break;
         }
         auto& meshInstance = _instances[mesh->hash()];

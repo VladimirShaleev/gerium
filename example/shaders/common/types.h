@@ -2,9 +2,7 @@
 #define COMMON_TYPES_H
 
 #define SCENE_DATA_SET 0
-
 #define MESH_DATA_SET 1
-
 #define TEXTURE_SET 2
 
 #define MAX_INSTANCES 100
