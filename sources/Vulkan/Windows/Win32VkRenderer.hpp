@@ -12,7 +12,7 @@ public:
     explicit Win32VkRenderer(gerium::windows::Win32Application* application);
 
 protected:
-    void onInitialize(gerium_uint32_t version, bool debug) override;
+    void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) override;
 };
 
 } // namespace gerium::vulkan::windows

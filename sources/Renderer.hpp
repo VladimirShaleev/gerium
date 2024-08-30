@@ -16,7 +16,9 @@ class Renderer : public _gerium_renderer {
 public:
     Renderer() noexcept;
 
-    void initialize(gerium_uint32_t version, bool debug);
+    void initialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug);
+
+    gerium_feature_flags_t getEnabledFeatures() const noexcept;
 
     bool getProfilerEnable() const noexcept;
     void setProfilerEnable(bool enable) noexcept;
@@ -69,9 +71,11 @@ public:
     void getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept;
 
 protected:
-    virtual void onInitialize(gerium_uint32_t version, bool debug) = 0;
+    virtual void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) = 0;
 
 private:
+    virtual gerium_feature_flags_t onGetEnabledFeatures() const noexcept = 0;
+
     virtual bool onGetProfilerEnable() const noexcept      = 0;
     virtual void onSetProfilerEnable(bool enable) noexcept = 0;
 

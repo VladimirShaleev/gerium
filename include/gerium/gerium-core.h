@@ -481,6 +481,14 @@ GERIUM_FLAGS(gerium_mouse_button_flags_t)
 
 typedef enum
 {
+    GERIUM_FEATURE_NONE     = 0,
+    GERIUM_FEATURE_BINDLESS = 1,
+    GERIUM_FEATURE_MAX_ENUM = 0x7FFFFFFF
+} gerium_feature_flags_t;
+GERIUM_FLAGS(gerium_feature_flags_t)
+
+typedef enum
+{
     GERIUM_FORMAT_R8_UNORM            = 0, 
     GERIUM_FORMAT_R8_SNORM            = 1, 
     GERIUM_FORMAT_R8_UINT             = 2, 
@@ -1248,6 +1256,7 @@ gerium_application_execute(gerium_application_t application,
 
 gerium_public gerium_result_t
 gerium_renderer_create(gerium_application_t application,
+                       gerium_feature_flags_t features,
                        gerium_uint32_t version,
                        gerium_bool_t debug,
                        gerium_renderer_t* renderer);
@@ -1257,6 +1266,9 @@ gerium_renderer_reference(gerium_renderer_t renderer);
 
 gerium_public void
 gerium_renderer_destroy(gerium_renderer_t renderer);
+
+gerium_public gerium_feature_flags_t
+gerium_renderer_get_enabled_features(gerium_renderer_t renderer);
 
 gerium_public gerium_bool_t
 gerium_renderer_get_profiler_enable(gerium_renderer_t renderer);

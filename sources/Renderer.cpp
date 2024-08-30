@@ -6,8 +6,12 @@ namespace gerium {
 Renderer::Renderer() noexcept {
 }
 
-void Renderer::initialize(gerium_uint32_t version, bool debug) {
-    onInitialize(version, debug);
+void Renderer::initialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) {
+    onInitialize(features, version, debug);
+}
+
+gerium_feature_flags_t Renderer::getEnabledFeatures() const noexcept {
+    return onGetEnabledFeatures();
 }
 
 bool Renderer::getProfilerEnable() const noexcept {
@@ -148,6 +152,11 @@ void gerium_renderer_destroy(gerium_renderer_t renderer) {
     if (renderer) {
         renderer->destroy();
     }
+}
+
+gerium_feature_flags_t gerium_renderer_get_enabled_features(gerium_renderer_t renderer) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->getEnabledFeatures();
 }
 
 gerium_bool_t gerium_renderer_get_profiler_enable(gerium_renderer_t renderer) {

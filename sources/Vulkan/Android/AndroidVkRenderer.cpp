@@ -6,13 +6,14 @@ AndroidVkRenderer::AndroidVkRenderer(gerium::android::AndroidApplication* applic
     VkRenderer(application, createObjectPtr<AndroidDevice, gerium::vulkan::Device>()) {
 }
 
-void AndroidVkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
-    VkRenderer::onInitialize(version, debug);
+void AndroidVkRenderer::onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) {
+    VkRenderer::onInitialize(features, version, debug);
 }
 
 } // namespace gerium::vulkan::android
 
 gerium_result_t gerium_renderer_create(gerium_application_t application,
+                                       gerium_feature_flags_t features,
                                        gerium_uint32_t version,
                                        gerium_bool_t debug,
                                        gerium_renderer_t* renderer) {
@@ -25,6 +26,6 @@ gerium_result_t gerium_renderer_create(gerium_application_t application,
         return result;
     }
     GERIUM_BEGIN_SAFE_BLOCK
-        alias_cast<AndroidVkRenderer*>(*renderer)->initialize(version, debug != 0);
+        alias_cast<AndroidVkRenderer*>(*renderer)->initialize(features, version, debug != 0);
     GERIUM_END_SAFE_BLOCK
 }

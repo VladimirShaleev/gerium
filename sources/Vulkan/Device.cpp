@@ -101,7 +101,10 @@ Device::~Device() {
     }
 }
 
-void Device::create(Application* application, gerium_uint32_t version, bool enableValidations) {
+void Device::create(Application* application,
+                    gerium_feature_flags_t features,
+                    gerium_uint32_t version,
+                    bool enableValidations) {
     _enableValidations = enableValidations;
     _enableDebugNames  = enableValidations;
     _application       = application;
@@ -112,7 +115,7 @@ void Device::create(Application* application, gerium_uint32_t version, bool enab
     createInstance(application->getTitle(), version);
     createSurface(application);
     createPhysicalDevice();
-    createDevice(application->workerThreadCount());
+    createDevice(application->workerThreadCount(), features);
     createProfiler(32);
     createDescriptorPool();
     createVmaAllocator();
@@ -1440,7 +1443,7 @@ void Device::createPhysicalDevice() {
     }
 }
 
-void Device::createDevice(gerium_uint32_t threadCount) {
+void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags) {
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
     const auto extensions    = selectDeviceExtensions(_physicalDevice);
@@ -1486,7 +1489,8 @@ void Device::createDevice(gerium_uint32_t threadCount) {
     VkPhysicalDeviceFeatures2 deviceFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, &indexingFeatures };
     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures);
 
-    _bindlessSupported = indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray;
+    _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS) == GERIUM_FEATURE_BINDLESS &&
+                         indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray;
 
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.features.geometryShader            = deviceFeatures.features.geometryShader;

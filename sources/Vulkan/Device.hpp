@@ -16,7 +16,10 @@ class Device : public Object {
 public:
     virtual ~Device();
 
-    void create(Application* application, gerium_uint32_t version, bool enableValidations);
+    void create(Application* application,
+                gerium_feature_flags_t features,
+                gerium_uint32_t version,
+                bool enableValidations);
 
     bool newFrame();
     void submit(CommandBuffer* commandBuffer);
@@ -122,6 +125,10 @@ public:
         return _renderPasses.access(handle)->output;
     }
 
+    bool bindlessSupported() const noexcept {
+        return _bindlessSupported;
+    }
+
     bool isProfilerEnable() const noexcept {
         return _profilerEnabled;
     }
@@ -216,7 +223,7 @@ private:
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface(Application* application);
     void createPhysicalDevice();
-    void createDevice(gerium_uint32_t threadCount);
+    void createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags);
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
     void createDescriptorPool();
     void createVmaAllocator();

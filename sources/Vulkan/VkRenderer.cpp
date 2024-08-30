@@ -41,8 +41,8 @@ PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
     return it != technique->passes + technique->passCount ? it->pipeline : Undefined;
 }
 
-void VkRenderer::onInitialize(gerium_uint32_t version, bool debug) {
-    _device->create(application(), version, debug);
+void VkRenderer::onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) {
+    _device->create(application(), features, version, debug);
     _isSupportedTransferQueue = _device->isSupportedTransferQueue();
     createTransferBuffer();
 }
@@ -108,6 +108,14 @@ void VkRenderer::sendTextureToGraphic() {
         }
         _device->submit(commandBuffer);
     }
+}
+
+gerium_feature_flags_t VkRenderer::onGetEnabledFeatures() const noexcept {
+    auto result = GERIUM_FEATURE_NONE;
+    if (_device->bindlessSupported()) {
+        result |= GERIUM_FEATURE_BINDLESS;
+    }
+    return result;
 }
 
 bool VkRenderer::onGetProfilerEnable() const noexcept {

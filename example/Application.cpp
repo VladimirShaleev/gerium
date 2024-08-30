@@ -395,7 +395,8 @@ void Application::initialize() {
         true;
 #endif
 
-    check(gerium_renderer_create(_application, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+    check(gerium_renderer_create(
+        _application, GERIUM_FEATURE_BINDLESS, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
     check(gerium_profiler_create(_renderer, &_profiler));

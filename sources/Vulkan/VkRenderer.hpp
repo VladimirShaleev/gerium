@@ -17,7 +17,7 @@ public:
     PipelineHandle getPipeline(TechniqueHandle handle) const noexcept;
 
 protected:
-    void onInitialize(gerium_uint32_t version, bool debug) override;
+    void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) override;
 
     Application* application() noexcept;
 
@@ -31,6 +31,8 @@ private:
 
     void createTransferBuffer();
     void sendTextureToGraphic();
+
+    gerium_feature_flags_t onGetEnabledFeatures() const noexcept override;
 
     bool onGetProfilerEnable() const noexcept override;
     void onSetProfilerEnable(bool enable) noexcept override;
