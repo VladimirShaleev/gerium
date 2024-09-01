@@ -3,12 +3,14 @@
 #include <queue>
 #include <stack>
 
-void Scene::create(ResourceManager* resourceManger) {
-    _resourceManger = resourceManger;
+void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
+    _resourceManger  = resourceManger;
+    _bindlessEnabled = bindlessEnabled;
 
     for (auto& meshData : _meshDatas) {
-        meshData = _resourceManger->createBuffer(
-            GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", "mesh_data", nullptr, sizeof(MeshData) * MAX_INSTANCES);
+        const auto meshDataSize = _bindlessEnabled ? sizeof(MeshDataBindless) : sizeof(MeshData);
+        meshData                = _resourceManger->createBuffer(
+            GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", "mesh_data", nullptr, meshDataSize * MAX_INSTANCES);
     }
 
     for (auto& set : _textureSets) {
@@ -120,20 +122,36 @@ void Scene::culling() {
         }
         auto& meshInstance = _instances[mesh->hash()];
         if (!meshInstance.mesh) {
-            meshInstance.mesh       = mesh;
-            meshInstance.datas      = _meshDatas[i];
-            meshInstance.ptr        = (MeshData*) gerium_renderer_map_buffer(renderer, meshInstance.datas, 0, 0);
-            meshInstance.textureSet = _textureSets[i];
-            gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 0, mesh->getMaterial().getDiffuse());
-            gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 1, mesh->getMaterial().getNormal());
-            gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 2, mesh->getMaterial().getRoughness());
+            meshInstance.mesh  = mesh;
+            meshInstance.datas = _meshDatas[i];
+            auto mapPtr        = gerium_renderer_map_buffer(renderer, meshInstance.datas, 0, 0);
+            if (_bindlessEnabled) {
+                meshInstance.bindlessPtr = (MeshDataBindless*) mapPtr;
+            } else {
+                meshInstance.ptr        = (MeshData*) mapPtr;
+                meshInstance.textureSet = _textureSets[i];
+                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 0, mesh->getMaterial().getDiffuse());
+                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 1, mesh->getMaterial().getNormal());
+                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 2, mesh->getMaterial().getRoughness());
+            }
             ++i;
         }
         if (++meshInstance.count > MAX_INSTANCES) {
             continue;
         }
-        *meshInstance.ptr = mesh->getMaterial().meshData();
-        ++meshInstance.ptr;
+
+        const auto& meshData = mesh->getMaterial().meshData();
+        if (_bindlessEnabled) {
+            *((MeshData*) meshInstance.bindlessPtr) = meshData;
+            meshInstance.bindlessPtr->textures.x    = ((gerium_texture_h) mesh->getMaterial().getDiffuse()).unused;
+            meshInstance.bindlessPtr->textures.y    = ((gerium_texture_h) mesh->getMaterial().getNormal()).unused;
+            meshInstance.bindlessPtr->textures.z    = ((gerium_texture_h) mesh->getMaterial().getRoughness()).unused;
+            meshInstance.bindlessPtr->textures.w    = UndefinedHandle;
+            ++meshInstance.bindlessPtr;
+        } else {
+            *meshInstance.ptr = meshData;
+            ++meshInstance.ptr;
+        }
     }
 
     _instancesLinear.resize(_instances.size());

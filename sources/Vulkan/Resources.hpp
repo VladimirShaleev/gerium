@@ -131,9 +131,9 @@ struct DescriptorSetLayoutData {
     uint32_t setNumber;
     gerium_uint64_t hash;
     VkDescriptorSetLayoutCreateInfo createInfo;
-    VkDescriptorSetLayoutBindingFlagsCreateInfo bindlessInfo;
+    //VkDescriptorSetLayoutBindingFlagsCreateInfo bindlessInfo;
     std::vector<VkDescriptorSetLayoutBinding> bindings;
-    std::vector<VkDescriptorBindingFlags> bindlessFlags;
+    //std::vector<VkDescriptorBindingFlags> bindlessFlags;
 };
 
 struct DescriptorSetLayoutCreation {

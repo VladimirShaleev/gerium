@@ -40,17 +40,24 @@ private:
     Entity _entity;
 };
 
+struct MeshDataBindless : MeshData {
+    glm::uvec4 textures;
+};
+
 struct MeshInstance {
     Mesh* mesh{};
     int count{};
     gerium_buffer_h datas{ UndefinedHandle };
     gerium_descriptor_set_h textureSet{ UndefinedHandle };
-    MeshData* ptr{};
+    union {
+        MeshData* ptr{};
+        MeshDataBindless* bindlessPtr;
+    };
 };
 
 class Scene {
 public:
-    void create(ResourceManager* resourceManger);
+    void create(ResourceManager* resourceManger, bool bindlessEnabled);
 
     SceneNode* root();
     SceneNode* addNode(SceneNode* parent);
@@ -108,6 +115,7 @@ private:
     SceneNode* allocateNode();
 
     ResourceManager* _resourceManger{};
+    bool _bindlessEnabled{};
     Registry<Camera, Transform, Model> _registry{};
     std::vector<std::shared_ptr<SceneNode>> _nodes{};
     SceneNode* _root{};

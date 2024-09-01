@@ -584,10 +584,10 @@ DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetL
 
     descriptorSetLayout->data                      = *creation.setLayout;
     descriptorSetLayout->data.createInfo.pBindings = descriptorSetLayout->data.bindings.data();
-    if (_bindlessSupported) {
-        descriptorSetLayout->data.bindlessInfo.pBindingFlags = descriptorSetLayout->data.bindlessFlags.data();
-        descriptorSetLayout->data.createInfo.pNext           = &descriptorSetLayout->data.bindlessInfo;
-    }
+    // if (_bindlessSupported) {
+    //     descriptorSetLayout->data.bindlessInfo.pBindingFlags = descriptorSetLayout->data.bindlessFlags.data();
+    //     descriptorSetLayout->data.createInfo.pNext           = &descriptorSetLayout->data.bindlessInfo;
+    // }
 
     check(_vkTable.vkCreateDescriptorSetLayout(
         _device, &descriptorSetLayout->data.createInfo, getAllocCalls(), &descriptorSetLayout->vkDescriptorSetLayout));
@@ -705,10 +705,10 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                     continue;
                 }
                 layout.bindings.push_back({});
-                layout.bindlessFlags.push_back({});
+                // layout.bindlessFlags.push_back({});
                 VkDescriptorSetLayoutBinding& layoutBinding = layout.bindings.back();
-                VkDescriptorBindingFlags& bindingFlags      = layout.bindlessFlags.back();
-                layoutBinding.binding                       = reflBinding.binding;
+                // VkDescriptorBindingFlags& bindingFlags      = layout.bindlessFlags.back();
+                layoutBinding.binding         = reflBinding.binding;
                 layoutBinding.descriptorType  = static_cast<VkDescriptorType>(reflBinding.descriptor_type);
                 layoutBinding.descriptorCount = 1;
                 if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
@@ -717,11 +717,11 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
                     layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
                 }
-                if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
-                    layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
-                    bindingFlags =
-                        VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-                }
+                // if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+                //     layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
+                //     bindingFlags =
+                //         VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+                // }
                 for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
                     layoutBinding.descriptorCount *= reflBinding.array.dims[iDim];
                 }
@@ -738,14 +738,14 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             layout.createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             layout.createInfo.bindingCount = (uint32_t) layout.bindings.size();
             layout.createInfo.pBindings    = layout.bindings.data();
-            if (_bindlessSupported) {
-                layout.bindlessInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-                layout.bindlessInfo.bindingCount  = layout.bindlessFlags.size();
-                layout.bindlessInfo.pBindingFlags = layout.bindlessFlags.data();
-
-                layout.createInfo.pNext = &layout.bindlessInfo;
-                layout.createInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
-            }
+            // if (_bindlessSupported) {
+            //     layout.bindlessInfo.sType         =
+            //     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO; layout.bindlessInfo.bindingCount
+            //     = layout.bindlessFlags.size(); layout.bindlessInfo.pBindingFlags = layout.bindlessFlags.data();
+            //
+            //     layout.createInfo.pNext = &layout.bindlessInfo;
+            //     layout.createInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
+            // }
         }
 
         setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
@@ -1490,7 +1490,8 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures);
 
     _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS) == GERIUM_FEATURE_BINDLESS &&
-                         indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray;
+                         indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray &&
+                         indexingFeatures.descriptorBindingSampledImageUpdateAfterBind;
 
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.features.geometryShader            = deviceFeatures.features.geometryShader;
@@ -2135,6 +2136,10 @@ std::vector<uint32_t> Device::compile(const char* code,
             throw std::runtime_error("Not supported shader type");
     }
 
+    if (_bindlessSupported) {
+        options.AddMacroDefinition("BINDLESS_SUPPORTED"s, "1"s);
+    }
+
     for (gerium_uint32_t i = 0; i < numMacros; ++i) {
         const auto& macro = macros[i];
         options.AddMacroDefinition(macro.name, macro.value);
@@ -2158,9 +2163,14 @@ std::vector<uint32_t> Device::compile(const char* code,
             if (type == shaderc_include_type_relative) {
                 auto includePath = std::filesystem::path(requested_source);
                 if (!includePath.is_absolute()) {
-                    includePath = path / requested_source;
+                    auto requestPath = std::filesystem::path(requesting_source);
+                    if (requestPath.is_absolute()) {
+                        includePath = requestPath.parent_path() / requested_source;
+                    } else {
+                        includePath = path / requested_source;
+                    }
                 }
-                auto includePathStr = includePath.string();
+                auto includePathStr = includePath.make_preferred().string();
                 if (File::existsFile(includePathStr.c_str())) {
                     auto file       = File::open(includePathStr.c_str(), true);
                     const auto size = file->getSize();

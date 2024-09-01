@@ -18,10 +18,10 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
-                
+
     void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    
+
 private:
     std::array<DescriptorSet, 4> _descriptorSets{};
 };
@@ -72,7 +72,7 @@ public:
 
     void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    
+
 private:
     std::array<DescriptorSet, 4> _descriptorSets{};
 };
@@ -112,6 +112,10 @@ public:
 
     ResourceManager& resourceManager() noexcept {
         return _resourceManager;
+    }
+
+    bool bindlessSupported() const noexcept {
+        return _bindlessSupported;
     }
 
 private:
@@ -167,6 +171,7 @@ private:
     gerium_renderer_t _renderer{};
     gerium_profiler_t _profiler{};
     gerium_frame_graph_t _frameGraph{};
+    bool _bindlessSupported{};
 
     GBufferPass _gbufferPass{};
     PresentPass _presentPass{};

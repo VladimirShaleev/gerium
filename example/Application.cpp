@@ -357,7 +357,7 @@ void Application::createScene() {
     auto defaultTransform = Transform{ glm::identity<glm::mat4>() };
     auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.15f, 0.15f, 0.15f)) };
 
-    _scene.create(&_resourceManager);
+    _scene.create(&_resourceManager, bindlessSupported());
     auto root   = _scene.root();
     auto sponza = _scene.addNode(root);
 
@@ -396,8 +396,10 @@ void Application::initialize() {
 #endif
 
     check(gerium_renderer_create(
-        _application, GERIUM_FEATURE_BINDLESS, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+        _application, GERIUM_FEATURE_NONE, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
+
+    _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS;
 
     check(gerium_profiler_create(_renderer, &_profiler));
     check(gerium_frame_graph_create(_renderer, &_frameGraph));
