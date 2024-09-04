@@ -51,7 +51,8 @@ public:
     void finishLoadTexture(TextureHandle handle);
 
     void bind(DescriptorSetHandle handle,
-              uint16_t binding,
+              gerium_uint16_t binding,
+              gerium_uint16_t element,
               Handle resource,
               gerium_utf8_t resourceInput = nullptr,
               bool dynamic                = false);
@@ -225,7 +226,7 @@ private:
     void createPhysicalDevice();
     void createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags);
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
-    void createDescriptorPool();
+    void createDescriptorPools();
     void createVmaAllocator();
     void createDynamicBuffers();
     void createDefaultSampler();
@@ -241,7 +242,6 @@ private:
 
     std::tuple<uint32_t, bool> fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
                                                        const DescriptorSet& descriptorSet,
-                                                       VkDescriptorSet vkDescriptorSet,
                                                        VkWriteDescriptorSet* descriptorWrite,
                                                        VkDescriptorBufferInfo* bufferInfo,
                                                        VkDescriptorImageInfo* imageInfo);
@@ -312,7 +312,8 @@ private:
     VkQueue _queueTransfer{};
     VkQueryPool _queryPool{};
     marl::mutex _descriptorPoolMutex{};
-    VkDescriptorPool _descriptorPool{};
+    VkDescriptorPool _globalDescriptorPool{};
+    VkDescriptorPool _descriptorPools[kMaxFrames]{};
     VkDescriptorPool _imguiPool{};
     VmaAllocator _vmaAllocator{};
     VkSemaphore _imageAvailableSemaphores[kMaxFrames]{};
@@ -356,6 +357,8 @@ private:
     CommandBuffer* _frameCommandBuffer{};
     gerium_uint32_t _numQueuedCommandBuffers{};
     std::map<gerium_uint64_t, SamplerHandle> _samplerCache{};
+    VkDescriptorSet _freeDescriptorSetQueue[64]{};
+    gerium_uint32_t _numFreeDescriptorSetQueue{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};

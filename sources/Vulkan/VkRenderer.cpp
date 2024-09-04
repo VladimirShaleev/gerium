@@ -199,8 +199,9 @@ TechniqueHandle VkRenderer::onCreateTechnique(const FrameGraph& frameGraph,
     return handle;
 }
 
-DescriptorSetHandle VkRenderer::onCreateDescriptorSet() {
+DescriptorSetHandle VkRenderer::onCreateDescriptorSet(bool global) {
     DescriptorSetCreation creation{};
+    creation.setGlobal(global);
     return _device->createDescriptorSet(creation);
 }
 
@@ -380,12 +381,15 @@ void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, Buf
     _device->bind(handle, binding, buffer);
 }
 
-void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept {
-    _device->bind(handle, binding, texture);
+void VkRenderer::onBind(DescriptorSetHandle handle,
+                        gerium_uint16_t binding,
+                        gerium_uint16_t element,
+                        TextureHandle texture) noexcept {
+    _device->bind(handle, binding, element, texture);
 }
 
 void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept {
-    _device->bind(handle, binding, Undefined, resourceInput);
+    _device->bind(handle, binding, 0, Undefined, resourceInput, false);
 }
 
 gerium_data_t VkRenderer::onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept {

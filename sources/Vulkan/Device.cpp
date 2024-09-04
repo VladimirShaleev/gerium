@@ -77,8 +77,14 @@ Device::~Device() {
             _vkTable.vkDestroyDescriptorPool(_device, _imguiPool, getAllocCalls());
         }
 
-        if (_descriptorPool) {
-            _vkTable.vkDestroyDescriptorPool(_device, _descriptorPool, getAllocCalls());
+        for (auto pool : _descriptorPools) {
+            if (pool) {
+                _vkTable.vkDestroyDescriptorPool(_device, pool, getAllocCalls());
+            }
+        }
+
+        if (_globalDescriptorPool) {
+            _vkTable.vkDestroyDescriptorPool(_device, _globalDescriptorPool, getAllocCalls());
         }
 
         _profiler.reset();
@@ -117,7 +123,7 @@ void Device::create(Application* application,
     createPhysicalDevice();
     createDevice(application->workerThreadCount(), features);
     createProfiler(32);
-    createDescriptorPool();
+    createDescriptorPools();
     createVmaAllocator();
     createDynamicBuffers();
     createDefaultSampler();
@@ -174,6 +180,12 @@ bool Device::newFrame() {
         _frameCommandBuffer = getPrimaryCommandBuffer(false);
     }
 
+    check(_vkTable.vkResetDescriptorPool(_device, _descriptorPools[_currentFrame], {}));
+    if (_numFreeDescriptorSetQueue) {
+        check(_vkTable.vkFreeDescriptorSets(
+            _device, _globalDescriptorPool, _numFreeDescriptorSetQueue, _freeDescriptorSetQueue));
+        _numFreeDescriptorSetQueue = 0;
+    }
     return true;
 }
 
@@ -572,9 +584,7 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& creation) {
     auto [handle, descriptorSet] = _descriptorSets.obtain_and_access();
 
-    for (auto& binding : descriptorSet->bindings) {
-        binding = Undefined;
-    }
+    descriptorSet->layout = Undefined;
 
     return handle;
 }
@@ -1218,26 +1228,42 @@ void Device::finishLoadTexture(TextureHandle handle) {
     texture->loaded = true;
 }
 
-void Device::bind(
-    DescriptorSetHandle handle, uint16_t binding, Handle resource, gerium_utf8_t resourceInput, bool dynamic) {
+void Device::bind(DescriptorSetHandle handle,
+                  gerium_uint16_t binding,
+                  gerium_uint16_t element,
+                  Handle resource,
+                  gerium_utf8_t resourceInput,
+                  bool dynamic) {
     auto descriptorSet = _descriptorSets.access(handle);
 
-    if (descriptorSet->bindings[binding] != resource) {
-        descriptorSet->bindings[binding]  = resource;
-        descriptorSet->resources[binding] = resourceInput; // intern(resourceInput);
-        for (auto& [_, descriptors] : descriptorSet->descriptors) {
-            descriptors.noChanges = dynamic;
-        }
-    } else if (resource == Undefined && resourceInput) {
-        descriptorSet->resources[binding] = intern(resourceInput);
-    }
+    const auto key = (binding << 16) | element;
 
-    descriptorSet->hasResources = descriptorSet->hasResources != 0 || resourceInput != nullptr;
+    if (auto it = descriptorSet->bindings.find(key); it != descriptorSet->bindings.end()) {
+        if (it->second.binding != binding || it->second.element != element || it->second.resource != resourceInput ||
+            it->second.handle != resource) {
+            it->second.binding  = binding;
+            it->second.element  = element;
+            it->second.resource = resourceInput;
+            it->second.handle   = resource;
+
+            if (!descriptorSet->changed) {
+                descriptorSet->changed = !dynamic;
+            }
+        }
+    } else {
+        auto& item    = descriptorSet->bindings[key];
+        item.binding  = binding;
+        item.element  = element;
+        item.resource = resourceInput;
+        item.handle   = resource;
+
+        descriptorSet->changed = true;
+    }
 }
 
 void Device::bind(DescriptorSetHandle handle, uint16_t binding, BufferHandle resource, gerium_utf8_t resourceInput) {
     auto dynamic = _buffers.access(resource)->parent != Undefined;
-    bind(handle, binding, (Handle) resource, resourceInput, dynamic);
+    bind(handle, binding, 0, (Handle) resource, resourceInput, dynamic);
 }
 
 VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
@@ -1247,55 +1273,52 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
     auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
 
     marl::lock lock(_descriptorPoolMutex);
-    auto& descriptors = descriptorSet->descriptors[pipelineLayout->data.hash];
 
-    if (descriptorSet->hasResources) {
-        for (gerium_uint16_t binding = 0; binding < kMaxDescriptorsPerSet; ++binding) {
-            const auto name = descriptorSet->resources[binding];
-            if (name != nullptr) {
-                auto resource = frameGraph->getResource(name);
-                auto resourceHandle =
-                    resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ? Undefined : resource->info.texture.handle;
-                bind(handle, binding, resourceHandle, resource->name);
-            }
+    for (auto& [_, item] : descriptorSet->bindings) {
+        if (item.resource) {
+            auto resource       = frameGraph->getResource(item.resource);
+            auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER
+                                      ? Undefined
+                                      : (Handle) resource->info.texture.handle.index;
+            bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
         }
     }
 
-    if (!descriptors.noChanges) {
-        descriptors.current   = (descriptors.current + 1) % kMaxFrames;
-        auto& vkDescriptorSet = descriptors.vkDescriptorSet[descriptors.current];
+    constexpr std::hash<std::thread::id> threadIdHasher{};
+    const auto currentThread = threadIdHasher(std::this_thread::get_id());
 
-        if (vkDescriptorSet == VK_NULL_HANDLE) {
-            VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-            allocInfo.descriptorPool     = _descriptorPool;
-            allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
+    bool allocateDescriptorSet = !descriptorSet->vkDescriptorSet || descriptorSet->changed || descriptorSet->layout != layoutHandle ||
+        descriptorSet->currentFrame != _currentFrame || descriptorSet->thread != currentThread;
 
-            check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &vkDescriptorSet));
+    if (allocateDescriptorSet) {
+        if (descriptorSet->vkDescriptorSet && descriptorSet->global) {
+            assert(_numFreeDescriptorSetQueue < std::size(_freeDescriptorSetQueue));
+            _freeDescriptorSetQueue[_numFreeDescriptorSetQueue++] = descriptorSet->vkDescriptorSet;
         }
+        VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        allocInfo.descriptorPool     = descriptorSet->global ? _globalDescriptorPool : _descriptorPools[_currentFrame];
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
 
-        // descriptorSet->numResources = creation.numResources;
-        // descriptorSet->layout       = creation.layout;
-
-        // for (uint32_t i = 0; i < creation.numResources; ++i) {
-        //     descriptorSet->resources[i] = creation.resources[i];
-        //     descriptorSet->samplers[i]  = creation.samplers[i];
-        //     descriptorSet->bindings[i]  = creation.bindings[i];
-        // }
+        check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
 
         VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
         VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
         VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
 
-        const auto [num, updateRequired] = fillWriteDescriptorSets(
-            *pipelineLayout, *descriptorSet, vkDescriptorSet, descriptorWrite, bufferInfo, imageInfo);
+        const auto [num, updateRequired] =
+            fillWriteDescriptorSets(*pipelineLayout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
 
         _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
 
-        descriptors.noChanges = !updateRequired;
+        descriptorSet->layout  = layoutHandle;
+        descriptorSet->changed = updateRequired;
+        descriptorSet->binded  = false;
     }
 
-    return descriptors.vkDescriptorSet[descriptors.current];
+    descriptorSet->thread       = currentThread;
+    descriptorSet->currentFrame = _currentFrame;
+    return descriptorSet->vkDescriptorSet;
 }
 
 CommandBuffer* Device::getPrimaryCommandBuffer(bool profile) {
@@ -1550,24 +1573,24 @@ void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
     }
 }
 
-void Device::createDescriptorPool() {
+void Device::createDescriptorPools() {
     VkDescriptorPoolSize poolSizes[] = {
-        { VK_DESCRIPTOR_TYPE_SAMPLER,                kGlobalPoolElements     },
+        // { VK_DESCRIPTOR_TYPE_SAMPLER,                kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kGlobalPoolElements * 2 },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          kGlobalPoolElements     },
+        // { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          kGlobalPoolElements     },
+        // { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          kGlobalPoolElements     },
         //{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   kGlobalPoolElements     },
         //{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         kGlobalPoolElements     },
+        // { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         kGlobalPoolElements     },
+        // { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, kGlobalPoolElements     },
         { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       kGlobalPoolElements     }
     };
 
-    VkDescriptorPoolCreateFlags flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    VkDescriptorPoolCreateFlags flags = {};
     if (_bindlessSupported) {
-        flags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT;
+        flags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
     }
 
     VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
@@ -1575,7 +1598,13 @@ void Device::createDescriptorPool() {
     poolInfo.maxSets       = kDescriptorSetsPoolSize;
     poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(poolSizes[0]);
     poolInfo.pPoolSizes    = poolSizes;
-    check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &_descriptorPool));
+
+    for (auto& pool : _descriptorPools) {
+        check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &pool));
+    }
+
+    flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &_globalDescriptorPool));
 }
 
 void Device::createVmaAllocator() {
@@ -1774,17 +1803,7 @@ void Device::createImGui(Application* application) {
     auto renderPass = _renderPasses.access(_swapchainRenderPass)->vkRenderPass;
 
     VkDescriptorPoolSize poolSizes[] = {
-        { VK_DESCRIPTOR_TYPE_SAMPLER,                1000 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       1000 }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 }
     };
 
     VkDescriptorPoolCreateInfo poolInfo = {};
@@ -1958,17 +1977,16 @@ void Device::printPhysicalDevices() {
 
 std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLayout& descriptorSetLayout,
                                                            const DescriptorSet& descriptorSet,
-                                                           VkDescriptorSet vkDescriptorSet,
                                                            VkWriteDescriptorSet* descriptorWrite,
                                                            VkDescriptorBufferInfo* bufferInfo,
                                                            VkDescriptorImageInfo* imageInfo) {
-    uint32_t usedResources = 0;
-    bool updateRequired    = false;
+    uint32_t i          = 0;
+    bool updateRequired = false;
 
     auto defaultSampler = _samplers.access(_defaultSampler)->vkSampler;
 
-    for (uint32_t b = 0; b < kMaxDescriptorsPerSet; ++b) {
-        auto resource = descriptorSet.bindings[b];
+    for (const auto& [_, item] : descriptorSet.bindings) {
+        auto resource = item.handle;
 
         // if (resource == Undefined) {
         //     continue;
@@ -1976,7 +1994,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
 
         auto it = std::find_if(descriptorSetLayout.data.bindings.cbegin(),
                                descriptorSetLayout.data.bindings.cend(),
-                               [b](const auto& binding) {
+                               [b = item.binding](const auto& binding) {
             return binding.binding == b;
         });
 
@@ -1987,12 +2005,10 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
 
         const auto& binding = *it;
 
-        auto i = usedResources;
-
         descriptorWrite[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite[i].dstSet          = vkDescriptorSet;
-        descriptorWrite[i].dstBinding      = b;
-        descriptorWrite[i].dstArrayElement = 0;
+        descriptorWrite[i].dstSet          = descriptorSet.vkDescriptorSet;
+        descriptorWrite[i].dstBinding      = item.binding;
+        descriptorWrite[i].dstArrayElement = item.element;
         descriptorWrite[i].descriptorCount = binding.descriptorCount;
 
         switch (binding.descriptorType) {
@@ -2089,10 +2105,10 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 break;
             }
         }
-        ++usedResources;
+        ++i;
     }
 
-    return { usedResources, updateRequired };
+    return { i, updateRequired };
 }
 
 std::vector<uint32_t> Device::compile(const char* code,
@@ -2459,7 +2475,11 @@ void Device::deleteResources(bool forceDelete) {
                 break;
             case ResourceType::DescriptorSet:
                 if (_descriptorSets.references(DescriptorSetHandle{ resource.handle }) == 1) {
-                    auto descriptorSet = _descriptorSets.access(resource.handle); // ???????????
+                    auto descriptorSet = _descriptorSets.access(resource.handle);
+                    if (descriptorSet->global && descriptorSet->vkDescriptorSet) {
+                        _vkTable.vkFreeDescriptorSets(
+                            _device, _globalDescriptorPool, 1, &descriptorSet->vkDescriptorSet);
+                    }
                 }
                 _descriptorSets.release(resource.handle);
                 break;

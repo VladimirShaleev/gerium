@@ -45,8 +45,8 @@ TechniqueHandle Renderer::createTechnique(const FrameGraph& frameGraph,
     return onCreateTechnique(frameGraph, name, pipelineCount, pipelines);
 }
 
-DescriptorSetHandle Renderer::createDescriptorSet() {
-    return onCreateDescriptorSet();
+DescriptorSetHandle Renderer::createDescriptorSet(bool global) {
+    return onCreateDescriptorSet(global);
 }
 
 RenderPassHandle Renderer::createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) {
@@ -102,8 +102,11 @@ void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferH
     onBind(handle, binding, buffer);
 }
 
-void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept {
-    onBind(handle, binding, texture);
+void Renderer::bind(DescriptorSetHandle handle,
+                    gerium_uint16_t binding,
+                    gerium_uint16_t element,
+                    TextureHandle texture) noexcept {
+    onBind(handle, binding, element, texture);
 }
 
 void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept {
@@ -246,12 +249,14 @@ gerium_result_t gerium_renderer_create_technique(gerium_renderer_t renderer,
     GERIUM_END_SAFE_BLOCK
 }
 
-gerium_result_t gerium_renderer_create_descriptor_set(gerium_renderer_t renderer, gerium_descriptor_set_h* handle) {
+gerium_result_t gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
+                                                      gerium_bool_t global,
+                                                      gerium_descriptor_set_h* handle) {
     assert(renderer);
     GERIUM_ASSERT_ARG(handle);
 
     GERIUM_BEGIN_SAFE_BLOCK
-        *handle = alias_cast<Renderer*>(renderer)->createDescriptorSet();
+        *handle = alias_cast<Renderer*>(renderer)->createDescriptorSet(global);
     GERIUM_END_SAFE_BLOCK
 }
 
@@ -315,9 +320,10 @@ void gerium_renderer_bind_buffer(gerium_renderer_t renderer,
 void gerium_renderer_bind_texture(gerium_renderer_t renderer,
                                   gerium_descriptor_set_h handle,
                                   gerium_uint16_t binding,
+                                  gerium_uint16_t element,
                                   gerium_texture_h texture) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, TextureHandle{ texture.unused });
+    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, element, TextureHandle{ texture.unused });
 }
 
 void gerium_renderer_bind_resource(gerium_renderer_t renderer,

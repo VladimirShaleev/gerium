@@ -32,7 +32,7 @@ public:
                                     gerium_utf8_t name,
                                     gerium_uint32_t pipelineCount,
                                     const gerium_pipeline_t* pipelines);
-    DescriptorSetHandle createDescriptorSet();
+    DescriptorSetHandle createDescriptorSet(bool global);
     RenderPassHandle createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node);
     FramebufferHandle createFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node);
 
@@ -57,7 +57,10 @@ public:
     void destroyFramebuffer(FramebufferHandle handle) noexcept;
 
     void bind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept;
-    void bind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept;
+    void bind(DescriptorSetHandle handle,
+              gerium_uint16_t binding,
+              gerium_uint16_t element,
+              TextureHandle texture) noexcept;
     void bind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept;
 
     gerium_data_t mapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept;
@@ -88,7 +91,7 @@ private:
                                               gerium_utf8_t name,
                                               gerium_uint32_t pipelineCount,
                                               const gerium_pipeline_t* pipelines)                           = 0;
-    virtual DescriptorSetHandle onCreateDescriptorSet()                                                     = 0;
+    virtual DescriptorSetHandle onCreateDescriptorSet(bool global)                                          = 0;
     virtual RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node)   = 0;
     virtual FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) = 0;
 
@@ -113,7 +116,10 @@ private:
     virtual void onDestroyFramebuffer(FramebufferHandle handle) noexcept     = 0;
 
     virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept         = 0;
-    virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept       = 0;
+    virtual void onBind(DescriptorSetHandle handle,
+                        gerium_uint16_t binding,
+                        gerium_uint16_t element,
+                        TextureHandle texture) noexcept                                                            = 0;
     virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept = 0;
 
     virtual gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept = 0;

@@ -16,7 +16,7 @@ namespace gerium::vulkan {
 
 constexpr uint32_t kMaxFrames               = 2;
 constexpr uint8_t  kMaxImageOutputs         = 8;
-constexpr uint8_t  kMaxDescriptorSetLayouts = 8;
+constexpr uint8_t  kMaxDescriptorSetLayouts = 4;
 constexpr uint8_t  kMaxDescriptorsPerSet    = 16;
 constexpr uint8_t  kMaxVertexBindings       = 16;
 constexpr uint8_t  kMaxVertexAttributes     = 16;
@@ -308,47 +308,16 @@ struct FramebufferCreation {
 };
 
 struct DescriptorSetCreation {
-    Handle      resources[kMaxDescriptorsPerSet] {Undefined};
-    SamplerHandle samplers[kMaxDescriptorsPerSet] {Undefined};
-    uint16_t      bindings[kMaxDescriptorsPerSet] {};
-
-    DescriptorSetLayoutHandle layout       = Undefined;
-    uint32_t                  numResources = 0;
+    bool global = {};
 
     const char* name = nullptr;
 
-    DescriptorSetCreation& reset() {
-        numResources = 0;
+    DescriptorSetCreation& setGlobal(bool isGlobal) noexcept {
+        global = isGlobal;
         return *this;
     }
 
-    DescriptorSetCreation& setLayout(DescriptorSetLayoutHandle layout) {
-        this->layout = layout;
-        return *this;
-    }
-
-    DescriptorSetCreation& texture(TextureHandle texture, uint16_t binding) {
-        resources[numResources]  = texture;
-        //samplers[numResources]   = SamplerPool::Undefined;
-        bindings[numResources++] = binding;
-        return *this;
-    }
-
-    DescriptorSetCreation& buffer(BufferHandle buffer, uint16_t binding) {
-        resources[numResources]  = buffer;
-        //samplers[numResources]   = SamplerPool::Undefined;
-        bindings[numResources++] = binding;
-        return *this;
-    }
-
-    // DescriptorSetCreation& textureSampler(TextureHandle texture, SamplerHandle sampler, uint16_t binding) {
-    //     resources[numResources]  = texture.index;
-    //     //samplers[numResources]   = sampler;
-    //     bindings[numResources++] = binding;
-    //     return *this;
-    // }
-
-    DescriptorSetCreation& setName(const char* name) {
+    DescriptorSetCreation& setName(const char* name) noexcept {
         this->name = name;
         return *this;
     }
@@ -417,23 +386,20 @@ struct RenderPass {
 };
 
 struct DescriptorSet {
-    struct Descriptors {
-        VkDescriptorSet vkDescriptorSet[kMaxFrames];
-        gerium_uint8_t  noChanges;
-        gerium_uint8_t  current;
+    struct Binding {
+        gerium_uint16_t binding;
+        gerium_uint16_t element;
+        gerium_utf8_t resource;
+        Handle handle;
     };
-
-    absl::flat_hash_map<gerium_uint64_t, Descriptors> descriptors;
-
-    // DescriptorSetLayoutHandle layout;
-
-    //gerium_uint8_t            numResources;
-
-    // Handle        resources[kMaxDescriptorsPerSet];
-    // SamplerHandle samplers[kMaxDescriptorsPerSet];
-    Handle bindings[kMaxDescriptorsPerSet];
-    gerium_utf8_t resources[kMaxDescriptorsPerSet];
-    gerium_uint8_t hasResources;
+    VkDescriptorSet vkDescriptorSet;
+    DescriptorSetLayoutHandle layout;
+    absl::flat_hash_map<gerium_uint32_t, Binding> bindings;
+    gerium_uint8_t currentFrame;
+    gerium_uint8_t thread;
+    gerium_uint8_t changed;
+    gerium_uint8_t binded;
+    gerium_uint8_t global;
 };
 
 struct DescriptorSetLayout {

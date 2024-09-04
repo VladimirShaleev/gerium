@@ -247,7 +247,7 @@ DescriptorSet ResourceManager::createDescriptorSet() {
     const auto key  = calcKey(name);
 
     gerium_descriptor_set_h descriptorSet;
-    check(gerium_renderer_create_descriptor_set(_renderer, &descriptorSet));
+    check(gerium_renderer_create_descriptor_set(_renderer, false, &descriptorSet));
 
     auto& resource     = _resources[key];
     resource.type      = DescriptorSetType;

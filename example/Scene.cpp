@@ -130,9 +130,9 @@ void Scene::culling() {
             } else {
                 meshInstance.ptr        = (MeshData*) mapPtr;
                 meshInstance.textureSet = _textureSets[i];
-                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 0, mesh->getMaterial().getDiffuse());
-                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 1, mesh->getMaterial().getNormal());
-                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 2, mesh->getMaterial().getRoughness());
+                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 0, 0, mesh->getMaterial().getDiffuse());
+                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 1, 0, mesh->getMaterial().getNormal());
+                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 2, 0, mesh->getMaterial().getRoughness());
             }
             ++i;
         }

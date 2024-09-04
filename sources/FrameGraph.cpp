@@ -129,6 +129,10 @@ void FrameGraph::compile() {
     }
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
+        _nodes.access(_nodeGraph[i])->edgeCount = 0;
+    }
+
+    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
         if (node->enabled) {
             computeEdges(node);

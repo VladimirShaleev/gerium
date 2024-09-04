@@ -46,7 +46,7 @@ private:
                                       gerium_utf8_t name,
                                       gerium_uint32_t pipelineCount,
                                       const gerium_pipeline_t* pipelines) override;
-    DescriptorSetHandle onCreateDescriptorSet() override;
+    DescriptorSetHandle onCreateDescriptorSet(bool global) override;
     RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
     FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
 
@@ -71,7 +71,10 @@ private:
     void onDestroyFramebuffer(FramebufferHandle handle) noexcept override;
 
     void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept override;
-    void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, TextureHandle texture) noexcept override;
+    void onBind(DescriptorSetHandle handle,
+                gerium_uint16_t binding,
+                gerium_uint16_t element,
+                TextureHandle texture) noexcept override;
     void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept override;
 
     gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept override;

@@ -28,7 +28,7 @@ public:
                     gerium_float32_t alpha) noexcept;
     void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer, bool useSecondaryCommandBuffers);
-    void bindPipeline(PipelineHandle pipeline);
+    // void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
     void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset = 0);
     void generateMipmaps(TextureHandle handle);
@@ -73,6 +73,7 @@ private:
                        gerium_uint32_t firstInstance,
                        gerium_uint32_t instanceCount) noexcept override;
 
+    void bindDescriptorSets();
     uint32_t getFamilyIndex(QueueType queue) const noexcept;
 
     Device* _device{};
@@ -81,10 +82,12 @@ private:
     RenderPassHandle _currentRenderPass{ Undefined };
     FramebufferHandle _currentFramebuffer{ Undefined };
     PipelineHandle _currentPipeline{ Undefined };
+    DescriptorSetHandle _currentDescriptorSets[kMaxDescriptorSetLayouts]{};
     VkClearValue _clearColors[kMaxImageOutputs]{};
     VkClearValue _clearDepthStencil{};
     gerium_uint16_t _framebufferHeight{};
     bool _recording{};
+    bool _setChanged{};
 };
 
 class CommandBufferPool final {

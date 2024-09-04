@@ -727,13 +727,15 @@ typedef enum
     GERIUM_RESOURCE_TYPE_MAX_ENUM   = 0x7FFFFFFF
 } gerium_resource_type_t;
 
-typedef enum {
+typedef enum
+{
     GERIUM_VERTEX_RATE_PER_VERTEX   = 0,
     GERIUM_VERTEX_RATE_PER_INSTANCE = 1,
     GERIUM_VERTEX_RATE_MAX_ENUM     = 0x7FFFFFFF
 } gerium_vertex_rate_t;
 
-typedef enum {
+typedef enum
+{
     GERIUM_INDEX_TYPE_UINT16   = 0,
     GERIUM_INDEX_TYPE_UINT32   = 1,
     GERIUM_INDEX_TYPE_MAX_ENUM = 0x7FFFFFFF
@@ -745,7 +747,8 @@ typedef enum {
     GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_shader_type_t;
 
-typedef enum {
+typedef enum
+{
     GERIUM_SHADER_LANGUAGE_UNKNOWN = 0,
     GERIUM_SHADER_LANGUAGE_SPIRV   = 1,
     GERIUM_SHADER_LANGUAGE_GLSL    = 2,
@@ -1311,6 +1314,7 @@ gerium_renderer_create_technique(gerium_renderer_t renderer,
 
 gerium_public gerium_result_t
 gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
+                                      gerium_bool_t global,
                                       gerium_descriptor_set_h* handle);
 
 gerium_public gerium_result_t
@@ -1356,6 +1360,7 @@ gerium_public void
 gerium_renderer_bind_texture(gerium_renderer_t renderer,
                              gerium_descriptor_set_h handle,
                              gerium_uint16_t binding,
+                             gerium_uint16_t element,
                              gerium_texture_h texture);
 
 gerium_public void
