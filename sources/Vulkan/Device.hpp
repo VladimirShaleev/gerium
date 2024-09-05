@@ -339,6 +339,9 @@ private:
     uint8_t* _dynamicSSBOMapped{};
     SamplerHandle _defaultSampler{ Undefined };
     TextureHandle _defaultTexture{ Undefined };
+    VkWriteDescriptorSet _descriptorWrite[kBindlessPoolElements]{};
+    VkDescriptorBufferInfo _bufferInfo[kBindlessPoolElements]{};
+    VkDescriptorImageInfo _imageInfo[kBindlessPoolElements]{};
 
     BufferPool _buffers;
     TexturePool _textures;

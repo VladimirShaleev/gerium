@@ -1321,14 +1321,10 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
 
         check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
 
-        VkWriteDescriptorSet descriptorWrite[kBindlessPoolElements]{};
-        VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
-        VkDescriptorImageInfo imageInfo[kBindlessPoolElements]{};
-
         const auto [num, updateRequired] =
-            fillWriteDescriptorSets(*pipelineLayout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
+            fillWriteDescriptorSets(*pipelineLayout, *descriptorSet, _descriptorWrite, _bufferInfo, _imageInfo);
 
-        _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
+        _vkTable.vkUpdateDescriptorSets(_device, num, _descriptorWrite, 0, nullptr);
 
         descriptorSet->layout  = layoutHandle;
         descriptorSet->changed = updateRequired;
