@@ -7,11 +7,10 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
     _resourceManger  = resourceManger;
     _bindlessEnabled = bindlessEnabled;
 
-    for (auto& meshData : _meshDatas) {
-        const auto meshDataSize = _bindlessEnabled ? sizeof(MeshDataBindless) : sizeof(MeshData);
-        meshData                = _resourceManger->createBuffer(
-            GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", "mesh_data", nullptr, meshDataSize * MAX_INSTANCES);
-    }
+    const auto meshDataSize = _bindlessEnabled ? sizeof(MeshDataBindless) : sizeof(MeshData);
+
+    _meshDatas = _resourceManger->createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", "mesh_data", nullptr, meshDataSize * kMaxMeshDatas);
 
     for (auto& set : _textureSets) {
         set = _resourceManger->createDescriptorSet();
@@ -114,51 +113,67 @@ void Scene::culling() {
     _instancesLinear.clear();
 
     auto renderer = _resourceManger->renderer();
+    auto countMeshes = 0;
 
-    int i = 0;
     for (const auto mesh : _visibleMeshes) {
         if (_instances.size() == kMaxDraws) {
             break;
         }
         auto& meshInstance = _instances[mesh->hash()];
         if (!meshInstance.mesh) {
-            meshInstance.mesh  = mesh;
-            meshInstance.datas = _meshDatas[i];
-            auto mapPtr        = gerium_renderer_map_buffer(renderer, meshInstance.datas, 0, 0);
-            if (_bindlessEnabled) {
-                meshInstance.bindlessPtr = (MeshDataBindless*) mapPtr;
-            } else {
-                meshInstance.ptr        = (MeshData*) mapPtr;
-                meshInstance.textureSet = _textureSets[i];
+            meshInstance.mesh = mesh;
+            if (!_bindlessEnabled) {
+                meshInstance.textureSet = _textureSets[_instances.size() - 1];
                 gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 0, 0, mesh->getMaterial().getDiffuse());
                 gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 1, 0, mesh->getMaterial().getNormal());
-                gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 2, 0, mesh->getMaterial().getRoughness());
+                gerium_renderer_bind_texture(
+                    renderer, meshInstance.textureSet, 2, 0, mesh->getMaterial().getRoughness());
             }
-            ++i;
         }
-        if (++meshInstance.count > MAX_INSTANCES) {
+        if (meshInstance.meshDatas.size() > MAX_INSTANCES) {
             continue;
         }
+        if (countMeshes > kMaxMeshDatas) {
+            break;
+        }
+        meshInstance.meshDatas.push_back(&mesh->getMaterial().meshData());
+        ++countMeshes;
+    }
 
-        const auto& meshData = mesh->getMaterial().meshData();
-        if (_bindlessEnabled) {
-            *((MeshData*) meshInstance.bindlessPtr) = meshData;
-            meshInstance.bindlessPtr->textures.x    = ((gerium_texture_h) mesh->getMaterial().getDiffuse()).unused;
-            meshInstance.bindlessPtr->textures.y    = ((gerium_texture_h) mesh->getMaterial().getNormal()).unused;
-            meshInstance.bindlessPtr->textures.z    = ((gerium_texture_h) mesh->getMaterial().getRoughness()).unused;
-            meshInstance.bindlessPtr->textures.w    = UndefinedHandle;
-            ++meshInstance.bindlessPtr;
-        } else {
-            *meshInstance.ptr = meshData;
-            ++meshInstance.ptr;
+    auto mapPtr = gerium_renderer_map_buffer(renderer, _meshDatas, 0, 0);
+    MeshDataBindless* bindlessPtr{};
+    MeshData* ptr{};
+    if (_bindlessEnabled) {
+        bindlessPtr = (MeshDataBindless*) mapPtr;
+    } else {
+        ptr = (MeshData*) mapPtr;
+    }
+    gerium_uint16_t offset = 0;
+    for (auto& [_, instance] : _instances) {
+        instance.first = offset;
+        instance.count = (gerium_uint16_t) instance.meshDatas.size();
+        offset += instance.count;
+
+        for (auto meshData : instance.meshDatas) {
+            if (_bindlessEnabled) {
+                *((MeshData*) bindlessPtr) = *meshData;
+                bindlessPtr->textures.x    = ((gerium_texture_h) instance.mesh->getMaterial().getDiffuse()).unused;
+                bindlessPtr->textures.y    = ((gerium_texture_h) instance.mesh->getMaterial().getNormal()).unused;
+                bindlessPtr->textures.z    = ((gerium_texture_h) instance.mesh->getMaterial().getRoughness()).unused;
+                bindlessPtr->textures.w    = UndefinedHandle;
+                ++bindlessPtr;
+            } else {
+                *ptr = *meshData;
+                ++ptr;
+            }
         }
     }
+    gerium_renderer_unmap_buffer(renderer, _meshDatas);
 
     _instancesLinear.resize(_instances.size());
 
-    i = 0;
+    int i = 0;
     for (auto& [_, instance] : _instances) {
-        gerium_renderer_unmap_buffer(renderer, instance.datas);
         _instancesLinear[i++] = &instance;
     }
 }
@@ -168,9 +183,7 @@ void Scene::clear() {
     for (auto& set : _textureSets) {
         set = nullptr;
     }
-    for (auto& meshData : _meshDatas) {
-        meshData = nullptr;
-    }
+    _meshDatas = nullptr;
     _registry.clear();
     _nodes.clear();
     _root = nullptr;

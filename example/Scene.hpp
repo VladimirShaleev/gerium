@@ -46,13 +46,10 @@ struct MeshDataBindless : MeshData {
 
 struct MeshInstance {
     Mesh* mesh{};
-    int count{};
-    gerium_buffer_h datas{ UndefinedHandle };
+    gerium_uint16_t first{};
+    gerium_uint16_t count{};
+    std::vector<const MeshData*> meshDatas{};
     gerium_descriptor_set_h textureSet{ UndefinedHandle };
-    union {
-        MeshData* ptr{};
-        MeshDataBindless* bindlessPtr;
-    };
 };
 
 class Scene {
@@ -109,8 +106,13 @@ public:
         return _instancesLinear;
     }
 
+    const gerium_buffer_h getMeshDatas() const noexcept {
+        return _meshDatas;
+    }
+
 private:
     static constexpr int kMaxDraws = 500;
+    static constexpr int kMaxMeshDatas = 1000;
 
     SceneNode* allocateNode();
 
@@ -121,7 +123,7 @@ private:
     SceneNode* _root{};
     BVHNode* _bvh{};
     std::vector<Mesh*> _visibleMeshes{};
-    std::array<Buffer, kMaxDraws> _meshDatas{};
+    Buffer _meshDatas{};
     std::array<DescriptorSet, kMaxDraws> _textureSets{};
     std::unordered_map<gerium_uint64_t, MeshInstance> _instances{};
     std::vector<MeshInstance*> _instancesLinear{};

@@ -13,6 +13,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t totalWorkers) {
     auto& manager         = getApplication()->resourceManager();
     auto& scene           = getApplication()->scene();
+    auto bindlessSupprted = getApplication()->bindlessSupported();
     auto camera           = scene.getActiveCamera();
     const auto& instances = scene.instances();
 
@@ -22,6 +23,10 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         batchSize = int(instances.size()) - instanceIndex;
     }
 
+    gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, scene.getMeshDatas());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
+
     for (int i = 0; i < batchSize; ++i) {
         const auto instance = instances[instanceIndex + i];
         const auto mesh     = instance->mesh;
@@ -29,18 +34,18 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
             continue;
         }
-        gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, instance->datas);
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, instance->textureSet, TEXTURE_SET);
+        if (!bindlessSupprted) {
+            gerium_command_buffer_bind_descriptor_set(commandBuffer, instance->textureSet, TEXTURE_SET);
+        }
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTexcoords(), 1, mesh->getTexcoordsOffset());
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getNormals(), 2, mesh->getNormalsOffset());
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getTangents(), 3, mesh->getTangentsOffset());
         gerium_command_buffer_bind_index_buffer(
             commandBuffer, mesh->getIndices(), mesh->getIndicesOffset(), mesh->getIndexType());
-        gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh->getPrimitiveCount(), 0, 0, instance->count);
+        gerium_command_buffer_draw_indexed(
+            commandBuffer, 0, mesh->getPrimitiveCount(), 0, instance->first, instance->count);
     }
 }
 
@@ -89,6 +94,10 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
         batchSize = int(instances.size()) - instanceIndex;
     }
 
+    gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, scene.getMeshDatas());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
+
     for (int i = 0; i < batchSize; ++i) {
         const auto instance = instances[instanceIndex + i];
         const auto mesh     = instance->mesh;
@@ -96,14 +105,12 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
             mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
             continue;
         }
-        gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, instance->datas);
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
         gerium_command_buffer_bind_index_buffer(
             commandBuffer, mesh->getIndices(), mesh->getIndicesOffset(), mesh->getIndexType());
-        gerium_command_buffer_draw_indexed(commandBuffer, 0, mesh->getPrimitiveCount(), 0, 0, instance->count);
+        gerium_command_buffer_draw_indexed(
+            commandBuffer, 0, mesh->getPrimitiveCount(), 0, instance->first, instance->count);
     }
 }
 
@@ -395,8 +402,7 @@ void Application::initialize() {
         true;
 #endif
 
-    check(gerium_renderer_create(
-        _application, GERIUM_FEATURE_NONE, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+    check(gerium_renderer_create(_application, GERIUM_FEATURE_NONE, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
     _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS;

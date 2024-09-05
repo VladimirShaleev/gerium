@@ -1287,8 +1287,9 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
     constexpr std::hash<std::thread::id> threadIdHasher{};
     const auto currentThread = threadIdHasher(std::this_thread::get_id());
 
-    bool allocateDescriptorSet = !descriptorSet->vkDescriptorSet || descriptorSet->changed || descriptorSet->layout != layoutHandle ||
-        descriptorSet->currentFrame != _currentFrame || descriptorSet->thread != currentThread;
+    bool allocateDescriptorSet = !descriptorSet->vkDescriptorSet || descriptorSet->changed ||
+                                 descriptorSet->layout != layoutHandle ||
+                                 descriptorSet->currentFrame != _currentFrame || descriptorSet->thread != currentThread;
 
     if (allocateDescriptorSet) {
         if (descriptorSet->vkDescriptorSet && descriptorSet->global) {
@@ -1516,7 +1517,11 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
                          indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray &&
                          indexingFeatures.descriptorBindingSampledImageUpdateAfterBind;
 
+    VkPhysicalDeviceVulkan11Features features11{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+    features11.shaderDrawParameters = VK_TRUE;
+
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    features.pNext                              = &features11;
     features.features.geometryShader            = deviceFeatures.features.geometryShader;
     features.features.logicOp                   = deviceFeatures.features.logicOp;
     features.features.multiDrawIndirect         = deviceFeatures.features.multiDrawIndirect;
@@ -1532,7 +1537,7 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     features.features.samplerAnisotropy         = deviceFeatures.features.samplerAnisotropy;
     features.features.textureCompressionETC2    = deviceFeatures.features.textureCompressionETC2;
     if (_bindlessSupported) {
-        features.pNext = &indexingFeatures;
+        features11.pNext = &indexingFeatures;
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
