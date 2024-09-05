@@ -242,12 +242,12 @@ Buffer ResourceManager::createBuffer(gerium_buffer_usage_flags_t bufferUsage,
     return { this, buffer };
 }
 
-DescriptorSet ResourceManager::createDescriptorSet() {
+DescriptorSet ResourceManager::createDescriptorSet(bool global) {
     const auto name = std::to_string(_resourceCount++) + "|ds";
     const auto key  = calcKey(name);
 
     gerium_descriptor_set_h descriptorSet;
-    check(gerium_renderer_create_descriptor_set(_renderer, false, &descriptorSet));
+    check(gerium_renderer_create_descriptor_set(_renderer, global, &descriptorSet));
 
     auto& resource     = _resources[key];
     resource.type      = DescriptorSetType;

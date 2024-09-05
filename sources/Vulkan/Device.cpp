@@ -594,10 +594,10 @@ DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetL
 
     descriptorSetLayout->data                      = *creation.setLayout;
     descriptorSetLayout->data.createInfo.pBindings = descriptorSetLayout->data.bindings.data();
-    // if (_bindlessSupported) {
-    //     descriptorSetLayout->data.bindlessInfo.pBindingFlags = descriptorSetLayout->data.bindlessFlags.data();
-    //     descriptorSetLayout->data.createInfo.pNext           = &descriptorSetLayout->data.bindlessInfo;
-    // }
+    if (_bindlessSupported) {
+        descriptorSetLayout->data.bindlessInfo.pBindingFlags = descriptorSetLayout->data.bindlessFlags.data();
+        descriptorSetLayout->data.createInfo.pNext           = &descriptorSetLayout->data.bindlessInfo;
+    }
 
     check(_vkTable.vkCreateDescriptorSetLayout(
         _device, &descriptorSetLayout->data.createInfo, getAllocCalls(), &descriptorSetLayout->vkDescriptorSetLayout));
@@ -622,7 +622,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
 
         auto lang = stage.lang;
         if (lang == GERIUM_SHADER_LANGUAGE_UNKNOWN) {
-            if (ctre::search<"#version 450">((const char*) stage.data)) {
+            if (ctre::search<"#version \\d+">((const char*) stage.data)) {
                 lang = GERIUM_SHADER_LANGUAGE_GLSL;
             } else if (ctre::search<"(SV_\\w+)">((const char*) stage.data)) {
                 lang = GERIUM_SHADER_LANGUAGE_HLSL;
@@ -715,10 +715,10 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                     continue;
                 }
                 layout.bindings.push_back({});
-                // layout.bindlessFlags.push_back({});
+                layout.bindlessFlags.push_back({});
                 VkDescriptorSetLayoutBinding& layoutBinding = layout.bindings.back();
-                // VkDescriptorBindingFlags& bindingFlags      = layout.bindlessFlags.back();
-                layoutBinding.binding         = reflBinding.binding;
+                VkDescriptorBindingFlags& bindingFlags      = layout.bindlessFlags.back();
+                layoutBinding.binding                       = reflBinding.binding;
                 layoutBinding.descriptorType  = static_cast<VkDescriptorType>(reflBinding.descriptor_type);
                 layoutBinding.descriptorCount = 1;
                 if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
@@ -727,13 +727,15 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
                     layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
                 }
-                // if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
-                //     layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
-                //     bindingFlags =
-                //         VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-                // }
                 for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
                     layoutBinding.descriptorCount *= reflBinding.array.dims[iDim];
+                }
+                if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+                    if (reflBinding.type_description && reflBinding.type_description->op == SpvOpTypeRuntimeArray) {
+                        layoutBinding.descriptorCount = kBindlessPoolElements;
+                        bindingFlags =
+                            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+                    }
                 }
                 layoutBinding.stageFlags = static_cast<VkShaderStageFlagBits>(module.shader_stage);
 
@@ -748,14 +750,13 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             layout.createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             layout.createInfo.bindingCount = (uint32_t) layout.bindings.size();
             layout.createInfo.pBindings    = layout.bindings.data();
-            // if (_bindlessSupported) {
-            //     layout.bindlessInfo.sType         =
-            //     VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO; layout.bindlessInfo.bindingCount
-            //     = layout.bindlessFlags.size(); layout.bindlessInfo.pBindingFlags = layout.bindlessFlags.data();
-            //
-            //     layout.createInfo.pNext = &layout.bindlessInfo;
-            //     layout.createInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
-            // }
+            if (_bindlessSupported) {
+                layout.bindlessInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+                layout.bindlessInfo.bindingCount  = layout.bindlessFlags.size();
+                layout.bindlessInfo.pBindingFlags = layout.bindlessFlags.data();
+                layout.createInfo.pNext           = &layout.bindlessInfo;
+                layout.createInfo.flags           = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
+            }
         }
 
         setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
@@ -1284,6 +1285,14 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         }
     }
 
+    bool bindless = false;
+    for (auto flags : pipelineLayout->data.bindlessFlags) {
+        if ((flags & VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) == VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) {
+            bindless = true;
+            break;
+        }
+    }
+
     constexpr std::hash<std::thread::id> threadIdHasher{};
     const auto currentThread = threadIdHasher(std::this_thread::get_id());
 
@@ -1296,16 +1305,25 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
             assert(_numFreeDescriptorSetQueue < std::size(_freeDescriptorSetQueue));
             _freeDescriptorSetQueue[_numFreeDescriptorSetQueue++] = descriptorSet->vkDescriptorSet;
         }
+        uint32_t maxBinding = kBindlessPoolElements - 1;
+
+        VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
+        };
+        countInfo.descriptorSetCount = 1;
+        countInfo.pDescriptorCounts  = &maxBinding;
+
         VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        allocInfo.pNext              = _bindlessSupported && bindless ? &countInfo : nullptr;
         allocInfo.descriptorPool     = descriptorSet->global ? _globalDescriptorPool : _descriptorPools[_currentFrame];
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
 
         check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
 
-        VkWriteDescriptorSet descriptorWrite[kMaxDescriptorsPerSet]{};
+        VkWriteDescriptorSet descriptorWrite[kBindlessPoolElements]{};
         VkDescriptorBufferInfo bufferInfo[kMaxDescriptorsPerSet]{};
-        VkDescriptorImageInfo imageInfo[kMaxDescriptorsPerSet]{};
+        VkDescriptorImageInfo imageInfo[kBindlessPoolElements]{};
 
         const auto [num, updateRequired] =
             fillWriteDescriptorSets(*pipelineLayout, *descriptorSet, descriptorWrite, bufferInfo, imageInfo);
@@ -2014,7 +2032,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
         descriptorWrite[i].dstSet          = descriptorSet.vkDescriptorSet;
         descriptorWrite[i].dstBinding      = item.binding;
         descriptorWrite[i].dstArrayElement = item.element;
-        descriptorWrite[i].descriptorCount = binding.descriptorCount;
+        descriptorWrite[i].descriptorCount = 1;
 
         switch (binding.descriptorType) {
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {

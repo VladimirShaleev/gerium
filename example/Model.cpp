@@ -101,23 +101,26 @@ const MeshData& PBRMaterial::meshData() const noexcept {
     return _meshData;
 }
 
-gerium_uint64_t PBRMaterial::hash() const noexcept {
+gerium_uint64_t PBRMaterial::hash(bool bindlessSupported) const noexcept {
     if (!_hash) {
         auto technique = ((gerium_technique_h) _technique).unused;
-        auto diffuse   = ((gerium_texture_h) _diffuse).unused;
-        auto roughness = ((gerium_texture_h) _roughness).unused;
-        auto normal    = ((gerium_texture_h) _normal).unused;
-        auto occlusion = ((gerium_texture_h) _occlusion).unused;
 
         _hash = wyhash(&technique, sizeof(technique), 0, _wyp);
-        _hash = wyhash(&diffuse, sizeof(diffuse), _hash, _wyp);
-        _hash = wyhash(&roughness, sizeof(roughness), _hash, _wyp);
-        _hash = wyhash(&normal, sizeof(normal), _hash, _wyp);
-        _hash = wyhash(&occlusion, sizeof(occlusion), _hash, _wyp);
-        _hash = wyhash(&_baseColorFactor.x, sizeof(_baseColorFactor), _hash, _wyp);
-        _hash = wyhash(&_metallicRoughnessOcclusionFactor.x, sizeof(_metallicRoughnessOcclusionFactor), _hash, _wyp);
-        _hash = wyhash(&_alphaCutoff, sizeof(_alphaCutoff), _hash, _wyp);
-        _hash = wyhash(&_flags, sizeof(_flags), _hash, _wyp);
+        if (!bindlessSupported) {
+            auto diffuse   = ((gerium_texture_h) _diffuse).unused;
+            auto roughness = ((gerium_texture_h) _roughness).unused;
+            auto normal    = ((gerium_texture_h) _normal).unused;
+            auto occlusion = ((gerium_texture_h) _occlusion).unused;
+
+            _hash = wyhash(&diffuse, sizeof(diffuse), _hash, _wyp);
+            _hash = wyhash(&roughness, sizeof(roughness), _hash, _wyp);
+            _hash = wyhash(&normal, sizeof(normal), _hash, _wyp);
+            _hash = wyhash(&occlusion, sizeof(occlusion), _hash, _wyp);
+        }
+        // _hash = wyhash(&_baseColorFactor.x, sizeof(_baseColorFactor), _hash, _wyp);
+        // _hash = wyhash(&_metallicRoughnessOcclusionFactor.x, sizeof(_metallicRoughnessOcclusionFactor), _hash, _wyp);
+        // _hash = wyhash(&_alphaCutoff, sizeof(_alphaCutoff), _hash, _wyp);
+        // _hash = wyhash(&_flags, sizeof(_flags), _hash, _wyp);
     }
     return _hash;
 }
@@ -274,7 +277,7 @@ void Mesh::visible(bool show) noexcept {
     _visible = show;
 }
 
-gerium_uint64_t Mesh::hash() const noexcept {
+gerium_uint64_t Mesh::hash(bool bindlessSupported) const noexcept {
     if (!_hash) {
         auto indices   = ((gerium_buffer_h) _indices).unused;
         auto positions = ((gerium_buffer_h) _positions).unused;
@@ -282,7 +285,7 @@ gerium_uint64_t Mesh::hash() const noexcept {
         auto normals   = ((gerium_buffer_h) _normals).unused;
         auto tangents  = ((gerium_buffer_h) _tangents).unused;
 
-        _hash = _material.hash();
+        _hash = _material.hash(bindlessSupported);
         _hash = wyhash(&indices, sizeof(indices), _hash, _wyp);
         _hash = wyhash(&positions, sizeof(positions), _hash, _wyp);
         _hash = wyhash(&texcoords, sizeof(texcoords), _hash, _wyp);

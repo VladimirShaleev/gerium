@@ -26,6 +26,9 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, scene.getMeshDatas());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
+    if (bindlessSupprted) {
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, scene.getBindlessTextures(), TEXTURE_SET);
+    }
 
     for (int i = 0; i < batchSize; ++i) {
         const auto instance = instances[instanceIndex + i];
@@ -402,7 +405,8 @@ void Application::initialize() {
         true;
 #endif
 
-    check(gerium_renderer_create(_application, GERIUM_FEATURE_NONE, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+    check(gerium_renderer_create(
+        _application, GERIUM_FEATURE_BINDLESS, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
     _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS;

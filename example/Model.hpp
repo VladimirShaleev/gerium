@@ -49,7 +49,7 @@ public:
 
     const MeshData& meshData() const noexcept;
 
-    gerium_uint64_t hash() const noexcept;
+    gerium_uint64_t hash(bool bindlessSupported) const noexcept;
 
 private:
     void copy(const PBRMaterial& pbrMaterial) noexcept;
@@ -123,7 +123,7 @@ public:
     bool isVisible() const noexcept;
     void visible(bool show) noexcept;
 
-    gerium_uint64_t hash() const noexcept;
+    gerium_uint64_t hash(bool bindlessSupported) const noexcept;
 
 private:
     void copy(const Mesh& mesh) noexcept;

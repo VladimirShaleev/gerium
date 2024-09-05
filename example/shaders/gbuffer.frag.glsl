@@ -17,11 +17,7 @@ layout(std140, binding = 0, set = MESH_DATA_SET) readonly buffer MeshDataSSBO {
     MeshData mesh[];
 };
 
-#ifndef BINDLESS_SUPPORTED
-layout(binding = 0, set = TEXTURE_SET) uniform sampler2D baseColor;
-layout(binding = 1, set = TEXTURE_SET) uniform sampler2D normalColor;
-layout(binding = 2, set = TEXTURE_SET) uniform sampler2D metallicRoughnessColor;
-#endif
+definePbrTextures()
 
 void main() {
     vec3 T = normalize(inTangent);
@@ -29,15 +25,15 @@ void main() {
     vec3 N = normalize(inNormal);
     T = normalize(T - dot(T, N) * N);
     mat3 TBN = mat3(T, B, N);
-    vec3 bumpNormal = 2.0 * fetchColor(normalColor, mesh[inInstanceID].textures.y, inTexcoord).rgb - vec3(1.0);
+    vec3 bumpNormal = 2.0 * fetchNormal(inInstanceID, inTexcoord).rgb - vec3(1.0);
     vec3 normal = normalize(TBN * bumpNormal);
 
-    vec4 rm = fetchColor(metallicRoughnessColor, mesh[inInstanceID].textures.z, inTexcoord);
+    vec4 rm = fetchMetallicRoughness(inInstanceID, inTexcoord);
     float occlusion = rm.r;
     float roughness = rm.g;
     float metalness = rm.b;
 
-    outColor = fetchColor(baseColor, mesh[inInstanceID].textures.x, inTexcoord);
+    outColor = fetchBase(inInstanceID, inTexcoord);
     outNormal = vec4(normal, 0.0);
     outMetallicRoughness = vec4(occlusion, roughness, metalness, 0.0);
 }

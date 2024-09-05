@@ -57,7 +57,7 @@ public:
                         const std::string& name,
                         gerium_cdata_t data,
                         gerium_uint32_t size);
-    DescriptorSet createDescriptorSet();
+    DescriptorSet createDescriptorSet(bool global = false);
 
     gerium_renderer_t renderer() noexcept {
         return _renderer;

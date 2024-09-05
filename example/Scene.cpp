@@ -7,6 +7,33 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
     _resourceManger  = resourceManger;
     _bindlessEnabled = bindlessEnabled;
 
+    gerium_texture_info_t info{};
+    info.width            = 1;
+    info.height           = 1;
+    info.depth            = 1;
+    info.mipmaps          = 1;
+    info.format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
+    info.type             = GERIUM_TEXTURE_TYPE_2D;
+    info.name             = "empty_texture";
+    gerium_uint32_t white = 0xFF000000;
+    _emptyTexture         = _resourceManger->createTexture(info, (gerium_cdata_t) &white);
+    gerium_renderer_texture_sampler(_resourceManger->renderer(),
+                                    _emptyTexture,
+                                    GERIUM_FILTER_NEAREST,
+                                    GERIUM_FILTER_NEAREST,
+                                    GERIUM_FILTER_NEAREST,
+                                    GERIUM_ADDRESS_MODE_REPEAT,
+                                    GERIUM_ADDRESS_MODE_REPEAT,
+                                    GERIUM_ADDRESS_MODE_REPEAT);
+
+    if (_bindlessEnabled) {
+        _bindlessTextures = _resourceManger->createDescriptorSet(true);
+        auto renderer     = _resourceManger->renderer();
+        for (int i = 0; i < 1000; ++i) {
+            gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
+        }
+    }
+
     const auto meshDataSize = _bindlessEnabled ? sizeof(MeshDataBindless) : sizeof(MeshData);
 
     _meshDatas = _resourceManger->createBuffer(
@@ -112,14 +139,14 @@ void Scene::culling() {
     _instances.clear();
     _instancesLinear.clear();
 
-    auto renderer = _resourceManger->renderer();
+    auto renderer    = _resourceManger->renderer();
     auto countMeshes = 0;
 
     for (const auto mesh : _visibleMeshes) {
         if (_instances.size() == kMaxDraws) {
             break;
         }
-        auto& meshInstance = _instances[mesh->hash()];
+        auto& meshInstance = _instances[mesh->hash(_bindlessEnabled)];
         if (!meshInstance.mesh) {
             meshInstance.mesh = mesh;
             if (!_bindlessEnabled) {
@@ -128,6 +155,13 @@ void Scene::culling() {
                 gerium_renderer_bind_texture(renderer, meshInstance.textureSet, 1, 0, mesh->getMaterial().getNormal());
                 gerium_renderer_bind_texture(
                     renderer, meshInstance.textureSet, 2, 0, mesh->getMaterial().getRoughness());
+            } else {
+                gerium_texture_h diffuse = mesh->getMaterial().getDiffuse();
+                gerium_texture_h normal = mesh->getMaterial().getNormal();
+                gerium_texture_h roughness = mesh->getMaterial().getRoughness();
+                gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, diffuse.unused, diffuse);
+                gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, normal.unused, normal);
+                gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, roughness.unused, roughness);
             }
         }
         if (meshInstance.meshDatas.size() > MAX_INSTANCES) {
@@ -183,7 +217,9 @@ void Scene::clear() {
     for (auto& set : _textureSets) {
         set = nullptr;
     }
-    _meshDatas = nullptr;
+    _meshDatas        = nullptr;
+    _emptyTexture     = nullptr;
+    _bindlessTextures = nullptr;
     _registry.clear();
     _nodes.clear();
     _root = nullptr;

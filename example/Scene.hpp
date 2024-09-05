@@ -110,6 +110,10 @@ public:
         return _meshDatas;
     }
 
+    const gerium_descriptor_set_h getBindlessTextures() const noexcept {
+        return _bindlessTextures;
+    }
+
 private:
     static constexpr int kMaxDraws = 500;
     static constexpr int kMaxMeshDatas = 1000;
@@ -123,6 +127,8 @@ private:
     SceneNode* _root{};
     BVHNode* _bvh{};
     std::vector<Mesh*> _visibleMeshes{};
+    DescriptorSet _bindlessTextures{};
+    Texture _emptyTexture{};
     Buffer _meshDatas{};
     std::array<DescriptorSet, kMaxDraws> _textureSets{};
     std::unordered_map<gerium_uint64_t, MeshInstance> _instances{};
