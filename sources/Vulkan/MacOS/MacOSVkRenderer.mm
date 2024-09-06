@@ -26,6 +26,6 @@ gerium_result_t gerium_renderer_create(gerium_application_t application,
         return result;
     }
     GERIUM_BEGIN_SAFE_BLOCK
-        alias_cast<MacOSVkRenderer*>(*renderer)->initialize(features, version, debug != 0);
+        alias_cast<MacOSVkRenderer*>(*renderer)->initialize(features ^ GERIUM_FEATURE_BINDLESS, version, debug != 0);
     GERIUM_END_SAFE_BLOCK
 }

@@ -547,12 +547,7 @@ const CAMetalLayer* MacOSApplication::layer() const noexcept {
 }
 
 void MacOSApplication::changeState(gerium_application_state_t newState) {
-    if (newState != _prevState || newState == GERIUM_APPLICATION_STATE_RESIZE) {
-        _prevState = newState;
-        if (!callStateFunc(newState)) {
-            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-        }
-    }
+    Application::changeState(newState, true);
 }
 
 void MacOSApplication::frame() {

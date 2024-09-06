@@ -1280,7 +1280,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
             auto resource       = frameGraph->getResource(item.resource);
             auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER
                                       ? Undefined
-                                      : (Handle) resource->info.texture.handle.index;
+                                      : Handle { resource->info.texture.handle.index };
             bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
         }
     }
