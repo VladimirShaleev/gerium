@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "com.github.vladimirshaleev.gerium"
     compileSdk = 34
+    ndkVersion = "27.1.12297006"
 
     defaultConfig {
         applicationId = "com.github.vladimirshaleev.gerium"
@@ -16,6 +17,7 @@ android {
         versionName = "1.0"
         externalNativeBuild {
             cmake {
+                arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
                 arguments += "-DANDROID_TOOLCHAIN=clang"
                 arguments += "-DANDROID_STL=c++_static"
                 arguments += "-DCMAKE_TOOLCHAIN_FILE="

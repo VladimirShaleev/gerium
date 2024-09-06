@@ -247,14 +247,15 @@ void AndroidApplication::onRun() {
         error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
     }
 
-    int events;
-    android_poll_source* source;
+    int result;
+    android_poll_source* source = nullptr;
 
     _prevTime = getCurrentTime();
 
-    while (true) {
-        while (ALooper_pollAll(isPause() ? -1 : 0, nullptr, &events, alias_cast<void**>(&source)) >= 0) {
-            if (source != nullptr) {
+    while (!_application->destroyRequested) {
+        do {
+            result = ALooper_pollOnce(isPause() ? -1 : 0, nullptr, nullptr, alias_cast<void**>(&source));
+            if (result >= 0 && source != nullptr) {
                 source->process(_application, source);
             }
 
@@ -264,7 +265,7 @@ void AndroidApplication::onRun() {
                 }
                 return;
             }
-        }
+        } while (result == ALOOPER_POLL_CALLBACK);
 
         if (!isPause() && _initialized && !_exit) {
             auto currentTime = getCurrentTime();
