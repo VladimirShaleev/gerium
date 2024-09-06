@@ -102,6 +102,10 @@ public:
         return _visibleMeshes;
     }
 
+    const gerium_uint32_t getNumTechniques() const noexcept {
+        return (gerium_uint32_t) _techniques.size();
+    }
+
     const std::vector<MeshInstance*>& instances() const noexcept {
         return _instancesLinear;
     }
@@ -133,6 +137,7 @@ private:
     std::array<DescriptorSet, kMaxDraws> _textureSets{};
     std::unordered_map<gerium_uint64_t, MeshInstance> _instances{};
     std::vector<MeshInstance*> _instancesLinear{};
+    std::set<gerium_uint16_t> _techniques{};
     SceneData _sceneData{};
 };
 

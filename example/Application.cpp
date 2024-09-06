@@ -3,7 +3,9 @@
 gerium_uint32_t GBufferPass::prepare(gerium_frame_graph_t frameGraph,
                                      gerium_renderer_t renderer,
                                      gerium_uint32_t maxWorkers) {
-    return std::min((gerium_uint32_t) getApplication()->scene().instances().size(), (gerium_uint32_t) 4);
+    const auto& scene  = getApplication()->scene();
+    auto numTechniques = scene.getNumTechniques();
+    return std::clamp(numTechniques, (gerium_uint32_t) 4, maxWorkers);
 }
 
 void GBufferPass::render(gerium_frame_graph_t frameGraph,
@@ -11,11 +13,11 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    auto& manager         = getApplication()->resourceManager();
-    auto& scene           = getApplication()->scene();
-    auto bindlessSupprted = getApplication()->bindlessSupported();
-    auto camera           = scene.getActiveCamera();
-    const auto& instances = scene.instances();
+    auto& manager          = getApplication()->resourceManager();
+    auto& scene            = getApplication()->scene();
+    auto bindlessSupported = getApplication()->bindlessSupported();
+    auto camera            = scene.getActiveCamera();
+    const auto& instances  = scene.instances();
 
     auto batchSize     = int((instances.size() + totalWorkers - 1) / totalWorkers);
     auto instanceIndex = int(worker) * batchSize;
@@ -26,7 +28,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, scene.getMeshDatas());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
-    if (bindlessSupprted) {
+    if (bindlessSupported) {
         gerium_command_buffer_bind_descriptor_set(commandBuffer, scene.getBindlessTextures(), TEXTURE_SET);
     }
 
@@ -38,7 +40,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
             continue;
         }
         gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
-        if (!bindlessSupprted) {
+        if (!bindlessSupported) {
             gerium_command_buffer_bind_descriptor_set(commandBuffer, instance->textureSet, TEXTURE_SET);
         }
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
@@ -78,7 +80,9 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 gerium_uint32_t DepthPrePass::prepare(gerium_frame_graph_t frameGraph,
                                       gerium_renderer_t renderer,
                                       gerium_uint32_t maxWorkers) {
-    return std::min((gerium_uint32_t) getApplication()->scene().instances().size(), (gerium_uint32_t) 4);
+    const auto& scene  = getApplication()->scene();
+    auto numTechniques = scene.getNumTechniques();
+    return std::clamp(numTechniques, (gerium_uint32_t) 4, maxWorkers);
 }
 
 void DepthPrePass::render(gerium_frame_graph_t frameGraph,

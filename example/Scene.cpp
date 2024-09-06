@@ -138,6 +138,7 @@ void Scene::culling() {
 
     _instances.clear();
     _instancesLinear.clear();
+    _techniques.clear();
 
     auto renderer    = _resourceManger->renderer();
     auto countMeshes = 0;
@@ -148,6 +149,8 @@ void Scene::culling() {
         }
         auto& meshInstance = _instances[mesh->hash(_bindlessEnabled)];
         if (!meshInstance.mesh) {
+            gerium_technique_h technique = mesh->getMaterial().getTechnique();
+            _techniques.insert(technique.unused);
             meshInstance.mesh = mesh;
             if (!_bindlessEnabled) {
                 meshInstance.textureSet = _textureSets[_instances.size() - 1];
@@ -156,12 +159,13 @@ void Scene::culling() {
                 gerium_renderer_bind_texture(
                     renderer, meshInstance.textureSet, 2, 0, mesh->getMaterial().getRoughness());
             } else {
-                gerium_texture_h diffuse = mesh->getMaterial().getDiffuse();
-                gerium_texture_h normal = mesh->getMaterial().getNormal();
+                gerium_texture_h diffuse   = mesh->getMaterial().getDiffuse();
+                gerium_texture_h normal    = mesh->getMaterial().getNormal();
                 gerium_texture_h roughness = mesh->getMaterial().getRoughness();
                 gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, diffuse.unused, diffuse);
                 gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, normal.unused, normal);
-                gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, roughness.unused, roughness);
+                gerium_renderer_bind_texture(
+                    renderer, _bindlessTextures, BINDLESS_BINDING, roughness.unused, roughness);
             }
         }
         if (meshInstance.meshDatas.size() > MAX_INSTANCES) {
@@ -209,6 +213,14 @@ void Scene::culling() {
     int i = 0;
     for (auto& [_, instance] : _instances) {
         _instancesLinear[i++] = &instance;
+    }
+
+    if (_techniques.size() > 1) {
+        std::sort(_instancesLinear.begin(), _instancesLinear.end(), [](const auto i1, const auto i2) {
+            gerium_technique_h t1 = i1->mesh->getMaterial().getTechnique();
+            gerium_technique_h t2 = i2->mesh->getMaterial().getTechnique();
+            return t1.unused < t2.unused;
+        });
     }
 }
 
