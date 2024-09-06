@@ -108,7 +108,7 @@ typedef struct _##gerium_name* gerium_name##_t;
 
 #define GERIUM_HANDLE(gerium_name) \
 typedef struct {                   \
-    gerium_uint16_t unused;        \
+    gerium_uint16_t index;         \
 } gerium_name##_h;
 
 #endif

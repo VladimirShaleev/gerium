@@ -115,7 +115,7 @@ Texture ResourceManager::loadTexture(const std::filesystem::path& path) {
     resource.type      = TextureType;
     resource.name      = pathStr;
     resource.key       = key;
-    resource.handle    = texture.unused;
+    resource.handle    = texture.index;
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
@@ -175,7 +175,7 @@ Texture ResourceManager::createTexture(const gerium_texture_info_t& info, gerium
     resource.type      = TextureType;
     resource.name      = name;
     resource.key       = key;
-    resource.handle    = texture.unused;
+    resource.handle    = texture.index;
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
@@ -202,7 +202,7 @@ Technique ResourceManager::createTechnique(const std::string& name, const std::v
     resource.type      = TechniqueType;
     resource.name      = nameTech;
     resource.key       = key;
-    resource.handle    = technique.unused;
+    resource.handle    = technique.index;
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
@@ -233,7 +233,7 @@ Buffer ResourceManager::createBuffer(gerium_buffer_usage_flags_t bufferUsage,
     resource.type      = BufferType;
     resource.name      = pathName;
     resource.key       = key;
-    resource.handle    = buffer.unused;
+    resource.handle    = buffer.index;
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
@@ -253,7 +253,7 @@ DescriptorSet ResourceManager::createDescriptorSet(bool global) {
     resource.type      = DescriptorSetType;
     resource.name      = name;
     resource.key       = key;
-    resource.handle    = descriptorSet.unused;
+    resource.handle    = descriptorSet.index;
     resource.reference = 1;
     resource.lastUsed  = _ticks;
 
@@ -263,35 +263,35 @@ DescriptorSet ResourceManager::createDescriptorSet(bool global) {
 }
 
 void ResourceManager::reference(gerium_texture_h handle) {
-    referenceResource(TextureType + handle.unused);
+    referenceResource(TextureType + handle.index);
 }
 
 void ResourceManager::reference(gerium_technique_h handle) {
-    referenceResource(TechniqueType + handle.unused);
+    referenceResource(TechniqueType + handle.index);
 }
 
 void ResourceManager::reference(gerium_buffer_h handle) {
-    referenceResource(BufferType + handle.unused);
+    referenceResource(BufferType + handle.index);
 }
 
 void ResourceManager::reference(gerium_descriptor_set_h handle) {
-    referenceResource(DescriptorSetType + handle.unused);
+    referenceResource(DescriptorSetType + handle.index);
 }
 
 void ResourceManager::destroy(gerium_texture_h handle) {
-    destroyResource(TextureType + handle.unused);
+    destroyResource(TextureType + handle.index);
 }
 
 void ResourceManager::destroy(gerium_technique_h handle) {
-    destroyResource(TechniqueType + handle.unused);
+    destroyResource(TechniqueType + handle.index);
 }
 
 void ResourceManager::destroy(gerium_buffer_h handle) {
-    destroyResource(BufferType + handle.unused);
+    destroyResource(BufferType + handle.index);
 }
 
 void ResourceManager::destroy(gerium_descriptor_set_h handle) {
-    destroyResource(DescriptorSetType + handle.unused);
+    destroyResource(DescriptorSetType + handle.index);
 }
 
 void ResourceManager::referenceResource(gerium_uint16_t handle) {

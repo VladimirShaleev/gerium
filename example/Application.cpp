@@ -148,7 +148,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                 mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
                 continue;
             }
-            if (((gerium_buffer_h) mesh->getTangents()).unused == 65535) {
+            if (((gerium_buffer_h) mesh->getTangents()).index == 65535) {
                 continue;
             }
             const auto& bbox    = mesh->worldBoundingBox();

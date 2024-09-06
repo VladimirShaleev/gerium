@@ -90,7 +90,7 @@ void gerium_command_buffer_set_scissor(gerium_command_buffer_t command_buffer,
 
 void gerium_command_buffer_bind_technique(gerium_command_buffer_t command_buffer, gerium_technique_h handle) {
     assert(command_buffer);
-    alias_cast<CommandBuffer*>(command_buffer)->bindTechnique({ handle.unused });
+    alias_cast<CommandBuffer*>(command_buffer)->bindTechnique({ handle.index });
 }
 
 void gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_buffer,
@@ -98,7 +98,7 @@ void gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_bu
                                               gerium_uint32_t binding,
                                               gerium_uint32_t offset) {
     assert(command_buffer);
-    alias_cast<CommandBuffer*>(command_buffer)->bindVertexBuffer({ handle.unused }, binding, offset);
+    alias_cast<CommandBuffer*>(command_buffer)->bindVertexBuffer({ handle.index }, binding, offset);
 }
 
 void gerium_command_buffer_bind_index_buffer(gerium_command_buffer_t command_buffer,
@@ -106,14 +106,14 @@ void gerium_command_buffer_bind_index_buffer(gerium_command_buffer_t command_buf
                                              gerium_uint32_t offset,
                                              gerium_index_type_t type) {
     assert(command_buffer);
-    alias_cast<CommandBuffer*>(command_buffer)->bindIndexBuffer({ handle.unused }, offset, type);
+    alias_cast<CommandBuffer*>(command_buffer)->bindIndexBuffer({ handle.index }, offset, type);
 }
 
 void gerium_command_buffer_bind_descriptor_set(gerium_command_buffer_t command_buffer,
                                                gerium_descriptor_set_h handle,
                                                gerium_uint32_t set) {
     assert(command_buffer);
-    alias_cast<CommandBuffer*>(command_buffer)->bindDescriptorSet({ handle.unused }, set);
+    alias_cast<CommandBuffer*>(command_buffer)->bindDescriptorSet({ handle.index }, set);
 }
 
 void gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,

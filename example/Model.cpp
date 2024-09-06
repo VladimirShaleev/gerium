@@ -103,14 +103,14 @@ const MeshData& PBRMaterial::meshData() const noexcept {
 
 gerium_uint64_t PBRMaterial::hash(bool bindlessSupported) const noexcept {
     if (!_hash) {
-        auto technique = ((gerium_technique_h) _technique).unused;
+        auto technique = ((gerium_technique_h) _technique).index;
 
         _hash = wyhash(&technique, sizeof(technique), 0, _wyp);
         if (!bindlessSupported) {
-            auto diffuse   = ((gerium_texture_h) _diffuse).unused;
-            auto roughness = ((gerium_texture_h) _roughness).unused;
-            auto normal    = ((gerium_texture_h) _normal).unused;
-            auto occlusion = ((gerium_texture_h) _occlusion).unused;
+            auto diffuse   = ((gerium_texture_h) _diffuse).index;
+            auto roughness = ((gerium_texture_h) _roughness).index;
+            auto normal    = ((gerium_texture_h) _normal).index;
+            auto occlusion = ((gerium_texture_h) _occlusion).index;
 
             _hash = wyhash(&diffuse, sizeof(diffuse), _hash, _wyp);
             _hash = wyhash(&roughness, sizeof(roughness), _hash, _wyp);
@@ -279,11 +279,11 @@ void Mesh::visible(bool show) noexcept {
 
 gerium_uint64_t Mesh::hash(bool bindlessSupported) const noexcept {
     if (!_hash) {
-        auto indices   = ((gerium_buffer_h) _indices).unused;
-        auto positions = ((gerium_buffer_h) _positions).unused;
-        auto texcoords = ((gerium_buffer_h) _texcoords).unused;
-        auto normals   = ((gerium_buffer_h) _normals).unused;
-        auto tangents  = ((gerium_buffer_h) _tangents).unused;
+        auto indices   = ((gerium_buffer_h) _indices).index;
+        auto positions = ((gerium_buffer_h) _positions).index;
+        auto texcoords = ((gerium_buffer_h) _texcoords).index;
+        auto normals   = ((gerium_buffer_h) _normals).index;
+        auto tangents  = ((gerium_buffer_h) _tangents).index;
 
         _hash = _material.hash(bindlessSupported);
         _hash = wyhash(&indices, sizeof(indices), _hash, _wyp);
@@ -661,10 +661,10 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
             getMeshVertexBuffer(glTF, buffers, normalAccessorIndex, normals, normalsOffset);
             getMeshVertexBuffer(glTF, buffers, texcoordAccessorIndex, texcoords, texcoordsOffset);
 
-            if (((gerium_buffer_h) positions).unused == UndefinedHandle ||
-                ((gerium_buffer_h) tangents).unused == UndefinedHandle ||
-                ((gerium_buffer_h) normals).unused == UndefinedHandle ||
-                ((gerium_buffer_h) texcoords).unused == UndefinedHandle) {
+            if (((gerium_buffer_h) positions).index == UndefinedHandle ||
+                ((gerium_buffer_h) tangents).index == UndefinedHandle ||
+                ((gerium_buffer_h) normals).index == UndefinedHandle ||
+                ((gerium_buffer_h) texcoords).index == UndefinedHandle) {
                 continue;
             }
 

@@ -152,7 +152,7 @@ inline Resource<T>& Resource<T>::operator=(std::nullptr_t) noexcept {
 
 template <typename T>
 inline Resource<T>& Resource<T>::operator=(const Resource<T>& resource) noexcept {
-    if (_handle.unused != resource._handle.unused) {
+    if (_handle.index != resource._handle.index) {
         destroy();
         _resourceManager = resource._resourceManager;
         _handle          = resource._handle;
@@ -165,7 +165,7 @@ inline Resource<T>& Resource<T>::operator=(const Resource<T>& resource) noexcept
 
 template <typename T>
 inline Resource<T>& Resource<T>::operator=(Resource<T>&& resource) noexcept {
-    if (_handle.unused != resource._handle.unused) {
+    if (_handle.index != resource._handle.index) {
         destroy();
         std::swap(_resourceManager, resource._resourceManager);
         std::swap(_handle, resource._handle);
@@ -185,7 +185,7 @@ inline Resource<T>::operator const T() const noexcept {
 
 template <typename T>
 inline Resource<T>::operator bool() const noexcept {
-    return _resourceManager && _handle.unused != UndefinedHandle;
+    return _resourceManager && _handle.index != UndefinedHandle;
 }
 
 template <typename T>

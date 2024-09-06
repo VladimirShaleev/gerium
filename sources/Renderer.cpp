@@ -182,7 +182,7 @@ void gerium_renderer_get_texture_info(gerium_renderer_t renderer,
                                       gerium_texture_info_t* info) {
     assert(renderer);
     assert(info);
-    return alias_cast<Renderer*>(renderer)->getTextureInfo({ handle.unused }, *info);
+    return alias_cast<Renderer*>(renderer)->getTextureInfo({ handle.index }, *info);
 }
 
 gerium_result_t gerium_renderer_create_buffer(gerium_renderer_t renderer,
@@ -269,7 +269,7 @@ gerium_result_t gerium_renderer_async_upload_texture_data(gerium_renderer_t rend
     GERIUM_ASSERT_ARG(texture_data);
 
     GERIUM_BEGIN_SAFE_BLOCK
-        alias_cast<Renderer*>(renderer)->asyncUploadTextureData({ handle.unused }, texture_data, callback, data);
+        alias_cast<Renderer*>(renderer)->asyncUploadTextureData({ handle.index }, texture_data, callback, data);
     GERIUM_END_SAFE_BLOCK
 }
 
@@ -285,28 +285,28 @@ gerium_result_t gerium_renderer_texture_sampler(gerium_renderer_t renderer,
 
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<Renderer*>(renderer)->textureSampler(
-            { handle.unused }, min_filter, mag_filter, mip_filter, address_mode_u, address_mode_v, address_mode_w);
+            { handle.index }, min_filter, mag_filter, mip_filter, address_mode_u, address_mode_v, address_mode_w);
     GERIUM_END_SAFE_BLOCK
 }
 
 void gerium_renderer_destroy_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->destroyBuffer({ handle.unused });
+    return alias_cast<Renderer*>(renderer)->destroyBuffer({ handle.index });
 }
 
 void gerium_renderer_destroy_texture(gerium_renderer_t renderer, gerium_texture_h handle) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->destroyTexture({ handle.unused });
+    return alias_cast<Renderer*>(renderer)->destroyTexture({ handle.index });
 }
 
 void gerium_renderer_destroy_technique(gerium_renderer_t renderer, gerium_technique_h handle) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->destroyTechnique({ handle.unused });
+    return alias_cast<Renderer*>(renderer)->destroyTechnique({ handle.index });
 }
 
 void gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer, gerium_descriptor_set_h handle) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->destroyDescriptorSet({ handle.unused });
+    return alias_cast<Renderer*>(renderer)->destroyDescriptorSet({ handle.index });
 }
 
 void gerium_renderer_bind_buffer(gerium_renderer_t renderer,
@@ -314,7 +314,7 @@ void gerium_renderer_bind_buffer(gerium_renderer_t renderer,
                                  gerium_uint16_t binding,
                                  gerium_buffer_h buffer) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, BufferHandle{ buffer.unused });
+    return alias_cast<Renderer*>(renderer)->bind({ handle.index }, binding, BufferHandle{ buffer.index });
 }
 
 void gerium_renderer_bind_texture(gerium_renderer_t renderer,
@@ -323,7 +323,7 @@ void gerium_renderer_bind_texture(gerium_renderer_t renderer,
                                   gerium_uint16_t element,
                                   gerium_texture_h texture) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, element, TextureHandle{ texture.unused });
+    return alias_cast<Renderer*>(renderer)->bind({ handle.index }, binding, element, TextureHandle{ texture.index });
 }
 
 void gerium_renderer_bind_resource(gerium_renderer_t renderer,
@@ -331,7 +331,7 @@ void gerium_renderer_bind_resource(gerium_renderer_t renderer,
                                    gerium_uint16_t binding,
                                    gerium_utf8_t resource_input) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->bind({ handle.unused }, binding, resource_input);
+    return alias_cast<Renderer*>(renderer)->bind({ handle.index }, binding, resource_input);
 }
 
 gerium_data_t gerium_renderer_map_buffer(gerium_renderer_t renderer,
@@ -339,12 +339,12 @@ gerium_data_t gerium_renderer_map_buffer(gerium_renderer_t renderer,
                                          gerium_uint32_t offset,
                                          gerium_uint32_t size) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->mapBuffer({ handle.unused }, offset, size);
+    return alias_cast<Renderer*>(renderer)->mapBuffer({ handle.index }, offset, size);
 }
 
 void gerium_renderer_unmap_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
     assert(renderer);
-    alias_cast<Renderer*>(renderer)->unmapBuffer({ handle.unused });
+    alias_cast<Renderer*>(renderer)->unmapBuffer({ handle.index });
 }
 
 gerium_result_t gerium_renderer_new_frame(gerium_renderer_t renderer) {
