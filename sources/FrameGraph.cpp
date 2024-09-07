@@ -399,8 +399,10 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
                     resource->info.texture.height = newResourceHeight;
 
                     for (auto& handle : resource->info.texture.handles) {
-                        _renderer->destroyTexture(handle);
-                        handle = Undefined;
+                        if (handle != Undefined) {
+                            _renderer->destroyTexture(handle);
+                            handle = Undefined;
+                        }
                     }
 
                     _hasChanges = true;
