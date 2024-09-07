@@ -111,11 +111,9 @@ void Camera::update(Entity& entity, gerium_data_t data) {
 
     const auto aspect = float(width) / height;
 
-    // auto jitter         = glm::translate(glm::vec3(_jitter, 0.0f));
+    auto jitter         = glm::translate(glm::vec3(_jitter, 0.0f));
     _prevViewProjection = _viewProjection;
-    _projection         = /*jitter * */glm::perspective(_fov, aspect, _nearPlane, _farPlane);
-    _projection[2][0]  += _jitter.x;
-    _projection[2][1]  += _jitter.y;
+    _projection         = jitter * glm::perspective(_fov, aspect, _nearPlane, _farPlane);
     _view               = glm::lookAt(_position, _position + _front, _up);
     _viewProjection     = _projection * _view;
 

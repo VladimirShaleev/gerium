@@ -11,6 +11,10 @@ layout(binding = 4) uniform sampler2D texLight;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec4 prevLight = texture(texLight, texCoord);
-    outColor = mix(texture(texAlbedo, texCoord), prevLight, 0.5);
+    vec2 velocity = texture(texVelocity, texCoord).rg;
+    vec4 prevLight = texture(texLight, texCoord - velocity);
+
+    vec4 light = texture(texAlbedo, texCoord);
+
+    outColor = mix(light, prevLight, 0.9);
 }

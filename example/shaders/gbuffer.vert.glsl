@@ -28,8 +28,8 @@ void main() {
     outPrevPosition = scene.prevViewProjection * mesh[gl_InstanceIndex].prevWorld * vec4(position, 1.0);
     gl_Position     = outPosition;
 
-    // outPosition.xy     -= scene.jitter * outPosition.w;
-    // outPrevPosition.xy -= scene.prevJitter * outPrevPosition.w;
+    outPosition.xy     -= scene.jitter * outPosition.w;
+    outPrevPosition.xy -= scene.prevJitter * outPrevPosition.w;
 
     outTexcoord   = texcoord;
     outNormal     = normalize(mat3(mesh[gl_InstanceIndex].inverseWorld) * normal);
