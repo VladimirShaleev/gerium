@@ -40,6 +40,13 @@ void main() {
     outNormal = vec4(normal, 0.0);
     outMetallicRoughness = vec4(occlusion, roughness, metalness, 0.0);
 
-    vec2 velocity = (inPosition.xy / inPosition.w) - (inPrevPosition.xy / inPrevPosition.w);
-    outVelocity = vec2(velocity.x, -velocity.y);
+    vec2 newPos = inPosition.xy / inPosition.w;
+    newPos.xy = (newPos.xy + 1.0) / 2.0;
+    newPos.y = 1.0 - newPos.y;
+
+    vec2 oldPos = inPrevPosition.xy / inPrevPosition.w;
+    oldPos.xy = (oldPos.xy + 1.0) / 2.0;
+    oldPos.y = 1.0 - oldPos.y;
+
+    outVelocity = newPos - oldPos;
 }
