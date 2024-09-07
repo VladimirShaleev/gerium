@@ -429,11 +429,6 @@ void Application::initialize() {
     }
 
     createScene();
-
-    _jitterTable = Camera::calcJitterTable(Jitter::Halton, _jitterPeriod);
-    for (auto& jitter : _jitterTable) {
-        jitter = jitter * 2.0f - 1.0f;
-    }
 }
 
 void Application::uninitialize() {
@@ -547,6 +542,19 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
     }
 }
 
+void Application::updateJitterTable() {
+    if (_prevWidth != _width || _prevHeight != _height) {
+        _jitterTable = Camera::calcJitterTable(Jitter::Halton, _jitterPeriod);
+        for (auto& jitter : _jitterTable) {
+            jitter = jitter * 2.0f - 1.0f;
+            jitter.x *= _invWidth;
+            jitter.y *= _invHeight;
+        }
+    }
+    _previousJitter = _jitterTable[_jitterIndex];
+    _jitterIndex = (_jitterIndex + 1) % _jitterPeriod;
+}
+
 void Application::frame(gerium_uint64_t elapsedMs) {
     pollInput(elapsedMs);
 
@@ -554,14 +562,19 @@ void Application::frame(gerium_uint64_t elapsedMs) {
         return;
     }
 
-    gerium_uint16_t width, height;
-    gerium_application_get_size(_application, &width, &height);
-    const auto jitter  = _jitterTable[_jitterIndex];
-    const auto jitterX = jitter.x / width;
-    const auto jitterY = jitter.y / height;
-    _jitterIndex       = (_jitterIndex + 1) % _jitterPeriod;
+    _prevWidth  = _width;
+    _prevHeight = _height;
+    gerium_application_get_size(_application, &_width, &_height);
 
-    _scene.getActiveCamera()->jittering(jitterX, jitterY);
+    if (_prevWidth != _width || _prevHeight != _height) {
+        _invWidth  = 1.0f / _width;
+        _invHeight = 1.0f / _height;
+    }
+
+    updateJitterTable();
+
+    const auto& jitter = currentJitter();
+    _scene.getActiveCamera()->jittering(jitter.x, jitter.y);
 
     _resourceManager.update(elapsedMs);
     _scene.update();

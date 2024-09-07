@@ -121,6 +121,30 @@ public:
         return _camera2;
     }
 
+    gerium_uint16_t width() const noexcept {
+        return _width;
+    }
+
+    gerium_uint16_t height() const noexcept {
+        return _height;
+    }
+
+    gerium_float32_t invWidth() const noexcept {
+        return _invWidth;
+    }
+
+    gerium_float32_t invHeight() const noexcept {
+        return _invHeight;
+    }
+
+    const glm::vec2& previousJitter() const noexcept {
+        return _previousJitter;
+    }
+
+    const glm::vec2& currentJitter() const noexcept {
+        return _jitterTable[_jitterIndex];
+    }
+
 private:
     void addPass(RenderPass& renderPass);
     void createScene();
@@ -129,6 +153,7 @@ private:
     void uninitialize();
 
     void pollInput(gerium_uint64_t elapsedMs);
+    void updateJitterTable();
     void frame(gerium_uint64_t elapsedMs);
     void state(gerium_application_state_t state);
 
@@ -188,9 +213,16 @@ private:
     Scene _scene{};
     Camera* _camera2{};
 
-    gerium_sint32_t _jitterIndex{};
-    gerium_sint32_t _jitterPeriod{4};
+    gerium_uint16_t _prevWidth{};
+    gerium_uint16_t _prevHeight{};
+    gerium_uint16_t _width{};
+    gerium_uint16_t _height{};
+    gerium_float32_t _invWidth{};
+    gerium_float32_t _invHeight{};
+    gerium_sint32_t _jitterIndex{ 3 };
+    gerium_sint32_t _jitterPeriod{ 4 };
     std::vector<glm::vec2> _jitterTable{};
+    glm::vec2 _previousJitter{};
 
     Technique _baseTechnique{};
 };
