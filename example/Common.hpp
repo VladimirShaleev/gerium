@@ -64,7 +64,7 @@ inline gerium_float32_t halton(gerium_sint32_t i, gerium_sint32_t b) noexcept {
 }
 
 inline glm::vec2 halton23(gerium_sint32_t index) noexcept {
-    return { halton(index, 2), halton(index, 3) };
+    return { halton(index + 1, 2), halton(index + 1, 3) };
 }
 
 inline glm::vec2 mRobertR2(gerium_sint32_t index) noexcept {

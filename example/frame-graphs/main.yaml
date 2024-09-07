@@ -40,6 +40,15 @@ frame graph:
           - GERIUM_COLOR_COMPONENT_B_BIT
           - GERIUM_COLOR_COMPONENT_A_BIT
         clear color attachment: [1.0, 1.0, 1.0, 1.0]
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: velocity
+        format: GERIUM_FORMAT_R16G16_SFLOAT
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        color write mask:
+          - GERIUM_COLOR_COMPONENT_R_BIT
+          - GERIUM_COLOR_COMPONENT_G_BIT
+          - GERIUM_COLOR_COMPONENT_B_BIT
+          - GERIUM_COLOR_COMPONENT_A_BIT
 
   - name: depth_pre_pass
     inputs: []
@@ -58,6 +67,8 @@ frame graph:
         name: normal
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: metallic_roughness
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: velocity
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: light

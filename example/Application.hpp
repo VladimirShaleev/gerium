@@ -219,8 +219,8 @@ private:
     gerium_uint16_t _height{};
     gerium_float32_t _invWidth{};
     gerium_float32_t _invHeight{};
-    gerium_sint32_t _jitterIndex{ 3 };
-    gerium_sint32_t _jitterPeriod{ 4 };
+    gerium_sint32_t _jitterIndex{ 127 };
+    gerium_sint32_t _jitterPeriod{ 128 };
     std::vector<glm::vec2> _jitterTable{};
     glm::vec2 _previousJitter{};
 

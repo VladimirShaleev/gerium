@@ -5,12 +5,16 @@
 
 struct SceneData {
     GLM_NAMESPACE mat4 viewProjection;
+    GLM_NAMESPACE mat4 prevViewProjection;
     GLM_NAMESPACE vec4 eye;
+    GLM_NAMESPACE vec2 jitter;
+    GLM_NAMESPACE vec2 prevJitter;
 };
 
 struct MeshData {
     GLM_NAMESPACE mat4 world;
     GLM_NAMESPACE mat4 inverseWorld;
+    GLM_NAMESPACE mat4 prevWorld;
 #ifdef BINDLESS_SUPPORTED
     GLM_NAMESPACE uvec4 textures;
 #endif

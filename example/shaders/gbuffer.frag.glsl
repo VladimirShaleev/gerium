@@ -7,11 +7,14 @@ layout(location = 0) in vec2 inTexcoord;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inTangent;
 layout(location = 3) in vec3 inBitangent;
-layout(location = 4) flat in int inInstanceID; 
+layout(location = 4) in vec4 inPosition;
+layout(location = 5) in vec4 inPrevPosition;
+layout(location = 6) flat in int inInstanceID; 
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outNormal;
 layout(location = 2) out vec4 outMetallicRoughness;
+layout(location = 3) out vec2 outVelocity;
 
 layout(std140, binding = 0, set = MESH_DATA_SET) readonly buffer MeshDataSSBO {
     MeshData mesh[];
@@ -36,4 +39,7 @@ void main() {
     outColor = fetchBase(inInstanceID, inTexcoord);
     outNormal = vec4(normal, 0.0);
     outMetallicRoughness = vec4(occlusion, roughness, metalness, 0.0);
+
+    vec2 velocity = (inPosition.xy / inPosition.w) - (inPrevPosition.xy / inPrevPosition.w);
+    outVelocity = velocity;
 }

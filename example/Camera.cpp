@@ -63,8 +63,9 @@ void Camera::zoom(gerium_float32_t value, gerium_float32_t delta) {
 }
 
 void Camera::jittering(gerium_float32_t dx, gerium_float32_t dy) {
-    _jitter.x = dx;
-    _jitter.y = dy;
+    _prevJitter = _jitter;
+    _jitter.x   = dx;
+    _jitter.y   = dy;
 }
 
 void Camera::update(Entity& entity, gerium_data_t data) {
@@ -110,10 +111,13 @@ void Camera::update(Entity& entity, gerium_data_t data) {
 
     const auto aspect = float(width) / height;
 
-    auto jitter     = glm::translate(glm::vec3(_jitter, 0.0f));
-    _projection     = jitter * glm::perspective(_fov, aspect, _nearPlane, _farPlane);
-    _view           = glm::lookAt(_position, _position + _front, _up);
-    _viewProjection = _projection * _view;
+    // auto jitter         = glm::translate(glm::vec3(_jitter, 0.0f));
+    _prevViewProjection = _viewProjection;
+    _projection         = /*jitter * */glm::perspective(_fov, aspect, _nearPlane, _farPlane);
+    _projection[2][0]  += _jitter.x;
+    _projection[2][1]  += _jitter.y;
+    _view               = glm::lookAt(_position, _position + _front, _up);
+    _viewProjection     = _projection * _view;
 
     _frustum[LeftFace].normal.x = _viewProjection[0][3] + _viewProjection[0][0];
     _frustum[LeftFace].normal.y = _viewProjection[1][3] + _viewProjection[1][0];
@@ -151,9 +155,12 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     _frustum[FarFace].distance = _viewProjection[3][3] - _viewProjection[3][2];
     _frustum[FarFace].normalize();
 
-    auto ptr            = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
-    ptr->viewProjection = _viewProjection;
-    ptr->eye            = glm::vec4(_front, 1.0f);
+    auto ptr                = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
+    ptr->viewProjection     = _viewProjection;
+    ptr->prevViewProjection = _prevViewProjection;
+    ptr->eye                = glm::vec4(_front, 1.0f);
+    ptr->jitter             = _jitter;
+    ptr->prevJitter         = _prevJitter;
     gerium_renderer_unmap_buffer(_renderer, _data);
 }
 

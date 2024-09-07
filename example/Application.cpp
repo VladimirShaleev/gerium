@@ -286,6 +286,7 @@ void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t re
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "velocity");
 
     _maxPoints = 24 * 1000;
     _vertices  = application()->resourceManager().createBuffer(

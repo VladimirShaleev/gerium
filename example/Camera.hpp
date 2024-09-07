@@ -106,11 +106,13 @@ private:
     gerium_float32_t _farPlane{};
     gerium_float32_t _fov{};
 
+    glm::vec2 _prevJitter{};
     glm::vec2 _jitter{};
 
     glm::mat4 _view{};
     glm::mat4 _projection{};
     glm::mat4 _viewProjection{};
+    glm::mat4 _prevViewProjection{};
 
     Plane _frustum[6]{};
 

@@ -339,6 +339,7 @@ void Model::resizeNodes(gerium_uint32_t numNodes) {
     _nodes.resize(numNodes);
     _localMatrices.resize(numNodes);
     _worldMatrices.resize(numNodes);
+    _prevWorldMatrices.resize(numNodes);
     _inverseWorldMatrices.resize(numNodes);
     _updatedNodes.resize(numNodes);
 
@@ -380,6 +381,7 @@ bool Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
 
             _updatedNodes[i] = false;
 
+            _prevWorldMatrices[i] = _worldMatrices[i];
             if (_nodes[i].parent < 0) {
                 _worldMatrices[i] = parentMat * _localMatrices[i];
             } else {
@@ -406,10 +408,12 @@ bool Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
 
 void Model::updateMaterials() {
     for (auto& mesh : _meshes) {
-        auto& material = mesh.getMaterial();
+        const auto nodeIndex = mesh.getNodeIndex();
+        auto& material       = mesh.getMaterial();
         MeshData meshData;
-        meshData.world        = _worldMatrices[mesh.getNodeIndex()];
-        meshData.inverseWorld = _inverseWorldMatrices[mesh.getNodeIndex()];
+        meshData.world        = _worldMatrices[nodeIndex];
+        meshData.inverseWorld = _inverseWorldMatrices[nodeIndex];
+        meshData.prevWorld    = _worldMatrices[nodeIndex]; // _prevWorldMatrices[nodeIndex];
         material.updateMeshData(meshData);
     }
 }
@@ -433,6 +437,13 @@ const glm::mat4& Model::getInverseWorldMatrix(gerium_uint32_t nodeIndex) const n
         const_cast<Model*>(this)->updateMatrices();
     }
     return _inverseWorldMatrices[nodeIndex];
+}
+
+const glm::mat4& Model::getPrevWorldMatrix(gerium_uint32_t nodeIndex) const noexcept {
+    if (_updatedNodes[nodeIndex]) {
+        const_cast<Model*>(this)->updateMatrices();
+    }
+    return _prevWorldMatrices[nodeIndex];
 }
 
 static void setSampler(gerium_renderer_t renderer, Texture texture, const gltf::Sampler& sampler) {
