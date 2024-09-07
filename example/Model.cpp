@@ -560,8 +560,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
 
         buffers[i++] = resourceManager.createBuffer(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT,
                                                     false,
-                                                    pathStr,
-                                                    name,
+                                                    "",
                                                     (gerium_cdata_t) bufferData,
                                                     bufferView.byteLength);
     }
@@ -681,7 +680,7 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
             auto& material = glTF.materials[primitive.material];
             PBRMaterial pbrMaterial(renderer, resourceManager);
             fillPbrMaterial(renderer, material, pbrMaterial, glTF.textures, glTF.samplers, textures);
-            pbrMaterial.setTechnique(resourceManager.getTechnique("base"));
+            pbrMaterial.setTechnique(resourceManager.getTechniqueByName("base"));
 
             Mesh mesh(renderer, resourceManager);
             mesh.setNodeIndex(nodeIndex);

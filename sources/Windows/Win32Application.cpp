@@ -399,9 +399,9 @@ void Win32Application::onRun() {
         microseconds.QuadPart *= 1'000'000;
         microseconds.QuadPart /= frequency.QuadPart;
 
-        auto elapsedMs = float(microseconds.QuadPart * 0.001);
+        auto elapsedMs = gerium_uint64_t(microseconds.QuadPart * 0.001);
 
-        if (elapsedMs == 0.0f) {
+        if (elapsedMs == 0) {
             continue;
         }
         prevTime = currentTime;

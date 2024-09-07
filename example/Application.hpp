@@ -4,6 +4,11 @@
 #include "RenderPass.hpp"
 #include "Scene.hpp"
 
+struct Settings {
+    bool DrawBBox;
+    bool Camera2;
+};
+
 class GBufferPass final : public RenderPass {
 public:
     GBufferPass() : RenderPass("gbuffer_pass") {
@@ -40,19 +45,9 @@ public:
     void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
-    static bool drawBBox() noexcept {
-        return _drawBBox;
-    }
-
-    static bool camera2() noexcept {
-        return _camera2;
-    }
-
 private:
     Technique _technique{};
     DescriptorSet _descriptorSet{};
-    static bool _drawBBox;
-    static bool _camera2;
 };
 
 class DepthPrePass final : public RenderPass {
@@ -114,8 +109,16 @@ public:
         return _resourceManager;
     }
 
+    Settings& settings() noexcept {
+        return _settings;
+    }
+
     bool bindlessSupported() const noexcept {
         return _bindlessSupported;
+    }
+
+    Camera* getCamera2() noexcept {
+        return _camera2;
     }
 
 private:
@@ -125,11 +128,11 @@ private:
     void initialize();
     void uninitialize();
 
-    void pollInput(gerium_float32_t elapsed);
-    void frame(gerium_float32_t elapsed);
+    void pollInput(gerium_uint64_t elapsedMs);
+    void frame(gerium_uint64_t elapsedMs);
     void state(gerium_application_state_t state);
 
-    static gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed);
+    static gerium_bool_t frame(gerium_application_t application, gerium_data_t data, gerium_uint64_t elapsedMs);
     static gerium_bool_t state(gerium_application_t application, gerium_data_t data, gerium_application_state_t state);
 
     static gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
@@ -173,6 +176,7 @@ private:
     gerium_frame_graph_t _frameGraph{};
     bool _bindlessSupported{};
 
+    Settings _settings{};
     GBufferPass _gbufferPass{};
     PresentPass _presentPass{};
     DepthPrePass _depthPrePass{};
@@ -182,6 +186,7 @@ private:
     AsyncLoader _asyncLoader{};
     ResourceManager _resourceManager{};
     Scene _scene{};
+    Camera* _camera2{};
 
     Technique _baseTechnique{};
 };

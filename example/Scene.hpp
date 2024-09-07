@@ -95,6 +95,10 @@ public:
                 return camera[i];
             }
         }
+        if (count > 0) {
+            camera[0]->activate();
+            return camera[0];
+        }
         return nullptr;
     }
 

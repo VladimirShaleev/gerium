@@ -27,7 +27,7 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
                                     GERIUM_ADDRESS_MODE_REPEAT);
 
     if (_bindlessEnabled) {
-        _bindlessTextures = _resourceManger->createDescriptorSet(true);
+        _bindlessTextures = _resourceManger->createDescriptorSet("", true);
         auto renderer     = _resourceManger->renderer();
         for (int i = 0; i < 1000; ++i) {
             gerium_renderer_bind_texture(renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
@@ -37,10 +37,10 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
     const auto meshDataSize = _bindlessEnabled ? sizeof(MeshDataBindless) : sizeof(MeshData);
 
     _meshDatas = _resourceManger->createBuffer(
-        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", "mesh_data", nullptr, meshDataSize * kMaxMeshDatas);
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "mesh_data", nullptr, meshDataSize * kMaxMeshDatas);
 
     for (auto& set : _textureSets) {
-        set = _resourceManger->createDescriptorSet();
+        set = _resourceManger->createDescriptorSet("");
     }
 }
 
@@ -108,7 +108,7 @@ void Scene::update() {
 }
 
 void Scene::culling() {
-    auto camera = getAnyComponentNode<Camera>();
+    auto camera = getActiveCamera();
 
     _visibleMeshes.clear();
 

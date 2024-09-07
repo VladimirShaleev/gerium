@@ -4,6 +4,7 @@
 #include "Common.hpp"
 
 class Application;
+class Settings;
 
 class RenderPass {
 public:
@@ -25,7 +26,8 @@ public:
                         gerium_uint32_t totalWorkers) = 0;
 
     void setApplication(Application* application) noexcept;
-    Application* getApplication() const noexcept;
+    Application* application() const noexcept;
+    Settings& settings() noexcept;
 
     const std::string& name() const noexcept;
 

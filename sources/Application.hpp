@@ -64,7 +64,7 @@ protected:
     gerium_application_state_t currentState() const noexcept;
     gerium_bool_t callbackStateFailed() const noexcept;
     void changeState(gerium_application_state_t newState, bool noThrow = false);
-    bool callFrameFunc(gerium_float32_t elapsed) noexcept;
+    bool callFrameFunc(gerium_uint64_t elapsedMs) noexcept;
     bool callStateFunc(gerium_application_state_t state) noexcept;
     void clearStates(gerium_uint64_t timestamp) noexcept;
     void setKeyState(gerium_scancode_t scancode, bool press) noexcept;

@@ -759,7 +759,7 @@ typedef enum
 typedef gerium_bool_t
 (*gerium_application_frame_func_t)(gerium_application_t application,
                                    gerium_data_t data,
-                                   gerium_float32_t elapsed);
+                                   gerium_uint64_t elapsed_ms);
 
 typedef gerium_bool_t
 (*gerium_application_state_func_t)(gerium_application_t application,

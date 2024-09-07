@@ -1,4 +1,5 @@
 #include "RenderPass.hpp"
+#include "Application.hpp"
 
 RenderPass::RenderPass(const std::string& name) : _name(name) {
 }
@@ -22,8 +23,12 @@ void RenderPass::setApplication(Application* application) noexcept {
     _application = application;
 }
 
-Application* RenderPass::getApplication() const noexcept {
+Application* RenderPass::application() const noexcept {
     return _application;
+}
+
+Settings& RenderPass::settings() noexcept {
+    return _application->settings();
 }
 
 const std::string& RenderPass::name() const noexcept {

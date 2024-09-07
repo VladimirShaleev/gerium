@@ -209,8 +209,8 @@ void Application::changeState(gerium_application_state_t newState, bool noThrow)
     }
 }
 
-bool Application::callFrameFunc(gerium_float32_t elapsed) noexcept {
-    return _frameFunc ? _frameFunc(this, _frameData, elapsed) : true;
+bool Application::callFrameFunc(gerium_uint64_t elapsedMs) noexcept {
+    return _frameFunc ? _frameFunc(this, _frameData, elapsedMs) : true;
 }
 
 bool Application::callStateFunc(gerium_application_state_t state) noexcept {

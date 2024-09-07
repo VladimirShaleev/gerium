@@ -66,12 +66,16 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     if (_active == nullptr) {
         _active = this;
     }
-    if (!_data) {
-        _data = _resourceManager->createBuffer(
-            GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", "scene_data", nullptr, sizeof(SceneData));
-    }
     if (!_descriptorSet) {
-        _descriptorSet = _resourceManager->createDescriptorSet();
+        _descriptorSet = _resourceManager->createDescriptorSet("");
+    }
+    if (!_data) {
+        gerium_descriptor_set_h ds = _descriptorSet;
+        _data = _resourceManager->createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                               true,
+                                               "scene_data_" + std::to_string(ds.index),
+                                               nullptr,
+                                               sizeof(SceneData));
         gerium_renderer_bind_buffer(_renderer, _descriptorSet, 0, _data);
     }
 

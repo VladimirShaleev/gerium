@@ -3,7 +3,7 @@
 gerium_uint32_t GBufferPass::prepare(gerium_frame_graph_t frameGraph,
                                      gerium_renderer_t renderer,
                                      gerium_uint32_t maxWorkers) {
-    const auto& scene  = getApplication()->scene();
+    const auto& scene  = application()->scene();
     auto numTechniques = scene.getNumTechniques();
     return std::clamp(numTechniques, (gerium_uint32_t) 4, maxWorkers);
 }
@@ -13,10 +13,10 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    auto& manager          = getApplication()->resourceManager();
-    auto& scene            = getApplication()->scene();
-    auto bindlessSupported = getApplication()->bindlessSupported();
-    auto camera            = scene.getActiveCamera();
+    auto& manager          = application()->resourceManager();
+    auto& scene            = application()->scene();
+    auto bindlessSupported = application()->bindlessSupported();
+    auto camera            = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
     const auto& instances  = scene.instances();
 
     auto batchSize     = int((instances.size() + totalWorkers - 1) / totalWorkers);
@@ -65,13 +65,12 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
 
     if (ImGui::Begin("Settings")) {
-        ImGui::Checkbox("Draw bbox", &_drawBBox);
-        ImGui::Checkbox("Camera 2", &_camera2);
+        ImGui::Checkbox("Draw bbox", &settings().DrawBBox);
+        ImGui::Checkbox("Camera 2", &settings().Camera2);
 
         Camera* camera[2];
         gerium_uint16_t count = 2;
-        getApplication()->scene().getComponents<Camera>(count, camera);
-        camera[_camera2 ? 1 : 0]->activate();
+        application()->scene().getComponents<Camera>(count, camera);
     }
 
     ImGui::End();
@@ -80,7 +79,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 gerium_uint32_t DepthPrePass::prepare(gerium_frame_graph_t frameGraph,
                                       gerium_renderer_t renderer,
                                       gerium_uint32_t maxWorkers) {
-    const auto& scene  = getApplication()->scene();
+    const auto& scene  = application()->scene();
     auto numTechniques = scene.getNumTechniques();
     return std::clamp(numTechniques, (gerium_uint32_t) 4, maxWorkers);
 }
@@ -90,9 +89,9 @@ void DepthPrePass::render(gerium_frame_graph_t frameGraph,
                           gerium_command_buffer_t commandBuffer,
                           gerium_uint32_t worker,
                           gerium_uint32_t totalWorkers) {
-    auto& manager         = getApplication()->resourceManager();
-    auto& scene           = getApplication()->scene();
-    auto camera           = scene.getActiveCamera();
+    auto& manager         = application()->resourceManager();
+    auto& scene           = application()->scene();
+    auto camera           = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
     const auto& instances = scene.instances();
 
     auto batchSize     = int((instances.size() + totalWorkers - 1) / totalWorkers);
@@ -126,10 +125,9 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_command_buffer_t commandBuffer,
                        gerium_uint32_t worker,
                        gerium_uint32_t totalWorkers) {
-    auto& manager  = getApplication()->resourceManager();
-    auto& scene    = getApplication()->scene();
-    auto camera    = scene.getActiveCamera();
-    auto technique = manager.getTechnique("base");
+    auto& manager  = application()->resourceManager();
+    auto& scene    = application()->scene();
+    auto technique = manager.getTechniqueByName("base");
 
     gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
@@ -142,13 +140,10 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
 
     auto dataV = (glm::vec3*) gerium_renderer_map_buffer(renderer, _vertices, 0, sizeof(glm::vec3) * _maxPoints);
 
-    if (PresentPass::drawBBox()) {
+    if (settings().DrawBBox) {
         for (auto mesh : scene.visibleMeshes()) {
             if (mesh->getMaterial().getFlags() != DrawFlags::None &&
                 mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
-                continue;
-            }
-            if (((gerium_buffer_h) mesh->getTangents()).index == 65535) {
                 continue;
             }
             const auto& bbox    = mesh->worldBoundingBox();
@@ -188,8 +183,8 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
         }
     }
 
-    if (PresentPass::camera2()) {
-        auto primaryCamera = scene.getAnyComponentNode<Camera>();
+    if (settings().Camera2) {
+        auto primaryCamera = scene.getActiveCamera();
 
         const auto nearPlane = 0.0f;
         const auto farPlane  = 0.995f;
@@ -236,6 +231,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_renderer_unmap_buffer(renderer, _vertices);
 
     if (vertices) {
+        auto camera = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
         gerium_command_buffer_bind_technique(commandBuffer, _lines);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
         gerium_command_buffer_bind_vertex_buffer(commandBuffer, _vertices, 0, 0);
@@ -245,9 +241,10 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
 
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
+    auto techniqueDir            = (appDir / "techniques" / "present.yaml").string();
 
-    _technique     = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "present.yaml");
-    _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
+    _technique     = application()->resourceManager().loadTechnique(techniqueDir);
+    _descriptorSet = application()->resourceManager().createDescriptorSet("");
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "light");
 }
@@ -257,13 +254,9 @@ void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
     _technique     = nullptr;
 }
 
-bool PresentPass::_drawBBox{};
-
-bool PresentPass::_camera2{};
-
 void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     for (auto& set : _descriptorSets) {
-        set = getApplication()->resourceManager().createDescriptorSet();
+        set = application()->resourceManager().createDescriptorSet("");
     }
 }
 
@@ -275,7 +268,7 @@ void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
 
 void DepthPrePass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     for (auto& set : _descriptorSets) {
-        set = getApplication()->resourceManager().createDescriptorSet();
+        set = application()->resourceManager().createDescriptorSet("");
     }
 }
 
@@ -287,16 +280,17 @@ void DepthPrePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer
 
 void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
+    auto techniqueDir            = (appDir / "techniques" / "lines.yaml").string();
 
-    _descriptorSet = getApplication()->resourceManager().createDescriptorSet();
+    _descriptorSet = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
 
     _maxPoints = 24 * 1000;
-    _vertices  = getApplication()->resourceManager().createBuffer(
-        GERIUM_BUFFER_USAGE_VERTEX_BIT, true, "", "lines_vertices", nullptr, sizeof(glm::vec3) * _maxPoints);
-    _lines = getApplication()->resourceManager().loadTechnique(appDir / "techniques" / "lines.yaml");
+    _vertices  = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_VERTEX_BIT, true, "lines_vertices", nullptr, sizeof(glm::vec3) * _maxPoints);
+    _lines = application()->resourceManager().loadTechnique(techniqueDir);
 }
 
 void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -376,8 +370,8 @@ void Application::createScene() {
     auto sponza = _scene.addNode(root);
 
     _scene.addComponentToNode(root, defaultTransform);
-    _scene.addComponentToNode(root, Camera(_application, _resourceManager));
-    auto camera2 = _scene.addComponentToNode(root, Camera(_application, _resourceManager));
+    auto camera1 = _scene.addComponentToNode(root, Camera(_application, _resourceManager));
+    _camera2     = _scene.addComponentToNode(root, Camera(_application, _resourceManager));
     _scene.addComponentToNode(sponza, sponzaTransform);
     _scene.addComponentToNode(sponza, modelSponza);
 
@@ -396,9 +390,9 @@ void Application::createScene() {
         }
     }
 
-    camera2->setPosition({ 0.0f, 3.2, -0.0f });
-    camera2->setRotation(M_PI_2, -M_PI_2);
-    camera2->activate();
+    _camera2->setPosition({ 0.0f, 3.2, -0.0f });
+    _camera2->setRotation(M_PI_2, -M_PI_2);
+    camera1->activate();
 }
 
 void Application::initialize() {
@@ -427,8 +421,8 @@ void Application::initialize() {
     addPass(_lightPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
-    _resourceManager.loadFrameGraph(appDir / "frame-graphs" / "main.yaml");
-    _baseTechnique = _resourceManager.loadTechnique(appDir / "techniques" / "base.yaml");
+    _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
+    _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
 
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);
@@ -463,7 +457,7 @@ void Application::uninitialize() {
     }
 }
 
-void Application::pollInput(gerium_float32_t elapsed) {
+void Application::pollInput(gerium_uint64_t elapsedMs) {
     bool swapFullscreen = false;
     bool showCursor     = gerium_application_is_show_cursor(_application);
     bool invY           = gerium_application_get_platform(_application) == GERIUM_RUNTIME_PLATFORM_MAC_OS;
@@ -513,6 +507,7 @@ void Application::pollInput(gerium_float32_t elapsed) {
     camera->rotate(pitch, yaw, 1.0f);
     camera->zoom(zoom, 1.0f);
 
+    auto elapsed = (gerium_float32_t) elapsedMs;
     if (gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_A) ||
         gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_ARROW_LEFT)) {
         camera->move(Camera::Right, -move, elapsed);
@@ -547,14 +542,14 @@ void Application::pollInput(gerium_float32_t elapsed) {
     }
 }
 
-void Application::frame(gerium_float32_t elapsed) {
-    pollInput(elapsed);
+void Application::frame(gerium_uint64_t elapsedMs) {
+    pollInput(elapsedMs);
 
     if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return;
     }
 
-    _resourceManager.update(elapsed);
+    _resourceManager.update(elapsedMs);
     _scene.update();
     _scene.culling();
 
@@ -584,10 +579,10 @@ void Application::state(gerium_application_state_t state) {
     }
 }
 
-gerium_bool_t Application::frame(gerium_application_t application, gerium_data_t data, gerium_float32_t elapsed) {
+gerium_bool_t Application::frame(gerium_application_t application, gerium_data_t data, gerium_uint64_t elapsedMs) {
     auto app = (Application*) data;
-    return app->cppCall([app, elapsed]() {
-        app->frame(elapsed);
+    return app->cppCall([app, elapsedMs]() {
+        app->frame(elapsedMs);
     });
 }
 
@@ -605,14 +600,14 @@ gerium_uint32_t Application::prepare(gerium_frame_graph_t frameGraph,
                                      gerium_uint32_t maxWorkers,
                                      gerium_data_t data) {
     auto renderPass = (RenderPass*) data;
-    return renderPass->getApplication()->cppCallInt([renderPass, frameGraph, renderer, maxWorkers]() {
+    return renderPass->application()->cppCallInt([renderPass, frameGraph, renderer, maxWorkers]() {
         return renderPass->prepare(frameGraph, renderer, maxWorkers);
     });
 }
 
 gerium_bool_t Application::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer, gerium_data_t data) {
     auto renderPass = (RenderPass*) data;
-    return renderPass->getApplication()->cppCall([renderPass, frameGraph, renderer]() {
+    return renderPass->application()->cppCall([renderPass, frameGraph, renderer]() {
         renderPass->resize(frameGraph, renderer);
     });
 }
@@ -624,7 +619,7 @@ gerium_bool_t Application::render(gerium_frame_graph_t frameGraph,
                                   gerium_uint32_t totalWorkers,
                                   gerium_data_t data) {
     auto renderPass = (RenderPass*) data;
-    return renderPass->getApplication()->cppCall(
+    return renderPass->application()->cppCall(
         [renderPass, frameGraph, renderer, commandBuffer, worker, totalWorkers]() {
         renderPass->render(frameGraph, renderer, commandBuffer, worker, totalWorkers);
     });
