@@ -11,6 +11,13 @@ enum class Intersection {
     Full
 };
 
+enum class Jitter {
+    Halton = 0,
+    R2,
+    Hammersley,
+    InterleavedGradients
+};
+
 class Camera final : public Component {
 public:
     enum Movement {
@@ -36,6 +43,7 @@ public:
     void rotate(gerium_float32_t deltaPitch, gerium_float32_t deltaYaw, gerium_float32_t delta);
     void move(Movement direction, gerium_float32_t value, gerium_float32_t delta);
     void zoom(gerium_float32_t value, gerium_float32_t delta);
+    void jittering(gerium_float32_t dx, gerium_float32_t dy);
 
     void update(Entity& entity, gerium_data_t data) override;
 
@@ -63,6 +71,8 @@ public:
 
     const DescriptorSet& getDecriptorSet() const noexcept;
 
+    static glm::vec2 calcJitter(Jitter jitter, gerium_sint32_t index, gerium_sint32_t jitterPeriod) noexcept;
+
 private:
     enum FrustumPlane {
         NearFace,
@@ -87,12 +97,14 @@ private:
     gerium_float32_t _yaw{};
     gerium_float32_t _pitch{};
 
-    gerium_float32_t _movementSpeed;
-    gerium_float32_t _rotationSpeed;
+    gerium_float32_t _movementSpeed{};
+    gerium_float32_t _rotationSpeed{};
 
-    gerium_float32_t _nearPlane;
-    gerium_float32_t _farPlane;
-    gerium_float32_t _fov;
+    gerium_float32_t _nearPlane{};
+    gerium_float32_t _farPlane{};
+    gerium_float32_t _fov{};
+
+    glm::vec2 _jitter{};
 
     glm::mat4 _view{};
     glm::mat4 _projection{};

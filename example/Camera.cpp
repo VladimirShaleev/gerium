@@ -62,6 +62,11 @@ void Camera::zoom(gerium_float32_t value, gerium_float32_t delta) {
     _fov += value * delta;
 }
 
+void Camera::jittering(gerium_float32_t dx, gerium_float32_t dy) {
+    _jitter.x = dx;
+    _jitter.y = dy;
+}
+
 void Camera::update(Entity& entity, gerium_data_t data) {
     if (_active == nullptr) {
         _active = this;
@@ -71,7 +76,7 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     }
     if (!_data) {
         gerium_descriptor_set_h ds = _descriptorSet;
-        _data = _resourceManager->createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+        _data                      = _resourceManager->createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT,
                                                true,
                                                "scene_data_" + std::to_string(ds.index),
                                                nullptr,
@@ -105,7 +110,8 @@ void Camera::update(Entity& entity, gerium_data_t data) {
 
     const auto aspect = float(width) / height;
 
-    _projection     = glm::perspective(_fov, aspect, _nearPlane, _farPlane);
+    auto jitter     = glm::translate(glm::vec3(_jitter, 0.0f));
+    _projection     = jitter * glm::perspective(_fov, aspect, _nearPlane, _farPlane);
     _view           = glm::lookAt(_position, _position + _front, _up);
     _viewProjection = _projection * _view;
 
@@ -250,6 +256,19 @@ gerium_float32_t Camera::fov() const noexcept {
 
 const DescriptorSet& Camera::getDecriptorSet() const noexcept {
     return _descriptorSet;
+}
+
+glm::vec2 Camera::calcJitter(Jitter jitter, gerium_sint32_t index, gerium_sint32_t jitterPeriod) noexcept {
+    switch (jitter) {
+        case Jitter::Halton:
+            return halton23(index);
+        case Jitter::R2:
+            return mRobertR2(index);
+        case Jitter::Hammersley:
+            return hammersley(index, jitterPeriod);
+        case Jitter::InterleavedGradients:
+            return interleavedGradient(index);
+    }
 }
 
 void Camera::copy(const Camera& other) noexcept {
