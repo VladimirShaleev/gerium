@@ -429,6 +429,11 @@ void Application::initialize() {
     }
 
     createScene();
+
+    _jitterTable = Camera::calcJitterTable(Jitter::Halton, _jitterPeriod);
+    for (auto& jitter : _jitterTable) {
+        jitter = jitter * 2.0f - 1.0f;
+    }
 }
 
 void Application::uninitialize() {
@@ -548,6 +553,15 @@ void Application::frame(gerium_uint64_t elapsedMs) {
     if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return;
     }
+
+    gerium_uint16_t width, height;
+    gerium_application_get_size(_application, &width, &height);
+    const auto jitter  = _jitterTable[_jitterIndex];
+    const auto jitterX = jitter.x / width;
+    const auto jitterY = jitter.y / height;
+    _jitterIndex       = (_jitterIndex + 1) % _jitterPeriod;
+
+    _scene.getActiveCamera()->jittering(jitterX, jitterY);
 
     _resourceManager.update(elapsedMs);
     _scene.update();

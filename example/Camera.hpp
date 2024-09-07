@@ -73,6 +73,8 @@ public:
 
     static glm::vec2 calcJitter(Jitter jitter, gerium_sint32_t index, gerium_sint32_t jitterPeriod) noexcept;
 
+    static std::vector<glm::vec2> calcJitterTable(Jitter jitter, gerium_sint32_t jitterPeriod) noexcept;
+
 private:
     enum FrustumPlane {
         NearFace,

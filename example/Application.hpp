@@ -188,6 +188,10 @@ private:
     Scene _scene{};
     Camera* _camera2{};
 
+    gerium_sint32_t _jitterIndex{};
+    gerium_sint32_t _jitterPeriod{4};
+    std::vector<glm::vec2> _jitterTable{};
+
     Technique _baseTechnique{};
 };
 

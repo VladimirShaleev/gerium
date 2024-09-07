@@ -268,7 +268,19 @@ glm::vec2 Camera::calcJitter(Jitter jitter, gerium_sint32_t index, gerium_sint32
             return hammersley(index, jitterPeriod);
         case Jitter::InterleavedGradients:
             return interleavedGradient(index);
+        default:
+            assert(!"unreachable code");
+            return {};
     }
+}
+
+std::vector<glm::vec2> Camera::calcJitterTable(Jitter jitter, gerium_sint32_t jitterPeriod) noexcept {
+    std::vector<glm::vec2> table;
+    table.resize(jitterPeriod);
+    for (int i = 0; i < jitterPeriod; ++i) {
+        table[i] = calcJitter(jitter, i, jitterPeriod);
+    }
+    return table;
 }
 
 void Camera::copy(const Camera& other) noexcept {
