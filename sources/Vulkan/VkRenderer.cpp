@@ -14,7 +14,9 @@ VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noe
     _transferBuffer(Undefined),
     _transferBufferOffset(0),
     _loadEvent(marl::Event::Mode::Manual),
-    _loadThreadEnd(marl::Event::Mode::Manual) {
+    _loadThreadEnd(marl::Event::Mode::Manual),
+    _prevFrame(1),
+    _frame(0) {
     if (!application->isRunning()) {
         error(GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING);
     }
@@ -242,7 +244,9 @@ RenderPassHandle VkRenderer::onCreateRenderPass(const FrameGraph& frameGraph, co
     return _device->createRenderPass(creation);
 }
 
-FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) {
+FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
+                                                  const FrameGraphNode* node,
+                                                  gerium_uint32_t textureIndex) {
     FramebufferCreation creation{};
     creation.renderPass = node->renderPass;
     creation.setName(node->name);
@@ -251,7 +255,9 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, 
     gerium_uint16_t height = 0;
 
     for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
-        auto& info = frameGraph.getResource(node->outputs[i])->info;
+        auto resource = frameGraph.getResource(node->outputs[i]);
+        auto& info    = resource->info;
+        auto index    = resource->saveForNextFrame ? textureIndex : 0;
 
         if (info.type == GERIUM_RESOURCE_TYPE_BUFFER || info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
             continue;
@@ -271,9 +277,9 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, 
 
         if (hasDepthOrStencil(toVkFormat(info.texture.format))) {
             // TODO: check 1 depth/stencil target
-            creation.setDepthStencilTexture(info.texture.handle);
+            creation.setDepthStencilTexture(info.texture.handles[index]);
         } else {
-            creation.addRenderTexture(info.texture.handle);
+            creation.addRenderTexture(info.texture.handles[index]);
         }
     }
 
@@ -285,7 +291,9 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, 
             continue;
         }
 
-        auto& info = frameGraph.getResource(inputResource->name)->info;
+        auto resource = frameGraph.getResource(inputResource->name);
+        auto& info    = resource->info;
+        auto index    = resource->saveForNextFrame ? textureIndex : 0;
 
         if (width == 0) {
             width = info.texture.width;
@@ -305,9 +313,9 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph, 
 
         if (hasDepthOrStencil(toVkFormat(info.texture.format))) {
             // TODO: check 1 depth/stencil target
-            creation.setDepthStencilTexture(info.texture.handle);
+            creation.setDepthStencilTexture(info.texture.handles[index]);
         } else {
-            creation.addRenderTexture(info.texture.handle);
+            creation.addRenderTexture(info.texture.handles[index]);
         }
     }
 
@@ -471,36 +479,56 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         gerium_uint16_t width;
         gerium_uint16_t height;
 
+        _device->clearInputResources();
         for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
             auto resource = frameGraph.getResource(node->inputs[i]);
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
-                cb->addImageBarrier(
-                    resource->info.texture.handle, ResourceState::RenderTarget, ResourceState::ShaderResource, 0, 1);
+                auto index = 0;
+                if (resource->info.texture.handles[1] != Undefined) {
+                    index = resource->saveForNextFrame ? _prevFrame : _frame;
+                }
+                cb->addImageBarrier(resource->info.texture.handles[index],
+                                    resource->saveForNextFrame ? ResourceState::Undefined : ResourceState::RenderTarget,
+                                    ResourceState::ShaderResource,
+                                    0,
+                                    1);
+                _device->addInputResource(resource);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
             }
         }
 
+        auto framebufferIndex = 0;
         for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
             auto resource = frameGraph.getResource(node->outputs[i]);
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                auto index = resource->saveForNextFrame ? _frame : 0;
+                if (index) {
+                    framebufferIndex = index;
+                }
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
 
                 const auto format = toVkFormat(resource->info.texture.format);
 
                 if (hasDepthOrStencil(format)) {
-                    cb->addImageBarrier(
-                        resource->info.texture.handle, ResourceState::Undefined, ResourceState::DepthWrite, 0, 1);
+                    cb->addImageBarrier(resource->info.texture.handles[index],
+                                        ResourceState::Undefined,
+                                        ResourceState::DepthWrite,
+                                        0,
+                                        1);
                     cb->clearDepthStencil(resource->info.texture.clearDepthStencil.depth,
                                           resource->info.texture.clearDepthStencil.value);
-                    depthTextures[depthTextureCount++] = resource->info.texture.handle;
+                    depthTextures[depthTextureCount++] = resource->info.texture.handles[index];
                 } else {
-                    cb->addImageBarrier(
-                        resource->info.texture.handle, ResourceState::Undefined, ResourceState::RenderTarget, 0, 1);
+                    cb->addImageBarrier(resource->info.texture.handles[index],
+                                        ResourceState::Undefined,
+                                        ResourceState::RenderTarget,
+                                        0,
+                                        1);
 
                     const auto& clear = resource->info.texture.clearColor;
                     cb->clearColor(i, clear.red, clear.green, clear.blue, clear.alpha);
@@ -511,7 +539,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         auto pass         = frameGraph.getPass(node->pass);
         auto totalWorkers = allTotalWorkers[totalWorkerIndex];
         auto renderPass   = node->renderPass;
-        auto framebuffer  = node->framebuffer;
+        auto framebuffer  = node->framebuffers[framebufferIndex];
         auto useWorkers   = totalWorkers != 1;
 
         if (!node->outputCount) {
@@ -607,6 +635,9 @@ void VkRenderer::onPresent() {
         }
         _finishedRequests.pop();
     }
+
+    _prevFrame = _frame;
+    _frame     = (_frame + 1) % 2;
 }
 
 Profiler* VkRenderer::onGetProfiler() noexcept {

@@ -72,6 +72,9 @@ public:
     SamplerHandle getTextureSampler(TextureHandle texture) const noexcept;
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
+    void clearInputResources();
+    void addInputResource(const FrameGraphResource* resource);
+
     bool isSupportedFormat(gerium_format_t format) noexcept;
 
     uint32_t totalMemoryUsed();
@@ -362,6 +365,7 @@ private:
     std::map<gerium_uint64_t, SamplerHandle> _samplerCache{};
     VkDescriptorSet _freeDescriptorSetQueue[64]{};
     gerium_uint32_t _numFreeDescriptorSetQueue{};
+    std::map<std::string, const FrameGraphResource*> _currentInputResources{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};

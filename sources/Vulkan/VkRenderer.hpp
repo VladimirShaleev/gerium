@@ -48,7 +48,9 @@ private:
                                       const gerium_pipeline_t* pipelines) override;
     DescriptorSetHandle onCreateDescriptorSet(bool global) override;
     RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
-    FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) override;
+    FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph,
+                                          const FrameGraphNode* node,
+                                          gerium_uint32_t textureIndex) override;
 
     void onAsyncUploadTextureData(TextureHandle handle,
                                   gerium_cdata_t textureData,
@@ -108,6 +110,8 @@ private:
     std::queue<LoadRequest> _loadRequests;
     std::queue<LoadRequest> _transferToGraphic;
     std::queue<LoadRequest> _finishedRequests;
+    gerium_uint32_t _prevFrame;
+    gerium_uint32_t _frame;
 };
 
 } // namespace gerium::vulkan

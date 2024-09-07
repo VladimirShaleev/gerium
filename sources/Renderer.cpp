@@ -53,8 +53,10 @@ RenderPassHandle Renderer::createRenderPass(const FrameGraph& frameGraph, const 
     return onCreateRenderPass(frameGraph, node);
 }
 
-FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) {
-    return onCreateFramebuffer(frameGraph, node);
+FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph,
+                                              const FrameGraphNode* node,
+                                              gerium_uint32_t textureIndex) {
+    return onCreateFramebuffer(frameGraph, node, textureIndex);
 }
 
 void Renderer::asyncUploadTextureData(TextureHandle handle,

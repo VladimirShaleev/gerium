@@ -449,8 +449,9 @@ struct convert<gerium_resource_input_t> {
     }
 
     static bool decode(const Node& node, gerium_resource_input_t& rhs) {
-        rhs.type = node["type"].as<gerium_resource_type_t>();
-        rhs.name = allocate(node["name"].as<std::string>());
+        rhs.type           = node["type"].as<gerium_resource_type_t>();
+        rhs.name           = allocate(node["name"].as<std::string>());
+        rhs.previous_frame = node["previous frame"].as<bool>(false);
         return true;
     }
 };

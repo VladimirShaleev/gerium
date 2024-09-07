@@ -34,7 +34,9 @@ public:
                                     const gerium_pipeline_t* pipelines);
     DescriptorSetHandle createDescriptorSet(bool global);
     RenderPassHandle createRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node);
-    FramebufferHandle createFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node);
+    FramebufferHandle createFramebuffer(const FrameGraph& frameGraph,
+                                        const FrameGraphNode* node,
+                                        gerium_uint32_t textureIndex);
 
     void asyncUploadTextureData(TextureHandle handle,
                                 gerium_cdata_t textureData,
@@ -85,15 +87,17 @@ private:
     virtual bool onIsSupportedFormat(gerium_format_t format) noexcept                         = 0;
     virtual void onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept = 0;
 
-    virtual BufferHandle onCreateBuffer(const BufferCreation& creation)                                     = 0;
-    virtual TextureHandle onCreateTexture(const TextureCreation& creation)                                  = 0;
+    virtual BufferHandle onCreateBuffer(const BufferCreation& creation)                                   = 0;
+    virtual TextureHandle onCreateTexture(const TextureCreation& creation)                                = 0;
     virtual TechniqueHandle onCreateTechnique(const FrameGraph& frameGraph,
                                               gerium_utf8_t name,
                                               gerium_uint32_t pipelineCount,
-                                              const gerium_pipeline_t* pipelines)                           = 0;
-    virtual DescriptorSetHandle onCreateDescriptorSet(bool global)                                          = 0;
-    virtual RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node)   = 0;
-    virtual FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph, const FrameGraphNode* node) = 0;
+                                              const gerium_pipeline_t* pipelines)                         = 0;
+    virtual DescriptorSetHandle onCreateDescriptorSet(bool global)                                        = 0;
+    virtual RenderPassHandle onCreateRenderPass(const FrameGraph& frameGraph, const FrameGraphNode* node) = 0;
+    virtual FramebufferHandle onCreateFramebuffer(const FrameGraph& frameGraph,
+                                                  const FrameGraphNode* node,
+                                                  gerium_uint32_t textureIndex)                           = 0;
 
     virtual void onAsyncUploadTextureData(TextureHandle handle,
                                           gerium_cdata_t textureData,

@@ -974,6 +974,7 @@ typedef struct
 {
     gerium_resource_type_t type;
     gerium_utf8_t          name;
+    gerium_bool_t          previous_frame;
 } gerium_resource_input_t;
 
 typedef struct

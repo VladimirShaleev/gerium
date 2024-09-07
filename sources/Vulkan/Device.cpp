@@ -1277,10 +1277,14 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
 
     for (auto& [_, item] : descriptorSet->bindings) {
         if (item.resource) {
-            auto resource       = frameGraph->getResource(item.resource);
+            auto resource = _currentInputResources[item.resource];
+            auto index    = 0;
+            if (resource->info.texture.handles[1] != Undefined) {
+                index = resource->saveForNextFrame ? (_absoluteFrame + 1) % 2 : (_absoluteFrame) % 2;
+            }
             auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER
                                       ? Undefined
-                                      : Handle { resource->info.texture.handle.index };
+                                      : Handle{ resource->info.texture.handles[index].index };
             bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
         }
     }
@@ -1352,6 +1356,14 @@ SamplerHandle Device::getTextureSampler(TextureHandle texture) const noexcept {
 
 void Device::linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept {
     _textures.access(texture)->sampler = sampler;
+}
+
+void Device::clearInputResources() {
+    _currentInputResources.clear();
+}
+
+void Device::addInputResource(const FrameGraphResource* resource) {
+    _currentInputResources[resource->name] = resource;
 }
 
 bool Device::isSupportedFormat(gerium_format_t format) noexcept {

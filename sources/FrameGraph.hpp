@@ -32,7 +32,7 @@ struct FrameGraphRenderPass {
 
 struct FrameGraphNode {
     RenderPassHandle renderPass;
-    FramebufferHandle framebuffer;
+    FramebufferHandle framebuffers[2];
     FrameGraphRenderPassHandle pass;
     gerium_utf8_t name;
     gerium_uint8_t inputCount;
@@ -62,7 +62,7 @@ struct FrameGraphResourceInfo {
             gerium_color_blend_attachment_state_t colorBlend;
             gerium_clear_color_attachment_state_t clearColor;
             gerium_clear_depth_stencil_attachment_state_t clearDepthStencil;
-            TextureHandle handle;
+            TextureHandle handles[2];
         } texture;
     };
 };
@@ -70,6 +70,7 @@ struct FrameGraphResourceInfo {
 struct FrameGraphResource {
     gerium_utf8_t name;
     gerium_bool_t external;
+    gerium_bool_t saveForNextFrame;
     gerium_uint32_t refCount;
     FrameGraphNodeHandle producer;
     FrameGraphNodeHandle output;
