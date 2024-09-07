@@ -270,10 +270,9 @@ void AndroidApplication::onRun() {
         if (!isPause() && _initialized && !_exit) {
             auto currentTime = getCurrentTime();
 
-            const std::chrono::duration<float, std::milli> delta = currentTime - _prevTime;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - _prevTime).count();
 
-            const auto elapsed = delta.count();
-            if (elapsed == 0.0f) {
+            if (elapsed == 0) {
                 continue;
             }
             _prevTime = currentTime;

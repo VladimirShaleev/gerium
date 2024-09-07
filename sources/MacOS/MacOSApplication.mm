@@ -553,10 +553,9 @@ void MacOSApplication::changeState(gerium_application_state_t newState) {
 void MacOSApplication::frame() {
     auto currentTime = getCurrentTime();
 
-    const std::chrono::duration<float, std::milli> delta = currentTime - _prevTime;
-    const auto elapsed                                   = delta.count();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - _prevTime).count();
 
-    if (elapsed == 0.0f) {
+    if (elapsed == 0) {
         return;
     }
     _prevTime = currentTime;
