@@ -463,6 +463,9 @@ gerium_inline VkAccessFlags toVkAccessFlags(ResourceState state) noexcept {
     if ((state & ResourceState::DepthWrite) == ResourceState::DepthWrite) {
         ret |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
     }
+    if ((state & ResourceState::DepthRead) == ResourceState::DepthRead) {
+        ret |= VK_ACCESS_SHADER_READ_BIT;
+    }
     if ((state & ResourceState::ShaderResource) == ResourceState::ShaderResource) {
         ret |= VK_ACCESS_SHADER_READ_BIT;
     }

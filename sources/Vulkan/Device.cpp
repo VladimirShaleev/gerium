@@ -2358,15 +2358,16 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     }
 
     if (output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
-        auto& depthAttachment          = attachmets[attachmentCount];
-        depthAttachment.format         = output.depthStencilFormat;
-        depthAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-        depthAttachment.loadOp         = depthOp;
-        depthAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachment.stencilLoadOp  = stencilOp;
-        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout  = depthInitial;
-        depthAttachment.finalLayout    = output.depthStencilFinalLayout;
+        auto& depthAttachment         = attachmets[attachmentCount];
+        depthAttachment.format        = output.depthStencilFormat;
+        depthAttachment.samples       = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.loadOp        = depthOp;
+        depthAttachment.storeOp       = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.stencilLoadOp = stencilOp;
+        depthAttachment.stencilStoreOp =
+            hasStencil(output.depthStencilFormat) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout = depthInitial;
+        depthAttachment.finalLayout   = output.depthStencilFinalLayout;
 
         depthAttachmentRef.attachment = attachmentCount++;
         depthAttachmentRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;

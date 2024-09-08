@@ -72,6 +72,8 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: light
         previous frame: true
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: light

@@ -488,11 +488,14 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (resource->info.texture.handles[1] != Undefined) {
                     index = resource->saveForNextFrame ? _prevFrame : _frame;
                 }
-                cb->addImageBarrier(resource->info.texture.handles[index],
-                                    resource->saveForNextFrame ? ResourceState::Undefined : ResourceState::RenderTarget,
-                                    ResourceState::ShaderResource,
-                                    0,
-                                    1);
+                auto texture      = resource->info.texture.handles[index];
+                const auto format = toVkFormat(resource->info.texture.format);
+
+                if (hasDepthOrStencil(format)) {
+                    cb->addImageBarrier(texture, ResourceState::DepthWrite, ResourceState::DepthRead, 0, 1);
+                } else {
+                    cb->addImageBarrier(texture, ResourceState::RenderTarget, ResourceState::ShaderResource, 0, 1);
+                }
                 _device->addInputResource(resource);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
@@ -616,9 +619,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
     }
     cb->popMarker();
 
-    for (int i = 0; i < depthTextureCount; ++i) {
-        cb->addImageBarrier(depthTextures[i], ResourceState::DepthWrite, ResourceState::DepthRead, 0, 1);
-    }
+    // for (int i = 0; i < depthTextureCount; ++i) {
+    //     cb->addImageBarrier(depthTextures[i], ResourceState::DepthWrite, ResourceState::DepthRead, 0, 1);
+    // }
 
     cb->popMarker();
     _device->submit(cb);

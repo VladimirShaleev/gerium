@@ -9,6 +9,8 @@ struct SceneData {
     GLM_NAMESPACE vec4 eye;
     GLM_NAMESPACE vec2 jitter;
     GLM_NAMESPACE vec2 prevJitter;
+    GLM_NAMESPACE vec2 invResolution;
+    GLM_NAMESPACE ivec2 resolution;
 };
 
 struct MeshData {

@@ -127,10 +127,12 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_uint32_t totalWorkers) {
     auto& manager  = application()->resourceManager();
     auto& scene    = application()->scene();
+    auto camera    = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
     auto technique = manager.getTechniqueByName("base");
 
     gerium_command_buffer_bind_technique(commandBuffer, technique);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
     ///////////////////
@@ -288,6 +290,7 @@ void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t re
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "velocity");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 4, "light");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 5, "depth");
 
     _maxPoints = 24 * 1000;
     _vertices  = application()->resourceManager().createBuffer(
@@ -554,7 +557,7 @@ void Application::updateJitterTable() {
         }
     }
     _previousJitter = _jitterTable[_jitterIndex];
-    _jitterIndex = (_jitterIndex + 1) % _jitterPeriod;
+    _jitterIndex    = (_jitterIndex + 1) % _jitterPeriod;
 }
 
 void Application::frame(gerium_uint64_t elapsedMs) {

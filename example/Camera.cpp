@@ -159,6 +159,8 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     ptr->eye                = glm::vec4(_front, 1.0f);
     ptr->jitter             = _jitter;
     ptr->prevJitter         = _prevJitter;
+    ptr->invResolution      = { 1.0f / width, 1.0f / height };
+    ptr->resolution         = { width, height };
     gerium_renderer_unmap_buffer(_renderer, _data);
 }
 
