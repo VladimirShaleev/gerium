@@ -13,7 +13,6 @@ CommandBuffer::CommandBuffer(Device& device, VkCommandBuffer commandBuffer) :
 }
 
 void CommandBuffer::addImageBarrier(TextureHandle handle,
-                                    ResourceState oldState,
                                     ResourceState newState,
                                     gerium_uint32_t mipLevel,
                                     gerium_uint32_t mipCount,
@@ -25,9 +24,9 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    barrier.srcAccessMask                   = toVkAccessFlags(oldState);
+    barrier.srcAccessMask                   = toVkAccessFlags(texture->state[mipLevel]);
     barrier.dstAccessMask                   = toVkAccessFlags(newState);
-    barrier.oldLayout                       = toVkImageLayout(oldState);
+    barrier.oldLayout                       = toVkImageLayout(texture->state[mipLevel]);
     barrier.newLayout                       = toVkImageLayout(newState);
     barrier.srcQueueFamilyIndex             = srcFamily;
     barrier.dstQueueFamilyIndex             = dstFamily;
@@ -47,6 +46,10 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
 
     _device->vkTable().vkCmdPipelineBarrier(
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    for (gerium_uint32_t mip = mipLevel; mip < mipLevel + mipCount; ++mip) {
+        texture->state[mip] = newState;
+    }
 }
 
 void CommandBuffer::clearColor(gerium_uint32_t index,
@@ -184,10 +187,11 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
     region.imageOffset                     = { 0, 0, 0 };
     region.imageExtent                     = { dstTexture->width, dstTexture->height, dstTexture->depth };
 
-    addImageBarrier(dst, ResourceState::Undefined, ResourceState::CopyDest, 0, 1, queue, queue);
+    addImageBarrier(dst, ResourceState::CopyDest, 0, 1, queue, queue);
     _device->vkTable().vkCmdCopyBufferToImage(
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    addImageBarrier(dst, ResourceState::CopyDest, ResourceState::CopySource, 0, 1, queue, queue);
+    dstTexture->state[0] = ResourceState::CopyDest;
+    addImageBarrier(dst, ResourceState::CopySource, 0, 1, queue, queue);
 }
 
 void CommandBuffer::generateMipmaps(TextureHandle handle) {
@@ -197,7 +201,7 @@ void CommandBuffer::generateMipmaps(TextureHandle handle) {
     int32_t h = texture->height;
 
     for (int mipIndex = 1; mipIndex < texture->mipmaps; ++mipIndex) {
-        addImageBarrier(handle, ResourceState::Undefined, ResourceState::CopyDest, mipIndex, 1);
+        addImageBarrier(handle, ResourceState::CopyDest, mipIndex, 1);
 
         VkImageBlit blitRegion{};
         blitRegion.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -222,10 +226,10 @@ void CommandBuffer::generateMipmaps(TextureHandle handle) {
                                          &blitRegion,
                                          VK_FILTER_LINEAR);
 
-        addImageBarrier(handle, ResourceState::CopyDest, ResourceState::CopySource, mipIndex, 1);
+        addImageBarrier(handle, ResourceState::CopySource, mipIndex, 1);
     }
 
-    addImageBarrier(handle, ResourceState::CopySource, ResourceState::ShaderResource, 0, texture->mipmaps);
+    addImageBarrier(handle, ResourceState::ShaderResource, 0, texture->mipmaps);
 }
 
 void CommandBuffer::pushMarker(gerium_utf8_t name) {

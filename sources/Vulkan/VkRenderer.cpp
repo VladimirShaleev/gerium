@@ -492,9 +492,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 const auto format = toVkFormat(resource->info.texture.format);
 
                 if (hasDepthOrStencil(format)) {
-                    cb->addImageBarrier(texture, ResourceState::DepthWrite, ResourceState::DepthRead, 0, 1);
+                    cb->addImageBarrier(texture, ResourceState::DepthRead, 0, 1);
                 } else {
-                    cb->addImageBarrier(texture, ResourceState::RenderTarget, ResourceState::ShaderResource, 0, 1);
+                    cb->addImageBarrier(texture, ResourceState::ShaderResource, 0, 1);
                 }
                 _device->addInputResource(resource);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
@@ -519,7 +519,6 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
                 if (hasDepthOrStencil(format)) {
                     cb->addImageBarrier(resource->info.texture.handles[index],
-                                        ResourceState::Undefined,
                                         ResourceState::DepthWrite,
                                         0,
                                         1);
@@ -528,7 +527,6 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                     depthTextures[depthTextureCount++] = resource->info.texture.handles[index];
                 } else {
                     cb->addImageBarrier(resource->info.texture.handles[index],
-                                        ResourceState::Undefined,
                                         ResourceState::RenderTarget,
                                         0,
                                         1);

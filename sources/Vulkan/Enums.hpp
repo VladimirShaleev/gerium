@@ -5,7 +5,7 @@
 
 namespace gerium::vulkan {
 
-enum class ResourceState {
+enum class ResourceState : gerium_uint16_t {
     Undefined               = 0,
     VertexAndConstantBuffer = 0x1,
     IndexBuffer             = 0x2,

@@ -351,7 +351,6 @@ struct Texture {
     VkImage               vkImage;
     VkImageView           vkImageView;
     VkFormat              vkFormat;
-    // VkImageLayout         vkImageLayout;
     VmaAllocation         vmaAllocation;
     gerium_uint32_t       size;
     uint16_t              width;
@@ -363,6 +362,7 @@ struct Texture {
     gerium_texture_type_t type;
     gerium_utf8_t         name;
     SamplerHandle         sampler;
+    ResourceState         state[16];
 };
 
 struct Sampler {

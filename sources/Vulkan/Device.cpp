@@ -429,7 +429,6 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
             vmaSetAllocationName(_vmaAllocator, texture->vmaAllocation, texture->name);
         }
     } else {
-        _vkTable.vkDeviceWaitIdle(_device);
         auto aliasTexture = _textures.access(creation.alias);
         check(vmaCreateAliasingImage(_vmaAllocator, aliasTexture->vmaAllocation, &imageInfo, &texture->vkImage));
     }
@@ -1824,7 +1823,7 @@ void Device::createSwapchain(Application* application) {
         _textures.release(colorHandle);
         // _textures.release(depthHandle);
 
-        commandBuffer->addImageBarrier(colorHandle, ResourceState::Undefined, ResourceState::Present, 0, 1);
+        commandBuffer->addImageBarrier(colorHandle, ResourceState::Present, 0, 1);
     }
 
     commandBuffer->submit(QueueType::Graphics);

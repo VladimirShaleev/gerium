@@ -15,7 +15,6 @@ public:
     CommandBuffer(Device& device, VkCommandBuffer commandBuffer);
 
     void addImageBarrier(TextureHandle handle,
-                         ResourceState oldState,
                          ResourceState newState,
                          gerium_uint32_t mipLevel,
                          gerium_uint32_t mipCount,
