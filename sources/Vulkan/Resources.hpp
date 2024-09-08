@@ -362,7 +362,7 @@ struct Texture {
     gerium_texture_type_t type;
     gerium_utf8_t         name;
     SamplerHandle         sampler;
-    ResourceState         state[16];
+    ResourceState         states[16];
 };
 
 struct Sampler {

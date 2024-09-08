@@ -24,9 +24,9 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    barrier.srcAccessMask                   = toVkAccessFlags(texture->state[mipLevel]);
+    barrier.srcAccessMask                   = toVkAccessFlags(texture->states[mipLevel]);
     barrier.dstAccessMask                   = toVkAccessFlags(newState);
-    barrier.oldLayout                       = toVkImageLayout(texture->state[mipLevel]);
+    barrier.oldLayout                       = toVkImageLayout(texture->states[mipLevel]);
     barrier.newLayout                       = toVkImageLayout(newState);
     barrier.srcQueueFamilyIndex             = srcFamily;
     barrier.dstQueueFamilyIndex             = dstFamily;
@@ -48,7 +48,7 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     for (gerium_uint32_t mip = mipLevel; mip < mipLevel + mipCount; ++mip) {
-        texture->state[mip] = newState;
+        texture->states[mip] = newState;
     }
 }
 
@@ -190,7 +190,7 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
     addImageBarrier(dst, ResourceState::CopyDest, 0, 1, queue, queue);
     _device->vkTable().vkCmdCopyBufferToImage(
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    dstTexture->state[0] = ResourceState::CopyDest;
+    dstTexture->states[0] = ResourceState::CopyDest;
     addImageBarrier(dst, ResourceState::CopySource, 0, 1, queue, queue);
 }
 
