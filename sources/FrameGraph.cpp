@@ -390,8 +390,11 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
             }
 
             if (resource->info.texture.autoScale != 0) {
-                const auto newResourceWidth  = gerium_uint16_t(resource->info.texture.width * scaleX);
-                const auto newResourceHeight = gerium_uint16_t(resource->info.texture.height * scaleY);
+                const auto scale = gerium_float64_t(resource->info.texture.autoScale);
+                const auto newResourceWidth =
+                    gerium_uint16_t(std::floor(resource->info.texture.width * scaleX + 0.5) * scale);
+                const auto newResourceHeight =
+                    gerium_uint16_t(std::floor(resource->info.texture.height * scaleY + 0.5) * scale);
 
                 if (newResourceWidth != resource->info.texture.width ||
                     newResourceHeight != resource->info.texture.height) {
