@@ -14,11 +14,11 @@
     "shaderc",
     "spirv-reflect",
     "marl",
-    "glm",
+    "stb",
 
     "nlohmann-json",
     "yaml-cpp",
-    "stb",
+    "glm",
     "magic-enum"
   ],
   "overrides": [

@@ -3,9 +3,7 @@
 gerium_uint32_t GBufferPass::prepare(gerium_frame_graph_t frameGraph,
                                      gerium_renderer_t renderer,
                                      gerium_uint32_t maxWorkers) {
-    const auto& scene  = application()->scene();
-    auto numTechniques = scene.getNumTechniques();
-    return std::clamp(numTechniques, (gerium_uint32_t) 4, maxWorkers);
+    return 4;
 }
 
 void GBufferPass::render(gerium_frame_graph_t frameGraph,
@@ -79,9 +77,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 gerium_uint32_t DepthPrePass::prepare(gerium_frame_graph_t frameGraph,
                                       gerium_renderer_t renderer,
                                       gerium_uint32_t maxWorkers) {
-    const auto& scene  = application()->scene();
-    auto numTechniques = scene.getNumTechniques();
-    return std::clamp(numTechniques, (gerium_uint32_t) 4, maxWorkers);
+    return 4;
 }
 
 void DepthPrePass::render(gerium_frame_graph_t frameGraph,

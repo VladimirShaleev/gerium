@@ -211,26 +211,26 @@ public:
         clear();
     }
 
-    void removeEntity(Entity& entity) {
-        if (entity._index == NoneIndex) {
-            return;
-        }
-        auto currentIndex = entity._index;
-        auto currentPool  = entity._pool;
-        auto current      = _poolRefs[currentPool]->access(currentIndex);
-        while (currentIndex != NoneIndex) {
-            auto nextIndex = current->_next;
-            auto nextPool  = current->_nextPool;
-            _poolRefs[currentPool]->release(currentIndex);
-
-            currentIndex = nextIndex;
-            currentPool  = nextPool;
-            current      = _poolRefs[currentPool]->access(currentIndex);
-        }
-        entity._count = 0;
-        entity._index = NoneIndex;
-        entity._pool  = 0;
-    }
+    //void removeEntity(Entity& entity) {
+    //    if (entity._index == NoneIndex) {
+    //        return;
+    //    }
+    //    auto currentIndex = entity._index;
+    //    auto currentPool  = entity._pool;
+    //    auto current      = _poolRefs[currentPool]->access(currentIndex);
+    //    while (currentIndex != NoneIndex) {
+    //        auto nextIndex = current->_next;
+    //        auto nextPool  = current->_nextPool;
+    //        _poolRefs[currentPool]->release(currentIndex);
+    //
+    //        currentIndex = nextIndex;
+    //        currentPool  = nextPool;
+    //        current      = _poolRefs[currentPool]->access(currentIndex); // TODO
+    //    }
+    //    entity._count = 0;
+    //    entity._index = NoneIndex;
+    //    entity._pool  = 0;
+    //}
 
     template <typename C>
     C* addComponent(Entity& entity, const C& component) {
