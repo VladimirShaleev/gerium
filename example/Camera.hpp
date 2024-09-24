@@ -69,6 +69,8 @@ public:
     gerium_float32_t farPlane() const noexcept;
     gerium_float32_t fov() const noexcept;
 
+    const SceneData& sceneData() const noexcept;
+
     const DescriptorSet& getDecriptorSet() const noexcept;
 
     static glm::vec2 calcJitter(Jitter jitter, gerium_sint32_t index, gerium_sint32_t jitterPeriod) noexcept;
@@ -116,6 +118,7 @@ private:
 
     Plane _frustum[6]{};
 
+    SceneData _sceneData{};
     Buffer _data{};
     DescriptorSet _descriptorSet{};
 

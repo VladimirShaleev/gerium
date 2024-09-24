@@ -13,41 +13,60 @@ BVHNode::~BVHNode() noexcept {
 }
 
 BVHNode* BVHNode::build(Scene& scene) {
+    std::vector<Object> objects;
+
     std::vector<Model*> models;
     models.resize(1000);
     gerium_uint16_t modelCount = 1000;
     scene.getComponents<Model>(modelCount, models.data());
 
-    std::vector<Mesh*> meshes;
     for (gerium_uint16_t i = 0; i < modelCount; ++i) {
         auto model = models[i];
         for (auto& mesh : model->meshes()) {
-            meshes.push_back(&mesh);
+            Object obj;
+            obj.type = MeshType;
+            obj.mesh = &mesh;
+            objects.push_back(obj);
         }
     }
-    return build(meshes, 0);
+
+    std::vector<Light*> lights;
+    lights.resize(1000);
+    gerium_uint16_t lightCount = 1000;
+    scene.getComponents<Light>(lightCount, lights.data());
+
+    for (gerium_uint16_t i = 0; i < lightCount; ++i) {
+        auto light = lights[i];
+        Object obj;
+        obj.type  = LightType;
+        obj.light = light;
+        objects.push_back(obj);
+    }
+    return build(objects, 0);
 }
 
-BVHNode* BVHNode::build(const std::vector<Mesh*>& meshes, unsigned depth) {
-    if (depth > 60 || meshes.size() <= 1) {
-        return buildLeaf(meshes);
+BVHNode* BVHNode::build(const std::vector<Object>& objects, unsigned depth) {
+    if (depth > 60 || objects.size() <= 1) {
+        return buildLeaf(objects);
     }
 
     auto minCost      = std::numeric_limits<float>::max();
     auto bestAxis     = Axis::NONE;
     auto bestSplitPos = 0.0f;
 
-    auto bbox = bboxFromMeshes(meshes);
-    
-    auto numBins = std::max(32u, unsigned(1024.0f / std::powf(2.0f, float (depth))));
+    auto bbox = bboxFromObjects(objects);
+
+    auto numBins    = std::max(32u, unsigned(1024.0f / std::powf(2.0f, float(depth))));
     auto invNumBins = 1.0f / numBins;
 
     for (auto axis : { Axis::X, Axis::Y, Axis::Z }) {
         auto bbAxisWidth = bbox.getWidth(axis);
         auto bbAxisStart = bbox.getAxisStart(axis);
-        if (bbAxisWidth < 1e-6) continue;
+        if (bbAxisWidth < 1e-6) {
+            continue;
+        }
 
-        auto stepSize = bbAxisWidth * invNumBins;
+        auto stepSize    = bbAxisWidth * invNumBins;
         auto invStepSize = 1.0f / stepSize;
         std::unique_ptr<BoundingBox[]> binBBs(new BoundingBox[numBins]);
         std::unique_ptr<unsigned[]> binCounts(new unsigned[numBins]);
@@ -55,16 +74,23 @@ BVHNode* BVHNode::build(const std::vector<Mesh*>& meshes, unsigned depth) {
             binCounts[i] = 0;
         }
 
-        for (const auto& mesh : meshes) {
-            auto center = mesh->worldBoundingBox().getCenter(axis);
-            auto bin = std::min(numBins - 1, unsigned(std::floorf((center - bbAxisStart) * invStepSize)));
-            binBBs[bin] = binBBs[bin].combine(mesh->worldBoundingBox());
+        for (const auto& object : objects) {
+            BoundingBox bbox;
+            if (object.type == MeshType) {
+                bbox = object.mesh->worldBoundingBox();
+            } else if (object.type == LightType) {
+                bbox = object.light->worldBoundingBox();
+            }
+            auto center = bbox.getCenter(axis);
+
+            auto bin    = std::min(numBins - 1, unsigned(std::floorf((center - bbAxisStart) * invStepSize)));
+            binBBs[bin] = binBBs[bin].combine(bbox);
             ++binCounts[bin];
         }
         for (auto i = 0u; i < numBins - 1; ++i) {
             BoundingBox leftBB;
             BoundingBox rightBB;
-            unsigned leftCount = 0;
+            unsigned leftCount  = 0;
             unsigned rightCount = 0;
 
             for (auto j = i + 1; j < numBins; ++j) {
@@ -80,47 +106,57 @@ BVHNode* BVHNode::build(const std::vector<Mesh*>& meshes, unsigned depth) {
             auto partitionCost = (leftCount * leftBB.sa()) + (rightCount * rightBB.sa());
 
             if (partitionCost < minCost) {
-                minCost = partitionCost;
-                bestAxis = axis;
+                minCost      = partitionCost;
+                bestAxis     = axis;
                 bestSplitPos = bbAxisStart + (i + 1) * stepSize;
             }
         }
     }
 
     if (bestAxis == Axis::NONE) {
-        return buildLeaf(meshes);
+        return buildLeaf(objects);
     }
 
-    std::vector<Mesh*> leftMeshes;
-    std::vector<Mesh*> rightMeshes;
+    std::vector<Object> leftObjects;
+    std::vector<Object> rightObjects;
 
-    for (const auto& mesh : meshes) {
-        if (mesh->worldBoundingBox().getCenter(bestAxis) < bestSplitPos) {
-            leftMeshes.push_back(mesh);
+    for (const auto& object : objects) {
+        BoundingBox bbox;
+        if (object.type == MeshType) {
+            bbox = object.mesh->worldBoundingBox();
+        } else if (object.type == LightType) {
+            bbox = object.light->worldBoundingBox();
+        }
+        if (bbox.getCenter(bestAxis) < bestSplitPos) {
+            leftObjects.push_back(object);
         } else {
-            rightMeshes.push_back(mesh);
+            rightObjects.push_back(object);
         }
     }
 
-    if (leftMeshes.size() == meshes.size() || rightMeshes.size() == meshes.size()) {
-        return buildLeaf(meshes);
+    if (leftObjects.size() == objects.size() || rightObjects.size() == objects.size()) {
+        return buildLeaf(objects);
     }
-    
-    auto innerNode = new BVHNode(false, bbox, {}, build(leftMeshes, depth + 1), build(rightMeshes, depth + 1));
-    innerNode->_left->_parent = innerNode;
+
+    auto innerNode = new BVHNode(false, bbox, {}, build(leftObjects, depth + 1), build(rightObjects, depth + 1));
+    innerNode->_left->_parent  = innerNode;
     innerNode->_right->_parent = innerNode;
 
     return innerNode;
 }
 
-BVHNode* BVHNode::buildLeaf(const std::vector<Mesh*>& meshes) {
-    return new BVHNode(true, bboxFromMeshes(meshes), meshes);
+BVHNode* BVHNode::buildLeaf(const std::vector<Object>& objects) {
+    return new BVHNode(true, bboxFromObjects(objects), objects);
 }
 
-BoundingBox BVHNode::bboxFromMeshes(const std::vector<Mesh*>& meshes) noexcept {
+BoundingBox BVHNode::bboxFromObjects(const std::vector<Object>& objects) noexcept {
     BoundingBox bbox;
-    for (int i = 0; i < meshes.size(); ++i) {
-        bbox = bbox.combine(meshes[i]->worldBoundingBox());
+    for (int i = 0; i < objects.size(); ++i) {
+        if (objects[i].type == MeshType) {
+            bbox = bbox.combine(objects[i].mesh->worldBoundingBox());
+        } else if (objects[i].type == LightType) {
+            bbox = bbox.combine(objects[i].light->worldBoundingBox());
+        }
     }
     return bbox;
 }

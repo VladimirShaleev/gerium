@@ -50,28 +50,6 @@ private:
     DescriptorSet _descriptorSet{};
 };
 
-class DepthPrePass final : public RenderPass {
-public:
-    DepthPrePass() : RenderPass("depth_pre_pass") {
-    }
-
-    gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
-                            gerium_renderer_t renderer,
-                            gerium_uint32_t maxWorkers) override;
-
-    void render(gerium_frame_graph_t frameGraph,
-                gerium_renderer_t renderer,
-                gerium_command_buffer_t commandBuffer,
-                gerium_uint32_t worker,
-                gerium_uint32_t totalWorkers) override;
-
-    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-
-private:
-    std::array<DescriptorSet, 4> _descriptorSets{};
-};
-
 class LightPass final : public RenderPass {
 public:
     LightPass() : RenderPass("light_pass") {
@@ -204,7 +182,6 @@ private:
     Settings _settings{};
     GBufferPass _gbufferPass{};
     PresentPass _presentPass{};
-    DepthPrePass _depthPrePass{};
     LightPass _lightPass{};
     std::vector<RenderPass*> _renderPasses{};
 

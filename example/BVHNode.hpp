@@ -4,9 +4,23 @@
 #include "Model.hpp"
 
 class Scene;
+class Light;
 
 class BVHNode final {
 public:
+    enum Type {
+        MeshType,
+        LightType
+    };
+
+    struct Object {
+        Type type;
+        union {
+            Mesh* mesh;
+            Light* light;
+        };
+    };
+
     ~BVHNode() noexcept;
 
     BVHNode(const BVHNode&) = delete;
@@ -33,15 +47,15 @@ public:
         return _bbox;
     }
 
-    const std::vector<Mesh*>& meshes() const noexcept {
-        return _meshes;
+    const std::vector<Object>& objects() const noexcept {
+        return _objects;
     }
 
 private:
     BVHNode(
         bool leaf,
         const BoundingBox& bbox,
-        const std::vector<Mesh*>& meshes,
+        const std::vector<Object>& objects,
         BVHNode* left = nullptr,
         BVHNode* right = nullptr)
         :
@@ -50,7 +64,7 @@ private:
         _left(left),
         _right(right),
         _parent(nullptr),
-        _meshes(meshes),
+        _objects(objects),
         _depth(-1) {
     }
 
@@ -58,18 +72,18 @@ private:
         _parent = parent;
     }
 
-    static BVHNode* build(const std::vector<Mesh*>& meshes, unsigned depth);
+    static BVHNode* build(const std::vector<Object>& objects, unsigned depth);
 
-    static BVHNode* buildLeaf(const std::vector<Mesh*>& meshes);
+    static BVHNode* buildLeaf(const std::vector<Object>& objects);
 
-    static BoundingBox bboxFromMeshes(const std::vector<Mesh*>& meshes) noexcept;
+    static BoundingBox bboxFromObjects(const std::vector<Object>& objects) noexcept;
 
     bool _leaf{};
     BoundingBox _bbox{};
     BVHNode* _left{};
     BVHNode* _right{};
     BVHNode* _parent{};
-    std::vector<Mesh*> _meshes;
+    std::vector<Object> _objects;
     mutable int _depth;
 };
 

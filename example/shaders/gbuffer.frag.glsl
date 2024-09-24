@@ -1,6 +1,7 @@
 #version 450
 
 #include "common/types.h"
+#include "common/utils.h"
 #include "common/textures.h"
 
 layout(location = 0) in vec2 inTexcoord;
@@ -12,7 +13,7 @@ layout(location = 5) in vec4 inPrevPosition;
 layout(location = 6) flat in int inInstanceID; 
 
 layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outNormal;
+layout(location = 1) out vec2 outNormal;
 layout(location = 2) out vec4 outMetallicRoughness;
 layout(location = 3) out vec2 outVelocity;
 
@@ -37,7 +38,7 @@ void main() {
     float metalness = rm.b;
 
     outColor = fetchBase(inInstanceID, inTexcoord);
-    outNormal = vec4(normal, 0.0);
+    outNormal = octahedralEncode(normal);
     outMetallicRoughness = vec4(occlusion, roughness, metalness, 0.0);
 
     vec2 newPos = inPosition.xy / inPosition.w;

@@ -464,7 +464,10 @@ struct convert<gerium_resource_output_t> {
 
     static bool decode(const Node& node, gerium_resource_output_t& rhs) {
         const auto colorWriteMask = node["color write mask"].as<std::vector<gerium_color_component_flags_t>>(
-            std::vector<gerium_color_component_flags_t>{});
+            std::vector{ GERIUM_COLOR_COMPONENT_R_BIT,
+                         GERIUM_COLOR_COMPONENT_G_BIT,
+                         GERIUM_COLOR_COMPONENT_B_BIT,
+                         GERIUM_COLOR_COMPONENT_A_BIT });
         auto clearColorAttachment =
             node["clear color attachment"].as<std::vector<float>>(std::vector{ 0.0f, 0.0f, 0.0f, 1.0f });
         auto clearDepthStencilAttachment = node["clear depth stencil attachment"];

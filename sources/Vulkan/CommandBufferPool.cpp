@@ -490,8 +490,9 @@ void CommandBuffer::bindDescriptorSets() {
                 for (const auto& binding : layout->data.bindings) {
                     if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
                         binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
+                        const auto key = (binding.binding << 16) | 0;
                         offsets[numOffsets++] =
-                            _device->_buffers.access(descriptorSet->bindings[binding.binding].handle)->globalOffset;
+                            _device->_buffers.access(descriptorSet->bindings[key].handle)->globalOffset;
                         descriptorSet->binded = false;
                     }
                 }

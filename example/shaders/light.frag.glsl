@@ -1,6 +1,7 @@
 #version 450
 
 #include "common/types.h"
+#include "common/utils.h"
 
 layout(location = 0) in vec2 texCoord;
 
@@ -12,204 +13,188 @@ layout(binding = 0, set = 1) uniform sampler2D texAlbedo;
 layout(binding = 1, set = 1) uniform sampler2D texNormal;
 layout(binding = 2, set = 1) uniform sampler2D texMetallicRoughness;
 layout(binding = 3, set = 1) uniform sampler2D texVelocity;
-layout(binding = 4, set = 1) uniform sampler2D texLight;
-layout(binding = 5, set = 1) uniform sampler2D texDepth;
+layout(binding = 4, set = 1) uniform sampler2D texDepth;
+
+layout(std430, binding = 0, set = 2) readonly buffer Bins {
+    uint bins[];
+};
+
+layout(std430, binding = 1, set = 2) readonly buffer Lights {
+    PointLight lights[];
+};
+
+layout(std430, binding = 2, set = 2) readonly buffer Tiles {
+    uint tiles[];
+};
+
+layout(std430, binding = 3, set = 2) readonly buffer LightIndices {
+    uint lightIndices[];
+};
 
 layout(location = 0) out vec4 outColor;
 
-void getClosestFragment3x3(ivec2 pixel, out ivec2 closestPosition, out float closestDepth) {
-    closestPosition = ivec2(-1, -1);
-    closestDepth = 1.0;
-
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
-            ivec2 pixelPosition = pixel + ivec2(x, y);
-            pixelPosition = clamp(pixelPosition, ivec2(0), scene.resolution - 1);
-            float currentDepth = texelFetch(texDepth, pixelPosition, 0).r;
-            if (currentDepth < closestDepth) {
-                closestDepth = currentDepth;
-                closestPosition = pixelPosition;
-            }
-        }
-    }
+float attenuationSquareFalloff(vec3 positionToLight, float lightInverseRadius) {
+    const float distanceSquare = dot(positionToLight, positionToLight);
+    const float factor = distanceSquare * lightInverseRadius * lightInverseRadius;
+    const float smoothFactor = max(1.0 - factor * factor, 0.0);
+    return (smoothFactor * smoothFactor) / max(distanceSquare, 1e-4);
 }
 
-vec3 sampleTextureCatmullRom(vec2 uv) {
-    vec2 resolution = vec2(float(scene.resolution.x), float(scene.resolution.y));
-    vec2 samplePosition = uv * resolution;
-    vec2 texPos1 = floor(samplePosition - 0.5) + 0.5;
-
-    vec2 f = samplePosition - texPos1;
-
-    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
-    vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
-    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
-    vec2 w3 = f * f * (-0.5 + 0.5 * f);
-
-    vec2 w12 = w1 + w2;
-    vec2 offset12 = w2 / (w1 + w2);
-
-    vec2 texPos0 = texPos1 - 1;
-    vec2 texPos3 = texPos1 + 2;
-    vec2 texPos12 = texPos1 + offset12;
-
-    texPos0 /= resolution;
-    texPos3 /= resolution;
-    texPos12 /= resolution;
-
-    vec3 result = vec3(0);
-    result += textureLod(texLight, vec2(texPos0.x, texPos0.y), 0).rgb * w0.x * w0.y;
-    result += textureLod(texLight, vec2(texPos12.x, texPos0.y), 0).rgb * w12.x * w0.y;
-    result += textureLod(texLight, vec2(texPos3.x, texPos0.y), 0).rgb * w3.x * w0.y;
-
-    result += textureLod(texLight, vec2(texPos0.x, texPos12.y), 0).rgb * w0.x * w12.y;
-    result += textureLod(texLight, vec2(texPos12.x, texPos12.y), 0).rgb * w12.x * w12.y;
-    result += textureLod(texLight, vec2(texPos3.x, texPos12.y), 0).rgb * w3.x * w12.y;
-
-    result += textureLod(texLight, vec2(texPos0.x, texPos3.y), 0).rgb * w0.x * w3.y;
-    result += textureLod(texLight, vec2(texPos12.x, texPos3.y), 0).rgb * w12.x * w3.y;
-    result += textureLod(texLight, vec2(texPos3.x, texPos3.y), 0).rgb * w3.x * w3.y;
-
-    return result;
+float distributionGGX(vec3 N, vec3 H, float roughness) {
+    float a      = roughness*roughness;
+    float a2     = a*a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+	
+    float num   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+	
+    return num / denom;
 }
 
-float filterCubic(float x, float B, float C) {
-    float y = 0.0;
-    float x2 = x * x;
-    float x3 = x2 * x;
-    if(x < 1) {
-        y = (12.0 - 9.0 * B - 6.0 * C) * x3 + (-18.0 + 12.0 * B + 6.0 * C) * x2 + (6.0 - 2.0 * B);
-    } else if (x <= 2) {
-        y = (-B - 6.0 * C) * x3 + (6.0 * B + 30.0 * C) * x2 + (-12.0 * B - 48.0 * C) * x + (8.0 * B + 24.0 * C);
-    }
-    return y / 6.0;
+float geometrySchlickGGX(float NdotV, float roughness) {
+    float r = (roughness + 1.0);
+    float k = (r*r) / 8.0;
+
+    float num   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+	
+    return num / denom;
 }
 
-float filterCatmullRom(float value) {
-    return filterCubic(value, 0.0, 0.5);
+float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2  = geometrySchlickGGX(NdotV, roughness);
+    float ggx1  = geometrySchlickGGX(NdotL, roughness);
+	
+    return ggx1 * ggx2;
+} 
+
+vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
-float subsampleFilter(float value) {
-    return filterCatmullRom(value * 2.0);
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}   
+uint hash(uint a)
+{
+   a = (a+0x7ed55d16) + (a<<12);
+   a = (a^0xc761c23c) ^ (a>>19);
+   a = (a+0x165667b1) + (a<<5);
+   a = (a+0xd3a2646c) ^ (a<<9);
+   a = (a+0xfd7046c5) + (a<<3);
+   a = (a^0xb55a4f09) ^ (a>>16);
+   return a;
 }
-
-vec3 accumulateSampleAndWeights(ivec2 pos, out vec3 neighborhoodMin, out vec3 neighborhoodMax, out vec3 m1, out vec3 m2) {
-    float currentSampleWeight = 0.0;
-    vec3 currentSampleTotal = vec3(0.0);
-    neighborhoodMin = vec3(10000.0);
-    neighborhoodMax = vec3(-10000.0);
-    m1 = vec3(0.0);
-    m2 = vec3(0.0);
-
-    for (int x = -1; x <= 1; ++x ) {
-        for (int y = -1; y <= 1; ++y ) {
-            ivec2 pixelPosition = pos + ivec2(x, y);
-            pixelPosition = clamp(pixelPosition, ivec2(0), scene.resolution - 1);
-
-            vec3 currentSample = texelFetch(texAlbedo, pixelPosition, 0).rgb;
-            vec2 subsamplePosition = vec2(x * 1.0, y * 1.0);
-            float subsampleDistance = length(subsamplePosition);
-            float subsampleWeight = subsampleFilter(subsampleDistance);
-
-            currentSampleTotal += currentSample * subsampleWeight;
-            currentSampleWeight += subsampleWeight;
-
-            neighborhoodMin = min(neighborhoodMin, currentSample);
-            neighborhoodMax = max(neighborhoodMax, currentSample);
-
-            m1 += currentSample;
-            m2 += currentSample * currentSample;
-        }
-    }
-
-    return currentSampleTotal / currentSampleWeight;
-}
-
-vec4 clipAABB(vec3 aabbMin, vec3 aabbMax, vec4 previousSample, float averageAlpha) {
-    vec3 pClip = 0.5 * (aabbMax + aabbMin);
-    vec3 eClip = 0.5 * (aabbMax - aabbMin) + 0.000000001;
-
-    vec4 vClip = previousSample - vec4(pClip, averageAlpha);
-    vec3 vUnit = vClip.xyz / eClip;
-    vec3 aUnit = abs(vUnit);
-    float maUnit = max(aUnit.x, max(aUnit.y, aUnit.z));
-
-    if (maUnit > 1.0) {
-        return vec4(pClip, averageAlpha) + vClip / maUnit;
-    } else {
-        return previousSample;
-    }
-}
-
-vec3 varianceClipClamp(vec3 historyColor, vec3 neighborhoodMin, vec3 neighborhoodMax, vec3 m1, vec3 m2) {
-    const float rcpSampleCount = 1.0 / 9.0;
-    const float gamma = 1.0;
-    vec3 mu = m1 * rcpSampleCount;
-    vec3 sigma = sqrt(abs((m2 * rcpSampleCount) - (mu * mu)));
-    vec3 minc = mu - gamma * sigma;
-    vec3 maxc = mu + gamma * sigma;
-
-    vec3 clampedHistoryColor = clamp(historyColor, neighborhoodMin, neighborhoodMax);
-    return clipAABB(minc, maxc, vec4(clampedHistoryColor, 1.0), 1.0).rgb;
-}
-
-float luminance(vec3 color) {
-    return dot(color, vec3(0.2126, 0.7152, 0.0722));
-}
-
 void main() {
-    ivec2 pixelPosition = ivec2(
-        int(floor((scene.resolution.x - 1) * texCoord.x)), 
-        int(floor((scene.resolution.y - 1) * texCoord.y)));
+    vec3 albedo = textureLod(texAlbedo, texCoord, 0).rgb;
+    vec3 normal = octahedralDecode(texture(texNormal, texCoord).rg);
+    vec3 orm = textureLod(texMetallicRoughness, texCoord, 0).rgb;
+    vec3 position = worldPositionFromDepth(texCoord, texture(texDepth, texCoord).r, scene.invViewProjection);
+    float ao = orm.r;
+    float roughness = orm.g;
+    float metallic = orm.b;
 
-    ivec2 closestPosition = ivec2(-1, -1);
-    float closestDepth = 1.0;
-    getClosestFragment3x3(pixelPosition, closestPosition, closestDepth);
+    vec3 N = normalize(normal);
+    vec3 V = normalize(scene.viewPosition.xyz - position);
+    vec3 R = reflect(-V, N); 
 
-    vec2 velocity = texelFetch(texVelocity, closestPosition, 0).rg;
-    vec2 reprojectedUV = texCoord - velocity;
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 Lo = vec3(0.0);
 
-    // vec4 historyColor = textureLod(texLight, reprojectedUV, 0);
-    vec3 historyColor = sampleTextureCatmullRom(reprojectedUV);
+    float zFar = scene.planes.x;
+    float zNear = scene.planes.y;
 
-    vec3 neighborhoodMin;
-    vec3 neighborhoodMax;
-    vec3 m1;
-    vec3 m2;
-    vec3 currentSample = accumulateSampleAndWeights(pixelPosition, neighborhoodMin, neighborhoodMax, m1, m2);
-    if (any(lessThan(reprojectedUV, vec2(0.0))) || any(greaterThan(reprojectedUV, vec2(1.0)))) {
-        outColor = vec4(currentSample, 1.0);
-        return;
+    vec4 posCameraSpace = scene.view * vec4(position, 1.0);
+
+    float linearD = (posCameraSpace.z - zNear) / (zFar - zNear);
+    int binIndex = int(linearD * LIGHT_Z_BINS);
+    uint binValue = bins[binIndex];
+
+    uint minLightId = binValue & 0xFFFF;
+    uint maxLightId = (binValue >> 16) & 0xFFFF;
+
+    uvec2 pixelPos = uvec2(gl_FragCoord.x - 0.5, gl_FragCoord.y - 0.5);
+    // pixelPos.y = uint(scene.resolution.y) - pixelPos.y - 1;
+
+    uvec2 tile = pixelPos / uint(TILE_SIZE);
+
+    uint stride = uint(NUM_WORDS) * (uint(scene.resolution.x) / uint(TILE_SIZE));
+    uint address = tile.y * stride + tile.x;
+
+    if (minLightId != MAX_LIGHTS + 1) {
+        for (uint lightId = minLightId; lightId <= maxLightId; ++lightId) {
+            uint wordId = lightId / 32;
+            uint bitId = lightId % 32;
+    
+            if ((tiles[address + wordId] & (1 << bitId)) != 0) {
+                uint globalLightIndex = lightIndices[lightId];
+                PointLight pointLight = lights[globalLightIndex];
+
+                vec3 L = normalize(pointLight.position.xyz - position);
+                vec3 H = normalize(V + L);
+
+                const vec3 positionToLight = pointLight.position.xyz - position;
+                float attenuation = attenuationSquareFalloff(positionToLight, 1.0f / pointLight.attenuation);
+                vec3 radiance     = pointLight.color.rgb * attenuation * pointLight.intensity;        
+
+                // Cook-Torrance BRDF
+                float NDF = distributionGGX(N, H, roughness);        
+                float G   = geometrySmith(N, V, L, roughness);      
+                vec3  F   = fresnelSchlick(max(dot(H, V), 0.0), F0);       
+            
+                vec3 kS = F;
+                vec3 kD = vec3(1.0) - kS;
+                kD *= 1.0 - metallic;	  
+            
+                vec3  numerator   = NDF * G * F;
+                float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
+                vec3  specular    = numerator / max(denominator, 0.001);  
+                
+                float NdotL = max(dot(N, L), 0.0);                
+                Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+           }
+        }
     }
 
-    historyColor = varianceClipClamp(historyColor.rgb, neighborhoodMin, neighborhoodMax, m1, m2);
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+  
+    vec3 kS = F;
+    vec3 kD = 1.0 - kS;
+    kD *= 1.0 - metallic;	  
+    vec3 irradiance = vec3(1.0); // texture(irradianceMap, N).rgb;
+    vec3 diffuse    = irradiance * albedo;
 
-    // vec3 currentWeight = vec3(0.1);
-    // vec3 historyWeight = vec3(1.0 - currentWeight);
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = vec3(1.0); // textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;    
+    vec2 brdf  = vec2(1.0); // texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
-    // // Temporal filter
-    // vec3 temporalWeight = clamp(abs(neighborhoodMax - neighborhoodMin) / currentSample, vec3(0), vec3(1));
-    // historyWeight = clamp(mix(vec3(0.25), vec3(0.85), temporalWeight), vec3(0), vec3(1));
-    // currentWeight = 1.0 - historyWeight;
+    vec3 ambient = vec3(0.0); // (kD * diffuse + specular) * ao * ao;
+    vec3 color = ambient + Lo;
 
-    // // Inverse luminance filtering
-    // vec3 compressedSource = currentSample / (max(max(currentSample.r, currentSample.g), currentSample.b) + 1.0);
-    // vec3 compressedHistory = historyColor / (max(max(historyColor.r, historyColor.g), historyColor.b) + 1.0);
-    // float luminanceSource = luminance(compressedSource);
-    // float luminanceHistory = luminance(compressedHistory);
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0 / 2.2));
 
-    // //     // Luminance difference filtering
-    // //     float unbiasedDiff = abs(luminanceSource - luminanceHistory) / max(luminanceSource, max(luminanceHistory, 0.2));
-    // //     float unbiasedWeight = 1.0 - unbiasedDiff;
-    // //     float unbiasedWeightSqr = unbiasedWeight * unbiasedWeight;
-    // //     float kFeedback = mix(0.0, 1.0, unbiasedWeightSqr);
+    outColor = vec4(color, 1.0);
 
-    // //     historyWeight = vec3(1.0 - kFeedback);
-    // //     currentWeight = vec3(kFeedback);
+   // outColor.rgb = vec3(0);
 
-    // currentWeight *= 1.0 / (1.0 + luminanceSource);
-    // historyWeight *= 1.0 / (1.0 + luminanceHistory);
+   // uint v = 0;
+   // for ( int i = 0; i < uint(NUM_WORDS); ++i ) {
+   //     v += tiles[ address + i];
+   // }
 
-    vec3 result = mix(currentSample, historyColor, 0.9); // (currentSample * currentWeight + historyColor * historyWeight) / max(currentWeight + historyWeight, 0.00001);
-    outColor = vec4(result, 1.0);
+   // if ( v != 0 ) {
+   //     outColor.rgb += vec3(1, 1, 0);
+   // }
+
+   // uint mhash = hash( address );
+   // outColor.rgb *= vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
+   // outColor.rgb += albedo * 0.3;
+    // outColor.rgb = vec3(0);
+    // outColor.r = linearD * 100.0;
 }

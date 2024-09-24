@@ -102,13 +102,6 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     gerium_uint16_t width, height;
     gerium_application_get_size(_application, &width, &height);
 
-    const auto pitch    = glm::angleAxis(_pitch, glm::vec3(1.0f, 0.0f, 0.0f));
-    const auto yaw      = glm::angleAxis(_yaw, glm::vec3(0.0f, 1.0f, 0.0f));
-    const auto rotation = glm::normalize(pitch * yaw);
-
-    const auto R = glm::mat4_cast(rotation);
-    const auto T = glm::translate(glm::identity<glm::mat4>(), _position);
-
     const auto aspect = float(width) / height;
 
     auto jitter         = glm::translate(glm::vec3(_jitter, 0.0f));
@@ -153,14 +146,20 @@ void Camera::update(Entity& entity, gerium_data_t data) {
     _frustum[FarFace].distance = _viewProjection[3][3] - _viewProjection[3][2];
     _frustum[FarFace].normalize();
 
-    auto ptr                = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
-    ptr->viewProjection     = _viewProjection;
-    ptr->prevViewProjection = _prevViewProjection;
-    ptr->eye                = glm::vec4(_front, 1.0f);
-    ptr->jitter             = _jitter;
-    ptr->prevJitter         = _prevJitter;
-    ptr->invResolution      = { 1.0f / width, 1.0f / height };
-    ptr->resolution         = { width, height };
+    _sceneData.view               = _view;
+    _sceneData.viewProjection     = _viewProjection;
+    _sceneData.prevViewProjection = _prevViewProjection;
+    _sceneData.invViewProjection  = glm::inverse(_viewProjection);
+    _sceneData.viewPosition       = glm::vec4(_position, 1.0f);
+    _sceneData.eye                = glm::vec4(_front, 1.0f);
+    _sceneData.planes             = glm::vec2(_farPlane, _nearPlane);
+    _sceneData.jitter             = _jitter;
+    _sceneData.prevJitter         = _prevJitter;
+    _sceneData.invResolution      = { 1.0f / width, 1.0f / height };
+    _sceneData.resolution         = { width, height };
+
+    auto ptr = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
+    *ptr     = _sceneData;
     gerium_renderer_unmap_buffer(_renderer, _data);
 }
 
@@ -259,6 +258,10 @@ gerium_float32_t Camera::farPlane() const noexcept {
 
 gerium_float32_t Camera::fov() const noexcept {
     return _fov;
+}
+
+const SceneData& Camera::sceneData() const noexcept {
+    return _sceneData;
 }
 
 const DescriptorSet& Camera::getDecriptorSet() const noexcept {

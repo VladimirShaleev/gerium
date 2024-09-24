@@ -9,6 +9,14 @@
 
 #define MAX_INSTANCES 100
 
+#define MAX_LIGHTS   256
+#define LIGHT_Z_BINS 16
+#define TILE_SIZE    8
+#define NUM_WORDS    ((MAX_LIGHTS + 31) / 32)
+#define BIN_WIDTH    (1.0f / LIGHT_Z_BINS)
+
+#define PI 3.1415926538
+
 #ifdef __cplusplus
 # define GLM_NAMESPACE glm::
 #else

@@ -74,48 +74,6 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     ImGui::End();
 }
 
-gerium_uint32_t DepthPrePass::prepare(gerium_frame_graph_t frameGraph,
-                                      gerium_renderer_t renderer,
-                                      gerium_uint32_t maxWorkers) {
-    return 4;
-}
-
-void DepthPrePass::render(gerium_frame_graph_t frameGraph,
-                          gerium_renderer_t renderer,
-                          gerium_command_buffer_t commandBuffer,
-                          gerium_uint32_t worker,
-                          gerium_uint32_t totalWorkers) {
-    auto& manager         = application()->resourceManager();
-    auto& scene           = application()->scene();
-    auto camera           = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
-    const auto& instances = scene.instances();
-
-    auto batchSize     = int((instances.size() + totalWorkers - 1) / totalWorkers);
-    auto instanceIndex = int(worker) * batchSize;
-    if (instanceIndex + batchSize > instances.size()) {
-        batchSize = int(instances.size()) - instanceIndex;
-    }
-
-    gerium_renderer_bind_buffer(renderer, _descriptorSets[worker], 0, scene.getMeshDatas());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[worker], MESH_DATA_SET);
-
-    for (int i = 0; i < batchSize; ++i) {
-        const auto instance = instances[instanceIndex + i];
-        const auto mesh     = instance->mesh;
-        if (mesh->getMaterial().getFlags() != DrawFlags::None &&
-            mesh->getMaterial().getFlags() != DrawFlags::DoubleSided) {
-            continue;
-        }
-        gerium_command_buffer_bind_technique(commandBuffer, mesh->getMaterial().getTechnique());
-        gerium_command_buffer_bind_vertex_buffer(commandBuffer, mesh->getPositions(), 0, mesh->getPositionsOffset());
-        gerium_command_buffer_bind_index_buffer(
-            commandBuffer, mesh->getIndices(), mesh->getIndicesOffset(), mesh->getIndexType());
-        gerium_command_buffer_draw_indexed(
-            commandBuffer, 0, mesh->getPrimitiveCount(), 0, instance->first, instance->count);
-    }
-}
-
 void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_renderer_t renderer,
                        gerium_command_buffer_t commandBuffer,
@@ -129,6 +87,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, scene.lightSet(), 2);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
     ///////////////////
@@ -264,18 +223,6 @@ void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
     }
 }
 
-void DepthPrePass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    for (auto& set : _descriptorSets) {
-        set = application()->resourceManager().createDescriptorSet("");
-    }
-}
-
-void DepthPrePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    for (auto& set : _descriptorSets) {
-        set = nullptr;
-    }
-}
-
 void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
     auto techniqueDir            = (appDir / "techniques" / "lines.yaml").string();
@@ -285,8 +232,7 @@ void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t re
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "velocity");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 4, "light");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 5, "depth");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 4, "depth");
 
     _maxPoints = 24 * 1000;
     _vertices  = application()->resourceManager().createBuffer(
@@ -353,7 +299,14 @@ void Application::addPass(RenderPass& renderPass) {
     gerium_render_pass_t pass{ prepare, resize, render };
     gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
 }
+float get_random_value( float min, float max ) {
 
+    float rnd = ( float )rand() / ( float )RAND_MAX;
+
+    rnd = ( max - min ) * rnd + min;
+
+    return rnd;
+}
 void Application::createScene() {
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
@@ -375,6 +328,92 @@ void Application::createScene() {
     _camera2     = _scene.addComponentToNode(root, Camera(_application, _resourceManager));
     _scene.addComponentToNode(sponza, sponzaTransform);
     _scene.addComponentToNode(sponza, modelSponza);
+
+/*
+    const Light light1 = PointLight{
+        { 0.0f, 20.0f, 20.0f, 1.0f },
+        { 2000.0f, 2000.0f, 2000.0f, 1.0f },
+        20.0f, 5.0f
+    };
+
+    const Light light2 = PointLight{
+        { -20.0f, 10.0f, 10.0f, 1.0f },
+        { 2000.0f, 2000.0f, 1000.0f, 1.0f },
+        30.0f, 5.0f
+    };
+
+    const Light light3 = PointLight{
+        { -300.0f, 30.0f, 20.0f, 1.0f },
+        { 2000.0f, 4000.0f, 4000.0f, 1.0f },
+        30.0f, 5.0f
+    };
+
+    const Light light4 = PointLight{
+        { 0.0f, -10.0f, 40.0f, 1.0f },
+        { 2000.0f, 2000.0f, 2000.0f, 1.0f },
+        10.0f, 5.0f
+    };
+
+    const Light light5 = PointLight{
+        { 0.0f,  10.0f, 40.0f, 1.0f },
+        { 2000.0f, 2000.0f, 2000.0f, 1.0f },
+        30.0f, 5.0f
+    };
+
+    const Light light6 = PointLight{
+        { 10.0f, -10.0f, -400.0f, 1.0f },
+        { 2000.0f, 2000.0f, 2000.0f, 1.0f },
+        30.0f, 5.0f
+    };
+
+    const Light light7 = PointLight{
+        { 20.0f, 0.0f, 40.0f, 1.0f },
+        { 2000.0f, 2000.0f, 2000.0f, 1.0f },
+        20.0f, 5.0f
+    };
+
+    const Light light8 = PointLight{
+        { 0.0f, 0.0f, -1000.0f, 1.0f },
+        { 2000.0f, 2000.0f, 2000.0f, 1.0f },
+        100.0f, 5.0f
+    };
+
+    _scene.addComponentToNode(root, light1);
+    _scene.addComponentToNode(root, light2);
+    _scene.addComponentToNode(root, light3);
+    _scene.addComponentToNode(root, light4);
+    _scene.addComponentToNode(root, light5);
+    _scene.addComponentToNode(root, light6);
+    _scene.addComponentToNode(root, light7);
+    _scene.addComponentToNode(root, light8);
+*/
+    
+    const gerium_uint32_t lights_per_side = std::ceill( sqrtf( MAX_LIGHTS * 1.f ) );
+    for (gerium_uint32_t i = 0; i < MAX_LIGHTS; ++i) {
+        const float sx = 0.2f;
+        const float sz = 0.085f;
+        const float x = ( i % lights_per_side ) * sx - lights_per_side * sx * 0.5f;
+        const float y = 0.15f;
+        const float z = ( i / lights_per_side ) * sz - lights_per_side * sz * 0.5f;
+
+        /*float x = get_random_value( mesh_aabb[ 0 ].x * scale, mesh_aabb[ 1 ].x * scale );
+        float y = get_random_value( mesh_aabb[ 0 ].y * scale, mesh_aabb[ 1 ].y * scale );
+        float z = get_random_value( mesh_aabb[ 0 ].z * scale, mesh_aabb[ 1 ].z * scale );*/
+
+        float r = get_random_value( 0.0f, 1.0f );
+        float g = get_random_value( 0.0f, 1.0f );
+        float b = get_random_value( 0.0f, 1.0f );
+
+        PointLight new_light{ };
+        new_light.position = glm::vec4{ x, y, z, 1.0f };
+        new_light.attenuation = 0.2f;
+
+        new_light.color = glm::vec4{ r, g, b, 1.0f };
+        new_light.intensity = 0.03f;
+
+        _scene.addComponentToNode(root, Light{new_light});
+    }
+
 
     for (int x = -10; x < 10; ++x) {
         for (int y = -2; y < 2; ++y) {
@@ -418,7 +457,6 @@ void Application::initialize() {
 
     addPass(_presentPass);
     addPass(_gbufferPass);
-    addPass(_depthPrePass);
     addPass(_lightPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
@@ -497,7 +535,7 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
                 gerium_application_get_platform(_application) == GERIUM_RUNTIME_PLATFORM_ANDROID) {
                 const auto delta = 1.0f;
                 pitch += event.mouse.raw_delta_y * (invY ? delta : -delta);
-                yaw += event.mouse.raw_delta_x * delta;
+                yaw += event.mouse.raw_delta_x * -delta;
                 zoom += event.mouse.wheel_vertical * move * -0.1f;
             }
         }
@@ -511,11 +549,11 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
     auto elapsed = (gerium_float32_t) elapsedMs;
     if (gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_A) ||
         gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_ARROW_LEFT)) {
-        camera->move(Camera::Right, -move, elapsed);
+        camera->move(Camera::Right, move, elapsed);
     }
     if (gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_D) ||
         gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_ARROW_RIGHT)) {
-        camera->move(Camera::Right, move, elapsed);
+        camera->move(Camera::Right, -move, elapsed);
     }
     if (gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_W) ||
         gerium_application_is_press_scancode(_application, GERIUM_SCANCODE_ARROW_UP)) {
@@ -575,7 +613,7 @@ void Application::frame(gerium_uint64_t elapsedMs) {
     updateJitterTable();
 
     const auto& jitter = currentJitter();
-    _scene.getActiveCamera()->jittering(jitter.x, jitter.y);
+    // _scene.getActiveCamera()->jittering(jitter.x, jitter.y);
 
     _resourceManager.update(elapsedMs);
     _scene.update();
