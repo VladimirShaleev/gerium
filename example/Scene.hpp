@@ -127,6 +127,7 @@ public:
     void update();
     void culling();
     void clear();
+    void updateLightTilesSize(gerium_uint16_t width, gerium_uint16_t height);
 
     template <typename T>
     T* addComponentToNode(SceneNode* node, const T& component) {

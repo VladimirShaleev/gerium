@@ -44,21 +44,12 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
         set = _resourceManger->createDescriptorSet("");
     }
 
-    gerium_uint32_t width           = 1000;
-    gerium_uint32_t height          = 800;
-    gerium_uint32_t tileXCount      = width / TILE_SIZE;
-    gerium_uint32_t tileYCount      = height / TILE_SIZE;
-    gerium_uint32_t tilesEntryCount = tileXCount * tileYCount * NUM_WORDS;
-    gerium_uint32_t bufferSize      = tilesEntryCount * sizeof(gerium_uint32_t);
-
     _lights = _resourceManger->createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_data", nullptr, sizeof(PointLight) * MAX_LIGHTS);
     _lightIndices = _resourceManger->createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_indices", nullptr, sizeof(gerium_uint32_t) * MAX_LIGHTS);
     _lightDataLUT = _resourceManger->createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_lut", nullptr, sizeof(gerium_uint32_t) * LIGHT_Z_BINS);
-    _lightTiles = _resourceManger->createBuffer(
-        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_tiles", nullptr, bufferSize);
     _lightSet = _resourceManger->createDescriptorSet("");
 }
 
@@ -86,7 +77,7 @@ void Scene::update() {
 
     bool transformUpdated = false;
     std::vector<Light*> lights;
-    lights.resize(10);
+    lights.resize(MAX_LIGHTS);
 
     while (!nodes.empty()) {
         auto& [parentMat, parentUpdated, node] = nodes.front();
@@ -112,7 +103,7 @@ void Scene::update() {
             model->updateMaterials();
         }
 
-        gerium_uint16_t lightCount = 10;
+        gerium_uint16_t lightCount = MAX_LIGHTS;
         getComponents<Light>(lightCount, lights.data());
 
         for (gerium_uint16_t i = 0; i < lightCount; ++i) {
@@ -157,7 +148,7 @@ void Scene::culling() {
                         obj.mesh->visible(false);
                     }
                 } else if (obj.type == BVHNode::LightType) {
-                    // _visibleLights.push_back(obj.light);
+                    _visibleLights.push_back(obj.light);
                 }
             }
         }
@@ -168,12 +159,6 @@ void Scene::culling() {
             cullingMesh(node->right());
         }
     };
-
-    ///
-    _visibleLights.clear();
-    _visibleLights.resize(MAX_LIGHTS);
-    gerium_uint16_t ll = MAX_LIGHTS;
-    getComponents<Light>(ll, _visibleLights.data());
 
     cullingMesh(_bvh);
 
@@ -471,6 +456,17 @@ void Scene::clear() {
     _registry.clear();
     _nodes.clear();
     _root = nullptr;
+}
+
+void Scene::updateLightTilesSize(gerium_uint16_t width, gerium_uint16_t height) {
+    gerium_uint32_t tileXCount      = width / TILE_SIZE;
+    gerium_uint32_t tileYCount      = height / TILE_SIZE;
+    gerium_uint32_t tilesEntryCount = tileXCount * tileYCount * NUM_WORDS;
+    gerium_uint32_t bufferSize      = tilesEntryCount * sizeof(gerium_uint32_t);
+    _lightTiles = nullptr;
+    _resourceManger->update(1);
+    _lightTiles = _resourceManger->createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_tiles", nullptr, bufferSize, 0);
 }
 
 SceneNode* Scene::allocateNode() {
