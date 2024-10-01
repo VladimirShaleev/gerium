@@ -49,7 +49,7 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
     _lightIndices = _resourceManger->createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_indices", nullptr, sizeof(gerium_uint32_t) * MAX_LIGHTS);
     _lightDataLUT = _resourceManger->createBuffer(
-        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_lut", nullptr, sizeof(gerium_uint32_t) * LIGHT_Z_BINS);
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_lut", nullptr, sizeof(gerium_uint32_t) * LIGHT_Z_BINS);
     _lightSet = _resourceManger->createDescriptorSet("");
 }
 
@@ -355,7 +355,7 @@ void Scene::culling() {
             corner += pos.xyz();
 
             glm::vec4 cornerVs = worldToCamera * glm::vec4(corner, 1.0f);
-            cornerVs.z = glm::max(zNear, cornerVs.z);
+            cornerVs.z         = glm::max(zNear, cornerVs.z);
 
             glm::vec4 cornerNdc = camera->projection() * cornerVs;
             cornerNdc           = cornerNdc / cornerNdc.w;
@@ -463,10 +463,10 @@ void Scene::updateLightTilesSize(gerium_uint16_t width, gerium_uint16_t height) 
     gerium_uint32_t tileYCount      = height / TILE_SIZE;
     gerium_uint32_t tilesEntryCount = tileXCount * tileYCount * NUM_WORDS;
     gerium_uint32_t bufferSize      = tilesEntryCount * sizeof(gerium_uint32_t);
-    _lightTiles = nullptr;
+    _lightTiles                     = nullptr;
     _resourceManger->update(1);
-    _lightTiles = _resourceManger->createBuffer(
-        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_tiles", nullptr, bufferSize, 0);
+    _lightTiles =
+        _resourceManger->createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_tiles", nullptr, bufferSize, 0);
 }
 
 SceneNode* Scene::allocateNode() {

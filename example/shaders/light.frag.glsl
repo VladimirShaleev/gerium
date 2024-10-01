@@ -15,8 +15,8 @@ layout(binding = 2, set = 1) uniform sampler2D texMetallicRoughness;
 layout(binding = 3, set = 1) uniform sampler2D texVelocity;
 layout(binding = 4, set = 1) uniform sampler2D texDepth;
 
-layout(std430, binding = 0, set = 2) readonly buffer Bins {
-    uint bins[];
+layout(binding = 0, set = 2) uniform Bins {
+    uint bins[LIGHT_Z_BINS];
 };
 
 layout(std430, binding = 1, set = 2) readonly buffer Lights {
@@ -79,16 +79,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }   
-uint hash(uint a)
-{
-   a = (a+0x7ed55d16) + (a<<12);
-   a = (a^0xc761c23c) ^ (a>>19);
-   a = (a+0x165667b1) + (a<<5);
-   a = (a+0xd3a2646c) ^ (a<<9);
-   a = (a+0xfd7046c5) + (a<<3);
-   a = (a^0xb55a4f09) ^ (a>>16);
-   return a;
-}
+
 void main() {
     vec3 albedo = textureLod(texAlbedo, texCoord, 0).rgb;
     vec3 normal = octahedralDecode(texture(texNormal, texCoord).rg);
@@ -118,7 +109,6 @@ void main() {
     uint maxLightId = (binValue >> 16) & 0xFFFF;
 
     uvec2 pixelPos = uvec2(gl_FragCoord.x - 0.5, gl_FragCoord.y - 0.5);
-    // pixelPos.y = uint(scene.resolution.y) - pixelPos.y - 1;
 
     uvec2 tile = pixelPos / uint(TILE_SIZE);
 
@@ -180,21 +170,4 @@ void main() {
     color = pow(color, vec3(1.0 / 2.2));
 
     outColor = vec4(color, 1.0);
-
-   // outColor.rgb = vec3(0);
-
-   // uint v = 0;
-   // for ( int i = 0; i < uint(NUM_WORDS); ++i ) {
-   //     v += tiles[ address + i];
-   // }
-
-   // if ( v != 0 ) {
-   //     outColor.rgb += vec3(1, 1, 0);
-   // }
-
-   // uint mhash = hash( address );
-   // outColor.rgb *= vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
-   // outColor.rgb += albedo * 0.3;
-    // outColor.rgb = vec3(0);
-    // outColor.r = linearD * 100.0;
 }

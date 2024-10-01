@@ -329,7 +329,7 @@ void Application::createScene() {
     gerium_uint16_t width, height;
     gerium_application_get_size(_application, &width, &height);
     _scene.updateLightTilesSize(width, height);
-    
+
     auto root   = _scene.root();
     auto sponza = _scene.addNode(root);
 
@@ -339,99 +339,39 @@ void Application::createScene() {
     _scene.addComponentToNode(sponza, sponzaTransform);
     _scene.addComponentToNode(sponza, modelSponza);
 
-    /*
-        const Light light1 = PointLight{
-            { 0.0f, 20.0f, 20.0f, 1.0f },
-            { 2000.0f, 2000.0f, 2000.0f, 1.0f },
-            20.0f, 5.0f
-        };
+    const gerium_uint32_t lightCount    = 16;
+    const gerium_uint32_t lightsPerSide = std::ceill(sqrtf(lightCount * 1.f));
+    for (gerium_uint32_t iy = 0; iy < 4; ++iy) {
+        for (gerium_uint32_t i = 0; i < lightCount; ++i) {
+            const float sx = 0.65f;
+            const float sz = 0.2f;
+            const float x  = (i % lightsPerSide) * sx - lightsPerSide * sx * 0.5f;
+            const float y  = 0.15f + iy * 0.5f;
+            const float z  = (i / lightsPerSide) * sz - lightsPerSide * sz * 0.5f;
 
-        const Light light2 = PointLight{
-            { -20.0f, 10.0f, 10.0f, 1.0f },
-            { 2000.0f, 2000.0f, 1000.0f, 1.0f },
-            30.0f, 5.0f
-        };
+            float r = get_random_value(0.0f, 1.0f);
+            float g = get_random_value(0.0f, 1.0f);
+            float b = get_random_value(0.0f, 1.0f);
 
-        const Light light3 = PointLight{
-            { -300.0f, 30.0f, 20.0f, 1.0f },
-            { 2000.0f, 4000.0f, 4000.0f, 1.0f },
-            30.0f, 5.0f
-        };
+            PointLight new_light{};
+            new_light.position    = glm::vec4{ x, y, z, 1.0f };
+            new_light.attenuation = 0.6f;
 
-        const Light light4 = PointLight{
-            { 0.0f, -10.0f, 40.0f, 1.0f },
-            { 2000.0f, 2000.0f, 2000.0f, 1.0f },
-            10.0f, 5.0f
-        };
+            new_light.color     = glm::vec4{ r, g, b, 1.0f };
+            new_light.intensity = 0.03f;
 
-        const Light light5 = PointLight{
-            { 0.0f,  10.0f, 40.0f, 1.0f },
-            { 2000.0f, 2000.0f, 2000.0f, 1.0f },
-            30.0f, 5.0f
-        };
-
-        const Light light6 = PointLight{
-            { 10.0f, -10.0f, -400.0f, 1.0f },
-            { 2000.0f, 2000.0f, 2000.0f, 1.0f },
-            30.0f, 5.0f
-        };
-
-        const Light light7 = PointLight{
-            { 20.0f, 0.0f, 40.0f, 1.0f },
-            { 2000.0f, 2000.0f, 2000.0f, 1.0f },
-            20.0f, 5.0f
-        };
-
-        const Light light8 = PointLight{
-            { 0.0f, 0.0f, -1000.0f, 1.0f },
-            { 2000.0f, 2000.0f, 2000.0f, 1.0f },
-            100.0f, 5.0f
-        };
-
-        _scene.addComponentToNode(root, light1);
-        _scene.addComponentToNode(root, light2);
-        _scene.addComponentToNode(root, light3);
-        _scene.addComponentToNode(root, light4);
-        _scene.addComponentToNode(root, light5);
-        _scene.addComponentToNode(root, light6);
-        _scene.addComponentToNode(root, light7);
-        _scene.addComponentToNode(root, light8);
-    */
-
-    const gerium_uint32_t lights_per_side = std::ceill(sqrtf(MAX_LIGHTS * 1.f));
-    for (gerium_uint32_t i = 0; i < MAX_LIGHTS; ++i) {
-        const float sx = 0.2f;
-        const float sz = 0.085f;
-        const float x  = (i % lights_per_side) * sx - lights_per_side * sx * 0.5f;
-        const float y  = 0.15f;
-        const float z  = (i / lights_per_side) * sz - lights_per_side * sz * 0.5f;
-
-        /*float x = get_random_value( mesh_aabb[ 0 ].x * scale, mesh_aabb[ 1 ].x * scale );
-        float y = get_random_value( mesh_aabb[ 0 ].y * scale, mesh_aabb[ 1 ].y * scale );
-        float z = get_random_value( mesh_aabb[ 0 ].z * scale, mesh_aabb[ 1 ].z * scale );*/
-
-        float r = get_random_value(0.0f, 1.0f);
-        float g = get_random_value(0.0f, 1.0f);
-        float b = get_random_value(0.0f, 1.0f);
-
-        PointLight new_light{};
-        new_light.position    = glm::vec4{ x, y, z, 1.0f };
-        new_light.attenuation = 0.2f;
-
-        new_light.color     = glm::vec4{ r, g, b, 1.0f };
-        new_light.intensity = 0.03f;
-
-        _scene.addComponentToNode(root, Light{ new_light });
+            _scene.addComponentToNode(root, Light{ new_light });
+        }
     }
 
-    for (int x = -10; x < 10; ++x) {
+    for (int x = -5; x < 5; ++x) {
         for (int y = -2; y < 2; ++y) {
             auto transform =
                 Transform{ glm::rotate(glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.125f, 0.125f, 0.125f)),
                                        glm::radians(-90.0f),
                                        glm::vec3(0.0f, 1.0f, 0.0f)) };
             transform.localMatrix =
-                glm::translate(glm::identity<glm::mat4>(), glm::vec3(x * 0.1f, 0, y * 0.1f)) * transform.localMatrix;
+                glm::translate(glm::identity<glm::mat4>(), glm::vec3(x * 0.2f, 0, y * 0.1f)) * transform.localMatrix;
 
             auto flightHelmet = _scene.addNode(root);
             _scene.addComponentToNode(flightHelmet, transform);
@@ -452,8 +392,7 @@ void Application::initialize() {
         true;
 #endif
 
-    check(gerium_renderer_create(
-        _application, GERIUM_FEATURE_BINDLESS, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+    check(gerium_renderer_create(_application, GERIUM_FEATURE_NONE, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
     _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS;
