@@ -3,6 +3,13 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: light
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: light
+        previous frame: true
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: velocity
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth
     outputs: []
 
   - name: gbuffer_pass
@@ -40,8 +47,6 @@ frame graph:
         name: normal
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: metallic_roughness
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: velocity
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: depth
     outputs:

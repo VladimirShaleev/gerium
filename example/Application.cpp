@@ -57,8 +57,12 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    auto& scene = application()->scene();
+    auto camera = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
+
     gerium_command_buffer_bind_technique(commandBuffer, _technique);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
     gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
 
@@ -204,6 +208,9 @@ void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     _descriptorSet = application()->resourceManager().createDescriptorSet("");
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "light");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "light");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "velocity");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "depth");
 }
 
 void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -231,8 +238,7 @@ void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t re
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "metallic_roughness");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "velocity");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 4, "depth");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "depth");
 
     _maxPoints = 24 * 1000;
     _vertices  = application()->resourceManager().createBuffer(
@@ -561,7 +567,7 @@ void Application::frame(gerium_uint64_t elapsedMs) {
     updateJitterTable();
 
     const auto& jitter = currentJitter();
-    // _scene.getActiveCamera()->jittering(jitter.x, jitter.y);
+    _scene.getActiveCamera()->jittering(jitter.x, jitter.y);
 
     _resourceManager.update(elapsedMs);
     _scene.update();

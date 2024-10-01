@@ -73,7 +73,7 @@ public:
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
     void clearInputResources();
-    void addInputResource(const FrameGraphResource* resource);
+    void addInputResource(const FrameGraphResource* resource, gerium_uint32_t index);
 
     bool isSupportedFormat(gerium_format_t format) noexcept;
 

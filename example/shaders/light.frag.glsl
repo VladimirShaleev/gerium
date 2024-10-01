@@ -12,8 +12,7 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneDataUBO {
 layout(binding = 0, set = 1) uniform sampler2D texAlbedo;
 layout(binding = 1, set = 1) uniform sampler2D texNormal;
 layout(binding = 2, set = 1) uniform sampler2D texMetallicRoughness;
-layout(binding = 3, set = 1) uniform sampler2D texVelocity;
-layout(binding = 4, set = 1) uniform sampler2D texDepth;
+layout(binding = 3, set = 1) uniform sampler2D texDepth;
 
 layout(binding = 0, set = 2) uniform Bins {
     uint bins[LIGHT_Z_BINS];

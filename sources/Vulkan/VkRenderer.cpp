@@ -496,7 +496,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 } else {
                     cb->addImageBarrier(texture, ResourceState::ShaderResource, 0, 1);
                 }
-                _device->addInputResource(resource);
+                _device->addInputResource(resource, i);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;

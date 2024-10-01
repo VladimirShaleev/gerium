@@ -154,8 +154,8 @@ bool Device::newFrame() {
                                                        &_swapchainImageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        _application->getSize(&_appWidth, &_appHeight);
-        resizeSwapchain();
+        // _application->getSize(&_appWidth, &_appHeight);
+        // resizeSwapchain();
     } else {
         check(result);
     }
@@ -1276,7 +1276,9 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
 
     for (auto& [_, item] : descriptorSet->bindings) {
         if (item.resource) {
-            auto resource = _currentInputResources[item.resource];
+            auto priorityResource = std::string(item.resource) + '-' + std::to_string(item.binding);
+            auto it               = _currentInputResources.find(priorityResource);
+            auto resource = it != _currentInputResources.end() ? it->second : _currentInputResources[item.resource];
             auto index    = 0;
             if (resource->info.texture.handles[1] != Undefined) {
                 index = resource->saveForNextFrame ? (_absoluteFrame + 1) % 2 : (_absoluteFrame) % 2;
@@ -1361,8 +1363,10 @@ void Device::clearInputResources() {
     _currentInputResources.clear();
 }
 
-void Device::addInputResource(const FrameGraphResource* resource) {
+void Device::addInputResource(const FrameGraphResource* resource, gerium_uint32_t index) {
     _currentInputResources[resource->name] = resource;
+
+    _currentInputResources[std::string(resource->name) + '-' + std::to_string(index)] = resource;
 }
 
 bool Device::isSupportedFormat(gerium_format_t format) noexcept {
