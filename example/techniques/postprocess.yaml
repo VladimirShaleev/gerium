@@ -1,4 +1,4 @@
-name: present
+name: postprocess
 pipelines:
   - render pass: present_pass
     shaders:
@@ -8,3 +8,12 @@ pipelines:
       - type: GERIUM_SHADER_TYPE_FRAGMENT
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/present.frag.glsl
+
+  - render pass: taa_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_HLSL
+        name: shaders/screen.vert.hlsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/taa.frag.glsl

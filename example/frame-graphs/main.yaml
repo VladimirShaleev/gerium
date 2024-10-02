@@ -2,14 +2,7 @@ frame graph:
   - name: present_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: light
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: light
-        previous frame: true
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: velocity
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: depth
+        name: taa_image
     outputs: []
 
   - name: gbuffer_pass
@@ -38,6 +31,23 @@ frame graph:
         format: GERIUM_FORMAT_D32_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         clear depth stencil attachment: [1.0, 0]
+
+  - name: taa_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: light
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: taa_image
+        previous frame: true
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: velocity
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: taa_image
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
 
   - name: light_pass
     inputs:

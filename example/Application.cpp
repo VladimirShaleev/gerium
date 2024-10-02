@@ -57,12 +57,8 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    auto& scene = application()->scene();
-    auto camera = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
-
     gerium_command_buffer_bind_technique(commandBuffer, _technique);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
     gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
 
@@ -200,17 +196,28 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     }
 }
 
+void TAAPass::render(gerium_frame_graph_t frameGraph,
+                     gerium_renderer_t renderer,
+                     gerium_command_buffer_t commandBuffer,
+                     gerium_uint32_t worker,
+                     gerium_uint32_t totalWorkers) {
+    auto& scene = application()->scene();
+    auto camera = settings().Camera2 ? application()->getCamera2() : scene.getActiveCamera();
+
+    gerium_command_buffer_bind_technique(commandBuffer, _technique);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
+    gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+}
+
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
-    auto techniqueDir            = (appDir / "techniques" / "present.yaml").string();
+    auto techniqueDir            = (appDir / "techniques" / "postprocess.yaml").string();
 
     _technique     = application()->resourceManager().loadTechnique(techniqueDir);
     _descriptorSet = application()->resourceManager().createDescriptorSet("");
 
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "light");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "light");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "velocity");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "depth");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "taa_image");
 }
 
 void PresentPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -254,6 +261,24 @@ void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
 
 void LightPass::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     application()->scene().updateLightTilesSize(application()->width(), application()->height());
+}
+
+void TAAPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    auto techniqueDir            = (appDir / "techniques" / "postprocess.yaml").string();
+
+    _technique     = application()->resourceManager().loadTechnique(techniqueDir);
+    _descriptorSet = application()->resourceManager().createDescriptorSet("");
+
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "light");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "taa_image");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "velocity");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "depth");
+}
+
+void TAAPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _technique = nullptr;
+    _descriptorSet = nullptr;
 }
 
 Application::Application() {
@@ -411,6 +436,7 @@ void Application::initialize() {
 
     addPass(_presentPass);
     addPass(_gbufferPass);
+    addPass(_taaPass);
     addPass(_lightPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
