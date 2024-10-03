@@ -183,10 +183,15 @@ bool Device::newFrame() {
     }
 
     check(_vkTable.vkResetDescriptorPool(_device, _descriptorPools[_currentFrame], {}));
-    if (_numFreeDescriptorSetQueue) {
+    if (_numFreeDescriptorSetQueue2) {
         check(_vkTable.vkFreeDescriptorSets(
-            _device, _globalDescriptorPool, _numFreeDescriptorSetQueue, _freeDescriptorSetQueue));
-        _numFreeDescriptorSetQueue = 0;
+            _device, _globalDescriptorPool, _numFreeDescriptorSetQueue2, _freeDescriptorSetQueue2));
+        _numFreeDescriptorSetQueue2 = 0;
+    }
+    if (_numFreeDescriptorSetQueue) {
+        memcpy(_freeDescriptorSetQueue2, _freeDescriptorSetQueue, sizeof(_freeDescriptorSetQueue2));
+        _numFreeDescriptorSetQueue2 = _numFreeDescriptorSetQueue;
+        _numFreeDescriptorSetQueue  = 0;
     }
     return true;
 }
@@ -587,6 +592,7 @@ DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& cre
 
     descriptorSet->layout  = Undefined;
     descriptorSet->changed = 1;
+    descriptorSet->global  = creation.global;
 
     return handle;
 }
@@ -1241,6 +1247,36 @@ void Device::bind(DescriptorSetHandle handle,
 
     const auto key = calcBindingKey(binding, element);
 
+    if (_bindlessSupported && descriptorSet->global && descriptorSet->layout != Undefined) {
+        auto layout = _descriptorSetLayouts.access(descriptorSet->layout);
+        auto it = std::find_if(layout->data.bindings.cbegin(), layout->data.bindings.cend(), [binding](const auto& b) {
+            return b.binding == binding;
+        });
+        if (it != layout->data.bindings.cend()) {
+            const auto index      = it - layout->data.bindings.cbegin();
+            const auto isBindless = (layout->data.bindlessFlags[index] & VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) ==
+                                    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+            if (isBindless) {
+                DescriptorSet tempDescriptorSet{};
+                tempDescriptorSet.vkDescriptorSet = descriptorSet->vkDescriptorSet;
+
+                auto& item    = tempDescriptorSet.bindings[key];
+                item.binding  = binding;
+                item.element  = element;
+                item.resource = resourceInput;
+                item.handle   = resource;
+                VkWriteDescriptorSet descriptorWrite[1]{};
+                VkDescriptorBufferInfo bufferInfo[1]{};
+                VkDescriptorImageInfo imageInfo[1]{};
+                const auto [num, _] =
+                    fillWriteDescriptorSets(*layout, tempDescriptorSet, descriptorWrite, bufferInfo, imageInfo);
+
+                _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
+                return;
+            }
+        }
+    }
+
     if (auto it = descriptorSet->bindings.find(key); it != descriptorSet->bindings.end()) {
         if (it->second.binding != binding || it->second.element != element || it->second.resource != resourceInput ||
             it->second.handle != resource) {
@@ -1309,7 +1345,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
             }
         }
 
-        if (descriptorSet->vkDescriptorSet && descriptorSet->global) { // TODO: test
+        if (descriptorSet->vkDescriptorSet && descriptorSet->global) {
             assert(_numFreeDescriptorSetQueue < std::size(_freeDescriptorSetQueue));
             _freeDescriptorSetQueue[_numFreeDescriptorSetQueue++] = descriptorSet->vkDescriptorSet;
         }
@@ -1335,7 +1371,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         _vkTable.vkUpdateDescriptorSets(_device, num, _descriptorWrite, 0, nullptr);
 
         descriptorSet->layout  = layoutHandle;
-        descriptorSet->changed = updateRequired || swapToPrevResource;
+        descriptorSet->changed = (updateRequired || swapToPrevResource) && !bindless;
     }
 
     descriptorSet->absoluteFrame = _absoluteFrame;
@@ -1638,7 +1674,7 @@ void Device::createDescriptorPools() {
         check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &pool));
     }
 
-    flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    poolInfo.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &_globalDescriptorPool));
 }
 

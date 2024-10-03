@@ -365,7 +365,9 @@ private:
     gerium_uint32_t _numQueuedCommandBuffers{};
     std::map<gerium_uint64_t, SamplerHandle> _samplerCache{};
     VkDescriptorSet _freeDescriptorSetQueue[64]{};
+    VkDescriptorSet _freeDescriptorSetQueue2[64]{};
     gerium_uint32_t _numFreeDescriptorSetQueue{};
+    gerium_uint32_t _numFreeDescriptorSetQueue2{};
     std::map<std::string, const FrameGraphResource*> _currentInputResources{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
