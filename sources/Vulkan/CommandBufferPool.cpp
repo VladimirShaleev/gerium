@@ -10,6 +10,7 @@ CommandBuffer::CommandBuffer(Device& device, VkCommandBuffer commandBuffer) :
     for (auto& set : _currentDescriptorSets) {
         set = Undefined;
     }
+    memset(_currentDescriptorSetsChanged, 0, sizeof(_currentDescriptorSetsChanged));
 }
 
 void CommandBuffer::addImageBarrier(TextureHandle handle,
@@ -373,17 +374,18 @@ void CommandBuffer::onBindTechnique(TechniqueHandle handle) noexcept {
         _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
         _currentPipeline = pipeline;
 
-        DescriptorSetHandle newSets[kMaxDescriptorSetLayouts];
-        for (auto& set : newSets) {
-            set = Undefined;
-        }
         for (uint32_t i = 0; i < pipelineObj->numActiveLayouts; ++i) {
-            if (pipelineObj->descriptorSetLayoutHandles[i] != Undefined) {
-                auto layouts = _device->_descriptorSetLayouts.access(pipelineObj->descriptorSetLayoutHandles[i]);
-                newSets[layouts->data.setNumber] = _currentDescriptorSets[layouts->data.setNumber];
+            if (pipelineObj->descriptorSetLayoutHandles[i] == Undefined) {
+                _currentDescriptorSets[i]        = Undefined;
+                _currentDescriptorSetsChanged[i] = false;
+            } else {
+                _currentDescriptorSetsChanged[i] = true;
             }
         }
-        memcpy(_currentDescriptorSets, newSets, sizeof(_currentDescriptorSets));
+        for (uint32_t i = pipelineObj->numActiveLayouts; i < std::size(_currentDescriptorSets); ++i) {
+            _currentDescriptorSets[i]        = Undefined;
+            _currentDescriptorSetsChanged[i] = false;
+        }
     }
 }
 
@@ -415,40 +417,10 @@ void CommandBuffer::onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offse
 
 void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept {
     assert(set < std::size(_currentDescriptorSets));
-    _currentDescriptorSets[set] = handle;
-    _setChanged                 = true;
-
-    // auto pipeline      = _device->_pipelines.access(_currentPipeline);
-    // auto descriptorSet = _device->_descriptorSets.access(handle);
-    // auto layoutHandle  = pipeline->descriptorSetLayoutHandles[set];
-    // auto layout        = _device->_descriptorSetLayouts.access(layoutHandle);
-
-    // auto vkDescriptorSet = _device->updateDescriptorSet(handle, layoutHandle, _currentFrameGraph);
-
-    // uint32_t offsets[kMaxDescriptorsPerSet];
-    // gerium_uint32_t bufferCount = 0;
-
-    // for (const auto& binding : layout->data.bindings) {
-    //     if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
-    //         binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
-    //         offsets[bufferCount] =
-    //             _device->_buffers.access(descriptorSet->bindings[binding.binding].handle)->globalOffset;
-    //         ++bufferCount;
-    //         descriptorSet->binded = false;
-    //     }
-    // }
-
-    // if (!descriptorSet->binded) {
-    //     _device->vkTable().vkCmdBindDescriptorSets(_commandBuffer,
-    //                                                pipeline->vkBindPoint,
-    //                                                pipeline->vkPipelineLayout,
-    //                                                set,
-    //                                                1,
-    //                                                &vkDescriptorSet,
-    //                                                bufferCount,
-    //                                                offsets);
-    //     descriptorSet->binded = true;
-    // }
+    if (_currentDescriptorSets[set] != handle) {
+        _currentDescriptorSets[set]        = handle;
+        _currentDescriptorSetsChanged[set] = true;
+    }
 }
 
 void CommandBuffer::onDraw(gerium_uint32_t firstVertex,
@@ -470,40 +442,51 @@ void CommandBuffer::onDrawIndexed(gerium_uint32_t firstIndex,
 }
 
 void CommandBuffer::bindDescriptorSets() {
-    if (_setChanged) {
-        constexpr uint32_t noFirstSet = std::numeric_limits<uint32_t>::max();
+    uint32_t firstSet          = 0;
+    uint32_t numDescriptorSets = 0;
+    uint32_t numOffsets        = 0;
+    auto pipeline              = _device->_pipelines.access(_currentPipeline);
+    VkDescriptorSet descriptorSets[kMaxDescriptorSetLayouts]{};
+    uint32_t offsets[kMaxDescriptorSetLayouts * kMaxDescriptorsPerSet];
 
-        auto pipeline = _device->_pipelines.access(_currentPipeline);
+    for (uint32_t set = 0; set < std::size(_currentDescriptorSets); ++set) {
+        auto handle        = _currentDescriptorSets[set];
+        auto changed       = _currentDescriptorSetsChanged[set];
+        auto descriptorSet = handle != Undefined ? _device->_descriptorSets.access(handle) : nullptr;
 
-        VkDescriptorSet descriptorSets[kMaxDescriptorSetLayouts];
-        uint32_t offsets[kMaxDescriptorSetLayouts * kMaxDescriptorsPerSet];
-        uint32_t firstSet          = noFirstSet;
-        uint32_t numDescriptorSets = 0;
-        uint32_t numOffsets        = 0;
-
-        for (gerium_uint32_t set = 0; set < std::size(_currentDescriptorSets); ++set) {
-            if (auto handle = _currentDescriptorSets[set]; handle != Undefined) {
-                auto descriptorSet   = _device->_descriptorSets.access(handle);
+        if (changed || (descriptorSet && descriptorSet->changed)) {
+            if (descriptorSet) {
                 auto layoutHandle    = pipeline->descriptorSetLayoutHandles[set];
                 auto layout          = _device->_descriptorSetLayouts.access(layoutHandle);
                 auto vkDescriptorSet = _device->updateDescriptorSet(handle, layoutHandle, _currentFrameGraph);
                 for (const auto& binding : layout->data.bindings) {
                     if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
                         binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
-                        const auto key = (binding.binding << 16) | 0;
+                        const auto key = Device::calcBindingKey(binding.binding, 0);
                         offsets[numOffsets++] =
                             _device->_buffers.access(descriptorSet->bindings[key].handle)->globalOffset;
-                        descriptorSet->binded = false;
                     }
                 }
-                if (!descriptorSet->binded || firstSet != noFirstSet) {
-                    firstSet                            = firstSet == noFirstSet ? set : firstSet;
-                    descriptorSets[numDescriptorSets++] = vkDescriptorSet;
-                    descriptorSet->binded               = true;
-                }
+                descriptorSets[numDescriptorSets++] = vkDescriptorSet;
             }
+        } else {
+            if (numDescriptorSets) {
+                _device->vkTable().vkCmdBindDescriptorSets(_commandBuffer,
+                                                           pipeline->vkBindPoint,
+                                                           pipeline->vkPipelineLayout,
+                                                           firstSet,
+                                                           numDescriptorSets,
+                                                           descriptorSets,
+                                                           numOffsets,
+                                                           offsets);
+            }
+            firstSet          = set + 1;
+            numDescriptorSets = 0;
+            numOffsets        = 0;
         }
-
+        _currentDescriptorSetsChanged[set] = false;
+    }
+    if (numDescriptorSets) {
         _device->vkTable().vkCmdBindDescriptorSets(_commandBuffer,
                                                    pipeline->vkBindPoint,
                                                    pipeline->vkPipelineLayout,
@@ -512,8 +495,6 @@ void CommandBuffer::bindDescriptorSets() {
                                                    descriptorSets,
                                                    numOffsets,
                                                    offsets);
-
-        _setChanged = false;
     }
 }
 

@@ -585,7 +585,8 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
 DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& creation) {
     auto [handle, descriptorSet] = _descriptorSets.obtain_and_access();
 
-    descriptorSet->layout = Undefined;
+    descriptorSet->layout  = Undefined;
+    descriptorSet->changed = 1;
 
     return handle;
 }
@@ -1238,7 +1239,7 @@ void Device::bind(DescriptorSetHandle handle,
                   bool dynamic) {
     auto descriptorSet = _descriptorSets.access(handle);
 
-    const auto key = (binding << 16) | element;
+    const auto key = calcBindingKey(binding, element);
 
     if (auto it = descriptorSet->bindings.find(key); it != descriptorSet->bindings.end()) {
         if (it->second.binding != binding || it->second.element != element || it->second.resource != resourceInput ||
@@ -1271,44 +1272,44 @@ void Device::bind(DescriptorSetHandle handle, uint16_t binding, BufferHandle res
 VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
                                             DescriptorSetLayoutHandle layoutHandle,
                                             FrameGraph* frameGraph) {
-    auto descriptorSet  = _descriptorSets.access(handle);
-    auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
+    auto descriptorSet = _descriptorSets.access(handle);
 
     marl::lock lock(_descriptorPoolMutex);
+    auto recreate = descriptorSet->changed || descriptorSet->layout != layoutHandle ||
+                    (!descriptorSet->global && descriptorSet->absoluteFrame != _absoluteFrame);
 
-    for (auto& [_, item] : descriptorSet->bindings) {
-        if (item.resource) {
-            auto priorityResource = std::string(item.resource) + '-' + std::to_string(item.binding);
-            auto it               = _currentInputResources.find(priorityResource);
-            auto resource = it != _currentInputResources.end() ? it->second : _currentInputResources[item.resource];
-            auto index    = 0;
-            if (resource->info.texture.handles[1] != Undefined) {
-                index = resource->saveForNextFrame ? (_absoluteFrame + 1) % 2 : (_absoluteFrame) % 2;
+    if (recreate) {
+        auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
+
+        bool swapToPrevResource = false;
+        for (auto& [_, item] : descriptorSet->bindings) {
+            if (item.resource) {
+                auto priorityResource = std::string(item.resource) + '-' + std::to_string(item.binding);
+                auto it               = _currentInputResources.find(priorityResource);
+                auto resource = it != _currentInputResources.end() ? it->second : _currentInputResources[item.resource];
+                auto index    = 0;
+                if (resource->info.texture.handles[1] != Undefined) {
+                    index              = resource->saveForNextFrame ? (_absoluteFrame + 1) % 2 : (_absoluteFrame) % 2;
+                    swapToPrevResource = true;
+                }
+                auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER
+                                          ? Undefined
+                                          : Handle{ resource->info.texture.handles[index].index };
+                bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
             }
-            auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER
-                                      ? Undefined
-                                      : Handle{ resource->info.texture.handles[index].index };
-            bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
         }
-    }
 
-    bool bindless = false;
-    for (auto flags : pipelineLayout->data.bindlessFlags) {
-        if ((flags & VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) == VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) {
-            bindless = true;
-            break;
+        bool bindless = false;
+        if (_bindlessSupported) {
+            for (auto flags : pipelineLayout->data.bindlessFlags) {
+                if ((flags & VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) == VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) {
+                    bindless = true;
+                    break;
+                }
+            }
         }
-    }
 
-    constexpr std::hash<std::thread::id> threadIdHasher{};
-    const auto currentThread = threadIdHasher(std::this_thread::get_id());
-
-    bool allocateDescriptorSet = !descriptorSet->vkDescriptorSet || descriptorSet->changed ||
-                                 descriptorSet->layout != layoutHandle ||
-                                 descriptorSet->currentFrame != _currentFrame || descriptorSet->thread != currentThread;
-
-    if (allocateDescriptorSet) {
-        if (descriptorSet->vkDescriptorSet && descriptorSet->global) {
+        if (descriptorSet->vkDescriptorSet && descriptorSet->global) { // TODO: test
             assert(_numFreeDescriptorSetQueue < std::size(_freeDescriptorSetQueue));
             _freeDescriptorSetQueue[_numFreeDescriptorSetQueue++] = descriptorSet->vkDescriptorSet;
         }
@@ -1334,12 +1335,10 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         _vkTable.vkUpdateDescriptorSets(_device, num, _descriptorWrite, 0, nullptr);
 
         descriptorSet->layout  = layoutHandle;
-        descriptorSet->changed = updateRequired;
-        descriptorSet->binded  = false;
+        descriptorSet->changed = updateRequired || swapToPrevResource;
     }
 
-    descriptorSet->thread       = currentThread;
-    descriptorSet->currentFrame = _currentFrame;
+    descriptorSet->absoluteFrame = _absoluteFrame;
     return descriptorSet->vkDescriptorSet;
 }
 
@@ -2963,6 +2962,10 @@ gerium_uint64_t Device::calcSamplerHash(const SamplerCreation& creation) noexcep
     seed = hash(creation.addressModeW, seed);
 
     return seed;
+}
+
+gerium_uint32_t Device::calcBindingKey(gerium_uint16_t binding, gerium_uint16_t element) noexcept {
+    return (binding << 16) | element;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL

@@ -82,11 +82,11 @@ private:
     FramebufferHandle _currentFramebuffer{ Undefined };
     PipelineHandle _currentPipeline{ Undefined };
     DescriptorSetHandle _currentDescriptorSets[kMaxDescriptorSetLayouts]{};
+    bool _currentDescriptorSetsChanged[kMaxDescriptorSetLayouts]{};
     VkClearValue _clearColors[kMaxImageOutputs]{};
     VkClearValue _clearDepthStencil{};
     gerium_uint16_t _framebufferHeight{};
     bool _recording{};
-    bool _setChanged{};
 };
 
 class CommandBufferPool final {

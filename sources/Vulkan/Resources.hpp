@@ -395,10 +395,8 @@ struct DescriptorSet {
     VkDescriptorSet vkDescriptorSet;
     DescriptorSetLayoutHandle layout;
     absl::flat_hash_map<gerium_uint32_t, Binding> bindings;
-    gerium_uint8_t currentFrame;
-    gerium_uint8_t thread;
+    gerium_uint8_t absoluteFrame;
     gerium_uint8_t changed;
-    gerium_uint8_t binded;
     gerium_uint8_t global;
 };
 

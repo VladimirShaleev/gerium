@@ -284,6 +284,7 @@ private:
 
     static gerium_uint64_t calcPipelineHash(const PipelineCreation& creation) noexcept;
     static gerium_uint64_t calcSamplerHash(const SamplerCreation& creation) noexcept;
+    static gerium_uint32_t calcBindingKey(gerium_uint16_t binding, gerium_uint16_t element) noexcept;
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL
     debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
