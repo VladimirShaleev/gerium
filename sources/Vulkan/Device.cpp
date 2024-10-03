@@ -154,8 +154,10 @@ bool Device::newFrame() {
                                                        &_swapchainImageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        // _application->getSize(&_appWidth, &_appHeight);
-        // resizeSwapchain();
+#ifdef __APPLE__
+        _application->getSize(&_appWidth, &_appHeight);
+        resizeSwapchain();
+#endif
     } else {
         check(result);
     }

@@ -1,6 +1,6 @@
 /**
  * \file      gerium-platform.h
- * \brief     define \a version of library
+ * \brief     defines platform-specific definitions
  * \author    Vladimir Shaleev
  * \copyright MIT License
  */
@@ -80,6 +80,9 @@ typedef const void* gerium_cdata_t;
 #ifdef __cplusplus
 # define GERIUM_FLAGS(gerium_enum_t)                                                                          \
 extern "C++" {                                                                                                \
+inline constexpr gerium_enum_t operator~(gerium_enum_t lhr) noexcept {                                        \
+    return static_cast<gerium_enum_t>(~static_cast<gerium_sint32_t>(lhr));                                    \
+}                                                                                                             \
 inline constexpr gerium_enum_t operator|(gerium_enum_t lhr, gerium_enum_t rhs) noexcept {                     \
     return static_cast<gerium_enum_t>(static_cast<gerium_sint32_t>(lhr) | static_cast<gerium_sint32_t>(rhs)); \
 }                                                                                                             \

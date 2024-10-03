@@ -38,7 +38,7 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
     const auto meshDataSize = _bindlessEnabled ? sizeof(MeshDataBindless) : sizeof(MeshData);
 
     _meshDatas = _resourceManger->createBuffer(
-        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "mesh_data", nullptr, meshDataSize * kMaxMeshDatas);
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "mesh_data", nullptr, gerium_uint32_t(meshDataSize * kMaxMeshDatas));
 
     for (auto& set : _textureSets) {
         set = _resourceManger->createDescriptorSet("");
