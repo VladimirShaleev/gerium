@@ -33,6 +33,7 @@ frame graph:
         clear depth stencil attachment: [1.0, 0]
 
   - name: taa_pass
+    compute: true
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: light

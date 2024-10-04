@@ -420,6 +420,7 @@ struct convert<gerium_pipeline_t> {
 
 struct FrameGraphNode {
     std::string name;
+    gerium_bool_t compute;
     std::vector<gerium_resource_input_t> inputs;
     std::vector<gerium_resource_output_t> outputs;
 };
@@ -512,6 +513,7 @@ struct convert<FrameGraphNode> {
 
     static bool decode(const Node& node, FrameGraphNode& rhs) {
         rhs.name    = node["name"].as<std::string>();
+        rhs.compute = node["compute"].as<bool>(false);
         rhs.inputs  = node["inputs"].as<decltype(rhs.inputs)>(decltype(rhs.inputs){});
         rhs.outputs = node["outputs"].as<decltype(rhs.outputs)>(decltype(rhs.outputs){});
         return true;

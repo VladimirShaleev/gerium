@@ -73,7 +73,7 @@ public:
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
     void clearInputResources();
-    void addInputResource(const FrameGraphResource* resource, gerium_uint32_t index);
+    void addInputResource(const FrameGraphResource* resource, gerium_uint32_t index, Handle handle);
 
     bool isSupportedFormat(gerium_format_t format) noexcept;
 
@@ -368,7 +368,7 @@ private:
     VkDescriptorSet _freeDescriptorSetQueue2[64]{};
     gerium_uint32_t _numFreeDescriptorSetQueue{};
     gerium_uint32_t _numFreeDescriptorSetQueue2{};
-    std::map<std::string, const FrameGraphResource*> _currentInputResources{};
+    std::map<std::string, std::pair<const FrameGraphResource*, Handle>> _currentInputResources{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};

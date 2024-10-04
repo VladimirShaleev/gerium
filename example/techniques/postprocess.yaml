@@ -11,9 +11,6 @@ pipelines:
 
   - render pass: taa_pass
     shaders:
-      - type: GERIUM_SHADER_TYPE_VERTEX
-        lang: GERIUM_SHADER_LANGUAGE_HLSL
-        name: shaders/screen.vert.hlsl
-      - type: GERIUM_SHADER_TYPE_FRAGMENT
+      - type: GERIUM_SHADER_TYPE_COMPUTE
         lang: GERIUM_SHADER_LANGUAGE_GLSL
-        name: shaders/taa.frag.glsl
+        name: shaders/taa.comp.glsl

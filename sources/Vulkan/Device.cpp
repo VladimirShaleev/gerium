@@ -624,9 +624,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
     for (; program->activeShaders < creation.stagesCount; ++program->activeShaders) {
         const auto& stage = creation.stages[program->activeShaders];
 
-        // if (stage.type == VK_SHADER_STAGE_COMPUTE_BIT) {
-        //     program->graphicsPipeline = false;
-        // }
+        if (stage.type == GERIUM_SHADER_TYPE_COMPUTE) {
+            program->graphicsPipeline = false;
+        }
 
         auto lang = stage.lang;
         if (lang == GERIUM_SHADER_LANGUAGE_UNKNOWN) {
@@ -738,7 +738,8 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 for (uint32_t iDim = 0; iDim < reflBinding.array.dims_count; ++iDim) {
                     layoutBinding.descriptorCount *= reflBinding.array.dims[iDim];
                 }
-                if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+                if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+                    layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
                     if (reflBinding.type_description && reflBinding.type_description->op == SpvOpTypeRuntimeArray) {
                         layoutBinding.descriptorCount = kBindlessPoolElements;
                         bindingFlags =
@@ -1129,9 +1130,7 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
             *(gerium_uint32_t*) (data) = stageSizes[i];
             data += 4;
 
-            *data = (gerium_uint8_t) (program->shaderStageInfo[i].stage == VK_SHADER_STAGE_VERTEX_BIT
-                                          ? GERIUM_SHADER_TYPE_VERTEX
-                                          : GERIUM_SHADER_TYPE_FRAGMENT); // TODO
+            *data = (gerium_uint8_t) (toGerumShaderType(program->shaderStageInfo[i].stage));
             ++data;
 
             memcpy((void*) data, (const void*) program->spirv[i].data(), stageSizes[i]);
@@ -1322,15 +1321,8 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
             if (item.resource) {
                 auto priorityResource = std::string(item.resource) + '-' + std::to_string(item.binding);
                 auto it               = _currentInputResources.find(priorityResource);
-                auto resource = it != _currentInputResources.end() ? it->second : _currentInputResources[item.resource];
-                auto index    = 0;
-                if (resource->info.texture.handles[1] != Undefined) {
-                    index              = resource->saveForNextFrame ? (_absoluteFrame + 1) % 2 : (_absoluteFrame) % 2;
-                    swapToPrevResource = true;
-                }
-                auto resourceHandle = resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER
-                                          ? Undefined
-                                          : Handle{ resource->info.texture.handles[index].index };
+                auto [_, resourceHandle] =
+                    it != _currentInputResources.end() ? it->second : _currentInputResources[item.resource];
                 bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
             }
         }
@@ -1400,10 +1392,10 @@ void Device::clearInputResources() {
     _currentInputResources.clear();
 }
 
-void Device::addInputResource(const FrameGraphResource* resource, gerium_uint32_t index) {
-    _currentInputResources[resource->name] = resource;
+void Device::addInputResource(const FrameGraphResource* resource, gerium_uint32_t index, Handle handle) {
+    _currentInputResources[resource->name] = { resource, handle };
 
-    _currentInputResources[std::string(resource->name) + '-' + std::to_string(index)] = resource;
+    _currentInputResources[std::string(resource->name) + '-' + std::to_string(index)] = { resource, handle };
 }
 
 bool Device::isSupportedFormat(gerium_format_t format) noexcept {
@@ -2570,8 +2562,9 @@ void Device::deleteResources(bool forceDelete) {
                     for (uint32_t i = 0; i < pipeline->numActiveLayouts; ++i) {
                         destroyDescriptorSetLayout(pipeline->descriptorSetLayoutHandles[i]);
                     }
-                    // destroyProgram(pipeline->program);
-                    destroyRenderPass(pipeline->renderPass);
+                    if (pipeline->renderPass != Undefined) {
+                        destroyRenderPass(pipeline->renderPass);
+                    }
                 }
                 _pipelines.release(resource.handle);
                 break;

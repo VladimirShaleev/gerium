@@ -423,6 +423,13 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
     }
 }
 
+void CommandBuffer::onDispatch(gerium_uint32_t groupX,
+                               gerium_uint32_t groupY,
+                               gerium_uint32_t groupZ) noexcept {
+    bindDescriptorSets();
+    _device->vkTable().vkCmdDispatch(_commandBuffer, groupX, groupY, groupZ);
+}
+
 void CommandBuffer::onDraw(gerium_uint32_t firstVertex,
                            gerium_uint32_t vertexCount,
                            gerium_uint32_t firstInstance,

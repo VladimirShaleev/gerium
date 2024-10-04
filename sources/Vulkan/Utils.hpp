@@ -412,6 +412,22 @@ gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) n
             return VK_SHADER_STAGE_VERTEX_BIT;
         case GERIUM_SHADER_TYPE_FRAGMENT:
             return VK_SHADER_STAGE_FRAGMENT_BIT;
+        case GERIUM_SHADER_TYPE_COMPUTE:
+            return VK_SHADER_STAGE_COMPUTE_BIT;
+        default:
+            assert(!"TODO");
+            return {};
+    }
+}
+
+gerium_inline gerium_shader_type_t toGerumShaderType(VkShaderStageFlagBits type) noexcept {
+    switch (type) {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            return GERIUM_SHADER_TYPE_VERTEX;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            return GERIUM_SHADER_TYPE_FRAGMENT;
+        case VK_SHADER_STAGE_COMPUTE_BIT:
+            return GERIUM_SHADER_TYPE_COMPUTE;
         default:
             assert(!"TODO");
             return {};

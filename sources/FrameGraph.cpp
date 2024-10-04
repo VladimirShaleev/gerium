@@ -51,6 +51,7 @@ void FrameGraph::removePass(gerium_utf8_t name) {
 }
 
 void FrameGraph::addNode(gerium_utf8_t name,
+                         bool compute,
                          gerium_uint32_t inputCount,
                          const gerium_resource_input_t* inputs,
                          gerium_uint32_t outputCount,
@@ -71,6 +72,7 @@ void FrameGraph::addNode(gerium_utf8_t name,
     node->framebuffers[1] = Undefined;
     node->pass            = Undefined;
     node->name            = intern(name);
+    node->compute         = compute;
     node->enabled         = 1;
 
     for (gerium_uint32_t i = 0; i < inputCount; ++i) {
@@ -241,7 +243,7 @@ void FrameGraph::compile() {
                     TextureCreation creation{};
                     creation.setFormat(info.format, GERIUM_TEXTURE_TYPE_2D)
                         .setSize(info.width, info.height, info.depth)
-                        .setFlags(1, true, false);
+                        .setFlags(1, true, node->compute);
 
                     if (!_freeList.empty()) {
                         const auto size =
@@ -318,7 +320,7 @@ void FrameGraph::compile() {
             }
         }
 
-        if (node->outputCount) {
+        if (node->outputCount && !node->compute) {
             if (node->renderPass == Undefined) {
                 node->renderPass = _renderer->createRenderPass(*this, node);
             }
@@ -587,6 +589,7 @@ gerium_result_t gerium_frame_graph_remove_pass(gerium_frame_graph_t frame_graph,
 
 gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                                             gerium_utf8_t name,
+                                            gerium_bool_t compute,
                                             gerium_uint32_t input_count,
                                             const gerium_resource_input_t* inputs,
                                             gerium_uint32_t output_count,
@@ -596,7 +599,7 @@ gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
     GERIUM_ASSERT_ARG(input_count == 0 || (input_count > 0 && inputs));
     GERIUM_ASSERT_ARG(output_count == 0 || (output_count > 0 && outputs));
     GERIUM_BEGIN_SAFE_BLOCK
-        alias_cast<FrameGraph*>(frame_graph)->addNode(name, input_count, inputs, output_count, outputs);
+        alias_cast<FrameGraph*>(frame_graph)->addNode(name, compute, input_count, inputs, output_count, outputs);
     GERIUM_END_SAFE_BLOCK
 }
 

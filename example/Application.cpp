@@ -207,7 +207,7 @@ void TAAPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, _technique);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
-    gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+    gerium_command_buffer_dispatch(commandBuffer, application()->width() / 8, application()->height() / 8, 1);
 }
 
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -274,6 +274,7 @@ void TAAPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t rend
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "taa_image");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "velocity");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 3, "depth");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 4, "taa_image");
 }
 
 void TAAPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {

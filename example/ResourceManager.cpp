@@ -65,6 +65,7 @@ void ResourceManager::loadFrameGraph(const std::string& path) {
     for (const auto& node : nodes) {
         check(gerium_frame_graph_add_node(_frameGraph,
                                           node.name.c_str(),
+                                          node.compute,
                                           node.inputs.size(),
                                           node.inputs.data(),
                                           node.outputs.size(),

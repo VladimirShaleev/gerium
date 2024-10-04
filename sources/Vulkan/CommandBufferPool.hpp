@@ -62,6 +62,7 @@ private:
     void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept override;
     void onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept override;
     void onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept override;
+    void onDispatch(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept override;
     void onDraw(gerium_uint32_t firstVertex,
                 gerium_uint32_t vertexCount,
                 gerium_uint32_t firstInstance,

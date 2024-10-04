@@ -744,6 +744,7 @@ typedef enum
 typedef enum {
     GERIUM_SHADER_TYPE_VERTEX   = 0,
     GERIUM_SHADER_TYPE_FRAGMENT = 1,
+    GERIUM_SHADER_TYPE_COMPUTE  = 2,
     GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_shader_type_t;
 
@@ -1432,6 +1433,12 @@ gerium_command_buffer_bind_descriptor_set(gerium_command_buffer_t command_buffer
                                           gerium_uint32_t set);
 
 gerium_public void
+gerium_command_buffer_dispatch(gerium_command_buffer_t command_buffer,
+                               gerium_uint32_t group_x,
+                               gerium_uint32_t group_y,
+                               gerium_uint32_t group_z);
+
+gerium_public void
 gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                            gerium_uint32_t first_vertex,
                            gerium_uint32_t vertex_count,
@@ -1469,6 +1476,7 @@ gerium_frame_graph_remove_pass(gerium_frame_graph_t frame_graph,
 gerium_public gerium_result_t
 gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             gerium_utf8_t name,
+                            gerium_bool_t compute,
                             gerium_uint32_t input_count,
                             const gerium_resource_input_t* inputs,
                             gerium_uint32_t output_count,

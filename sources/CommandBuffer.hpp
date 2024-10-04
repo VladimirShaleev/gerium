@@ -25,6 +25,7 @@ public:
     void bindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept;
     void bindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept;
     void bindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept;
+    void dispatch(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept;
     void draw(gerium_uint32_t firstVertex,
               gerium_uint32_t vertexCount,
               gerium_uint32_t firstInstance,
@@ -55,6 +56,8 @@ private:
     virtual void onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept = 0;
     virtual void onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept = 0;
     virtual void onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint32_t set) noexcept                     = 0;
+
+    virtual void onDispatch(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept = 0;
 
     virtual void onDraw(gerium_uint32_t firstVertex,
                         gerium_uint32_t vertexCount,

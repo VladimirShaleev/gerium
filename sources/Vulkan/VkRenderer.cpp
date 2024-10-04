@@ -456,9 +456,6 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         ++worker;
     }
 
-    // TextureHandle depthTextures[10];
-    // gerium_uint32_t depthTextureCount = 0;
-
     CommandBuffer* secondaryCommandBuffers[100];
     gerium_uint32_t numSecondaryCommandBuffers = 0;
 
@@ -496,7 +493,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 } else {
                     cb->addImageBarrier(texture, ResourceState::ShaderResource, 0, 1);
                 }
-                _device->addInputResource(resource, i);
+                _device->addInputResource(resource, i, texture);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
@@ -515,24 +512,26 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
 
-                const auto format = toVkFormat(resource->info.texture.format);
+                const auto format  = toVkFormat(resource->info.texture.format);
+                const auto texture = resource->info.texture.handles[index];
 
                 if (hasDepthOrStencil(format)) {
-                    cb->addImageBarrier(resource->info.texture.handles[index],
-                                        ResourceState::DepthWrite,
-                                        0,
-                                        1);
-                    cb->clearDepthStencil(resource->info.texture.clearDepthStencil.depth,
-                                          resource->info.texture.clearDepthStencil.value);
-                    // depthTextures[depthTextureCount++] = resource->info.texture.handles[index];
+                    cb->addImageBarrier(
+                        texture, !node->compute ? ResourceState::DepthWrite : ResourceState::UnorderedAccess, 0, 1);
+                    if (!node->compute) {
+                        cb->clearDepthStencil(resource->info.texture.clearDepthStencil.depth,
+                                              resource->info.texture.clearDepthStencil.value);
+                    }
                 } else {
-                    cb->addImageBarrier(resource->info.texture.handles[index],
-                                        ResourceState::RenderTarget,
-                                        0,
-                                        1);
-
-                    const auto& clear = resource->info.texture.clearColor;
-                    cb->clearColor(i, clear.red, clear.green, clear.blue, clear.alpha);
+                    cb->addImageBarrier(
+                        texture, !node->compute ? ResourceState::RenderTarget : ResourceState::UnorderedAccess, 0, 1);
+                    if (!node->compute) {
+                        const auto& clear = resource->info.texture.clearColor;
+                        cb->clearColor(i, clear.red, clear.green, clear.blue, clear.alpha);
+                    }
+                }
+                if (node->compute) {
+                    _device->addInputResource(resource, node->inputCount + i, texture);
                 }
             }
         }
@@ -550,76 +549,78 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             framebuffer = _device->getSwapchainFramebuffer();
         }
 
-        cb->setFramebufferHeight(height);
-        cb->setViewport(0, 0, width, height, 0.0f, 1.0f);
-        cb->setScissor(0, 0, width, height);
         cb->setFrameGraph(&frameGraph);
-        cb->bindPass(renderPass, framebuffer, useWorkers);
+        if (!node->compute) {
+            cb->setFramebufferHeight(height);
+            cb->setViewport(0, 0, width, height, 0.0f, 1.0f);
+            cb->setScissor(0, 0, width, height);
+            cb->bindPass(renderPass, framebuffer, useWorkers);
+            if (useWorkers) {
+                marl::WaitGroup waitAll(totalWorkers);
+                numSecondaryCommandBuffers = 0;
+                for (gerium_uint32_t worker = 0; worker < totalWorkers; ++worker) {
+                    auto secondary = _device->getSecondaryCommandBuffer(worker, renderPass, framebuffer);
+                    secondary->bindRenderer(this);
+                    secondary->setFramebufferHeight(height);
+                    secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);
+                    secondary->setScissor(0, 0, width, height);
+                    secondary->setFrameGraph(&frameGraph);
+                    secondaryCommandBuffers[numSecondaryCommandBuffers++] = secondary;
 
-        if (useWorkers) {
-            marl::WaitGroup waitAll(totalWorkers);
-            numSecondaryCommandBuffers = 0;
-            for (gerium_uint32_t worker = 0; worker < totalWorkers; ++worker) {
-                auto secondary = _device->getSecondaryCommandBuffer(worker, renderPass, framebuffer);
-                secondary->bindRenderer(this);
-                secondary->setFramebufferHeight(height);
-                secondary->setViewport(0, 0, width, height, 0.0f, 1.0f);
-                secondary->setScissor(0, 0, width, height);
-                secondary->setFrameGraph(&frameGraph);
-                secondaryCommandBuffers[numSecondaryCommandBuffers++] = secondary;
+                    marl::schedule([waitAll, worker, totalWorkers, cb = secondary, pass, renderer = this, &frameGraph] {
+                        defer(waitAll.done());
 
-                marl::schedule([waitAll, worker, totalWorkers, cb = secondary, pass, renderer = this, &frameGraph] {
-                    defer(waitAll.done());
+                        if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph),
+                                               renderer,
+                                               cb,
+                                               worker,
+                                               totalWorkers,
+                                               pass->data)) {
+                            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                        }
+                    });
+                }
 
-                    if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph),
-                                           renderer,
-                                           cb,
-                                           worker,
-                                           totalWorkers,
-                                           pass->data)) {
-                        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-                    }
-                });
+                waitAll.wait();
+
+                cb->execute(numSecondaryCommandBuffers, secondaryCommandBuffers);
+            } else {
+                if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, 0, 1, pass->data)) {
+                    error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                }
             }
 
-            waitAll.wait();
+            if (!node->outputCount) {
+                auto imguiCb = useWorkers ? _device->getSecondaryCommandBuffer(
+                                                0, _device->getSwapchainPass(), _device->getSwapchainFramebuffer())
+                                          : cb;
+                imguiCb->bindRenderer(this);
+                imguiCb->setFramebufferHeight(height);
+                imguiCb->setViewport(0, 0, width, height, 0.0f, 1.0f);
+                imguiCb->setScissor(0, 0, width, height);
+                imguiCb->setFrameGraph(&frameGraph);
 
-            cb->execute(numSecondaryCommandBuffers, secondaryCommandBuffers);
+                ImGui::Render();
+                imguiCb->pushMarker("imgui");
+                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCb->vkCommandBuffer());
+                imguiCb->popMarker();
+                if (useWorkers) {
+                    cb->execute(1, &imguiCb);
+                }
+            }
+
+            cb->endCurrentRenderPass();
         } else {
             if (!pass->pass.render(alias_cast<gerium_frame_graph_t>(&frameGraph), this, cb, 0, 1, pass->data)) {
                 error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
             }
         }
 
-        if (!node->outputCount) {
-            auto imguiCb = useWorkers ? _device->getSecondaryCommandBuffer(
-                                            0, _device->getSwapchainPass(), _device->getSwapchainFramebuffer())
-                                      : cb;
-            imguiCb->bindRenderer(this);
-            imguiCb->setFramebufferHeight(height);
-            imguiCb->setViewport(0, 0, width, height, 0.0f, 1.0f);
-            imguiCb->setScissor(0, 0, width, height);
-            imguiCb->setFrameGraph(&frameGraph);
-
-            ImGui::Render();
-            imguiCb->pushMarker("imgui");
-            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCb->vkCommandBuffer());
-            imguiCb->popMarker();
-            if (useWorkers) {
-                cb->execute(1, &imguiCb);
-            }
-        }
-
-        cb->endCurrentRenderPass();
         cb->popMarker();
 
         ++totalWorkerIndex;
     }
     cb->popMarker();
-
-    // for (int i = 0; i < depthTextureCount; ++i) {
-    //     cb->addImageBarrier(depthTextures[i], ResourceState::DepthRead, 0, 1);
-    // }
 
     cb->popMarker();
     _device->submit(cb);

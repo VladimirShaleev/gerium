@@ -35,6 +35,7 @@ struct FrameGraphNode {
     FramebufferHandle framebuffers[2];
     FrameGraphRenderPassHandle pass;
     gerium_utf8_t name;
+    gerium_uint8_t compute;
     gerium_uint8_t inputCount;
     gerium_uint8_t outputCount;
     gerium_uint8_t edgeCount;
@@ -86,6 +87,7 @@ public:
     void removePass(gerium_utf8_t name);
 
     void addNode(gerium_utf8_t name,
+                 bool compute,
                  gerium_uint32_t inputCount,
                  const gerium_resource_input_t* inputs,
                  gerium_uint32_t outputCount,
