@@ -3,8 +3,8 @@
 
 namespace gerium::vulkan::windows {
 
-const char* Win32Device::onGetSurfaceExtension() const noexcept {
-    return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+std::vector<const char*> Win32Device::onGetInstanceExtensions() const noexcept {
+    return { VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
 }
 
 VkSurfaceKHR Win32Device::onCreateSurface(Application* application) const {

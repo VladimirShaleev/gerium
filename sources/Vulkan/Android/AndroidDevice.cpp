@@ -3,8 +3,8 @@
 
 namespace gerium::vulkan::android {
 
-const char* AndroidDevice::onGetSurfaceExtension() const noexcept {
-    return VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
+std::vector<const char*> Win32Device::onGetInstanceExtensions() const noexcept {
+    return { VK_KHR_ANDROID_SURFACE_EXTENSION_NAME };
 }
 
 VkSurfaceKHR AndroidDevice::onCreateSurface(Application* application) const {
