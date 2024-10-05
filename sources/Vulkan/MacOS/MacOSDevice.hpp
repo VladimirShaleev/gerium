@@ -8,7 +8,11 @@ namespace gerium::vulkan::macos {
 
 class MacOSDevice : public Device {
 private:
-    const char* onGetSurfaceExtension() const noexcept override;
+    VkInstanceCreateFlags onGetCreateInfoFlags() const noexcept override;
+    const void* onGetNextCreateInfo(void* pNext) noexcept override;
+    std::vector<const char*> onGetInstanceExtensions() const noexcept override;
+    std::vector<const char*> onGetDeviceExtensions() const noexcept override;
+    bool onNeedPostAcquireResize() const noexcept override;
     VkSurfaceKHR onCreateSurface(Application* application) const override;
 };
 

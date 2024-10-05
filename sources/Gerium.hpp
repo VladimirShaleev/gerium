@@ -66,6 +66,8 @@ CMRC_DECLARE(gerium::resources);
 #ifndef __APPLE__
 # define VK_NO_PROTOTYPES
 # define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 1
+#else
+# define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
 #endif
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_format_traits.hpp>

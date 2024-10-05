@@ -294,7 +294,11 @@ private:
 
     static PFN_vkVoidFunction imguiLoaderFunc(const char* functionName, void* userData);
 
-    virtual const char* onGetSurfaceExtension() const noexcept           = 0;
+    virtual VkInstanceCreateFlags onGetCreateInfoFlags() const noexcept;
+    virtual const void* onGetNextCreateInfo(void* pNext) noexcept;
+    virtual std::vector<const char*> onGetInstanceExtensions() const noexcept;
+    virtual std::vector<const char*> onGetDeviceExtensions() const noexcept;
+    virtual bool onNeedPostAcquireResize() const noexcept;
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
     bool _enableValidations{};

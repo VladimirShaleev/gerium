@@ -154,10 +154,10 @@ bool Device::newFrame() {
                                                        &_swapchainImageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-#ifdef __APPLE__
-        _application->getSize(&_appWidth, &_appHeight);
-        resizeSwapchain();
-#endif
+        if (onNeedPostAcquireResize()) {
+            _application->getSize(&_appWidth, &_appHeight);
+            resizeSwapchain();
+        }
     } else {
         check(result);
     }
@@ -1429,7 +1429,7 @@ uint32_t Device::totalMemoryUsed() {
 }
 
 void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
-#ifndef __APPLE__
+#if VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL != 0
     _vkTable.init();
 #else
     _vkTable.init(vkGetInstanceProcAddr);
@@ -1483,17 +1483,13 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     features.pDisabledValidationFeatures    = nullptr;
 
     VkInstanceCreateInfo createInfo{ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
-    createInfo.pNext                   = layers.empty() ? nullptr : &features;
-    createInfo.flags                   = 0;
+    createInfo.pNext                   = onGetNextCreateInfo(layers.empty() ? nullptr : &features);
+    createInfo.flags                   = onGetCreateInfoFlags();
     createInfo.pApplicationInfo        = &appInfo;
     createInfo.enabledLayerCount       = (uint32_t) layers.size();
     createInfo.ppEnabledLayerNames     = layers.data();
     createInfo.enabledExtensionCount   = (uint32_t) extensions.size();
     createInfo.ppEnabledExtensionNames = extensions.data();
-
-#ifdef __APPLE__
-    createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
 
     check(_vkTable.vkCreateInstance(&createInfo, getAllocCalls(), &_instance));
 
@@ -2087,11 +2083,6 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                     texture        = _textures.access(_defaultTexture);
                     updateRequired = true;
                 }
-
-                // if (descriptorSet.samplers[r] != Undefined) {
-                //     auto sampler         = _samplers.access(descriptorSet.samplers[r]);
-                //     imageInfo[i].sampler = sampler->vkSampler;
-                // }
 
                 imageInfo[i].imageLayout = hasDepthOrStencil(texture->vkFormat)
                                                ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
@@ -2728,12 +2719,15 @@ std::vector<const char*> Device::selectValidationLayers() {
 
 std::vector<const char*> Device::selectExtensions() {
     std::vector<std::pair<const char*, bool>> extensions = {
-        { VK_KHR_SURFACE_EXTENSION_NAME, true },
-        { onGetSurfaceExtension(),       true }
+        { VK_KHR_SURFACE_EXTENSION_NAME, true }
     };
+    
+    for (const auto& extension : onGetInstanceExtensions()) {
+        extensions.emplace_back(extension, true);
+    }
 
     if (_enableValidations) {
-        extensions.push_back({ VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false });
+        extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false);
     }
 
     return checkExtensions(extensions);
@@ -2742,11 +2736,12 @@ std::vector<const char*> Device::selectExtensions() {
 std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device) {
     std::vector<std::pair<const char*, bool>> extensions = {
         { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
-        { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false },
-#ifdef __APPLE__
-        { "VK_KHR_portability_subset",         true  },
-#endif
+        { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false }
     };
+    
+    for (const auto& extension : onGetDeviceExtensions()) {
+        extensions.emplace_back(extension, true);
+    }
 
     return checkDeviceExtensions(device, extensions);
 }
@@ -3010,6 +3005,26 @@ Device::debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messa
 PFN_vkVoidFunction Device::imguiLoaderFunc(const char* functionName, void* userData) {
     auto device = (Device*) userData;
     return device->_vkTable.vkGetInstanceProcAddr(device->_instance, functionName);
+}
+
+VkInstanceCreateFlags Device::onGetCreateInfoFlags() const noexcept {
+    return 0;
+}
+
+const void* Device::onGetNextCreateInfo(void* pNext) noexcept {
+    return pNext;
+}
+
+std::vector<const char*> Device::onGetInstanceExtensions() const noexcept {
+    return {};
+}
+
+std::vector<const char*> Device::onGetDeviceExtensions() const noexcept {
+    return {};
+}
+
+bool Device::onNeedPostAcquireResize() const noexcept {
+    return false;
 }
 
 } // namespace gerium::vulkan
