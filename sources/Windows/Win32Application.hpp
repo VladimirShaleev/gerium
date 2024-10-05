@@ -59,7 +59,6 @@ private:
 
     void saveWindowPlacement();
     void restoreWindowPlacement();
-    gerium_uint64_t getCurrentTime() noexcept;
     LONG getStyle() const noexcept;
     std::pair<gerium_uint16_t, gerium_uint16_t> clientSize() const noexcept;
     std::pair<gerium_uint16_t, gerium_uint16_t> clientSizeToWindowSize(gerium_uint16_t width,

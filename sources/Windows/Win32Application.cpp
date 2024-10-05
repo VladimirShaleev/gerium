@@ -825,10 +825,6 @@ void Win32Application::restoreWindowPlacement() {
     _styleEx = 0;
 }
 
-gerium_uint64_t Win32Application::getCurrentTime() noexcept {
-    return gerium_uint64_t();
-}
-
 LONG Win32Application::getStyle() const noexcept {
     LONG result = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
     if (_styleFlags & GERIUM_APPLICATION_STYLE_RESIZABLE_BIT) {
@@ -971,8 +967,8 @@ void Win32Application::captureCursor(bool capture) noexcept {
         POINT clientRB;
         clientLT.x = client.left;
         clientLT.y = client.top;
-        clientRB.x = client.right + 1;
-        clientRB.y = client.bottom + 1;
+        clientRB.x = client.right;
+        clientRB.y = client.bottom;
 
         ClientToScreen(_hWnd, &clientLT);
         ClientToScreen(_hWnd, &clientRB);
@@ -1085,6 +1081,7 @@ Win32Application::MouseEventSource Win32Application::getMouseEventSource(const R
 static int invokeMain() {
     typedef int (*mainFunc)(int argc, char* argv[]);
 
+    // see include file 'gerium-windows.h'
     if (auto main = (mainFunc) GetProcAddress(GetModuleHandleW(nullptr), "main")) {
         int argc   = 0;
         auto wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
