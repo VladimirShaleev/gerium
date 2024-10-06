@@ -68,7 +68,7 @@ void Camera::jittering(gerium_float32_t dx, gerium_float32_t dy) {
     _jitter.y   = dy;
 }
 
-void Camera::update(Entity& entity, gerium_data_t data) {
+void Camera::update() {
     if (_active == nullptr) {
         _active = this;
     }

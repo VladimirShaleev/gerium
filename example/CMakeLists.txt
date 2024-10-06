@@ -1,14 +1,6 @@
 file(GLOB GERIUM_EXAMPLE "*.hpp" "*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example FILES ${GERIUM_EXAMPLE})
 
-FetchContent_Declare(
-    assets
-    GIT_REPOSITORY https://github.com/KhronosGroup/glTF-Sample-Assets.git
-    GIT_TAG 52c9f0e473a523057135281b19d12b768e2f7eb7
-)
-FetchContent_MakeAvailable(assets)
-set(ASSETS_SRC "${assets_SOURCE_DIR}" CACHE STRING "Assets dir")
-
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
@@ -85,5 +77,4 @@ endfunction()
 copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ shaders)
 copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/techniques/ techniques)
 copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/frame-graphs/ frame-graphs)
-copy_dir(cpp-example ${ASSETS_SRC}/Models/Sponza/glTF/ assets/models/sponza)
-copy_dir(cpp-example ${ASSETS_SRC}/Models/FlightHelmet/glTF/ assets/models/flight-helmet)
+copy_dir(cpp-example ${CMAKE_CURRENT_SOURCE_DIR}/models/ models)

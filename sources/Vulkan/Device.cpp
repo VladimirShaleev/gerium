@@ -1535,6 +1535,8 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
         return strcmp(extension, VK_EXT_MESH_SHADER_EXTENSION_NAME) == 0;
     }) != std::end(extensions);
 
+    _8BitStorageSupported = (featureFlags & GERIUM_FEATURE_8_BIT_STORAGE_BIT) == GERIUM_FEATURE_8_BIT_STORAGE_BIT;
+
     size_t queueCreateInfoCount                 = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[4] = {};
 
@@ -1568,10 +1570,14 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
 
     void* pNext = nullptr;
 
+    VkPhysicalDeviceVulkan11Features testFeatures11{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+    pNext = &testFeatures11;
+
     VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
     };
-    pNext = &indexingFeatures;
+    indexingFeatures.pNext = pNext;
+    pNext                  = &indexingFeatures;
 
     VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeatures{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT
@@ -1581,20 +1587,35 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
         pNext                    = &meshShaderFeatures;
     }
 
+    VkPhysicalDevice8BitStorageFeatures device8BitStorageFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES
+    };
+    if (_8BitStorageSupported) {
+        device8BitStorageFeatures.pNext = pNext;
+        pNext                           = &device8BitStorageFeatures;
+    }
+
     VkPhysicalDeviceFeatures2 deviceFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, pNext };
     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures);
 
     _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS_BIT) == GERIUM_FEATURE_BINDLESS_BIT &&
                          indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray &&
                          indexingFeatures.descriptorBindingSampledImageUpdateAfterBind;
+    _meshShaderSupported  = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
+    _8BitStorageSupported = _8BitStorageSupported && device8BitStorageFeatures.storageBuffer8BitAccess &&
+                            device8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
+    _16BitStorageSupported = (featureFlags & GERIUM_FEATURE_16_BIT_STORAGE_BIT) == GERIUM_FEATURE_16_BIT_STORAGE_BIT &&
+                             testFeatures11.storageBuffer16BitAccess &&
+                             testFeatures11.uniformAndStorageBuffer16BitAccess;
 
-    _meshShaderSupported = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
-
-    indexingFeatures.pNext   = nullptr;
-    meshShaderFeatures.pNext = nullptr;
+    indexingFeatures.pNext          = nullptr;
+    meshShaderFeatures.pNext        = nullptr;
+    device8BitStorageFeatures.pNext = nullptr;
 
     VkPhysicalDeviceVulkan11Features features11{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
-    features11.shaderDrawParameters = VK_TRUE;
+    features11.shaderDrawParameters               = VK_TRUE;
+    features11.storageBuffer16BitAccess           = testFeatures11.storageBuffer16BitAccess;
+    features11.uniformAndStorageBuffer16BitAccess = testFeatures11.uniformAndStorageBuffer16BitAccess;
 
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.pNext                              = &features11;
@@ -1621,6 +1642,10 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
         meshShaderFeatures.primitiveFragmentShadingRateMeshShader = VK_FALSE;
         meshShaderFeatures.meshShaderQueries                      = VK_FALSE;
         features11.pNext                                          = &meshShaderFeatures;
+    }
+    if (_8BitStorageSupported) {
+        device8BitStorageFeatures.pNext = features11.pNext;
+        features11.pNext                = &device8BitStorageFeatures;
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };

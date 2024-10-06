@@ -1,39 +1,23 @@
 #version 450
 
+#extension GL_EXT_shader_16bit_storage: require
+#extension GL_EXT_shader_8bit_storage:  require
+
 #include "common/types.h"
-
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec2 texcoord;
-layout(location = 2) in vec3 normal;
-layout(location = 3) in vec4 tangent;
-
-layout(location = 0) out vec2 outTexcoord;
-layout(location = 1) out vec3 outNormal;
-layout(location = 2) out vec3 outTangent;
-layout(location = 3) out vec3 outBitangent;
-layout(location = 4) out vec4 outPosition;
-layout(location = 5) out vec4 outPrevPosition;
-layout(location = 6) flat out int outInstanceID; 
 
 layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneDataUBO {
     SceneData scene;
 };
 
-layout(std140, binding = 0, set = MESH_DATA_SET) readonly buffer MeshDataSSBO {
-    MeshData mesh[];
+layout(std140, binding = 0, set = MESH_DATA_SET) readonly buffer Vertices {
+    Vertex vertices[];
 };
 
+layout(location = 0) out vec4 color;
+
 void main() {
-    outPosition     = scene.viewProjection * mesh[gl_InstanceIndex].world * vec4(position, 1.0);
-    outPrevPosition = scene.prevViewProjection * mesh[gl_InstanceIndex].prevWorld * vec4(position, 1.0);
-    gl_Position     = outPosition;
+    vec3 normal = vec3(int(vertices[gl_VertexIndex].normal.x), int(vertices[gl_VertexIndex].normal.y), int(vertices[gl_VertexIndex].normal.z)) / 127.0 - 1.0;
 
-    outPosition.xy     -= scene.jitter * outPosition.w;
-    outPrevPosition.xy -= scene.prevJitter * outPrevPosition.w;
-
-    outTexcoord   = texcoord;
-    outNormal     = normalize(mat3(mesh[gl_InstanceIndex].inverseWorld) * normal);
-    outTangent    = normalize(mat3(mesh[gl_InstanceIndex].inverseWorld) * tangent.xyz);
-    outBitangent  = cross(outNormal, outTangent) * tangent.w;
-    outInstanceID = gl_InstanceIndex;
+    gl_Position = scene.viewProjection * vertices[gl_VertexIndex].position;
+    color = vec4(normal * 0.5 + vec3(0.5), 1.0);
 }

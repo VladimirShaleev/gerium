@@ -386,6 +386,8 @@ private:
     bool _memoryBudgetSupported{};
     bool _bindlessSupported{};
     bool _meshShaderSupported{};
+    bool _8BitStorageSupported{};
+    bool _16BitStorageSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};

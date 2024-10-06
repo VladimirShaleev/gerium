@@ -1,7 +1,6 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
 
-#include "EntityComponentSystem.hpp"
 #include "Primitives.hpp"
 #include "ResourceManager.hpp"
 
@@ -18,7 +17,7 @@ enum class Jitter {
     InterleavedGradients
 };
 
-class Camera final : public Component {
+class Camera final {
 public:
     enum Movement {
         Forward,
@@ -45,7 +44,7 @@ public:
     void zoom(gerium_float32_t value, gerium_float32_t delta);
     void jittering(gerium_float32_t dx, gerium_float32_t dy);
 
-    void update(Entity& entity, gerium_data_t data) override;
+    void update();
 
     Intersection test(const glm::vec3& point) const noexcept;
     Intersection test(const BoundingBox& bbox) const noexcept;
