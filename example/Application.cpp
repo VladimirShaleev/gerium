@@ -12,16 +12,25 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    static bool drawProfiler = false;
+
     auto ds = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_resource(renderer, ds, 0, "color");
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
-    gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
 
-    if (ImGui::Begin("Info")) {
+    if (drawProfiler) {
+        gerium_bool_t show = drawProfiler;
+        gerium_command_buffer_draw_profiler(commandBuffer, &show);
+        drawProfiler = show;
+    }
+
+    if (ImGui::Begin("Settings")) {
         ImGui::LabelText(application()->meshShaderSupported() ? "hardware" : "software", "Meshlets");
+        ImGui::Separator();
+        ImGui::Checkbox("Show profiler", &drawProfiler);
     }
 
     ImGui::End();
