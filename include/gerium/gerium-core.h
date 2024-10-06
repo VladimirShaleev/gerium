@@ -481,9 +481,10 @@ GERIUM_FLAGS(gerium_mouse_button_flags_t)
 
 typedef enum
 {
-    GERIUM_FEATURE_NONE     = 0,
-    GERIUM_FEATURE_BINDLESS = 1,
-    GERIUM_FEATURE_MAX_ENUM = 0x7FFFFFFF
+    GERIUM_FEATURE_NONE_BIT        = 0,
+    GERIUM_FEATURE_BINDLESS_BIT    = 1,
+    GERIUM_FEATURE_MESH_SHADER_BIT = 2,
+    GERIUM_FEATURE_MAX_ENUM        = 0x7FFFFFFF
 } gerium_feature_flags_t;
 GERIUM_FLAGS(gerium_feature_flags_t)
 
@@ -745,6 +746,8 @@ typedef enum {
     GERIUM_SHADER_TYPE_VERTEX   = 0,
     GERIUM_SHADER_TYPE_FRAGMENT = 1,
     GERIUM_SHADER_TYPE_COMPUTE  = 2,
+    GERIUM_SHADER_TYPE_TASK     = 3,
+    GERIUM_SHADER_TYPE_MESH     = 4,
     GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_shader_type_t;
 
@@ -1452,6 +1455,12 @@ gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
                                    gerium_uint32_t vertex_offset,
                                    gerium_uint32_t first_instance,
                                    gerium_uint32_t instance_count);
+
+gerium_public void
+gerium_command_buffer_draw_mesh_task(gerium_command_buffer_t command_buffer,
+                                     gerium_uint32_t group_x,
+                                     gerium_uint32_t group_y,
+                                     gerium_uint32_t group_z);
 
 gerium_public void
 gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,

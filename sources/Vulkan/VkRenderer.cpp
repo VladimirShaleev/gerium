@@ -113,9 +113,12 @@ void VkRenderer::sendTextureToGraphic() {
 }
 
 gerium_feature_flags_t VkRenderer::onGetEnabledFeatures() const noexcept {
-    auto result = GERIUM_FEATURE_NONE;
+    auto result = GERIUM_FEATURE_NONE_BIT;
     if (_device->bindlessSupported()) {
-        result |= GERIUM_FEATURE_BINDLESS;
+        result |= GERIUM_FEATURE_BINDLESS_BIT;
+    }
+    if (_device->meshShaderSupported()) {
+        result |= GERIUM_FEATURE_MESH_SHADER_BIT;
     }
     return result;
 }

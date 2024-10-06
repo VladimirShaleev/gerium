@@ -198,6 +198,7 @@ private:
     gerium_profiler_t _profiler{};
     gerium_frame_graph_t _frameGraph{};
     bool _bindlessSupported{};
+    bool _meshShaderSupported{};
 
     Settings _settings{};
     GBufferPass _gbufferPass{};

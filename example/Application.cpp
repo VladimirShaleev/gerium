@@ -278,7 +278,7 @@ void TAAPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t rend
 }
 
 void TAAPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _technique = nullptr;
+    _technique     = nullptr;
     _descriptorSet = nullptr;
 }
 
@@ -424,10 +424,15 @@ void Application::initialize() {
         true;
 #endif
 
-    check(gerium_renderer_create(_application, GERIUM_FEATURE_BINDLESS, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+    check(gerium_renderer_create(_application,
+                                 GERIUM_FEATURE_BINDLESS_BIT | GERIUM_FEATURE_MESH_SHADER_BIT,
+                                 GERIUM_VERSION_ENCODE(1, 0, 0),
+                                 debug,
+                                 &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
-    _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS;
+    _bindlessSupported    = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS_BIT;
+    _meshShaderSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_MESH_SHADER_BIT;
 
     check(gerium_profiler_create(_renderer, &_profiler));
     check(gerium_frame_graph_create(_renderer, &_frameGraph));

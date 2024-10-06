@@ -35,6 +35,7 @@ public:
                      gerium_uint32_t vertexOffset,
                      gerium_uint32_t firstInstance,
                      gerium_uint32_t instanceCount) noexcept;
+    void drawMeshTask(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept;
     void drawProfiler(bool* show) noexcept;
 
 protected:
@@ -69,6 +70,8 @@ private:
                                gerium_uint32_t vertexOffset,
                                gerium_uint32_t firstInstance,
                                gerium_uint32_t instanceCount) noexcept = 0;
+
+    virtual void onDrawMeshTask(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept = 0;
 
     Renderer* _renderer{};
 };

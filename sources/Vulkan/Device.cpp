@@ -1524,10 +1524,15 @@ void Device::createPhysicalDevice() {
 void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags) {
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
-    const auto extensions    = selectDeviceExtensions(_physicalDevice);
+    const auto extensions    = selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT);
 
     _memoryBudgetSupported = std::find_if(extensions.cbegin(), extensions.cend(), [](const auto extension) {
         return strcmp(extension, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME) == 0;
+    }) != std::end(extensions);
+
+    _meshShaderSupported = (featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT) == GERIUM_FEATURE_MESH_SHADER_BIT &&
+                           std::find_if(extensions.cbegin(), extensions.cend(), [](const auto extension) {
+        return strcmp(extension, VK_EXT_MESH_SHADER_EXTENSION_NAME) == 0;
     }) != std::end(extensions);
 
     size_t queueCreateInfoCount                 = 0;
@@ -1561,15 +1566,32 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
         info.pQueuePriorities = priorities;
     }
 
+    void* pNext = nullptr;
+
     VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
     };
-    VkPhysicalDeviceFeatures2 deviceFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, &indexingFeatures };
+    pNext = &indexingFeatures;
+
+    VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT
+    };
+    if (_meshShaderSupported) {
+        meshShaderFeatures.pNext = pNext;
+        pNext                    = &meshShaderFeatures;
+    }
+
+    VkPhysicalDeviceFeatures2 deviceFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, pNext };
     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures);
 
-    _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS) == GERIUM_FEATURE_BINDLESS &&
+    _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS_BIT) == GERIUM_FEATURE_BINDLESS_BIT &&
                          indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray &&
                          indexingFeatures.descriptorBindingSampledImageUpdateAfterBind;
+
+    _meshShaderSupported = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
+
+    indexingFeatures.pNext   = nullptr;
+    meshShaderFeatures.pNext = nullptr;
 
     VkPhysicalDeviceVulkan11Features features11{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
     features11.shaderDrawParameters = VK_TRUE;
@@ -1592,6 +1614,13 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     features.features.textureCompressionETC2    = deviceFeatures.features.textureCompressionETC2;
     if (_bindlessSupported) {
         features11.pNext = &indexingFeatures;
+    }
+    if (_meshShaderSupported) {
+        meshShaderFeatures.pNext                                  = features11.pNext;
+        meshShaderFeatures.multiviewMeshShader                    = VK_FALSE;
+        meshShaderFeatures.primitiveFragmentShadingRateMeshShader = VK_FALSE;
+        meshShaderFeatures.meshShaderQueries                      = VK_FALSE;
+        features11.pNext                                          = &meshShaderFeatures;
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
@@ -2592,7 +2621,7 @@ int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
     }
 
     try {
-        selectDeviceExtensions(device);
+        selectDeviceExtensions(device, false);
     } catch (const Exception& exc) {
         if (exc.result() == GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED) {
             return 0;
@@ -2721,7 +2750,7 @@ std::vector<const char*> Device::selectExtensions() {
     std::vector<std::pair<const char*, bool>> extensions = {
         { VK_KHR_SURFACE_EXTENSION_NAME, true }
     };
-    
+
     for (const auto& extension : onGetInstanceExtensions()) {
         extensions.emplace_back(extension, true);
     }
@@ -2733,12 +2762,16 @@ std::vector<const char*> Device::selectExtensions() {
     return checkExtensions(extensions);
 }
 
-std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device) {
+std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device, bool meshShader) {
     std::vector<std::pair<const char*, bool>> extensions = {
         { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
         { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false }
     };
-    
+
+    if (meshShader) {
+        extensions.emplace_back(VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
+    }
+
     for (const auto& extension : onGetDeviceExtensions()) {
         extensions.emplace_back(extension, true);
     }

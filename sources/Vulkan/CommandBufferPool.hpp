@@ -72,6 +72,7 @@ private:
                        gerium_uint32_t vertexOffset,
                        gerium_uint32_t firstInstance,
                        gerium_uint32_t instanceCount) noexcept override;
+    void onDrawMeshTask(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept override;
 
     void bindDescriptorSets();
     uint32_t getFamilyIndex(QueueType queue) const noexcept;

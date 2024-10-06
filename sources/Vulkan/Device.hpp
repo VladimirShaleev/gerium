@@ -133,6 +133,10 @@ public:
         return _bindlessSupported;
     }
 
+    bool meshShaderSupported() const noexcept {
+        return _meshShaderSupported;
+    }
+
     bool isProfilerEnable() const noexcept {
         return _profilerEnabled;
     }
@@ -266,7 +270,7 @@ private:
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
-    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device);
+    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device, bool meshShader);
     VkPhysicalDevice selectPhysicalDevice();
     VkSurfaceFormatKHR selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats);
     VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
@@ -381,6 +385,7 @@ private:
     bool _profilerEnabled{};
     bool _memoryBudgetSupported{};
     bool _bindlessSupported{};
+    bool _meshShaderSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};
