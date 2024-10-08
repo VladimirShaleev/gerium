@@ -5,6 +5,19 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    auto camera = application()->getCamera();
+    auto& model = application()->model();
+    auto& lod0  = model.meshes[0].lods[0];
+
+    auto ds = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_buffer(renderer, ds, 0, model.verticesBuffer);
+    gerium_renderer_bind_buffer(renderer, ds, 1, model.meshletDataBuffer);
+    gerium_renderer_bind_buffer(renderer, ds, 2, model.meshletBuffer);
+
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, MESH_DATA_SET);
+    gerium_command_buffer_draw_mesh_task(commandBuffer, lod0.meshletCount, 1, 1);
 }
 
 void PresentPass::render(gerium_frame_graph_t frameGraph,
@@ -84,8 +97,211 @@ float get_random_value(float min, float max) {
     return rnd;
 }
 
+size_t appendMeshlets(Model& result, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
+    const size_t max_vertices  = MESH_MAX_VERTICES;
+    const size_t max_triangles = MESH_MAX_PRIMITIVES;
+    const float cone_weight    = 0.5f;
+
+    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
+    std::vector<unsigned int> meshlet_vertices(meshlets.size() * max_vertices);
+    std::vector<unsigned char> meshlet_triangles(meshlets.size() * max_triangles * 3);
+
+    meshlets.resize(meshopt_buildMeshlets(meshlets.data(),
+                                          meshlet_vertices.data(),
+                                          meshlet_triangles.data(),
+                                          indices.data(),
+                                          indices.size(),
+                                          &vertices[0].position.x,
+                                          vertices.size(),
+                                          sizeof(Vertex),
+                                          max_vertices,
+                                          max_triangles,
+                                          cone_weight));
+
+    // note: we can append meshlet_vertices & meshlet_triangles buffers more or less directly with small changes in
+    // Meshlet struct, but for now keep the GPU side layout flexible and separate
+    for (auto& meshlet : meshlets) {
+        meshopt_optimizeMeshlet(&meshlet_vertices[meshlet.vertex_offset],
+                                &meshlet_triangles[meshlet.triangle_offset],
+                                meshlet.triangle_count,
+                                meshlet.vertex_count);
+
+        size_t dataOffset = result.meshletdata.size();
+
+        for (unsigned int i = 0; i < meshlet.vertex_count; ++i) {
+            result.meshletdata.push_back(meshlet_vertices[meshlet.vertex_offset + i]);
+        }
+
+        const unsigned int* indexGroups =
+            reinterpret_cast<const unsigned int*>(&meshlet_triangles[0] + meshlet.triangle_offset);
+        unsigned int indexGroupCount = (meshlet.triangle_count * 3 + 3) / 4;
+
+        for (unsigned int i = 0; i < indexGroupCount; ++i) {
+            result.meshletdata.push_back(indexGroups[i]);
+        }
+
+        meshopt_Bounds bounds = meshopt_computeMeshletBounds(&meshlet_vertices[meshlet.vertex_offset],
+                                                             &meshlet_triangles[meshlet.triangle_offset],
+                                                             meshlet.triangle_count,
+                                                             &vertices[0].position.x,
+                                                             vertices.size(),
+                                                             sizeof(Vertex));
+
+        Meshlet m       = {};
+        m.dataOffset    = uint32_t(dataOffset);
+        m.triangleCount = meshlet.triangle_count;
+        m.vertexCount   = meshlet.vertex_count;
+
+        m.center       = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+        m.radius       = bounds.radius;
+        m.cone_axis[0] = bounds.cone_axis_s8[0];
+        m.cone_axis[1] = bounds.cone_axis_s8[1];
+        m.cone_axis[2] = bounds.cone_axis_s8[2];
+        m.cone_cutoff  = bounds.cone_cutoff_s8;
+
+        result.meshlets.push_back(m);
+    }
+
+    return meshlets.size();
+}
+
 void Application::createScene() {
     std::filesystem::path appDir = gerium_file_get_app_dir();
+    auto fileName                = (appDir / "models" / "bunny.obj").string();
+
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+
+    std::string warn;
+    std::string err;
+
+    auto result = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName.c_str());
+
+    if (!warn.empty()) {
+        gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_WARNING, warn.c_str());
+    }
+
+    if (!err.empty()) {
+        gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_WARNING, err.c_str());
+    }
+
+    if (!result) {
+        throw std::runtime_error("Load .obj model failed");
+    }
+
+    auto indexCount = shapes[0].mesh.indices.size();
+    std::vector<uint32_t> remap(indexCount);
+    std::vector<uint32_t> indicesOrigin(indexCount);
+    std::vector<Vertex> verticesOrigin(attrib.vertices.size());
+
+    for (size_t i = 0; i < indexCount; ++i) {
+        auto vi = shapes[0].mesh.indices[i].vertex_index;
+        auto ni = shapes[0].mesh.indices[i].normal_index;
+        auto ti = shapes[0].mesh.indices[i].texcoord_index;
+
+        indicesOrigin[i] = vi;
+
+        auto pos = glm::vec3(attrib.vertices[vi + 0], attrib.vertices[vi + 1], attrib.vertices[vi + 2]);
+        auto n   = glm::vec3(attrib.normals[ni + 0], attrib.normals[ni + 1], attrib.normals[ni + 2]) * 127.0f + 127.5f;
+        auto uv  = glm::vec2(attrib.texcoords[ti + 0], attrib.texcoords[ti + 1]);
+
+        verticesOrigin[indicesOrigin[i]].position   = glm::vec4(pos, 1.0f);
+        verticesOrigin[indicesOrigin[i]].normal     = glm::u8vec4(uint8_t(n.x), uint8_t(n.y), uint8_t(n.z), uint8_t(0));
+        verticesOrigin[indicesOrigin[i]].texcoord.x = meshopt_quantizeHalf(uv.x);
+        verticesOrigin[indicesOrigin[i]].texcoord.y = meshopt_quantizeHalf(uv.y);
+    }
+
+    auto vertexCount = meshopt_generateVertexRemap(
+        remap.data(), indicesOrigin.data(), indexCount, verticesOrigin.data(), verticesOrigin.size(), sizeof(Vertex));
+
+    std::vector<Vertex> vertices(vertexCount);
+    std::vector<uint32_t> indices(indexCount);
+
+    meshopt_remapVertexBuffer(
+        vertices.data(), verticesOrigin.data(), verticesOrigin.size(), sizeof(Vertex), remap.data());
+    meshopt_remapIndexBuffer(indices.data(), indicesOrigin.data(), indexCount, remap.data());
+
+    meshopt_optimizeVertexCache(indices.data(), indicesOrigin.data(), indexCount, vertexCount);
+    meshopt_optimizeVertexFetch(
+        vertices.data(), indices.data(), indexCount, vertices.data(), vertexCount, sizeof(Vertex));
+
+    glm::vec3 center = glm::vec3(0.0f);
+    for (const auto& v : vertices) {
+        center += v.position.xyz();
+    }
+    center /= float(vertices.size());
+
+    float radius = 0;
+    for (const auto& v : vertices) {
+        radius = std::max(radius, glm::distance(center, v.position.xyz()));
+    }
+
+    Mesh mesh{};
+    mesh.center       = center;
+    mesh.radius       = radius;
+    mesh.vertexOffset = 0;
+    mesh.vertexCount  = gerium_uint32_t(vertices.size());
+
+    _model.vertices.insert(_model.vertices.end(), vertices.begin(), vertices.end());
+
+    std::vector<uint32_t> lodIndices = indices;
+    while (mesh.lodCount < std::size(mesh.lods)) {
+        auto& lod = mesh.lods[mesh.lodCount++];
+
+        lod.indexOffset = uint32_t(_model.indices.size());
+        lod.indexCount  = uint32_t(lodIndices.size());
+
+        _model.indices.insert(_model.indices.end(), lodIndices.begin(), lodIndices.end());
+
+        lod.meshletOffset = uint32_t(_model.meshlets.size());
+        lod.meshletCount  = uint32_t(appendMeshlets(_model, vertices, lodIndices));
+
+        if (mesh.lodCount < std::size(mesh.lods)) {
+            size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
+            size_t nextIndices       = meshopt_simplify(lodIndices.data(),
+                                                  lodIndices.data(),
+                                                  lodIndices.size(),
+                                                  &vertices[0].position.x,
+                                                  vertices.size(),
+                                                  sizeof(Vertex),
+                                                  nextIndicesTarget,
+                                                  1e-2f);
+            assert(nextIndices <= lodIndices.size());
+
+            if (nextIndices == lodIndices.size()) {
+                break;
+            }
+
+            lodIndices.resize(nextIndices);
+            meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), vertexCount);
+        }
+    }
+
+    while (_model.meshlets.size() % 64) {
+        _model.meshlets.push_back(Meshlet());
+    }
+
+    _model.meshes.push_back(mesh);
+
+    auto& lod0 = _model.meshes[0].lods[0];
+
+    _model.meshletBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                         false,
+                                                         "meshlets",
+                                                         &_model.meshlets[lod0.meshletOffset],
+                                                         sizeof(Meshlet) * lod0.meshletCount);
+
+    _model.meshletDataBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                             false,
+                                                             "meshlet_data",
+                                                             _model.meshletdata.data(),
+                                                             sizeof(_model.meshletdata[0]) * _model.meshletdata.size());
+    _model.verticesBuffer    = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                          false,
+                                                          "vertices_buffer",
+                                                          vertices.data(),
+                                                          sizeof(_model.vertices[0]) * _model.vertices.size());
 }
 
 void Application::initialize() {
@@ -131,6 +347,8 @@ void Application::initialize() {
 
 void Application::uninitialize() {
     if (_renderer) {
+        _model = {};
+
         _asyncLoader.destroy();
 
         _baseTechnique = nullptr;

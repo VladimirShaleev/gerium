@@ -3,7 +3,7 @@ pipelines:
   - render pass: gbuffer_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_FILL
-      cull mode: GERIUM_CULL_MODE_FRONT
+      cull mode: GERIUM_CULL_MODE_NONE
       front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
       depth clamp enable: 0
       depth bias enable: 0
@@ -20,9 +20,12 @@ pipelines:
       logic op: GERIUM_LOGIC_OP_CLEAR
       blend constants: [0.0, 0.0, 0.0, 0.0]
     shaders:
-      - type: GERIUM_SHADER_TYPE_VERTEX
+      # - type: GERIUM_SHADER_TYPE_TASK
+      #   lang: GERIUM_SHADER_LANGUAGE_GLSL
+      #   name: shaders/gbuffer.task.glsl
+      - type: GERIUM_SHADER_TYPE_MESH
         lang: GERIUM_SHADER_LANGUAGE_GLSL
-        name: shaders/gbuffer.vert.glsl
+        name: shaders/gbuffer.mesh.glsl
       - type: GERIUM_SHADER_TYPE_FRAGMENT
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.frag.glsl

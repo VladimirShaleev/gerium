@@ -1,5 +1,5 @@
-#ifndef COMMON_TYPES_H
-#define COMMON_TYPES_H
+#ifndef COMMON_TYPES_GENERIC_H
+#define COMMON_TYPES_GENERIC_H
 
 #include "defines.h"
 
@@ -16,12 +16,6 @@ struct SceneData {
     GLM_NAMESPACE vec2 invResolution;
     GLM_NAMESPACE ivec2 resolution;
     GLM_NAMESPACE ivec2 pad0;
-};
-
-struct Vertex {
-    GLM_NAMESPACE vec4 position;
-    GLM_NAMESPACE u8vec4 normal;
-    GLM_NAMESPACE vec2 texcoord;
 };
 
 #endif

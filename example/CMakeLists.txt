@@ -4,6 +4,8 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example FILES ${GERIUM_EX
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
+find_package(meshoptimizer CONFIG REQUIRED)
 
 if(ANDROID)
     add_library(cpp-example SHARED ${GERIUM_EXAMPLE})
@@ -15,6 +17,8 @@ target_link_libraries(cpp-example PRIVATE yaml-cpp::yaml-cpp)
 target_link_libraries(cpp-example PRIVATE glm::glm-header-only)
 target_link_libraries(cpp-example PRIVATE magic_enum::magic_enum)
 target_link_libraries(cpp-example PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(cpp-example PRIVATE tinyobjloader::tinyobjloader)
+target_link_libraries(cpp-example PRIVATE meshoptimizer::meshoptimizer)
 target_include_directories(cpp-example PRIVATE ${Stb_INCLUDE_DIR})
 target_include_directories(cpp-example PRIVATE ${WYHASH_INCLUDE_DIRS})
 

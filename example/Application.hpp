@@ -10,6 +10,49 @@ struct Settings {
     bool Camera2;
 };
 
+struct alignas(16) Meshlet
+{
+	glm::vec3 center;
+	float radius;
+	int8_t cone_axis[3];
+	int8_t cone_cutoff;
+
+	uint32_t dataOffset;
+	uint8_t vertexCount;
+	uint8_t triangleCount;
+};
+
+struct MeshLod
+{
+	uint32_t indexOffset;
+	uint32_t indexCount;
+	uint32_t meshletOffset;
+	uint32_t meshletCount;
+};
+
+struct Mesh {
+    glm::vec3 center;
+    float radius;
+
+    uint32_t vertexOffset;
+    uint32_t vertexCount;
+    
+	uint32_t lodCount;
+	MeshLod lods[8];
+};
+
+struct Model
+{
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
+	std::vector<Meshlet> meshlets;
+	std::vector<uint32_t> meshletdata;
+	std::vector<Mesh> meshes;
+    Buffer meshletBuffer;
+    Buffer verticesBuffer;
+    Buffer meshletDataBuffer;
+};
+
 class GBufferPass final : public RenderPass {
 public:
     GBufferPass() : RenderPass("gbuffer_pass") {
@@ -79,6 +122,10 @@ public:
 
     gerium_technique_h getBaseTechnique() const noexcept {
         return _baseTechnique;
+    }
+
+    Model& model() noexcept {
+        return _model;
     }
 
 private:
@@ -154,6 +201,8 @@ private:
     gerium_float32_t _invHeight{};
 
     Technique _baseTechnique{};
+
+    Model _model{};
 };
 
 #endif

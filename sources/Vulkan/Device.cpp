@@ -2192,9 +2192,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 }
                 auto buffer = _buffers.access(resource);
 
-                descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
-                                                        ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
-                                                        : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 
                 if (buffer->parent != Undefined) {
                     bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
@@ -2245,16 +2243,24 @@ std::vector<uint32_t> Device::compile(const char* code,
 
     switch (stage) {
         case VK_SHADER_STAGE_VERTEX_BIT:
-            options.AddMacroDefinition("VERTEX"s, "1"s);
+            options.AddMacroDefinition("VERTEX_SHADER"s, "1"s);
             kind = shaderc_glsl_vertex_shader;
             break;
         case VK_SHADER_STAGE_FRAGMENT_BIT:
-            options.AddMacroDefinition("FRAGMENT"s, "1"s);
+            options.AddMacroDefinition("FRAGMENT_SHADER"s, "1"s);
             kind = shaderc_glsl_fragment_shader;
             break;
         case VK_SHADER_STAGE_COMPUTE_BIT:
-            options.AddMacroDefinition("COMPUTE"s, "1"s);
+            options.AddMacroDefinition("COMPUTE_SHADER"s, "1"s);
             kind = shaderc_glsl_compute_shader;
+            break;
+        case VK_SHADER_STAGE_TASK_BIT_EXT:
+            options.AddMacroDefinition("TASK_SHADER"s, "1"s);
+            kind = shaderc_glsl_task_shader;
+            break;
+        case VK_SHADER_STAGE_MESH_BIT_EXT:
+            options.AddMacroDefinition("MESH_SHADER"s, "1"s);
+            kind = shaderc_glsl_mesh_shader;
             break;
         default:
             throw std::runtime_error("Not supported shader type");
@@ -2262,6 +2268,18 @@ std::vector<uint32_t> Device::compile(const char* code,
 
     if (_bindlessSupported) {
         options.AddMacroDefinition("BINDLESS_SUPPORTED"s, "1"s);
+    }
+
+    if (_meshShaderSupported) {
+        options.AddMacroDefinition("MESH_SHADER_SUPPORTED"s, "1"s);
+    }
+
+    if (_8BitStorageSupported) {
+        options.AddMacroDefinition("SHADER_8BIT_STORAGE_SUPPORTED"s, "1"s);
+    }
+
+    if (_16BitStorageSupported) {
+        options.AddMacroDefinition("SHADER_16BIT_STORAGE_SUPPORTED"s, "1"s);
     }
 
     for (gerium_uint32_t i = 0; i < numMacros; ++i) {
@@ -2327,7 +2345,7 @@ std::vector<uint32_t> Device::compile(const char* code,
     options.SetSourceLanguage(sourceLang);
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
     options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
-    options.SetTargetSpirv(shaderc_spirv_version_1_2);
+    options.SetTargetSpirv(shaderc_spirv_version_1_4);
     options.SetWarningsAsErrors();
     options.SetPreserveBindings(true);
     options.SetAutoMapLocations(true);

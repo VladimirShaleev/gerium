@@ -4,6 +4,12 @@
 #define SCENE_DATA_SET 0
 #define MESH_DATA_SET  1
 
+#define TASK_GROUP_SIZE 64
+#define MESH_GROUP_SIZE 64
+
+#define MESH_MAX_VERTICES   64
+#define MESH_MAX_PRIMITIVES 96
+
 #define PI 3.1415926538
 
 #ifdef __cplusplus
