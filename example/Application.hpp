@@ -10,47 +10,33 @@ struct Settings {
     bool Camera2;
 };
 
-struct alignas(16) Meshlet
-{
-	glm::vec3 center;
-	float radius;
-	int8_t cone_axis[3];
-	int8_t cone_cutoff;
-
-	uint32_t dataOffset;
-	uint8_t vertexCount;
-	uint8_t triangleCount;
-};
-
-struct MeshLod
-{
-	uint32_t indexOffset;
-	uint32_t indexCount;
-	uint32_t meshletOffset;
-	uint32_t meshletCount;
-};
-
-struct Mesh {
-    glm::vec3 center;
-    float radius;
+struct Meshlet {
+    glm::vec4 centerAndRadius;
+    glm::i8vec4 coneAxisAndCutoff;
 
     uint32_t vertexOffset;
-    uint32_t vertexCount;
-    
-	uint32_t lodCount;
-	MeshLod lods[8];
+    uint32_t primitiveOffset;
+    uint16_t vertexCount;
+    uint16_t primitiveCount;
 };
 
-struct Model
-{
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
-	std::vector<Meshlet> meshlets;
-	std::vector<uint32_t> meshletdata;
-	std::vector<Mesh> meshes;
-    Buffer meshletBuffer;
+struct MeshLod {
+    uint32_t meshletOffset;
+    uint32_t meshletCount;
+};
+
+struct Model {
+    uint32_t lodCount;
+    MeshLod lods[8];
+    std::vector<Meshlet> meshlets;
+
+    std::vector<uint32_t> vertexIndices;
+    std::vector<uint8_t> primitiveIndices;
+
     Buffer verticesBuffer;
-    Buffer meshletDataBuffer;
+    Buffer meshletsBuffer;
+    Buffer vertexIndicesBuffer;
+    Buffer primitiveIndicesBuffer;
 };
 
 class GBufferPass final : public RenderPass {
@@ -63,6 +49,12 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    DescriptorSet _descriptorSet;
 };
 
 class PresentPass final : public RenderPass {

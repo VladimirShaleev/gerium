@@ -16,6 +16,8 @@ struct Vertex {
     GLM_NAMESPACE vec4 position;
     GLM_NAMESPACE u8vec4 normal;
     GLM_NAMESPACE f16vec2 texcoord;
+    GLM_NAMESPACE uint _pad0;
+    GLM_NAMESPACE uint _pad1;
 };
 
 #endif

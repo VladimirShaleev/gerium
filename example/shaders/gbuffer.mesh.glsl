@@ -7,97 +7,83 @@
 #include "types.h"
 
 struct Meshlet {
-    vec3 center;
-    float radius;
-    int8_t cone_axis[3];
-    int8_t cone_cutoff;
+    vec4 centerAndRadius;
+	i8vec4 coneAxisAndCutoff;
 
-    uint dataOffset;
-    uint8_t vertexCount;
-    uint8_t triangleCount;
+    uint vertexOffset;
+    uint primitiveOffset;
+    uint16_t vertexCount;
+    uint16_t primitiveCount;
 };
 
 layout(local_size_x = MESH_GROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
-layout(triangles, max_vertices = MESH_MAX_VERTICES, max_primitives = MESH_MAX_PRIMITIVES) out;
+layout(triangles) out;
+layout(max_vertices = MESH_MAX_VERTICES, max_primitives = MESH_MAX_PRIMITIVES) out;
 
 layout(std140, binding = 0, set = SCENE_DATA_SET) uniform Scene {
     SceneData scene;
 };
 
-layout(std140, binding = 0, set = MESH_DATA_SET) readonly buffer Vertices {
+layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer Vertices {
     Vertex vertices[];
 };
 
-layout(std140, binding = 1, set = MESH_DATA_SET) readonly buffer MeshletData {
-    uint meshletData[];
+layout(std430, binding = 1, set = MESH_DATA_SET) readonly buffer Meshlets {
+    Meshlet meshlets[];
 };
 
-layout(std140, binding = 2, set = MESH_DATA_SET) readonly buffer Meshlets {
-    Meshlet meshlets[];
+layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer MeshletVertices {
+    uint meshletVertices[];
+};
+
+layout(std430, binding = 3, set = MESH_DATA_SET) readonly buffer MeshletPrimitives {
+    uint8_t meshletPrimitives[];
 };
 
 layout(location = 0) out vec4 color[];
 
-uint hash(uint a)
-{
-    a = (a+0x7ed55d16) + (a<<12);
-    a = (a^0xc761c23c) ^ (a>>19);
-    a = (a+0x165667b1) + (a<<5);
-    a = (a+0xd3a2646c) ^ (a<<9);
-    a = (a+0xfd7046c5) + (a<<3);
-    a = (a^0xb55a4f09) ^ (a>>16);
+uint hash(uint a) {
+    a = (a + 0x7ed55d16) + (a << 12);
+    a = (a ^ 0xc761c23c) ^ (a >> 19);
+    a = (a + 0x165667b1) + (a << 5);
+    a = (a + 0xd3a2646c) ^ (a << 9);
+    a = (a + 0xfd7046c5) + (a << 3);
+    a = (a ^ 0xb55a4f09) ^ (a >> 16);
     return a;
 }
 
 void main() {
+    uint ti = gl_LocalInvocationID.x;
     uint mi = gl_WorkGroupID.x;
 
     uint mhash = hash(mi);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
     
-    // uint vertexCount = uint(meshlets[mi].vertexCount);
-    // uint triangleCount = uint(meshlets[mi].triangleCount);
-    // 
-    // SetMeshOutputsEXT(vertexCount, triangleCount);
-    // 
-    // uint dataOffset = meshlets[mi].dataOffset;
-    // uint vertexOffset = dataOffset;
-    // uint indexOffset = dataOffset + vertexCount;
-    // 
-    // uint mhash = hash(mi);
-    // vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
-    // 
-    // for (uint i = 0; i < vertexCount; i += MESH_GROUP_SIZE) {
-    //     uint vi = meshletData[vertexOffset + i];
-    // 
-    //     vec4 clip = scene.viewProjection * vertices[vi].position;
-    // 
-    //     gl_MeshVerticesEXT[i].gl_Position = clip;
-    //     color[i] = vec4(mcolor, 1.0);
-    // }
-    // 
-    // for (uint i = 0; i < triangleCount; i += MESH_GROUP_SIZE) {
-    //     uint offset = indexOffset * 4 + i * 3;
-    //     uint a = uint(meshletData[offset]), b = uint(meshletData[offset + 1]), c = uint(meshletData[offset + 2]);
-    // 
-    //     gl_PrimitiveTriangleIndicesEXT[i] = uvec3(a, b, c);
-    // }
+    uint vertexOffset    = uint(meshlets[mi].vertexOffset);
+    uint vertexCount     = uint(meshlets[mi].vertexCount);
+    uint primitiveOffset = uint(meshlets[mi].primitiveOffset);
+    uint primitiveCount  = uint(meshlets[mi].primitiveCount);
+    
+    SetMeshOutputsEXT(vertexCount, primitiveCount);
 
-    if (mi == 0) {
-        SetMeshOutputsEXT(3, 1);
+    const uint vertexBatches    = (MESH_MAX_VERTICES + MESH_GROUP_SIZE - 1) / MESH_GROUP_SIZE;
+    const uint primitiveBatches = (MESH_MAX_PRIMITIVES + MESH_GROUP_SIZE - 1) / MESH_GROUP_SIZE;
+    
+    for (uint batch = 0; batch < vertexBatches; batch++) {
+        uint offset = min(ti + batch * MESH_GROUP_SIZE, vertexCount - 1);
+        uint index  = meshletVertices[vertexOffset + offset];
 
-        vec4 positions[3];
-        positions[0] = vec4(0.0, 0.0, 0.5, 1.0);
-        positions[1] = vec4(1.0, 0.0, 0.5, 1.0);
-        positions[2] = vec4(1.0, 1.0, 0.5, 1.0);
+        vec3 normal = vec3(int(vertices[index].normal.x), int(vertices[index].normal.y), int(vertices[index].normal.z)) / 127.0 - 1.0;
+    
+        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * vertices[index].position;
+        color[offset] = vec4(mcolor, 1.0);
+    }
 
-        for (uint i = 0; i < 3; ++i) {
-            gl_MeshVerticesEXT[i].gl_Position = scene.viewProjection * positions[i];
-            color[i] = vec4(mcolor, 1.0);
-        }
-
-        for (uint i = 0; i < 1; ++i) {
-            gl_PrimitiveTriangleIndicesEXT[i] = uvec3(0, 1, 2);
-        }
+    for (uint batch = 0; batch < primitiveBatches; batch++) {
+        uint offset = min(ti + batch * MESH_GROUP_SIZE, primitiveCount - 1);
+        uint index0 = uint(meshletPrimitives[primitiveOffset + offset * 3 + 0]);
+        uint index1 = uint(meshletPrimitives[primitiveOffset + offset * 3 + 1]);
+        uint index2 = uint(meshletPrimitives[primitiveOffset + offset * 3 + 2]);
+        gl_PrimitiveTriangleIndicesEXT[offset] = uvec3(index0, index1, index2);
     }
 }

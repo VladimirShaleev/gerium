@@ -7,17 +7,24 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t totalWorkers) {
     auto camera = application()->getCamera();
     auto& model = application()->model();
-    auto& lod0  = model.meshes[0].lods[0];
-
-    auto ds = application()->resourceManager().createDescriptorSet("");
-    gerium_renderer_bind_buffer(renderer, ds, 0, model.verticesBuffer);
-    gerium_renderer_bind_buffer(renderer, ds, 1, model.meshletDataBuffer);
-    gerium_renderer_bind_buffer(renderer, ds, 2, model.meshletBuffer);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, MESH_DATA_SET);
-    gerium_command_buffer_draw_mesh_task(commandBuffer, lod0.meshletCount, 1, 1);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, MESH_DATA_SET);
+    gerium_command_buffer_draw_mesh_task(commandBuffer, gerium_uint32_t(model.meshlets.size()), 1, 1);
+}
+
+void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    auto& model    = application()->model();
+    _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, model.verticesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 1, model.meshletsBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, model.vertexIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, model.primitiveIndicesBuffer);
+}
+
+void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
 }
 
 void PresentPass::render(gerium_frame_graph_t frameGraph,
@@ -89,77 +96,62 @@ void Application::addPass(RenderPass& renderPass) {
     gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
 }
 
-float get_random_value(float min, float max) {
-    float rnd = (float) rand() / (float) RAND_MAX;
-
-    rnd = (max - min) * rnd + min;
-
-    return rnd;
-}
-
 size_t appendMeshlets(Model& result, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
-    const size_t max_vertices  = MESH_MAX_VERTICES;
-    const size_t max_triangles = MESH_MAX_PRIMITIVES;
-    const float cone_weight    = 0.5f;
+    constexpr size_t maxVertices  = MESH_MAX_VERTICES;
+    constexpr size_t maxTriangles = MESH_MAX_PRIMITIVES;
+    constexpr float coneWeight    = 0.5f;
 
-    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
-    std::vector<unsigned int> meshlet_vertices(meshlets.size() * max_vertices);
-    std::vector<unsigned char> meshlet_triangles(meshlets.size() * max_triangles * 3);
+    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), maxVertices, maxTriangles));
+    std::vector<unsigned int> meshletVertices(meshlets.size() * maxVertices);
+    std::vector<unsigned char> meshletTriangles(meshlets.size() * maxTriangles * 3);
 
     meshlets.resize(meshopt_buildMeshlets(meshlets.data(),
-                                          meshlet_vertices.data(),
-                                          meshlet_triangles.data(),
+                                          meshletVertices.data(),
+                                          meshletTriangles.data(),
                                           indices.data(),
                                           indices.size(),
                                           &vertices[0].position.x,
                                           vertices.size(),
                                           sizeof(Vertex),
-                                          max_vertices,
-                                          max_triangles,
-                                          cone_weight));
+                                          maxVertices,
+                                          maxTriangles,
+                                          coneWeight));
 
-    // note: we can append meshlet_vertices & meshlet_triangles buffers more or less directly with small changes in
-    // Meshlet struct, but for now keep the GPU side layout flexible and separate
     for (auto& meshlet : meshlets) {
-        meshopt_optimizeMeshlet(&meshlet_vertices[meshlet.vertex_offset],
-                                &meshlet_triangles[meshlet.triangle_offset],
+        meshopt_optimizeMeshlet(&meshletVertices[meshlet.vertex_offset],
+                                &meshletTriangles[meshlet.triangle_offset],
                                 meshlet.triangle_count,
                                 meshlet.vertex_count);
 
-        size_t dataOffset = result.meshletdata.size();
+        const auto vertexOffset    = result.vertexIndices.size();
+        const auto primitiveOffset = result.primitiveIndices.size();
 
         for (unsigned int i = 0; i < meshlet.vertex_count; ++i) {
-            result.meshletdata.push_back(meshlet_vertices[meshlet.vertex_offset + i]);
+            result.vertexIndices.push_back(meshletVertices[meshlet.vertex_offset + i]);
         }
 
-        const unsigned int* indexGroups =
-            reinterpret_cast<const unsigned int*>(&meshlet_triangles[0] + meshlet.triangle_offset);
-        unsigned int indexGroupCount = (meshlet.triangle_count * 3 + 3) / 4;
-
-        for (unsigned int i = 0; i < indexGroupCount; ++i) {
-            result.meshletdata.push_back(indexGroups[i]);
+        for (unsigned int i = 0; i < meshlet.triangle_count * 3; ++i) {
+            result.primitiveIndices.push_back(meshletTriangles[meshlet.triangle_offset + i]);
         }
 
-        meshopt_Bounds bounds = meshopt_computeMeshletBounds(&meshlet_vertices[meshlet.vertex_offset],
-                                                             &meshlet_triangles[meshlet.triangle_offset],
-                                                             meshlet.triangle_count,
-                                                             &vertices[0].position.x,
-                                                             vertices.size(),
-                                                             sizeof(Vertex));
+        const auto bounds = meshopt_computeMeshletBounds(&meshletVertices[meshlet.vertex_offset],
+                                                         &meshletTriangles[meshlet.triangle_offset],
+                                                         meshlet.triangle_count,
+                                                         &vertices[0].position.x,
+                                                         vertices.size(),
+                                                         sizeof(Vertex));
 
-        Meshlet m       = {};
-        m.dataOffset    = uint32_t(dataOffset);
-        m.triangleCount = meshlet.triangle_count;
-        m.vertexCount   = meshlet.vertex_count;
+        Meshlet meshletInfo         = {};
+        meshletInfo.vertexOffset    = uint32_t(vertexOffset);
+        meshletInfo.primitiveOffset = uint32_t(primitiveOffset);
+        meshletInfo.vertexCount     = meshlet.vertex_count;
+        meshletInfo.primitiveCount  = meshlet.triangle_count;
 
-        m.center       = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
-        m.radius       = bounds.radius;
-        m.cone_axis[0] = bounds.cone_axis_s8[0];
-        m.cone_axis[1] = bounds.cone_axis_s8[1];
-        m.cone_axis[2] = bounds.cone_axis_s8[2];
-        m.cone_cutoff  = bounds.cone_cutoff_s8;
+        meshletInfo.centerAndRadius = glm::vec4(bounds.center[0], bounds.center[1], bounds.center[2], bounds.radius);
+        meshletInfo.coneAxisAndCutoff =
+            glm::i8vec4(bounds.cone_axis_s8[0], bounds.cone_axis_s8[1], bounds.cone_axis_s8[2], bounds.cone_cutoff_s8);
 
-        result.meshlets.push_back(m);
+        result.meshlets.push_back(meshletInfo);
     }
 
     return meshlets.size();
@@ -190,17 +182,18 @@ void Application::createScene() {
         throw std::runtime_error("Load .obj model failed");
     }
 
-    auto indexCount = shapes[0].mesh.indices.size();
+    const auto& mesh = shapes[0].mesh;
+    auto indexCount  = mesh.indices.size();
     std::vector<uint32_t> remap(indexCount);
     std::vector<uint32_t> indicesOrigin(indexCount);
     std::vector<Vertex> verticesOrigin(attrib.vertices.size());
 
     for (size_t i = 0; i < indexCount; ++i) {
-        auto vi = shapes[0].mesh.indices[i].vertex_index;
-        auto ni = shapes[0].mesh.indices[i].normal_index;
-        auto ti = shapes[0].mesh.indices[i].texcoord_index;
+        auto vi = mesh.indices[i].vertex_index * 3;
+        auto ni = mesh.indices[i].normal_index * 3;
+        auto ti = mesh.indices[i].texcoord_index * 2;
 
-        indicesOrigin[i] = vi;
+        indicesOrigin[i] = vi / 3;
 
         auto pos = glm::vec3(attrib.vertices[vi + 0], attrib.vertices[vi + 1], attrib.vertices[vi + 2]);
         auto n   = glm::vec3(attrib.normals[ni + 0], attrib.normals[ni + 1], attrib.normals[ni + 2]) * 127.0f + 127.5f;
@@ -226,82 +219,72 @@ void Application::createScene() {
     meshopt_optimizeVertexFetch(
         vertices.data(), indices.data(), indexCount, vertices.data(), vertexCount, sizeof(Vertex));
 
-    glm::vec3 center = glm::vec3(0.0f);
-    for (const auto& v : vertices) {
-        center += v.position.xyz();
-    }
-    center /= float(vertices.size());
+    // glm::vec3 center = glm::vec3(0.0f);
+    // for (const auto& v : vertices) {
+    //     center += v.position.xyz();
+    // }
+    // center /= float(vertices.size());
 
-    float radius = 0;
-    for (const auto& v : vertices) {
-        radius = std::max(radius, glm::distance(center, v.position.xyz()));
-    }
-
-    Mesh mesh{};
-    mesh.center       = center;
-    mesh.radius       = radius;
-    mesh.vertexOffset = 0;
-    mesh.vertexCount  = gerium_uint32_t(vertices.size());
-
-    _model.vertices.insert(_model.vertices.end(), vertices.begin(), vertices.end());
+    // float radius = 0;
+    // for (const auto& v : vertices) {
+    //     radius = std::max(radius, glm::distance(center, v.position.xyz()));
+    // }
 
     std::vector<uint32_t> lodIndices = indices;
-    while (mesh.lodCount < std::size(mesh.lods)) {
-        auto& lod = mesh.lods[mesh.lodCount++];
-
-        lod.indexOffset = uint32_t(_model.indices.size());
-        lod.indexCount  = uint32_t(lodIndices.size());
-
-        _model.indices.insert(_model.indices.end(), lodIndices.begin(), lodIndices.end());
+    while (_model.lodCount < std::size(_model.lods)) {
+        auto& lod = _model.lods[_model.lodCount++];
 
         lod.meshletOffset = uint32_t(_model.meshlets.size());
         lod.meshletCount  = uint32_t(appendMeshlets(_model, vertices, lodIndices));
 
-        if (mesh.lodCount < std::size(mesh.lods)) {
-            size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
-            size_t nextIndices       = meshopt_simplify(lodIndices.data(),
-                                                  lodIndices.data(),
-                                                  lodIndices.size(),
-                                                  &vertices[0].position.x,
-                                                  vertices.size(),
-                                                  sizeof(Vertex),
-                                                  nextIndicesTarget,
-                                                  1e-2f);
-            assert(nextIndices <= lodIndices.size());
+        break;
 
-            if (nextIndices == lodIndices.size()) {
-                break;
-            }
+        // if (_model.lodCount < std::size(_model.lods)) {
+        //     size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
+        //     size_t nextIndices       = meshopt_simplify(lodIndices.data(),
+        //                                           lodIndices.data(),
+        //                                           lodIndices.size(),
+        //                                           &vertices[0].position.x,
+        //                                           vertices.size(),
+        //                                           sizeof(Vertex),
+        //                                           nextIndicesTarget,
+        //                                           1e-2f);
+        //     assert(nextIndices <= lodIndices.size());
 
-            lodIndices.resize(nextIndices);
-            meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), vertexCount);
-        }
+        //     if (nextIndices == lodIndices.size()) {
+        //         break;
+        //     }
+
+        //     lodIndices.resize(nextIndices);
+        //     meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), vertexCount);
+        // }
     }
 
-    while (_model.meshlets.size() % 64) {
-        _model.meshlets.push_back(Meshlet());
-    }
-
-    _model.meshes.push_back(mesh);
-
-    auto& lod0 = _model.meshes[0].lods[0];
-
-    _model.meshletBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                         false,
-                                                         "meshlets",
-                                                         &_model.meshlets[lod0.meshletOffset],
-                                                         sizeof(Meshlet) * lod0.meshletCount);
-
-    _model.meshletDataBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                             false,
-                                                             "meshlet_data",
-                                                             _model.meshletdata.data(),
-                                                             sizeof(_model.meshletdata[0]) * _model.meshletdata.size());
-    _model.verticesBuffer    = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+    _model.verticesBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
                                                           false,
                                                           "vertices_buffer",
                                                           vertices.data(),
-                                                          sizeof(_model.vertices[0]) * _model.vertices.size());
+                                                          sizeof(vertices[0]) * vertices.size());
+
+    _model.meshletsBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                          false,
+                                                          "meshlets_buffer",
+                                                          _model.meshlets.data(),
+                                                          sizeof(_model.meshlets[0]) * _model.meshlets.size());
+
+    _model.vertexIndicesBuffer =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                      false,
+                                      "vertex_indices_buffer",
+                                      _model.vertexIndices.data(),
+                                      sizeof(_model.vertexIndices[0]) * _model.vertexIndices.size());
+
+    _model.primitiveIndicesBuffer =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                      false,
+                                      "primitive_indices_buffer",
+                                      _model.primitiveIndices.data(),
+                                      sizeof(_model.primitiveIndices[0]) * _model.primitiveIndices.size());
 }
 
 void Application::initialize() {
@@ -336,13 +319,12 @@ void Application::initialize() {
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
     _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
 
+    createScene();
+    _camera = Camera(_application, _resourceManager);
+
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);
     }
-
-    _camera = Camera(_application, _resourceManager);
-
-    createScene();
 }
 
 void Application::uninitialize() {
@@ -471,6 +453,8 @@ void Application::frame(gerium_uint64_t elapsedMs) {
         _invWidth  = 1.0f / _width;
         _invHeight = 1.0f / _height;
     }
+
+    _resourceManager.update(elapsedMs);
 
     getCamera()->update();
 

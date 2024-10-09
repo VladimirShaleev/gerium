@@ -262,6 +262,7 @@ public:
 
     void reserve(size_type newPoolSize) {
         assert(newPoolSize > _poolSize);
+        assert(newPoolSize < std::numeric_limits<gerium_uint16_t>::max());
 
         auto handles = reinterpret_cast<base_handle_type*>(
 #ifdef GERIUM_MIMALLOC_DISABLE
