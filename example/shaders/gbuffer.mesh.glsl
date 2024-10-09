@@ -6,16 +6,6 @@
 
 #include "types.h"
 
-struct Meshlet {
-    vec4 centerAndRadius;
-	i8vec4 coneAxisAndCutoff;
-
-    uint vertexOffset;
-    uint primitiveOffset;
-    uint16_t vertexCount;
-    uint16_t primitiveCount;
-};
-
 layout(local_size_x = MESH_GROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles) out;
 layout(max_vertices = MESH_MAX_VERTICES, max_primitives = MESH_MAX_PRIMITIVES) out;

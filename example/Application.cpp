@@ -11,7 +11,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, MESH_DATA_SET);
-    gerium_command_buffer_draw_mesh_task(commandBuffer, gerium_uint32_t(model.meshlets.size()), 1, 1);
+    gerium_command_buffer_draw_mesh_tasks(commandBuffer, 1, 1, 1);
 }
 
 void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -48,7 +48,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     }
 
     if (ImGui::Begin("Settings")) {
-        ImGui::LabelText(application()->meshShaderSupported() ? "hardware" : "software", "Meshlets");
+        ImGui::Text("Meshlets: %s", application()->meshShaderSupported() ? "hardware" : "software");
         ImGui::Separator();
         ImGui::Checkbox("Show profiler", &drawProfiler);
     }

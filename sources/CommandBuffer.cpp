@@ -59,8 +59,15 @@ void CommandBuffer::drawIndexed(gerium_uint32_t firstIndex,
     onDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
 }
 
-void CommandBuffer::drawMeshTask(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept {
-    onDrawMeshTask(groupX, groupY, groupZ);
+void CommandBuffer::drawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept {
+    onDrawMeshTasks(groupX, groupY, groupZ);
+}
+
+void CommandBuffer::drawMeshTasksIndirect(BufferHandle handle,
+                                          gerium_uint32_t offset,
+                                          gerium_uint32_t drawCount,
+                                          gerium_uint32_t stride) noexcept {
+    onDrawMeshTasksIndirect(handle, offset, drawCount, stride);
 }
 
 void CommandBuffer::drawProfiler(bool* show) noexcept {
@@ -152,12 +159,21 @@ void gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
         ->drawIndexed(first_index, index_count, vertex_offset, first_instance, instance_count);
 }
 
-void gerium_command_buffer_draw_mesh_task(gerium_command_buffer_t command_buffer,
-                                          gerium_uint32_t group_x,
-                                          gerium_uint32_t group_y,
-                                          gerium_uint32_t group_z) {
+void gerium_command_buffer_draw_mesh_tasks(gerium_command_buffer_t command_buffer,
+                                           gerium_uint32_t group_x,
+                                           gerium_uint32_t group_y,
+                                           gerium_uint32_t group_z) {
     assert(command_buffer);
-    alias_cast<CommandBuffer*>(command_buffer)->drawMeshTask(group_x, group_y, group_z);
+    alias_cast<CommandBuffer*>(command_buffer)->drawMeshTasks(group_x, group_y, group_z);
+}
+
+void gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_buffer,
+                                                    gerium_buffer_h handle,
+                                                    gerium_uint32_t offset,
+                                                    gerium_uint32_t draw_count,
+                                                    gerium_uint32_t stride) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->drawMeshTasksIndirect({ handle.index }, offset, draw_count, stride);
 }
 
 void gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer, gerium_bool_t* show) {

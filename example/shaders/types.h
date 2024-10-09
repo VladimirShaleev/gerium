@@ -7,4 +7,14 @@
 #include "common/types_meshlet.h"
 #endif
 
+struct Meshlet {
+    vec4 centerAndRadius;
+	i8vec4 coneAxisAndCutoff;
+
+    uint vertexOffset;
+    uint primitiveOffset;
+    uint16_t vertexCount;
+    uint16_t primitiveCount;
+};
+
 #endif

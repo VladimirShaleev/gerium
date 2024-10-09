@@ -364,6 +364,10 @@ gerium_inline VkBufferUsageFlags toVkBufferUsageFlags(gerium_buffer_usage_flags_
         result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     }
 
+    if ((flags & GERIUM_BUFFER_USAGE_INDIRECT_BIT) == GERIUM_BUFFER_USAGE_INDIRECT_BIT) {
+        result |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+    }
+
     return result;
 }
 

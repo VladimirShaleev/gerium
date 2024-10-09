@@ -390,28 +390,12 @@ void CommandBuffer::onBindTechnique(TechniqueHandle handle) noexcept {
 }
 
 void CommandBuffer::onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept {
-    auto buffer = _device->_buffers.access(handle);
-
-    VkBuffer vkBuffer     = buffer->vkBuffer;
-    VkDeviceSize vkOffset = offset;
-    if (buffer->parent != Undefined) {
-        auto parentBuffer = _device->_buffers.access(buffer->parent);
-        vkBuffer          = parentBuffer->vkBuffer;
-        vkOffset          = buffer->globalOffset + offset;
-    }
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
     _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
 }
 
 void CommandBuffer::onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept {
-    auto buffer = _device->_buffers.access(handle);
-
-    VkBuffer vkBuffer     = buffer->vkBuffer;
-    VkDeviceSize vkOffset = offset;
-    if (buffer->parent != Undefined) {
-        auto parentBuffer = _device->_buffers.access(buffer->parent);
-        vkBuffer          = parentBuffer->vkBuffer;
-        vkOffset          = buffer->globalOffset + offset;
-    }
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
     _device->vkTable().vkCmdBindIndexBuffer(_commandBuffer, vkBuffer, vkOffset, toVkIndexType(type));
 }
 
@@ -446,9 +430,19 @@ void CommandBuffer::onDrawIndexed(gerium_uint32_t firstIndex,
         _commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
-void CommandBuffer::onDrawMeshTask(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept {
+void CommandBuffer::onDrawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept {
     bindDescriptorSets();
     _device->vkTable().vkCmdDrawMeshTasksEXT(_commandBuffer, groupX, groupY, groupZ);
+}
+
+void CommandBuffer::onDrawMeshTasksIndirect(BufferHandle handle,
+                                            gerium_uint32_t offset,
+                                            gerium_uint32_t drawCount,
+                                            gerium_uint32_t stride) noexcept {
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
+
+    bindDescriptorSets();
+    _device->vkTable().vkCmdDrawMeshTasksIndirectEXT(_commandBuffer, vkBuffer, vkOffset, drawCount, stride);
 }
 
 void CommandBuffer::bindDescriptorSets() {
@@ -519,6 +513,23 @@ uint32_t CommandBuffer::getFamilyIndex(QueueType queue) const noexcept {
     }
     assert(!"unreachable code");
     return 0;
+}
+
+std::pair<VkBuffer, VkDeviceSize> CommandBuffer::getVkBuffer(BufferHandle handle,
+                                                             gerium_uint32_t offset) const noexcept {
+    auto buffer = _device->_buffers.access(handle);
+
+    VkBuffer vkBuffer     = buffer->vkBuffer;
+    VkDeviceSize vkOffset = offset;
+
+    if (buffer->parent != Undefined) {
+        auto parentBuffer = _device->_buffers.access(buffer->parent);
+
+        vkBuffer = parentBuffer->vkBuffer;
+        vkOffset = buffer->globalOffset + offset;
+    }
+
+    return { vkBuffer, vkOffset };
 }
 
 CommandBufferPool::~CommandBufferPool() {

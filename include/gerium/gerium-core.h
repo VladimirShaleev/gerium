@@ -685,11 +685,12 @@ GERIUM_FLAGS(gerium_color_component_flags_t)
 
 typedef enum
 {
-    GERIUM_BUFFER_USAGE_VERTEX_BIT  = 1,
-    GERIUM_BUFFER_USAGE_INDEX_BIT   = 2,
-    GERIUM_BUFFER_USAGE_UNIFORM_BIT = 4,
-    GERIUM_BUFFER_USAGE_STORAGE_BIT = 8,
-    GERIUM_BUFFER_USAGE_MAX_ENUM    = 0x7FFFFFFF
+    GERIUM_BUFFER_USAGE_VERTEX_BIT   = 1,
+    GERIUM_BUFFER_USAGE_INDEX_BIT    = 2,
+    GERIUM_BUFFER_USAGE_UNIFORM_BIT  = 4,
+    GERIUM_BUFFER_USAGE_STORAGE_BIT  = 8,
+    GERIUM_BUFFER_USAGE_INDIRECT_BIT = 16,
+    GERIUM_BUFFER_USAGE_MAX_ENUM     = 0x7FFFFFFF
 } gerium_buffer_usage_flags_t;
 GERIUM_FLAGS(gerium_buffer_usage_flags_t)
 
@@ -1459,10 +1460,17 @@ gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
                                    gerium_uint32_t instance_count);
 
 gerium_public void
-gerium_command_buffer_draw_mesh_task(gerium_command_buffer_t command_buffer,
-                                     gerium_uint32_t group_x,
-                                     gerium_uint32_t group_y,
-                                     gerium_uint32_t group_z);
+gerium_command_buffer_draw_mesh_tasks(gerium_command_buffer_t command_buffer,
+                                      gerium_uint32_t group_x,
+                                      gerium_uint32_t group_y,
+                                      gerium_uint32_t group_z);
+
+gerium_public void
+gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_buffer,
+                                               gerium_buffer_h handle,
+                                               gerium_uint32_t offset,
+                                               gerium_uint32_t draw_count,
+                                               gerium_uint32_t stride);
 
 gerium_public void
 gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,

@@ -274,7 +274,8 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     buffer->parent       = Undefined;
 
     constexpr auto dynamicBufferFlags = GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT |
-                                        GERIUM_BUFFER_USAGE_UNIFORM_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT;
+                                        GERIUM_BUFFER_USAGE_UNIFORM_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT |
+                                        GERIUM_BUFFER_USAGE_INDIRECT_BIT;
 
     const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
@@ -1744,7 +1745,7 @@ void Device::createDynamicBuffers() {
     BufferCreation bcUBO;
     bcUBO
         .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT |
-                 GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                 GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_INDIRECT_BIT,
              ResourceUsageType::Staging,
              _dynamicUBOSize * kMaxFrames)
         .setPersistent(true)
@@ -1756,7 +1757,8 @@ void Device::createDynamicBuffers() {
 
     BufferCreation bcSSBO;
     bcSSBO
-        .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT,
+        .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT |
+                 GERIUM_BUFFER_USAGE_INDIRECT_BIT,
              ResourceUsageType::Staging,
              _dynamicSSBOSize * kMaxFrames)
         .setPersistent(true)
