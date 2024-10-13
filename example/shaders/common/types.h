@@ -64,4 +64,21 @@ struct MeshletLegacy {
 #endif
 #endif
 
+struct ClusterMeshLod {
+	GLM_NAMESPACE uint meshletOffset;
+	GLM_NAMESPACE uint meshletCount;
+};
+
+struct ClusterMesh {
+    GLM_NAMESPACE uint lodCount;
+    ClusterMeshLod     lods[8];
+};
+
+struct ClusterMeshInstance {
+    GLM_NAMESPACE mat4  world;
+    GLM_NAMESPACE mat4  inverseWorld;
+    GLM_NAMESPACE uvec4 textures;
+    GLM_NAMESPACE uint  mesh; 
+};
+
 #endif

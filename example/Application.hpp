@@ -10,31 +10,16 @@ struct Settings {
     bool Camera2;
 };
 
-struct Meshlet {
-    glm::vec4 centerAndRadius;
-    glm::i8vec4 coneAxisAndCutoff;
-
-    uint32_t vertexOffset;
-    uint32_t primitiveOffset;
-    uint16_t vertexCount;
-    uint16_t primitiveCount;
-};
-
-struct MeshLod {
-    uint32_t meshletOffset;
-    uint32_t meshletCount;
-};
-
-struct Model {
-    uint32_t lodCount;
-    MeshLod lods[8];
-    std::vector<Meshlet> meshlets;
-
+struct ClusterDatas {
+    std::vector<VertexOptimized> vertices;
+    std::vector<MeshletOptimized> meshlets;
+    std::vector<ClusterMesh> meshes;
     std::vector<uint32_t> vertexIndices;
     std::vector<uint8_t> primitiveIndices;
 
     Buffer verticesBuffer;
     Buffer meshletsBuffer;
+    Buffer meshesBuffer;
     Buffer vertexIndicesBuffer;
     Buffer primitiveIndicesBuffer;
 };
@@ -116,13 +101,18 @@ public:
         return _baseTechnique;
     }
 
-    Model& model() noexcept {
-        return _model;
+    ClusterDatas& clusterDatas() noexcept {
+        return _clusterDatas;
     }
 
 private:
     void addPass(RenderPass& renderPass);
     void createScene();
+    ClusterMeshInstance loadClusterMesh(ClusterDatas& clusterDatas, std::string_view name) const;
+    size_t appendMeshlets(ClusterDatas& clusterDatas,
+                          const VertexOptimized* vertices,
+                          size_t verticesCount,
+                          const std::vector<uint32_t>& indices) const;
 
     void initialize();
     void uninitialize();
@@ -194,7 +184,7 @@ private:
 
     Technique _baseTechnique{};
 
-    Model _model{};
+    ClusterDatas _clusterDatas{};
 };
 
 #endif
