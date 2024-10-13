@@ -41,8 +41,7 @@
 #include <meshoptimizer.h>
 
 #include "Finally.hpp"
-#include "shaders/common/types_generic.h"
-#include "shaders/common/types_meshlet.h"
+#include "shaders/common/types.h"
 
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 

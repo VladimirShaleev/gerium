@@ -18,4 +18,8 @@
 # define GLM_NAMESPACE 
 #endif
 
+#ifdef __cplusplus
+#define f16vec2 u16vec2
+#endif
+
 #endif

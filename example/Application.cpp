@@ -96,7 +96,9 @@ void Application::addPass(RenderPass& renderPass) {
     gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
 }
 
-size_t appendMeshlets(Model& result, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
+size_t appendMeshlets(Model& result,
+                      const std::vector<VertexOptimized>& vertices,
+                      const std::vector<uint32_t>& indices) {
     constexpr size_t maxVertices  = MESH_MAX_VERTICES;
     constexpr size_t maxTriangles = MESH_MAX_PRIMITIVES;
     constexpr float coneWeight    = 0.5f;
@@ -112,7 +114,7 @@ size_t appendMeshlets(Model& result, const std::vector<Vertex>& vertices, const 
                                           indices.size(),
                                           &vertices[0].position.x,
                                           vertices.size(),
-                                          sizeof(Vertex),
+                                          sizeof(VertexOptimized),
                                           maxVertices,
                                           maxTriangles,
                                           coneWeight));
@@ -139,7 +141,7 @@ size_t appendMeshlets(Model& result, const std::vector<Vertex>& vertices, const 
                                                          meshlet.triangle_count,
                                                          &vertices[0].position.x,
                                                          vertices.size(),
-                                                         sizeof(Vertex));
+                                                         sizeof(VertexOptimized));
 
         Meshlet meshletInfo         = {};
         meshletInfo.vertexOffset    = uint32_t(vertexOffset);
@@ -186,7 +188,7 @@ void Application::createScene() {
     auto indexCount  = mesh.indices.size();
     std::vector<uint32_t> remap(indexCount);
     std::vector<uint32_t> indicesOrigin(indexCount);
-    std::vector<Vertex> verticesOrigin(attrib.vertices.size());
+    std::vector<VertexOptimized> verticesOrigin(attrib.vertices.size());
 
     for (size_t i = 0; i < indexCount; ++i) {
         auto vi = mesh.indices[i].vertex_index * 3;
@@ -205,30 +207,23 @@ void Application::createScene() {
         verticesOrigin[indicesOrigin[i]].texcoord.y = meshopt_quantizeHalf(uv.y);
     }
 
-    auto vertexCount = meshopt_generateVertexRemap(
-        remap.data(), indicesOrigin.data(), indexCount, verticesOrigin.data(), verticesOrigin.size(), sizeof(Vertex));
+    auto vertexCount = meshopt_generateVertexRemap(remap.data(),
+                                                   indicesOrigin.data(),
+                                                   indexCount,
+                                                   verticesOrigin.data(),
+                                                   verticesOrigin.size(),
+                                                   sizeof(VertexOptimized));
 
-    std::vector<Vertex> vertices(vertexCount);
+    std::vector<VertexOptimized> vertices(vertexCount);
     std::vector<uint32_t> indices(indexCount);
 
     meshopt_remapVertexBuffer(
-        vertices.data(), verticesOrigin.data(), verticesOrigin.size(), sizeof(Vertex), remap.data());
+        vertices.data(), verticesOrigin.data(), verticesOrigin.size(), sizeof(VertexOptimized), remap.data());
     meshopt_remapIndexBuffer(indices.data(), indicesOrigin.data(), indexCount, remap.data());
 
     meshopt_optimizeVertexCache(indices.data(), indicesOrigin.data(), indexCount, vertexCount);
     meshopt_optimizeVertexFetch(
-        vertices.data(), indices.data(), indexCount, vertices.data(), vertexCount, sizeof(Vertex));
-
-    // glm::vec3 center = glm::vec3(0.0f);
-    // for (const auto& v : vertices) {
-    //     center += v.position.xyz();
-    // }
-    // center /= float(vertices.size());
-
-    // float radius = 0;
-    // for (const auto& v : vertices) {
-    //     radius = std::max(radius, glm::distance(center, v.position.xyz()));
-    // }
+        vertices.data(), indices.data(), indexCount, vertices.data(), vertexCount, sizeof(VertexOptimized));
 
     std::vector<uint32_t> lodIndices = indices;
     while (_model.lodCount < std::size(_model.lods)) {
@@ -237,28 +232,28 @@ void Application::createScene() {
         lod.meshletOffset = uint32_t(_model.meshlets.size());
         lod.meshletCount  = uint32_t(appendMeshlets(_model, vertices, lodIndices));
 
-        break;
+        if (_model.lodCount < std::size(_model.lods)) {
+            size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
+            size_t nextIndices       = meshopt_simplify(lodIndices.data(),
+                                                  lodIndices.data(),
+                                                  lodIndices.size(),
+                                                  &vertices[0].position.x,
+                                                  vertices.size(),
+                                                  sizeof(VertexOptimized),
+                                                  nextIndicesTarget,
+                                                  1e-2f);
+            assert(nextIndices <= lodIndices.size());
 
-        // if (_model.lodCount < std::size(_model.lods)) {
-        //     size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
-        //     size_t nextIndices       = meshopt_simplify(lodIndices.data(),
-        //                                           lodIndices.data(),
-        //                                           lodIndices.size(),
-        //                                           &vertices[0].position.x,
-        //                                           vertices.size(),
-        //                                           sizeof(Vertex),
-        //                                           nextIndicesTarget,
-        //                                           1e-2f);
-        //     assert(nextIndices <= lodIndices.size());
+            if (nextIndices == lodIndices.size()) {
+                break;
+            }
 
-        //     if (nextIndices == lodIndices.size()) {
-        //         break;
-        //     }
-
-        //     lodIndices.resize(nextIndices);
-        //     meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), vertexCount);
-        // }
+            lodIndices.resize(nextIndices);
+            meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), vertexCount);
+        }
     }
+
+    auto& lod = _model.lods[0];
 
     _model.verticesBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
                                                           false,
