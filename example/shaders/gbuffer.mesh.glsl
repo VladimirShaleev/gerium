@@ -14,21 +14,23 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform Scene {
     SceneData scene;
 };
 
-layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer Vertices {
+layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer Vertices {
     Vertex vertices[];
 };
 
-layout(std430, binding = 1, set = MESH_DATA_SET) readonly buffer Meshlets {
+layout(std430, binding = 3, set = MESH_DATA_SET) readonly buffer Meshlets {
     Meshlet meshlets[];
 };
 
-layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer MeshletVertices {
+layout(std430, binding = 4, set = MESH_DATA_SET) readonly buffer MeshletVertices {
     uint meshletVertices[];
 };
 
-layout(std430, binding = 3, set = MESH_DATA_SET) readonly buffer MeshletPrimitives {
+layout(std430, binding = 5, set = MESH_DATA_SET) readonly buffer MeshletPrimitives {
     uint8_t meshletPrimitives[];
 };
+
+taskPayloadSharedEXT MeshTaskPayload payload;
 
 layout(location = 0) out vec4 color[];
 
@@ -43,8 +45,10 @@ uint hash(uint a) {
 }
 
 void main() {
+    uint meshletOffset = payload.meshletOffset;
+
     uint ti = gl_LocalInvocationID.x;
-    uint mi = gl_WorkGroupID.x;
+    uint mi = meshletOffset + gl_WorkGroupID.x;
 
     uint mhash = hash(mi);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
@@ -65,7 +69,7 @@ void main() {
 
         vec3 normal = vec3(int(vertices[index].normal.x), int(vertices[index].normal.y), int(vertices[index].normal.z)) / 127.0 - 1.0;
     
-        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * vertices[index].position;
+        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * payload.world * vertices[index].position;
         color[offset] = vec4(mcolor, 1.0);
     }
 

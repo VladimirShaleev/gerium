@@ -13,9 +13,7 @@
 #define PI 3.1415926538
 
 #ifdef __cplusplus
-# define GLM_NAMESPACE glm::
-#else
-# define GLM_NAMESPACE 
+using namespace glm;
 #endif
 
 #ifdef __cplusplus

@@ -105,12 +105,22 @@ public:
         return _clusterDatas;
     }
 
+    gerium_buffer_h instances() const noexcept {
+        return _instancesBuffer;
+    }
+
+    gerium_uint32_t instanceCount() const noexcept {
+        return gerium_uint32_t(_instances.size());
+    }
+
 private:
     void addPass(RenderPass& renderPass);
     void createScene();
+    void uploadClusterDatas(ClusterDatas& clusterDatas, gerium_uint32_t id);
     ClusterMeshInstance loadClusterMesh(ClusterDatas& clusterDatas, std::string_view name) const;
     size_t appendMeshlets(ClusterDatas& clusterDatas,
                           const VertexOptimized* vertices,
+                          size_t verticesOffset,
                           size_t verticesCount,
                           const std::vector<uint32_t>& indices) const;
 
@@ -185,6 +195,8 @@ private:
     Technique _baseTechnique{};
 
     ClusterDatas _clusterDatas{};
+    std::vector<ClusterMeshInstance> _instances{};
+    Buffer _instancesBuffer{};
 };
 
 #endif
