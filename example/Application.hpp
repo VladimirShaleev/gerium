@@ -109,6 +109,10 @@ public:
         return _instancesBuffer;
     }
 
+    gerium_buffer_h indirectDrawBuffer() const noexcept {
+        return _indirectDrawBuffer;
+    }
+
     gerium_uint32_t instanceCount() const noexcept {
         return gerium_uint32_t(_instances.size());
     }
@@ -197,6 +201,7 @@ private:
     ClusterDatas _clusterDatas{};
     std::vector<ClusterMeshInstance> _instances{};
     Buffer _instancesBuffer{};
+    Buffer _indirectDrawBuffer{};
 };
 
 #endif

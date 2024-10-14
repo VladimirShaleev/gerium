@@ -6,12 +6,10 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
     auto camera = application()->getCamera();
-    auto& datas = application()->clusterDatas();
-
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, MESH_DATA_SET);
-    gerium_command_buffer_draw_mesh_tasks(commandBuffer, application()->instanceCount(), 1, 1);
+    gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, application()->indirectDrawBuffer(), 0, 1, 4 * 3);
 }
 
 void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -130,6 +128,20 @@ void Application::createScene() {
                                                      "instances",
                                                      _instances.data(),
                                                      sizeof(_instances[0]) * _instances.size());
+
+    struct IndirectCommand {
+        uint32_t groupCountX;
+        uint32_t groupCountY;
+        uint32_t groupCountZ;
+    };
+
+    IndirectCommand command{};
+    command.groupCountX = uint32_t(_instances.size());
+    command.groupCountY = 1;
+    command.groupCountZ = 1;
+
+    _indirectDrawBuffer =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_INDIRECT_BIT, false, "indirect_draw", &command, sizeof(command));
 }
 
 void Application::uploadClusterDatas(ClusterDatas& clusterDatas, gerium_uint32_t id) {
@@ -386,6 +398,8 @@ void Application::initialize() {
 
 void Application::uninitialize() {
     if (_renderer) {
+        _indirectDrawBuffer = {};
+        _instancesBuffer = {};
         _clusterDatas = {};
 
         _asyncLoader.destroy();
