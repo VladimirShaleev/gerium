@@ -445,6 +445,14 @@ void CommandBuffer::onDrawMeshTasksIndirect(BufferHandle handle,
     _device->vkTable().vkCmdDrawMeshTasksIndirectEXT(_commandBuffer, vkBuffer, vkOffset, drawCount, stride);
 }
 
+void CommandBuffer::onFillBuffer(BufferHandle handle,
+                                 gerium_uint32_t offset,
+                                 gerium_uint32_t size,
+                                 gerium_uint32_t data) noexcept {
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
+    _device->vkTable().vkCmdFillBuffer(_commandBuffer, vkBuffer, vkOffset, VkDeviceSize{ size }, data);
+}
+
 void CommandBuffer::bindDescriptorSets() {
     uint32_t firstSet          = 0;
     uint32_t numDescriptorSets = 0;

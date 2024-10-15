@@ -74,6 +74,7 @@ public:
 
     void clearInputResources();
     void addInputResource(const FrameGraphResource* resource, gerium_uint32_t index, Handle handle);
+    Handle findInputResource(gerium_utf8_t resource) const noexcept;
 
     bool isSupportedFormat(gerium_format_t format) noexcept;
 

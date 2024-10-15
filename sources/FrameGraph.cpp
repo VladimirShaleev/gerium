@@ -120,6 +120,11 @@ void FrameGraph::clear() {
                         handle = Undefined;
                     }
                 }
+            } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+                if (resource->info.buffer.handle != Undefined) {
+                    _renderer->destroyBuffer(resource->info.buffer.handle);
+                    resource->info.buffer.handle = Undefined;
+                }
             }
         }
     }
@@ -277,6 +282,14 @@ void FrameGraph::compile() {
                         if (!resource->saveForNextFrame) {
                             break;
                         }
+                    }
+                } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+                    if (resource->info.buffer.handle == Undefined) {
+                        BufferCreation creation{};
+                        creation
+                            .set(resource->info.buffer.usage, ResourceUsageType::Immutable, resource->info.buffer.size)
+                            .setName(resource->name);
+                        resource->info.buffer.handle = _renderer->createBuffer(creation);
                     }
                 }
             }
@@ -459,25 +472,32 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();
 
-    resource->name                           = intern(output.name);
-    resource->external                       = output.external;
-    resource->producer                       = Undefined;
-    resource->output                         = Undefined;
-    resource->info.type                      = output.type;
-    resource->info.texture.format            = output.format;
-    resource->info.texture.width             = output.width;
-    resource->info.texture.height            = output.height;
-    resource->info.texture.depth             = 1;
-    resource->info.texture.autoScale         = output.auto_scale;
-    resource->info.texture.operation         = output.render_pass_op;
-    resource->info.texture.colorWriteMask    = output.color_write_mask;
-    resource->info.texture.colorBlend        = output.color_blend_attachment;
-    resource->info.texture.clearColor        = output.clear_color_attachment;
-    resource->info.texture.clearDepthStencil = output.clear_depth_stencil_attachment;
-    for (auto& handle : resource->info.texture.handles) {
-        handle = Undefined;
+    resource->name      = intern(output.name);
+    resource->external  = output.external;
+    resource->producer  = Undefined;
+    resource->output    = Undefined;
+    resource->info.type = output.type;
+
+    if (output.type != GERIUM_RESOURCE_TYPE_BUFFER) {
+        resource->info.texture.format            = output.format;
+        resource->info.texture.width             = output.width;
+        resource->info.texture.height            = output.height;
+        resource->info.texture.depth             = 1;
+        resource->info.texture.autoScale         = output.auto_scale;
+        resource->info.texture.operation         = output.render_pass_op;
+        resource->info.texture.colorWriteMask    = output.color_write_mask;
+        resource->info.texture.colorBlend        = output.color_blend_attachment;
+        resource->info.texture.clearColor        = output.clear_color_attachment;
+        resource->info.texture.clearDepthStencil = output.clear_depth_stencil_attachment;
+        for (auto& handle : resource->info.texture.handles) {
+            handle = Undefined;
+        }
+        calcFramebufferSize(resource->info);
+    } else {
+        resource->info.buffer.size   = output.size;
+        resource->info.buffer.usage  = output.usage;
+        resource->info.buffer.handle = Undefined;
     }
-    calcFramebufferSize(resource->info);
 
     if (output.type != GERIUM_RESOURCE_TYPE_REFERENCE) {
         resource->producer = producer;

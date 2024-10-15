@@ -50,6 +50,8 @@ public:
                         gerium_address_mode_t addressModeU,
                         gerium_address_mode_t addressModeV,
                         gerium_address_mode_t addressModeW);
+    BufferHandle getBuffer(gerium_utf8_t resource, bool fromOutput);
+    TextureHandle getTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame);
 
     void destroyBuffer(BufferHandle handle) noexcept;
     void destroyTexture(TextureHandle handle) noexcept;
@@ -111,6 +113,9 @@ private:
                                   gerium_address_mode_t addressModeU,
                                   gerium_address_mode_t addressModeV,
                                   gerium_address_mode_t addressModeW) = 0;
+
+    virtual BufferHandle onGetBuffer(gerium_utf8_t resource, bool fromOutput)                           = 0;
+    virtual TextureHandle onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) = 0;
 
     virtual void onDestroyBuffer(BufferHandle handle) noexcept               = 0;
     virtual void onDestroyTexture(TextureHandle handle) noexcept             = 0;

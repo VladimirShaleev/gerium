@@ -1399,6 +1399,13 @@ void Device::addInputResource(const FrameGraphResource* resource, gerium_uint32_
     _currentInputResources[std::string(resource->name) + '-' + std::to_string(index)] = { resource, handle };
 }
 
+Handle Device::findInputResource(gerium_utf8_t resource) const noexcept {
+    if (auto it = _currentInputResources.find(resource); it != _currentInputResources.end()) {
+        return it->second.second;
+    }
+    return Undefined;
+}
+
 bool Device::isSupportedFormat(gerium_format_t format) noexcept {
     const auto vkFormat = toVkFormat(format);
 

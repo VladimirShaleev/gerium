@@ -5,9 +5,12 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    gerium_buffer_h commandCount;
+    check(gerium_renderer_get_buffer(renderer, "command_count", 1, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet0, SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet1, MESH_DATA_SET);
+    gerium_command_buffer_fill_buffer(commandBuffer, commandCount, 0, 4, 0);
     gerium_command_buffer_dispatch(commandBuffer, 1, 1, 1);
 }
 
@@ -16,9 +19,11 @@ void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     _descriptorSet0 = application()->resourceManager().createDescriptorSet("", true);
     _descriptorSet1 = application()->resourceManager().createDescriptorSet("", true);
     gerium_renderer_bind_buffer(renderer, _descriptorSet0, 0, application()->drawData());
+    gerium_renderer_bind_resource(renderer, _descriptorSet0, 1, "command_count");
+    gerium_renderer_bind_resource(renderer, _descriptorSet0, 2, "commands");
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 0, application()->instances());
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 1, datas.meshesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 3, datas.meshletsBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 2, datas.meshletsBuffer);
 }
 
 void CullingPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {

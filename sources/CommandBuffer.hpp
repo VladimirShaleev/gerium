@@ -41,6 +41,7 @@ public:
                                gerium_uint32_t drawCount,
                                gerium_uint32_t stride) noexcept;
     void drawProfiler(bool* show) noexcept;
+    void fillBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size, gerium_uint32_t data) noexcept;
 
 protected:
     Renderer* getRenderer() noexcept;
@@ -81,6 +82,11 @@ private:
                                          gerium_uint32_t stride) noexcept = 0;
 
     virtual void onDrawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept = 0;
+
+    virtual void onFillBuffer(BufferHandle handle,
+                              gerium_uint32_t offset,
+                              gerium_uint32_t size,
+                              gerium_uint32_t data) noexcept = 0;
 
     Renderer* _renderer{};
 };

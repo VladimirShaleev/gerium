@@ -65,6 +65,9 @@ private:
                           gerium_address_mode_t addressModeV,
                           gerium_address_mode_t addressModeW) override;
 
+    BufferHandle onGetBuffer(gerium_utf8_t resource, bool fromOutput) override;
+    TextureHandle onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) override;
+
     void onDestroyBuffer(BufferHandle handle) noexcept override;
     void onDestroyTexture(TextureHandle handle) noexcept override;
     void onDestroyTechnique(TechniqueHandle handle) noexcept override;

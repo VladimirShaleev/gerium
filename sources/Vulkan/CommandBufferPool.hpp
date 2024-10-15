@@ -77,6 +77,10 @@ private:
                                  gerium_uint32_t offset,
                                  gerium_uint32_t drawCount,
                                  gerium_uint32_t stride) noexcept override;
+    void onFillBuffer(BufferHandle handle,
+                      gerium_uint32_t offset,
+                      gerium_uint32_t size,
+                      gerium_uint32_t data) noexcept override;
 
     void bindDescriptorSets();
     uint32_t getFamilyIndex(QueueType queue) const noexcept;

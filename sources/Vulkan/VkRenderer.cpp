@@ -361,6 +361,23 @@ void VkRenderer::onTextureSampler(TextureHandle handle,
     }
 }
 
+BufferHandle VkRenderer::onGetBuffer(gerium_utf8_t resource, bool fromOutput) {
+    // TODO: use fromOutput
+    if (auto handle = _device->findInputResource(resource); handle != Undefined) {
+        return handle;
+    }
+    throw Exception(GERIUM_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
+TextureHandle VkRenderer::onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) {
+    // TODO: use fromOutput
+    // TODO: use fromPreviousFrame
+    if (auto handle = _device->findInputResource(resource); handle != Undefined) {
+        return handle;
+    }
+    throw Exception(GERIUM_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 void VkRenderer::onDestroyBuffer(BufferHandle handle) noexcept {
     _device->destroyBuffer(handle);
 }
@@ -500,6 +517,8 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
+            } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+                _device->addInputResource(resource, i, resource->info.buffer.handle);
             }
         }
 
@@ -536,6 +555,8 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (node->compute) {
                     _device->addInputResource(resource, node->inputCount + i, texture);
                 }
+            } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+                _device->addInputResource(resource, node->inputCount + i, resource->info.buffer.handle);
             }
         }
 

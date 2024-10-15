@@ -75,6 +75,13 @@ void CommandBuffer::drawProfiler(bool* show) noexcept {
     profilerUI.draw(getRenderer()->getProfiler(), show, 100);
 }
 
+void CommandBuffer::fillBuffer(BufferHandle handle,
+                               gerium_uint32_t offset,
+                               gerium_uint32_t size,
+                               gerium_uint32_t data) noexcept {
+    onFillBuffer(handle, offset, size, data);
+}
+
 Renderer* CommandBuffer::getRenderer() noexcept {
     return _renderer;
 }
@@ -184,4 +191,13 @@ void gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,
     if (show) {
         *show = bShow;
     }
+}
+
+void gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
+                                       gerium_buffer_h handle,
+                                       gerium_uint32_t offset,
+                                       gerium_uint32_t size,
+                                       gerium_uint32_t data) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->fillBuffer({ handle.index }, offset, size, data);
 }

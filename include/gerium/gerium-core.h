@@ -1345,6 +1345,19 @@ gerium_renderer_texture_sampler(gerium_renderer_t renderer,
                                 gerium_address_mode_t address_mode_v,
                                 gerium_address_mode_t address_mode_w);
 
+gerium_public gerium_result_t
+gerium_renderer_get_buffer(gerium_renderer_t renderer,
+                           gerium_utf8_t resource,
+                           gerium_bool_t from_output,
+                           gerium_buffer_h* handle);
+
+gerium_public gerium_result_t
+gerium_renderer_get_texture(gerium_renderer_t renderer,
+                            gerium_utf8_t resource,
+                            gerium_bool_t from_output,
+                            gerium_bool_t from_previous_frame,
+                            gerium_texture_h* handle);
+
 gerium_public void
 gerium_renderer_destroy_buffer(gerium_renderer_t renderer,
                                gerium_buffer_h handle);
@@ -1478,6 +1491,13 @@ gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_b
 gerium_public void
 gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,
                                     gerium_bool_t* show);
+
+gerium_public void
+gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
+                                  gerium_buffer_h handle,
+                                  gerium_uint32_t offset,
+                                  gerium_uint32_t size,
+                                  gerium_uint32_t data);
 
 gerium_public gerium_frame_graph_t
 gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);

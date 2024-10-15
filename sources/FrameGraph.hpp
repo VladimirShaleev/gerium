@@ -50,6 +50,9 @@ struct FrameGraphResourceInfo {
 
     union {
         struct {
+            gerium_uint32_t size;
+            gerium_buffer_usage_flags_t usage;
+            BufferHandle handle;
         } buffer;
 
         struct {

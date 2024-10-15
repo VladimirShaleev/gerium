@@ -76,6 +76,14 @@ void Renderer::textureSampler(TextureHandle handle,
     onTextureSampler(handle, minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW);
 }
 
+BufferHandle Renderer::getBuffer(gerium_utf8_t resource, bool fromOutput) {
+    return onGetBuffer(resource, fromOutput);
+}
+
+TextureHandle Renderer::getTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) {
+    return onGetTexture(resource, fromOutput, fromPreviousFrame);
+}
+
 void Renderer::destroyBuffer(BufferHandle handle) noexcept {
     onDestroyBuffer(handle);
 }
@@ -288,6 +296,31 @@ gerium_result_t gerium_renderer_texture_sampler(gerium_renderer_t renderer,
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<Renderer*>(renderer)->textureSampler(
             { handle.index }, min_filter, mag_filter, mip_filter, address_mode_u, address_mode_v, address_mode_w);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_renderer_get_buffer(gerium_renderer_t renderer,
+                                           gerium_utf8_t resource,
+                                           gerium_bool_t from_output,
+                                           gerium_buffer_h* handle) {
+    assert(renderer);
+    assert(handle);
+
+    GERIUM_BEGIN_SAFE_BLOCK
+        *handle = alias_cast<Renderer*>(renderer)->getBuffer(resource, from_output);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_renderer_get_texture(gerium_renderer_t renderer,
+                                            gerium_utf8_t resource,
+                                            gerium_bool_t from_output,
+                                            gerium_bool_t from_previous_frame,
+                                            gerium_texture_h* handle) {
+    assert(renderer);
+    assert(handle);
+
+    GERIUM_BEGIN_SAFE_BLOCK
+        *handle = alias_cast<Renderer*>(renderer)->getTexture(resource, from_output, from_previous_frame);
     GERIUM_END_SAFE_BLOCK
 }
 
