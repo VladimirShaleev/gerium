@@ -39,7 +39,8 @@ public:
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
 private:
-    DescriptorSet _descriptorSet;
+    DescriptorSet _descriptorSet0;
+    DescriptorSet _descriptorSet1;
 };
 
 class GBufferPass final : public RenderPass {

@@ -2164,16 +2164,13 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 descriptorWrite[i].pImageInfo = &imageInfo[i];
                 break;
             }
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
                 if (resource == Undefined) {
                     continue;
                 }
                 auto buffer = _buffers.access(resource);
 
-                descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
-                                                        ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
-                                                        : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 
                 if (buffer->parent != Undefined) {
                     bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
@@ -2187,7 +2184,6 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 descriptorWrite[i].pBufferInfo = &bufferInfo[i];
                 break;
             }
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: {
                 if (resource == Undefined) {
                     continue;
