@@ -18,6 +18,11 @@ struct SceneData {
     ivec2 pad0;
 };
 
+struct DrawData {
+    float lodTarget;
+    uint  drawCount;
+};
+
 #if (defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)) || defined(__cplusplus)
 struct VertexOptimized {
     vec4    position;

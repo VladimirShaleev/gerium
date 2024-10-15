@@ -1,5 +1,25 @@
 #include "Application.hpp"
 
+void CullingPass::render(gerium_frame_graph_t frameGraph,
+                         gerium_renderer_t renderer,
+                         gerium_command_buffer_t commandBuffer,
+                         gerium_uint32_t worker,
+                         gerium_uint32_t totalWorkers) {
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, SCENE_DATA_SET);
+    gerium_command_buffer_dispatch(commandBuffer, 1, 1, 1);
+}
+
+void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, application()->drawData());
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 1, application()->instances());
+}
+
+void CullingPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
+}
+
 void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_renderer_t renderer,
                          gerium_command_buffer_t commandBuffer,
@@ -123,6 +143,12 @@ void Application::createScene() {
         _instances.push_back(padding);
     }
 
+    DrawData drawData{};
+    drawData.drawCount = glm::uint(_instances.size());
+    drawData.lodTarget = 0;
+    _drawData =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT, false, "draw_data", &drawData, sizeof(drawData));
+
     _instancesBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
                                                      false,
                                                      "instances",
@@ -140,8 +166,8 @@ void Application::createScene() {
     command.groupCountY = 1;
     command.groupCountZ = 1;
 
-    _indirectDrawBuffer =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_INDIRECT_BIT, false, "indirect_draw", &command, sizeof(command));
+    _indirectDrawBuffer = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_INDIRECT_BIT, false, "indirect_draw", &command, sizeof(command));
 }
 
 void Application::uploadClusterDatas(ClusterDatas& clusterDatas, gerium_uint32_t id) {
@@ -383,6 +409,7 @@ void Application::initialize() {
 
     addPass(_presentPass);
     addPass(_gbufferPass);
+    addPass(_cullingPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
@@ -399,8 +426,8 @@ void Application::initialize() {
 void Application::uninitialize() {
     if (_renderer) {
         _indirectDrawBuffer = {};
-        _instancesBuffer = {};
-        _clusterDatas = {};
+        _instancesBuffer    = {};
+        _clusterDatas       = {};
 
         _asyncLoader.destroy();
 
