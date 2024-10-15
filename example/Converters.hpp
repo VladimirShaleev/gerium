@@ -237,6 +237,17 @@ struct convert<gerium_blend_op_t> {
 };
 
 template <>
+struct convert<gerium_buffer_usage_flags_t> {
+    static Node encode(const gerium_buffer_usage_flags_t& rhs) {
+        throw YAML::Exception(YAML::Mark(), "Not implemented");
+    }
+
+    static bool decode(const Node& node, gerium_buffer_usage_flags_t& rhs) {
+        return decodeEnum(node, rhs);
+    }
+};
+
+template <>
 struct convert<gerium_rasterization_state_t> {
     static Node encode(const gerium_rasterization_state_t& rhs) {
         throw YAML::Exception(YAML::Mark(), "Not implemented");
@@ -476,7 +487,7 @@ struct convert<gerium_resource_output_t> {
         rhs.type             = node["type"].as<gerium_resource_type_t>();
         rhs.name             = allocate(node["name"].as<std::string>());
         rhs.external         = node["external"].as<bool>(false);
-        rhs.format           = node["format"].as<gerium_format_t>();
+        rhs.format           = node["format"].as<gerium_format_t>(GERIUM_FORMAT_R8_UNORM);
         rhs.width            = node["width"].as<gerium_uint16_t>(0);
         rhs.height           = node["height"].as<gerium_uint16_t>(0);
         rhs.auto_scale       = node["auto scale"].as<float>(1.0f);
@@ -501,6 +512,15 @@ struct convert<gerium_resource_output_t> {
             rhs.clear_depth_stencil_attachment.depth = clearDepthStencilAttachment[0].as<float>(1.0f);
             rhs.clear_depth_stencil_attachment.value = clearDepthStencilAttachment[1].as<gerium_uint32_t>(0);
         }
+
+        rhs.size  = node["size"].as<gerium_uint32_t>(0);
+        rhs.usage = GERIUM_BUFFER_USAGE_NONE_BIT;
+
+        for (const auto& usage :
+             node["usage"].as<std::vector<gerium_buffer_usage_flags_t>>(std::vector<gerium_buffer_usage_flags_t>{})) {
+            rhs.usage |= usage;
+        }
+
         return true;
     }
 };

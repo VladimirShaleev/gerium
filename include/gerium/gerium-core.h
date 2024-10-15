@@ -685,6 +685,7 @@ GERIUM_FLAGS(gerium_color_component_flags_t)
 
 typedef enum
 {
+    GERIUM_BUFFER_USAGE_NONE_BIT     = 0,
     GERIUM_BUFFER_USAGE_VERTEX_BIT   = 1,
     GERIUM_BUFFER_USAGE_INDEX_BIT    = 2,
     GERIUM_BUFFER_USAGE_UNIFORM_BIT  = 4,
@@ -998,6 +999,8 @@ typedef struct
     gerium_color_blend_attachment_state_t         color_blend_attachment;
     gerium_clear_color_attachment_state_t         clear_color_attachment;
     gerium_clear_depth_stencil_attachment_state_t clear_depth_stencil_attachment;
+    gerium_uint32_t                               size;
+    gerium_buffer_usage_flags_t                   usage;
 } gerium_resource_output_t;
 
 typedef struct
