@@ -105,11 +105,8 @@ struct ClusterMeshInstance {
 };
 
 struct MeshTaskPayload {
-    mat4 world;
-    uint meshletOffset;
-    uint _pad0; 
-    uint _pad1; 
-    uint _pad2; 
+	uint drawId;
+	uint meshletIndices[TASK_GROUP_SIZE];
 };
 
 #endif
