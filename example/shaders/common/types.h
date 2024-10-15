@@ -3,6 +3,11 @@
 
 #include "defines.h"
 
+#if defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)
+#extension GL_EXT_shader_16bit_storage: require
+#extension GL_EXT_shader_8bit_storage: require
+#endif
+
 struct SceneData {
     mat4  view;
     mat4  viewProjection;
@@ -24,10 +29,10 @@ struct DrawData {
 };
 
 struct MeshTaskCommand {
-	uint drawId;
-	uint taskOffset;
-	uint taskCount;
-	uint _pad0;
+    uint drawId;
+    uint taskOffset;
+    uint taskCount;
+    uint _pad0;
 };
 
 #if (defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)) || defined(__cplusplus)
@@ -41,7 +46,7 @@ struct VertexOptimized {
 
 struct MeshletOptimized {
     vec4     centerAndRadius;
-	i8vec4   coneAxisAndCutoff;
+    i8vec4   coneAxisAndCutoff;
     uint     vertexOffset;
     uint     primitiveOffset;
     uint16_t vertexCount;
@@ -64,7 +69,7 @@ struct VertexLegacy {
 
 struct MeshletLegacy {
     vec4     centerAndRadius;
-	vec4     coneAxisAndCutoff;
+    vec4     coneAxisAndCutoff;
     uint     vertexOffset;
     uint     primitiveOffset;
     uint16_t vertexCount;
@@ -77,8 +82,8 @@ struct MeshletLegacy {
 #endif
 
 struct ClusterMeshLod {
-	uint meshletOffset;
-	uint meshletCount;
+    uint meshletOffset;
+    uint meshletCount;
 };
 
 struct ClusterMesh {
@@ -101,7 +106,7 @@ struct ClusterMeshInstance {
 
 struct MeshTaskPayload {
     mat4 world;
-	uint meshletOffset;
+    uint meshletOffset;
     uint _pad0; 
     uint _pad1; 
     uint _pad2; 

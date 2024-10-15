@@ -322,14 +322,17 @@ void FrameGraph::compile() {
         for (gerium_uint32_t j = 0; j < node->inputCount; ++j) {
             auto resource = _resources.access(node->inputs[j]);
 
-            if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ||
-                resource->info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
+            if (resource->info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
                 continue;
             }
 
-            const auto& texture = getResource(resource->name)->info.texture;
-            for (auto i = 0; i < std::size(texture.handles); ++i) {
-                resource->info.texture.handles[i] = texture.handles[i];
+            if (resource->info.type != GERIUM_RESOURCE_TYPE_BUFFER) {
+                const auto& texture = getResource(resource->name)->info.texture;
+                for (auto i = 0; i < std::size(texture.handles); ++i) {
+                    resource->info.texture.handles[i] = texture.handles[i];
+                }
+            } else {
+                resource->info.buffer.handle = getResource(resource->name)->info.buffer.handle;
             }
         }
 

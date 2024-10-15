@@ -1,8 +1,5 @@
 #version 450
 
-#extension GL_EXT_shader_16bit_storage: require
-#extension GL_EXT_shader_8bit_storage: require
-
 #include "common/types.h"
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
@@ -12,11 +9,11 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform DrawDataUBO {
 };
 
 layout(std430, binding = 1, set = SCENE_DATA_SET) buffer CommandCount {
-	uint commandCount;
+    uint commandCount;
 };
 
 layout(std430, binding = 2, set = SCENE_DATA_SET) writeonly buffer Commands {
-	MeshTaskCommand commands[];
+    MeshTaskCommand commands[];
 };
 
 layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer ClusterMeshInstances {

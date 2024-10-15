@@ -43,6 +43,24 @@ private:
     DescriptorSet _descriptorSet1;
 };
 
+class IndirectPass final : public RenderPass {
+public:
+    IndirectPass() : RenderPass("indirect_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    DescriptorSet _descriptorSet;
+};
+
 class GBufferPass final : public RenderPass {
 public:
     GBufferPass() : RenderPass("gbuffer_pass") {
@@ -207,6 +225,7 @@ private:
     CullingPass _cullingPass{};
     GBufferPass _gbufferPass{};
     PresentPass _presentPass{};
+    IndirectPass _indirectPass{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};
