@@ -20,6 +20,11 @@ public:
                          gerium_uint32_t mipCount,
                          QueueType srcQueueType = QueueType::Graphics,
                          QueueType dstQueueType = QueueType::Graphics);
+    void addBufferBarrier(BufferHandle handle,
+                          ResourceState srcState,
+                          ResourceState dstState,
+                          QueueType srcQueueType = QueueType::Graphics,
+                          QueueType dstQueueType = QueueType::Graphics);
     void clearColor(gerium_uint32_t index,
                     gerium_float32_t red,
                     gerium_float32_t green,

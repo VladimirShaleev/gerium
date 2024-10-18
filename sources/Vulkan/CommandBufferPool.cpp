@@ -53,6 +53,34 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     }
 }
 
+void CommandBuffer::addBufferBarrier(BufferHandle handle,
+                                     ResourceState srcState,
+                                     ResourceState dstState,
+                                     QueueType srcQueueType,
+                                     QueueType dstQueueType) {
+    auto buffer = _device->_buffers.access(handle);
+
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, 0);
+
+    auto srcFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(srcQueueType);
+    auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
+
+    VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+    barrier.srcAccessMask       = toVkAccessFlags(srcState);
+    barrier.dstAccessMask       = toVkAccessFlags(dstState);
+    barrier.srcQueueFamilyIndex = srcFamily;
+    barrier.dstQueueFamilyIndex = dstFamily;
+    barrier.buffer              = vkBuffer;
+    barrier.offset              = vkOffset;
+    barrier.size                = buffer->size;
+
+    const auto srcStageMask = utilDeterminePipelineStageFlags(barrier.srcAccessMask, srcQueueType);
+    const auto dstStageMask = utilDeterminePipelineStageFlags(barrier.dstAccessMask, dstQueueType);
+
+    _device->vkTable().vkCmdPipelineBarrier(
+        _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+}
+
 void CommandBuffer::clearColor(gerium_uint32_t index,
                                gerium_float32_t red,
                                gerium_float32_t green,
@@ -451,6 +479,7 @@ void CommandBuffer::onFillBuffer(BufferHandle handle,
                                  gerium_uint32_t data) noexcept {
     auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
     _device->vkTable().vkCmdFillBuffer(_commandBuffer, vkBuffer, vkOffset, VkDeviceSize{ size }, data);
+    addBufferBarrier(handle, ResourceState::CopyDest, ResourceState::CopyDest);
 }
 
 void CommandBuffer::bindDescriptorSets() {

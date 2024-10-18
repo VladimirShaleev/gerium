@@ -3,6 +3,8 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: color
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth
 
   - name: gbuffer_pass
     inputs:

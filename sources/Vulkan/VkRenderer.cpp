@@ -518,7 +518,11 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
-                _device->addInputResource(resource, i, resource->info.buffer.handle);
+                auto buffer = resource->info.buffer.handle;
+                constexpr auto states =
+                    ResourceState::UnorderedAccess | ResourceState::IndirectArgument | ResourceState::ShaderResource;
+                cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess, states);
+                _device->addInputResource(resource, i, buffer);
             }
         }
 
@@ -556,7 +560,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                     _device->addInputResource(resource, node->inputCount + i, texture);
                 }
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
-                _device->addInputResource(resource, node->inputCount + i, resource->info.buffer.handle);
+                auto buffer = resource->info.buffer.handle;
+                cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
+                _device->addInputResource(resource, node->inputCount + i, buffer);
             }
         }
 
