@@ -28,6 +28,7 @@ public:
 
     BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
+    TextureHandle createTextureView(const TextureViewCreation& creation);
     TechniqueHandle createTechnique(const FrameGraph& frameGraph,
                                     gerium_utf8_t name,
                                     gerium_uint32_t pipelineCount,
@@ -91,6 +92,7 @@ private:
 
     virtual BufferHandle onCreateBuffer(const BufferCreation& creation)                                   = 0;
     virtual TextureHandle onCreateTexture(const TextureCreation& creation)                                = 0;
+    virtual TextureHandle onCreateTextureView(const TextureViewCreation& creation)                        = 0;
     virtual TechniqueHandle onCreateTechnique(const FrameGraph& frameGraph,
                                               gerium_utf8_t name,
                                               gerium_uint32_t pipelineCount,

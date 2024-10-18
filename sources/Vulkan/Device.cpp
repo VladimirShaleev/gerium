@@ -380,16 +380,18 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 TextureHandle Device::createTexture(const TextureCreation& creation) {
     auto [handle, texture] = _textures.obtain_and_access();
 
-    texture->vkFormat = toVkFormat(creation.format);
-    texture->size     = calcTextureSize(creation.width, creation.height, creation.depth, creation.format);
-    texture->width    = creation.width;
-    texture->height   = creation.height;
-    texture->depth    = creation.depth;
-    texture->mipmaps  = creation.mipmaps;
-    texture->flags    = creation.flags;
-    texture->type     = creation.type;
-    texture->name     = intern(creation.name);
-    texture->sampler  = Undefined;
+    texture->vkFormat      = toVkFormat(creation.format);
+    texture->size          = calcTextureSize(creation.width, creation.height, creation.depth, creation.format);
+    texture->width         = creation.width;
+    texture->height        = creation.height;
+    texture->depth         = creation.depth;
+    texture->mipBase       = 0;
+    texture->mipLevels     = creation.mipmaps;
+    texture->flags         = creation.flags;
+    texture->type          = creation.type;
+    texture->name          = intern(creation.name);
+    texture->parentTexture = Undefined;
+    texture->sampler       = Undefined;
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -443,36 +445,49 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     setObjectName(VK_OBJECT_TYPE_IMAGE, (uint64_t) texture->vkImage, texture->name);
 
-    VkImageAspectFlags aspectMask{};
-    if (hasDepthOrStencil(texture->vkFormat)) {
-        aspectMask |= hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
-        aspectMask |= hasStencil(texture->vkFormat) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
-    } else {
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-
-    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    viewInfo.image      = texture->vkImage;
-    viewInfo.viewType   = toVkImageViewType(creation.type);
-    viewInfo.format     = texture->vkFormat;
-    viewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
-                            VK_COMPONENT_SWIZZLE_IDENTITY,
-                            VK_COMPONENT_SWIZZLE_IDENTITY,
-                            VK_COMPONENT_SWIZZLE_IDENTITY };
-
-    viewInfo.subresourceRange.aspectMask     = aspectMask;
-    viewInfo.subresourceRange.baseMipLevel   = 0;
-    viewInfo.subresourceRange.levelCount     = creation.mipmaps;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount     = 1;
-
-    check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &texture->vkImageView));
-    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture->vkImageView, texture->name);
+    TextureViewCreation vc{};
+    vc.setType(texture->type).setMips(0, creation.mipmaps).setName(texture->name);
+    vkCreateImageView(vc, handle);
 
     if (creation.initialData) {
         uploadTextureData(handle, creation.initialData);
     }
 
+    return handle;
+}
+
+TextureHandle Device::createTextureView(const TextureViewCreation& creation) {
+    auto [handle, texture] = _textures.obtain_and_access();
+
+    auto parentTexture = _textures.access(creation.texture);
+
+    texture->vkImage       = parentTexture->vkImage;
+    texture->vkFormat      = parentTexture->vkFormat;
+    texture->size          = parentTexture->size;
+    texture->width         = parentTexture->width;
+    texture->height        = parentTexture->height;
+    texture->depth         = parentTexture->depth;
+    texture->mipBase       = creation.mipBaseLevel;
+    texture->mipLevels     = creation.mipLevelCount;
+    texture->loaded        = true;
+    texture->flags         = parentTexture->flags;
+    texture->type          = creation.type;
+    texture->name          = intern(creation.name);
+    texture->parentTexture = creation.texture;
+    texture->sampler       = parentTexture->sampler;
+
+    _textures.addReference(creation.texture);
+    parentTexture->loaded = true;
+
+    if (parentTexture->sampler != Undefined) {
+        _samplers.addReference(parentTexture->sampler);
+    }
+
+    for (size_t i = 0; i < std::size(texture->states); ++i) {
+        texture->states[i] = parentTexture->states[i];
+    }
+
+    vkCreateImageView(creation, handle);
     return handle;
 }
 
@@ -1873,9 +1888,10 @@ void Device::createSwapchain(Application* application) {
         auto [colorHandle, color] = _textures.obtain_and_access();
         _swapchainImages.insert(colorHandle);
 
-        color->vkImage = images[i];
-        color->sampler = Undefined;
-        color->loaded  = true;
+        color->vkImage       = images[i];
+        color->parentTexture = Undefined;
+        color->sampler       = Undefined;
+        color->loaded        = true;
 
         VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         viewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
@@ -2523,6 +2539,36 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     return renderPass;
 }
 
+void Device::vkCreateImageView(const TextureViewCreation& creation, TextureHandle handle) {
+    auto texture = _textures.access(handle);
+
+    VkImageAspectFlags aspectMask{};
+    if (hasDepthOrStencil(texture->vkFormat)) {
+        aspectMask |= hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
+        aspectMask |= hasStencil(texture->vkFormat) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
+    } else {
+        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
+    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    viewInfo.image      = texture->vkImage;
+    viewInfo.viewType   = toVkImageViewType(creation.type);
+    viewInfo.format     = texture->vkFormat;
+    viewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY };
+
+    viewInfo.subresourceRange.aspectMask     = aspectMask;
+    viewInfo.subresourceRange.baseMipLevel   = creation.mipBaseLevel;
+    viewInfo.subresourceRange.levelCount     = creation.mipLevelCount;
+    viewInfo.subresourceRange.baseArrayLayer = creation.arrayBaseLayer;
+    viewInfo.subresourceRange.layerCount     = creation.arrayLayerCount;
+
+    check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &texture->vkImageView));
+    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture->vkImageView, creation.name);
+}
+
 void Device::deleteResources(bool forceDelete) {
     while (!_deletionQueue.empty()) {
         const auto& resource = _deletionQueue.front();
@@ -2550,10 +2596,14 @@ void Device::deleteResources(bool forceDelete) {
                     }
                     if (texture->vkImage && texture->vmaAllocation) {
                         vmaDestroyImage(_vmaAllocator, texture->vkImage, texture->vmaAllocation);
-                    } else if (texture->vkImage && !_swapchainImages.contains(resource.handle)) {
+                    } else if (texture->vkImage && !_swapchainImages.contains(resource.handle) &&
+                               texture->parentTexture == Undefined) {
                         _vkTable.vkDestroyImage(_device, texture->vkImage, getAllocCalls());
                     } else {
                         _swapchainImages.erase(TextureHandle{ resource.handle });
+                    }
+                    if (texture->parentTexture != Undefined) {
+                        destroyTexture(texture->parentTexture);
                     }
                 }
                 _textures.release(resource.handle);

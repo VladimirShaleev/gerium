@@ -42,6 +42,8 @@ public:
                                gerium_uint32_t stride) noexcept;
     void drawProfiler(bool* show) noexcept;
     void fillBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size, gerium_uint32_t data) noexcept;
+    void barrierTextureWrite(TextureHandle handle) noexcept;
+    void barrierTextureRead(TextureHandle handle) noexcept;
 
 protected:
     Renderer* getRenderer() noexcept;
@@ -87,6 +89,9 @@ private:
                               gerium_uint32_t offset,
                               gerium_uint32_t size,
                               gerium_uint32_t data) noexcept = 0;
+
+    virtual void onBarrierTextureWrite(TextureHandle handle) noexcept = 0;
+    virtual void onBarrierTextureRead(TextureHandle handle) noexcept  = 0;
 
     Renderer* _renderer{};
 };

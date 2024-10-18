@@ -89,6 +89,22 @@ void FrameGraph::addNode(gerium_utf8_t name,
     _hasChanges = true;
 }
 
+void FrameGraph::addBuffer(gerium_utf8_t name, BufferHandle handle) {
+    if (handle != Undefined) {
+        _externalCache[hash(name)] = { handle, false };
+    } else {
+        _externalCache.erase(hash(name));
+    }
+}
+
+void FrameGraph::addTexture(gerium_utf8_t name, TextureHandle handle) {
+    if (handle != Undefined) {
+        _externalCache[hash(name)] = { handle, true };
+    } else {
+        _externalCache.erase(hash(name));
+    }
+}
+
 void FrameGraph::clear() {
     _hasChanges = false;
 
@@ -452,6 +468,45 @@ const FrameGraphResource* FrameGraph::getResource(gerium_utf8_t name) const noex
     return nullptr;
 }
 
+void FrameGraph::fillExternalResource(FrameGraphResourceHandle handle) noexcept {
+    if (auto resource = _resources.access(handle); resource->external) {
+        if (resource->saveForNextFrame) {
+            _logger->print(GERIUM_LOGGER_LEVEL_WARNING, [name = resource->name](auto& stream) {
+                stream << "External resource '" << name << "' cannot be set to previous_frame flag";
+            });
+        }
+
+        if (auto it = _externalCache.find(hash(resource->name)); it != _externalCache.end()) {
+            auto externaHandle   = it->second.handle;
+            auto externalTexture = it->second.texture;
+            auto resourceTexture = resource->info.type != GERIUM_RESOURCE_TYPE_BUFFER;
+
+            if (externalTexture == resourceTexture) {
+                if (resourceTexture) {
+                    gerium_texture_info_t info;
+                    _renderer->getTextureInfo(externaHandle, info);
+
+                    resource->info.texture.format     = info.format;
+                    resource->info.texture.width      = info.width;
+                    resource->info.texture.height     = info.height;
+                    resource->info.texture.depth      = info.depth;
+                    resource->info.texture.handles[0] = externaHandle;
+                } else {
+                    resource->info.buffer.handle = externaHandle;
+                }
+            } else {
+                _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name = resource->name](auto& stream) {
+                    stream << "Cannot bind external resource because it has a different resource type '" << name << "'";
+                });
+            }
+        } else {
+            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name = resource->name](auto& stream) {
+                stream << "External resource not found '" << name << "'";
+            });
+        }
+    }
+}
+
 gerium_uint32_t FrameGraph::nodeCount() const noexcept {
     return _nodeGraphCount;
 }
@@ -623,6 +678,26 @@ gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
     GERIUM_ASSERT_ARG(output_count == 0 || (output_count > 0 && outputs));
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<FrameGraph*>(frame_graph)->addNode(name, compute, input_count, inputs, output_count, outputs);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_frame_graph_add_buffer(gerium_frame_graph_t frame_graph,
+                                              gerium_utf8_t name,
+                                              gerium_buffer_h handle) {
+    assert(frame_graph);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->addBuffer(name, { handle.index });
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_frame_graph_add_texture(gerium_frame_graph_t frame_graph,
+                                               gerium_utf8_t name,
+                                               gerium_texture_h handle) {
+    assert(frame_graph);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->addTexture(name, { handle.index });
     GERIUM_END_SAFE_BLOCK
 }
 

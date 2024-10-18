@@ -147,6 +147,10 @@ TextureHandle VkRenderer::onCreateTexture(const TextureCreation& creation) {
     return _device->createTexture(creation);
 }
 
+TextureHandle VkRenderer::onCreateTextureView(const TextureViewCreation& creation) {
+    return _device->createTextureView(creation);
+}
+
 TechniqueHandle VkRenderer::onCreateTechnique(const FrameGraph& frameGraph,
                                               gerium_utf8_t name,
                                               gerium_uint32_t pipelineCount,
@@ -498,6 +502,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
         _device->clearInputResources();
         for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
+            frameGraph.fillExternalResource(node->inputs[i]);
             auto resource = frameGraph.getResource(node->inputs[i]);
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
@@ -528,6 +533,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
         auto framebufferIndex = 0;
         for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
+            frameGraph.fillExternalResource(node->outputs[i]);
             auto resource = frameGraph.getResource(node->outputs[i]);
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {

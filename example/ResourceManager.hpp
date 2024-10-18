@@ -54,6 +54,11 @@ public:
     Texture createTexture(const gerium_texture_info_t& info,
                           gerium_cdata_t data,
                           gerium_uint64_t retentionMs = DefaultRetention);
+    Texture createTextureView(const std::string& name,
+                              const Texture& texture,
+                              gerium_uint16_t mipBaseLevel,
+                              gerium_uint16_t mipLevelCount,
+                              gerium_uint64_t retentionMs = DefaultRetention);
     Technique createTechnique(const std::string& name,
                               const std::vector<gerium_pipeline_t>& pipelines,
                               gerium_uint64_t retentionMs = DefaultRetention);

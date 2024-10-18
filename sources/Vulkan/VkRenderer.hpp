@@ -42,6 +42,7 @@ private:
 
     BufferHandle onCreateBuffer(const BufferCreation& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
+    TextureHandle onCreateTextureView(const TextureViewCreation& creation) override;
     TechniqueHandle onCreateTechnique(const FrameGraph& frameGraph,
                                       gerium_utf8_t name,
                                       gerium_uint32_t pipelineCount,

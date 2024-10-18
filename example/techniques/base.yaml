@@ -50,3 +50,9 @@ pipelines:
       - type: GERIUM_SHADER_TYPE_COMPUTE
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/indirect.comp.glsl
+
+  - render pass: depth_pyramid_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/depth_reduce.comp.glsl

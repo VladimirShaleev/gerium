@@ -19,7 +19,7 @@ void ResourceManager::update(gerium_uint64_t elapsedMs) {
     std::vector<gerium_uint64_t> deleteQueue;
     for (auto it = _resources.begin(); it != _resources.end(); ++it) {
         if (it->second.reference == 0) {
-            if (_ticks - it->second.lastTick > it->second.retentionMs) {
+            if (_ticks - it->second.lastTick >= it->second.retentionMs) {
                 switch (it->second.type) {
                     case TextureType:
                         gerium_renderer_destroy_texture(_renderer, { it->second.handle });
@@ -147,6 +147,18 @@ Texture ResourceManager::createTexture(const gerium_texture_info_t& info,
 
     addResource("", name, texture, retentionMs);
     return { this, texture };
+}
+
+Texture ResourceManager::createTextureView(const std::string& name,
+                                           const Texture& texture,
+                                           gerium_uint16_t mipBaseLevel,
+                                           gerium_uint16_t mipLevelCount,
+                                           gerium_uint64_t retentionMs) {
+    gerium_texture_h textureView;
+    gerium_renderer_create_texture_view(_renderer, texture, mipBaseLevel, mipLevelCount, name.c_str(), &textureView);
+
+    addResource("", name, textureView, retentionMs);
+    return { this, textureView };
 }
 
 Technique ResourceManager::createTechnique(const std::string& name,

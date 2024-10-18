@@ -38,6 +38,10 @@ TextureHandle Renderer::createTexture(const TextureCreation& creation) {
     return onCreateTexture(creation);
 }
 
+TextureHandle Renderer::createTextureView(const TextureViewCreation& creation) {
+    return onCreateTextureView(creation);
+}
+
 TechniqueHandle Renderer::createTechnique(const FrameGraph& frameGraph,
                                           gerium_utf8_t name,
                                           gerium_uint32_t pipelineCount,
@@ -225,13 +229,30 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
 
     TextureCreation tc;
     tc.setSize(info->width, info->height, info->depth)
-        .setFlags(info->mipmaps, false, false)
+        .setFlags(info->mipmaps, false, true)
         .setFormat(info->format, info->type)
         .setData((void*) data)
         .setName(info->name);
 
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createTexture(tc);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_renderer_create_texture_view(gerium_renderer_t renderer,
+                                                    gerium_texture_h texture,
+                                                    gerium_uint16_t mip_base_level,
+                                                    gerium_uint16_t mip_level_count,
+                                                    gerium_utf8_t name,
+                                                    gerium_texture_h* handle) {
+    assert(renderer);
+    GERIUM_ASSERT_ARG(handle);
+
+    TextureViewCreation vc;
+    vc.setTexture({ texture.index }).setMips(mip_base_level, mip_level_count).setName(name);
+
+    GERIUM_BEGIN_SAFE_BLOCK
+        *handle = alias_cast<Renderer*>(renderer)->createTextureView(vc);
     GERIUM_END_SAFE_BLOCK
 }
 

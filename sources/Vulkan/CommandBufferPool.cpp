@@ -20,21 +20,22 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
                                     QueueType srcQueueType,
                                     QueueType dstQueueType) {
     auto texture = _device->_textures.access(handle);
+    auto states  = getTextureStates(handle);
 
     auto srcFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(srcQueueType);
     auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    barrier.srcAccessMask                   = toVkAccessFlags(texture->states[mipLevel]);
+    barrier.srcAccessMask                   = toVkAccessFlags(states[mipLevel]);
     barrier.dstAccessMask                   = toVkAccessFlags(newState);
-    barrier.oldLayout                       = toVkImageLayout(texture->states[mipLevel]);
+    barrier.oldLayout                       = toVkImageLayout(states[mipLevel]);
     barrier.newLayout                       = toVkImageLayout(newState);
     barrier.srcQueueFamilyIndex             = srcFamily;
     barrier.dstQueueFamilyIndex             = dstFamily;
     barrier.image                           = texture->vkImage;
     barrier.subresourceRange.aspectMask     = toVkImageAspect(texture->vkFormat);
     barrier.subresourceRange.baseMipLevel   = mipLevel;
-    barrier.subresourceRange.levelCount     = mipCount == 0 ? texture->mipmaps : mipCount;
+    barrier.subresourceRange.levelCount     = mipCount == 0 ? texture->mipLevels : mipCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount     = 1;
 
@@ -49,7 +50,7 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     for (gerium_uint32_t mip = mipLevel; mip < mipLevel + mipCount; ++mip) {
-        texture->states[mip] = newState;
+        states[mip] = newState;
     }
 }
 
@@ -219,7 +220,7 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
     addImageBarrier(dst, ResourceState::CopyDest, 0, 1, queue, queue);
     _device->vkTable().vkCmdCopyBufferToImage(
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    dstTexture->states[0] = ResourceState::CopyDest;
+    getTextureStates(dst)[0] = ResourceState::CopyDest;
     addImageBarrier(dst, ResourceState::CopySource, 0, 1, queue, queue);
 }
 
@@ -229,7 +230,7 @@ void CommandBuffer::generateMipmaps(TextureHandle handle) {
     int32_t w = texture->width;
     int32_t h = texture->height;
 
-    for (int mipIndex = 1; mipIndex < texture->mipmaps; ++mipIndex) {
+    for (int mipIndex = 1; mipIndex < texture->mipLevels; ++mipIndex) {
         addImageBarrier(handle, ResourceState::CopyDest, mipIndex, 1);
 
         VkImageBlit blitRegion{};
@@ -258,7 +259,7 @@ void CommandBuffer::generateMipmaps(TextureHandle handle) {
         addImageBarrier(handle, ResourceState::CopySource, mipIndex, 1);
     }
 
-    addImageBarrier(handle, ResourceState::ShaderResource, 0, texture->mipmaps);
+    addImageBarrier(handle, ResourceState::ShaderResource, 0, texture->mipLevels);
 }
 
 void CommandBuffer::pushMarker(gerium_utf8_t name) {
@@ -482,6 +483,16 @@ void CommandBuffer::onFillBuffer(BufferHandle handle,
     addBufferBarrier(handle, ResourceState::CopyDest, ResourceState::CopyDest);
 }
 
+void CommandBuffer::onBarrierTextureWrite(TextureHandle handle) noexcept {
+    auto texture = _device->_textures.access(handle);
+    addImageBarrier(handle, ResourceState::UnorderedAccess, texture->mipBase, texture->mipLevels);
+}
+
+void CommandBuffer::onBarrierTextureRead(TextureHandle handle) noexcept {
+    auto texture = _device->_textures.access(handle);
+    addImageBarrier(handle, ResourceState::ShaderResource, texture->mipBase, texture->mipLevels);
+}
+
 void CommandBuffer::bindDescriptorSets() {
     uint32_t firstSet          = 0;
     uint32_t numDescriptorSets = 0;
@@ -567,6 +578,15 @@ std::pair<VkBuffer, VkDeviceSize> CommandBuffer::getVkBuffer(BufferHandle handle
     }
 
     return { vkBuffer, vkOffset };
+}
+
+ResourceState* CommandBuffer::getTextureStates(TextureHandle handle) noexcept {
+    auto texture = _device->_textures.access(handle);
+    auto states  = texture->states;
+    if (texture->parentTexture != Undefined) {
+        states = _device->_textures.access(texture->parentTexture)->states;
+    }
+    return states;
 }
 
 CommandBufferPool::~CommandBufferPool() {

@@ -48,7 +48,7 @@ uint hash(uint a) {
 
 void main() {
     uint ti = gl_LocalInvocationID.x;
-	uint mi = payload.meshletIndices[gl_WorkGroupID.x];
+    uint mi = payload.meshletIndices[gl_WorkGroupID.x];
 
     uint mhash = hash(mi);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;

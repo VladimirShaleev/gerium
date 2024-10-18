@@ -3,8 +3,6 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: color
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: depth
 
   - name: gbuffer_pass
     inputs:
@@ -26,6 +24,9 @@ frame graph:
 
   - name: culling_pass
     compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth_pyramid
     outputs:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: command_count
@@ -43,3 +44,13 @@ frame graph:
         name: command_count
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
+
+  - name: depth_pyramid_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: depth_pyramid
+        external: true

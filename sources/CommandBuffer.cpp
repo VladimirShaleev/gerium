@@ -82,6 +82,14 @@ void CommandBuffer::fillBuffer(BufferHandle handle,
     onFillBuffer(handle, offset, size, data);
 }
 
+void CommandBuffer::barrierTextureWrite(TextureHandle handle) noexcept {
+    onBarrierTextureWrite(handle);
+}
+
+void CommandBuffer::barrierTextureRead(TextureHandle handle) noexcept {
+    onBarrierTextureRead(handle);
+}
+
 Renderer* CommandBuffer::getRenderer() noexcept {
     return _renderer;
 }
@@ -200,4 +208,14 @@ void gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
                                        gerium_uint32_t data) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->fillBuffer({ handle.index }, offset, size, data);
+}
+
+void gerium_command_buffer_barrier_texture_write(gerium_command_buffer_t command_buffer, gerium_texture_h handle) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->barrierTextureWrite({ handle.index });
+}
+
+void gerium_command_buffer_barrier_texture_read(gerium_command_buffer_t command_buffer, gerium_texture_h handle) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->barrierTextureRead({ handle.index });
 }

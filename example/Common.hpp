@@ -57,6 +57,15 @@ inline gerium_uint32_t calcMipLevels(T width, T height) noexcept {
     return static_cast<gerium_uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 }
 
+template <typename T>
+inline T previousPow2(T value) noexcept {
+    T result = 1;
+    while (result * 2 < value) {
+        result *= 2;
+    }
+    return result;
+}
+
 inline gerium_float32_t halton(gerium_sint32_t i, gerium_sint32_t b) noexcept {
     auto f  = 1.0f;
     auto r  = 0.0f;

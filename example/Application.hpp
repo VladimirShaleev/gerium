@@ -24,6 +24,32 @@ struct ClusterDatas {
     Buffer primitiveIndicesBuffer;
 };
 
+class DepthPyramidPass final : public RenderPass {
+public:
+    DepthPyramidPass() : RenderPass("depth_pyramid_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    void createDepthPyramid(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
+
+    gerium_uint16_t _depthPyramidWidth{};
+    gerium_uint16_t _depthPyramidHeight{};
+    gerium_uint16_t _depthPyramidMipLevels{};
+    Texture _depthPyramid{};
+    Texture _depthPyramidMips[16]{};
+    DescriptorSet _descriptorSets[16]{};
+};
+
 class CullingPass final : public RenderPass {
 public:
     CullingPass() : RenderPass("culling_pass") {
@@ -214,6 +240,7 @@ private:
     bool _meshShaderSupported{};
 
     Settings _settings{};
+    DepthPyramidPass _depthPyramidPass{};
     CullingPass _cullingPass{};
     GBufferPass _gbufferPass{};
     PresentPass _presentPass{};

@@ -105,8 +105,8 @@ struct ClusterMeshInstance {
 };
 
 struct MeshTaskPayload {
-	uint drawId;
-	uint meshletIndices[TASK_GROUP_SIZE];
+    uint drawId;
+    uint meshletIndices[TASK_GROUP_SIZE];
 };
 
 #endif

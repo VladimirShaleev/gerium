@@ -356,11 +356,13 @@ struct Texture {
     uint16_t              width;
     uint16_t              height;
     uint16_t              depth;
-    uint8_t               mipmaps;
+    uint8_t               mipBase;
+    uint8_t               mipLevels;
     uint8_t               loaded;
     TextureFlags          flags;
     gerium_texture_type_t type;
     gerium_utf8_t         name;
+    TextureHandle         parentTexture;
     SamplerHandle         sampler;
     ResourceState         states[16];
 };

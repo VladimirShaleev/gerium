@@ -37,11 +37,11 @@ void main() {
     // uint meshIndex = instances[drawId].mesh;
     // ClusterMesh mesh = meshes[meshIndex];
 
-	uint mgi = gl_LocalInvocationID.x;
-	uint mi = gl_LocalInvocationID.x + taskOffset;
+    uint mgi = gl_LocalInvocationID.x;
+    uint mi = gl_LocalInvocationID.x + taskOffset;
     
-	payload.drawId = drawId;
-	payload.meshletIndices[gl_LocalInvocationID.x] = mi;
+    payload.drawId = drawId;
+    payload.meshletIndices[gl_LocalInvocationID.x] = mi;
 
-	EmitMeshTasksEXT(taskCount, 1, 1);
+    EmitMeshTasksEXT(taskCount, 1, 1);
 }

@@ -27,6 +27,7 @@ public:
 
     BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
+    TextureHandle createTextureView(const TextureViewCreation& creation);
     SamplerHandle createSampler(const SamplerCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
@@ -162,7 +163,7 @@ public:
         info.width   = texture->width;
         info.height  = texture->height;
         info.depth   = texture->depth;
-        info.mipmaps = texture->mipmaps;
+        info.mipmaps = texture->mipLevels;
         info.format  = toGeriumFormat(texture->vkFormat);
         info.type    = texture->type;
         info.name    = texture->name;
@@ -261,6 +262,7 @@ private:
                                   gerium_uint32_t numMacros,
                                   const gerium_macro_definition_t* macros);
     VkRenderPass vkCreateRenderPass(const RenderPassOutput& output, const char* name);
+    void vkCreateImageView(const TextureViewCreation& creation, TextureHandle handle);
     void deleteResources(bool forceDelete = false);
     void setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name);
     int getPhysicalDeviceScore(VkPhysicalDevice device);

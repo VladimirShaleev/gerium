@@ -1,9 +1,9 @@
 #ifndef GERIUM_HANDLES_HPP
 #define GERIUM_HANDLES_HPP
 
+#include "File.hpp"
 #include "Gerium.hpp"
 #include "ResourcePool.hpp"
-#include "File.hpp"
 
 namespace gerium {
 
@@ -116,6 +116,43 @@ struct TextureCreation {
     }
 
     TextureCreation& setName(const char* name) {
+        this->name = name;
+        return *this;
+    }
+};
+
+struct TextureViewCreation {
+    TextureHandle texture           = Undefined;
+    gerium_texture_type_t type      = GERIUM_TEXTURE_TYPE_2D;
+    gerium_uint16_t mipBaseLevel    = 0;
+    gerium_uint16_t mipLevelCount   = 1;
+    gerium_uint16_t arrayBaseLayer  = 0;
+    gerium_uint16_t arrayLayerCount = 1;
+    const char* name                = nullptr;
+
+    TextureViewCreation& setTexture(TextureHandle texture) {
+        this->texture = texture;
+        return *this;
+    }
+
+    TextureViewCreation& setType(gerium_texture_type_t type) {
+        this->type = type;
+        return *this;
+    }
+
+    TextureViewCreation& setMips(gerium_uint16_t mipBaseLevel, gerium_uint16_t mipLevelCount) {
+        this->mipBaseLevel  = mipBaseLevel;
+        this->mipLevelCount = mipLevelCount;
+        return *this;
+    }
+
+    TextureViewCreation& setArray(gerium_uint16_t arrayBaseLayer, gerium_uint16_t arrayLayerCount) {
+        this->arrayBaseLayer  = arrayBaseLayer;
+        this->arrayLayerCount = arrayLayerCount;
+        return *this;
+    }
+
+    TextureViewCreation& setName(const char* name) {
         this->name = name;
         return *this;
     }

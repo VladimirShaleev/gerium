@@ -81,6 +81,11 @@ struct FrameGraphResource {
     FrameGraphResourceInfo info;
 };
 
+struct FrameGraphExternalResource {
+    Handle handle;
+    bool texture;
+};
+
 class FrameGraph : public _gerium_frame_graph {
 public:
     ~FrameGraph() override;
@@ -95,6 +100,8 @@ public:
                  const gerium_resource_input_t* inputs,
                  gerium_uint32_t outputCount,
                  const gerium_resource_output_t* outputs);
+    void addBuffer(gerium_utf8_t name, BufferHandle handle);
+    void addTexture(gerium_utf8_t name, TextureHandle handle);
 
     void clear();
     void compile();
@@ -106,6 +113,8 @@ public:
     const FrameGraphResource* getResource(FrameGraphResourceHandle handle) const noexcept;
     const FrameGraphResource* getResource(gerium_utf8_t name) const noexcept;
 
+    void fillExternalResource(FrameGraphResourceHandle handle) noexcept;
+
     gerium_uint32_t nodeCount() const noexcept;
     const FrameGraphNode* getNode(gerium_uint32_t index) const noexcept;
     const FrameGraphNode* getNode(gerium_utf8_t name) const noexcept;
@@ -115,6 +124,7 @@ private:
     using NodeHashMap       = absl::flat_hash_map<gerium_uint64_t, FrameGraphNodeHandle>;
     using ResourceHashMap   = absl::flat_hash_map<gerium_uint64_t, FrameGraphResourceHandle>;
     using RenderPassHashMap = absl::flat_hash_map<gerium_uint64_t, FrameGraphRenderPassHandle>;
+    using ExternalHashMap   = absl::flat_hash_map<gerium_uint64_t, FrameGraphExternalResource>;
 
     FrameGraphResourceHandle createNodeOutput(const gerium_resource_output_t& output, FrameGraphNodeHandle producer);
     FrameGraphResourceHandle createNodeInput(const gerium_resource_input_t& input);
@@ -134,6 +144,7 @@ private:
     NodeHashMap _nodeCache;
     ResourceHashMap _resourceCache;
     RenderPassHashMap _renderPassCache;
+    ExternalHashMap _externalCache;
 
     gerium_uint32_t _nodeGraphCount;
     std::array<FrameGraphNodeHandle, kMaxNodes> _nodeGraph;

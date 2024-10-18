@@ -1316,6 +1316,14 @@ gerium_renderer_create_texture(gerium_renderer_t renderer,
                                gerium_texture_h* handle);
 
 gerium_public gerium_result_t
+gerium_renderer_create_texture_view(gerium_renderer_t renderer,
+                                    gerium_texture_h texture,
+                                    gerium_uint16_t mip_base_level,
+                                    gerium_uint16_t mip_level_count,
+                                    gerium_utf8_t name,
+                                    gerium_texture_h* handle);
+
+gerium_public gerium_result_t
 gerium_renderer_create_technique(gerium_renderer_t renderer,
                                  gerium_frame_graph_t frame_graph,
                                  gerium_utf8_t name,
@@ -1499,6 +1507,14 @@ gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
                                   gerium_uint32_t size,
                                   gerium_uint32_t data);
 
+gerium_public void
+gerium_command_buffer_barrier_texture_write(gerium_command_buffer_t command_buffer,
+                                            gerium_texture_h handle);
+
+gerium_public void
+gerium_command_buffer_barrier_texture_read(gerium_command_buffer_t command_buffer,
+                                           gerium_texture_h handle);
+
 gerium_public gerium_frame_graph_t
 gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);
 
@@ -1523,6 +1539,16 @@ gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             const gerium_resource_input_t* inputs,
                             gerium_uint32_t output_count,
                             const gerium_resource_output_t* outputs);
+
+gerium_public gerium_result_t
+gerium_frame_graph_add_buffer(gerium_frame_graph_t frame_graph,
+                              gerium_utf8_t name,
+                              gerium_buffer_h handle);
+
+gerium_public gerium_result_t
+gerium_frame_graph_add_texture(gerium_frame_graph_t frame_graph,
+                               gerium_utf8_t name,
+                               gerium_texture_h handle);
 
 gerium_public void
 gerium_frame_graph_clear(gerium_frame_graph_t frame_graph);

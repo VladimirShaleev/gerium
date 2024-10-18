@@ -87,9 +87,13 @@ private:
                       gerium_uint32_t size,
                       gerium_uint32_t data) noexcept override;
 
+    void onBarrierTextureWrite(TextureHandle handle) noexcept override;
+    void onBarrierTextureRead(TextureHandle handle) noexcept override;
+
     void bindDescriptorSets();
     uint32_t getFamilyIndex(QueueType queue) const noexcept;
     std::pair<VkBuffer, VkDeviceSize> getVkBuffer(BufferHandle handle, gerium_uint32_t offset) const noexcept;
+    ResourceState* getTextureStates(TextureHandle handle) noexcept;
 
     Device* _device{};
     VkCommandBuffer _commandBuffer{};
