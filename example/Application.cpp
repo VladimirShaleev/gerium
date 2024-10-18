@@ -118,6 +118,7 @@ void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     gerium_renderer_bind_buffer(renderer, _descriptorSet0, 0, application()->drawData());
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 1, "command_count");
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 2, "commands");
+    gerium_renderer_bind_resource(renderer, _descriptorSet0, 3, "depth_pyramid");
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 0, application()->instances());
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 1, datas.meshesBuffer);
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 2, datas.meshletsBuffer);
