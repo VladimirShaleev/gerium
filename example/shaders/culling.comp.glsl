@@ -21,10 +21,12 @@ layout(std430, binding = 2, set = GLOBAL_DATA_SET) writeonly buffer Commands {
 };
 
 layout(std430, binding = 3, set = GLOBAL_DATA_SET) buffer Visibility {
-    uint8_t visibility[];
+    uint visibility[];
 };
 
-// layout(binding = 4, set = GLOBAL_DATA_SET) uniform sampler2D depthPyramid;
+#ifdef LATE
+layout(binding = 4, set = GLOBAL_DATA_SET) uniform sampler2D depthPyramid;
+#endif
 
 layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer ClusterMeshInstances {
     ClusterMeshInstance instances[];
@@ -52,13 +54,15 @@ void main() {
         return;
     }
 
-    if (!late && uint(visibility[index]) == 1) {
+    visibility[index] = 1;
+
+    if (!late && visibility[index] == 0) {
         return;
     }
 
-    uint meshIndex = instances[index].mesh;
-    ClusterMesh mesh = meshes[meshIndex];
     ClusterMeshInstance instance = instances[index];
+    uint meshIndex = instance.mesh;
+    ClusterMesh mesh = meshes[meshIndex];
 
     vec3 center = (scene.view * instance.world * vec4(mesh.centerAndRadius.xyz, 1.0)).xyz;
     float radius = instance.scale * mesh.centerAndRadius.w;
@@ -68,18 +72,37 @@ void main() {
     visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
     visible = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
 
-    if (!visible) {
-        return;
+    if (late && visible) {
+
     }
 
-    ClusterMeshLod lod = meshes[meshIndex].lods[0];
+    if (visible && (!late || visibility[index] == 0)) {
+        uint lodIndex = 0;
 
-    uint taskGroups = (lod.meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
-    uint count = atomicAdd(commandCount, taskGroups);
+        float distance = max(length(center) - radius, 0);
+        float threshold = distance * scene.lodTarget / instance.scale;
 
-    for (uint i = 0; i < taskGroups; ++i) {
-        commands[count + i].drawId = index;
-        commands[count + i].taskOffset = lod.meshletOffset + i * TASK_GROUP_SIZE;
-        commands[count + i].taskCount = min(TASK_GROUP_SIZE, lod.meshletCount - i * TASK_GROUP_SIZE);
+        for (uint i = 1; i < mesh.lodCount; ++i) {
+            if (mesh.lods[i].lodError < threshold) {
+                lodIndex = i;
+            }
+        }
+
+        ClusterMeshLod lod = meshes[meshIndex].lods[lodIndex];
+
+        uint taskGroups = (lod.meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
+        uint count = atomicAdd(commandCount, taskGroups);
+
+        for (uint i = 0; i < taskGroups; ++i) {
+            commands[count + i].drawId = index;
+            commands[count + i].taskOffset = lod.meshletOffset + i * TASK_GROUP_SIZE;
+            commands[count + i].taskCount = min(TASK_GROUP_SIZE, lod.meshletCount - i * TASK_GROUP_SIZE);
+            commands[count + i].visibility = visibility[index];
+            commands[count + i].visibilityOffset = instance.visibilityOffset + i * TASK_GROUP_SIZE;
+        }
+    }
+    
+	if (late) {
+		visibility[index] = visible ? 1 : 0;
     }
 }

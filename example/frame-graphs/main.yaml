@@ -10,6 +10,8 @@ frame graph:
         name: command_count
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: visibility
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: color
@@ -40,6 +42,25 @@ frame graph:
         name: visibility
         size: 134217728
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
+
+  - name: culling_late_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth_pyramid
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: command_count
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: commands
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: visibility
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
+        name: command_count
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
+        name: commands
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
+        name: visibility
 
   - name: indirect_pass
     compute: true

@@ -34,6 +34,8 @@ struct SHADER_ALIGN MeshTaskCommand {
     uint drawId;
     uint taskOffset;
     uint taskCount;
+    uint visibility;
+    uint visibilityOffset;
 };
 
 #if (defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)) || defined(__cplusplus)
@@ -82,8 +84,9 @@ struct SHADER_ALIGN MeshletLegacy {
 #endif
 
 struct ClusterMeshLod {
-    uint meshletOffset;
-    uint meshletCount;
+    uint  meshletOffset;
+    uint  meshletCount;
+    float lodError;
 };
 
 struct SHADER_ALIGN ClusterMesh {
@@ -96,8 +99,10 @@ struct SHADER_ALIGN ClusterMeshInstance {
     mat4  world;
     mat4  inverseWorld;
     uvec4 textures;
+    vec4  orientation;
     float scale;
-    uint  mesh; 
+    uint  mesh;
+    uint  visibilityOffset;
 };
 
 struct MeshTaskPayload {

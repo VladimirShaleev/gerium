@@ -102,7 +102,7 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    if (_clearVisibility) {
+    if (!_latePass && _clearVisibility) {
         gerium_buffer_h visibility;
         check(gerium_renderer_get_buffer(renderer, "visibility", true, &visibility));
         gerium_command_buffer_fill_buffer(commandBuffer, visibility, 0, 134'217'728, 0);
@@ -128,7 +128,9 @@ void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 1, "command_count");
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 2, "commands");
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 3, "visibility");
-    // gerium_renderer_bind_resource(renderer, _descriptorSet0, 4, "depth_pyramid");
+    if (_latePass) {
+        gerium_renderer_bind_resource(renderer, _descriptorSet0, 4, "depth_pyramid");
+    }
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 0, application()->instances());
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 1, datas.meshesBuffer);
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 2, datas.meshletsBuffer);
@@ -178,12 +180,13 @@ void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "commands");
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 1, application()->instances());
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, datas.meshesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, datas.meshletsBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, datas.vertexIndicesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, datas.primitiveIndicesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, datas.verticesBuffer);
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "visibility");
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, application()->instances());
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, datas.meshesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, datas.meshletsBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, datas.vertexIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, datas.primitiveIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, datas.verticesBuffer);
 }
 
 void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -261,6 +264,13 @@ void Application::addPass(RenderPass& renderPass) {
 
 void Application::createScene() {
     auto bunny = loadClusterMesh(_clusterDatas, "bunny.obj");
+
+    glm::uint bunnyMeshletCount = 0;
+    const auto mesh             = _clusterDatas.meshes[bunny.mesh];
+    for (uint32_t i = 0; i < mesh.lodCount; ++i) {
+        bunnyMeshletCount = std::max(bunnyMeshletCount, mesh.lods[i].meshletCount);
+    }
+
     // auto dragon = loadClusterMesh(_clusterDatas, "dragon.obj");
     uploadClusterDatas(_clusterDatas, 0);
 
@@ -270,6 +280,8 @@ void Application::createScene() {
     glm::vec3 skew{};
     glm::vec4 perspective{};
 
+    uint32_t meshletVisibilityCount = 0;
+
     for (int i = 0; i < 25; ++i) {
         float x = (i % 5) * 2.0f;
         float z = (i / 5) * 2.0f;
@@ -278,7 +290,11 @@ void Application::createScene() {
         bunny.world        = glm::translate(glm::vec3(x, 0.0f, z));
         bunny.inverseWorld = glm::inverse(bunny.world);
         glm::decompose(bunny.world, scale, rot, translate, skew, perspective);
-        bunny.scale = glm::max(scale.x, glm::max(scale.y, scale.z));
+        bunny.orientation      = glm::vec4(rot.x, rot.y, rot.z, rot.w);
+        bunny.scale            = glm::max(scale.x, glm::max(scale.y, scale.z));
+        bunny.visibilityOffset = meshletVisibilityCount;
+        meshletVisibilityCount += bunnyMeshletCount;
+
         _instances.push_back(bunny);
         //} else {
         //    dragon.world = glm::translate(glm::vec3(x, 0.0f, z)) * glm::scale(glm::vec3(1.0f, 1.0f, 1.0f) * 3.0f);
@@ -430,25 +446,43 @@ ClusterMeshInstance Application::loadClusterMesh(ClusterDatas& clusterDatas, std
 
     result.mesh = glm::uint(clusterDatas.meshes.size());
     clusterDatas.meshes.push_back({});
+    float lodError           = 0.0f;
+    float normalWeights[3]   = { 1.f, 1.f, 1.f };
     auto& meshLods           = clusterDatas.meshes.back();
     meshLods.centerAndRadius = glm::vec4(center, radius);
+
+    const auto lodScale = meshopt_simplifyScale(&vertices->position.x, vertexCount, sizeof(VertexOptimized));
+
+    std::vector<glm::vec3> normals(vertexCount);
+    for (int i = 0; i < vertexCount; ++i) {
+        auto normal = glm::vec3(vertices[i].normal.xyz());
+        normals[i]  = normal / 127.0f - 1.0f;
+    }
 
     while (meshLods.lodCount < std::size(meshLods.lods)) {
         auto& lod = meshLods.lods[meshLods.lodCount++];
 
         lod.meshletOffset = uint32_t(clusterDatas.meshlets.size());
         lod.meshletCount  = uint32_t(appendMeshlets(clusterDatas, vertices, offsetVertices, vertexCount, indices));
+        lod.lodError      = lodError * lodScale;
 
         if (meshLods.lodCount < std::size(meshLods.lods)) {
             size_t nextIndicesTarget = size_t(double(indices.size()) * 0.75);
-            size_t nextIndices       = meshopt_simplify(indices.data(),
-                                                  indices.data(),
-                                                  indices.size(),
-                                                  &vertices->position.x,
-                                                  vertexCount,
-                                                  sizeof(VertexOptimized),
-                                                  nextIndicesTarget,
-                                                  1e-2f);
+            size_t nextIndices       = meshopt_simplifyWithAttributes(indices.data(),
+                                                                indices.data(),
+                                                                indices.size(),
+                                                                &vertices->position.x,
+                                                                vertexCount,
+                                                                sizeof(VertexOptimized),
+                                                                &normals[0].x,
+                                                                sizeof(glm::vec3),
+                                                                normalWeights,
+                                                                3,
+                                                                nullptr,
+                                                                nextIndicesTarget,
+                                                                1e-2f,
+                                                                0,
+                                                                &lodError);
             assert(nextIndices <= indices.size());
 
             if (nextIndices == indices.size()) {
@@ -564,6 +598,7 @@ void Application::initialize() {
     addPass(_cullingPass);
     addPass(_indirectPass);
     addPass(_depthPyramidPass);
+    addPass(_cullingLatePass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());

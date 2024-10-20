@@ -52,7 +52,7 @@ private:
 
 class CullingPass final : public RenderPass {
 public:
-    CullingPass() : RenderPass("culling_pass") {
+    CullingPass(bool late) : RenderPass(!late ? "culling_pass" : "culling_late_pass"), _latePass(late) {
     }
 
     void render(gerium_frame_graph_t frameGraph,
@@ -67,6 +67,7 @@ public:
 private:
     DescriptorSet _descriptorSet0{};
     DescriptorSet _descriptorSet1{};
+    bool _latePass{};
     bool _clearVisibility{};
 };
 
@@ -242,7 +243,8 @@ private:
 
     Settings _settings{};
     DepthPyramidPass _depthPyramidPass{};
-    CullingPass _cullingPass{};
+    CullingPass _cullingPass{ false };
+    CullingPass _cullingLatePass{ true };
     GBufferPass _gbufferPass{};
     PresentPass _presentPass{};
     IndirectPass _indirectPass{};

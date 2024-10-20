@@ -58,3 +58,11 @@ pipelines:
         name: shaders/depth_reduce.comp.glsl
         macros:
           - INVERTED_Z: 1
+
+  - render pass: culling_late_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/culling.comp.glsl
+        macros:
+          - LATE: 1
