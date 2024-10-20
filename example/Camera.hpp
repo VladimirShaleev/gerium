@@ -86,6 +86,10 @@ private:
         BottomFace
     };
 
+    static glm::mat4 infinitePerspectiveReverse(gerium_float32_t fov,
+                                                gerium_float32_t aspect,
+                                                gerium_float32_t nearPlane) noexcept;
+
     void copy(const Camera& other) noexcept;
 
     gerium_application_t _application{};

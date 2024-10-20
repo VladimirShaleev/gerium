@@ -17,7 +17,12 @@ void main() {
     float color10 = texelFetch(depth, texelPosition10, 0).r;
     float color11 = texelFetch(depth, texelPosition11, 0).r;
 
-    float result = max(max(max(color00, color01), color10), color11);
+    float result = 
+    #ifdef INVERT_Z
+        min(min(min(color00, color01), color10), color11);
+    #else
+        max(max(max(color00, color01), color10), color11);
+    #endif
 
     imageStore(reduce, ivec2(gl_GlobalInvocationID.xy), vec4(result, 0.0, 0.0, 0.0));
 }

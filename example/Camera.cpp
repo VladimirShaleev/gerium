@@ -106,7 +106,7 @@ void Camera::update() {
 
     auto jitter         = glm::translate(glm::vec3(_jitter, 0.0f));
     _prevViewProjection = _viewProjection;
-    _projection         = jitter * glm::perspective(_fov, aspect, _nearPlane, _farPlane);
+    _projection         = jitter * infinitePerspectiveReverse(_fov, aspect, _nearPlane);
     _view               = glm::lookAt(_position, _position + _front, _up);
     _viewProjection     = _projection * _view;
 
@@ -291,6 +291,19 @@ std::vector<glm::vec2> Camera::calcJitterTable(Jitter jitter, gerium_sint32_t ji
         table[i] = calcJitter(jitter, i, jitterPeriod);
     }
     return table;
+}
+
+glm::mat4 Camera::infinitePerspectiveReverse(gerium_float32_t fov,
+                                             gerium_float32_t aspect,
+                                             gerium_float32_t nearPlane) noexcept {
+    const auto f = 1.0f / glm::tan(fov / 2.0f);
+    auto result = glm::zero<glm::mat4>();
+    result[0][0] = f / aspect;
+    result[1][1] = f;
+    result[2][2] = 0.0f;
+    result[2][3] = 1.0f;
+    result[3][2] = nearPlane;
+    return result;
 }
 
 void Camera::copy(const Camera& other) noexcept {

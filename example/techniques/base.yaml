@@ -14,7 +14,7 @@ pipelines:
     depth stencil:
       depth test enable: true
       depth write enable: true
-      depth compare op: GERIUM_COMPARE_OP_LESS_OR_EQUAL
+      depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
     color blend:
       logic op enable: false
       logic op: GERIUM_LOGIC_OP_CLEAR
@@ -56,3 +56,5 @@ pipelines:
       - type: GERIUM_SHADER_TYPE_COMPUTE
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/depth_reduce.comp.glsl
+        macros:
+          - INVERT_Z: 1
