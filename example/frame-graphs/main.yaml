@@ -24,9 +24,9 @@ frame graph:
 
   - name: culling_pass
     compute: true
-    inputs:
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: depth_pyramid
+    # inputs:
+    #   - type: GERIUM_RESOURCE_TYPE_TEXTURE
+    #     name: depth_pyramid
     outputs:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: command_count
@@ -36,6 +36,10 @@ frame graph:
         name: commands
         size: 134217728
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: visibility
+        size: 134217728
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
 
   - name: indirect_pass
     compute: true
@@ -43,6 +47,11 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: command_count
       - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: commands
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
+        name: command_count
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
         name: commands
 
   - name: depth_pyramid_pass

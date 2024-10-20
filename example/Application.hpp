@@ -65,8 +65,9 @@ public:
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
 private:
-    DescriptorSet _descriptorSet0;
-    DescriptorSet _descriptorSet1;
+    DescriptorSet _descriptorSet0{};
+    DescriptorSet _descriptorSet1{};
+    bool _clearVisibility{};
 };
 
 class IndirectPass final : public RenderPass {

@@ -18,7 +18,7 @@ void main() {
     float color11 = texelFetch(depth, texelPosition11, 0).r;
 
     float result = 
-    #ifdef INVERT_Z
+    #ifdef INVERTED_Z
         min(min(min(color00, color01), color10), color11);
     #else
         max(max(max(color00, color01), color10), color11);

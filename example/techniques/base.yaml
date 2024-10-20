@@ -57,4 +57,4 @@ pipelines:
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/depth_reduce.comp.glsl
         macros:
-          - INVERT_Z: 1
+          - INVERTED_Z: 1

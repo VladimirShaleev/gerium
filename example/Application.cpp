@@ -102,6 +102,13 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    if (_clearVisibility) {
+        gerium_buffer_h visibility;
+        check(gerium_renderer_get_buffer(renderer, "visibility", true, &visibility));
+        gerium_command_buffer_fill_buffer(commandBuffer, visibility, 0, 134217728, 0);
+        _clearVisibility = false;
+    }
+
     gerium_buffer_h commandCount;
     check(gerium_renderer_get_buffer(renderer, "command_count", 1, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
@@ -118,7 +125,8 @@ void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     gerium_renderer_bind_buffer(renderer, _descriptorSet0, 0, application()->drawData());
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 1, "command_count");
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 2, "commands");
-    gerium_renderer_bind_resource(renderer, _descriptorSet0, 3, "depth_pyramid");
+    gerium_renderer_bind_resource(renderer, _descriptorSet0, 3, "visibility");
+    // gerium_renderer_bind_resource(renderer, _descriptorSet0, 4, "depth_pyramid");
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 0, application()->instances());
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 1, datas.meshesBuffer);
     gerium_renderer_bind_buffer(renderer, _descriptorSet1, 2, datas.meshletsBuffer);

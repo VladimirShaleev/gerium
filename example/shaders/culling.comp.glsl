@@ -16,7 +16,11 @@ layout(std430, binding = 2, set = SCENE_DATA_SET) writeonly buffer Commands {
     MeshTaskCommand commands[];
 };
 
-layout(binding = 3, set = SCENE_DATA_SET) uniform sampler2D depthPyramid;
+layout(std430, binding = 3, set = SCENE_DATA_SET) buffer Visibility {
+    uint8_t visibility[];
+};
+
+// layout(binding = 4, set = SCENE_DATA_SET) uniform sampler2D depthPyramid;
 
 layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer ClusterMeshInstances {
     ClusterMeshInstance instances[];
