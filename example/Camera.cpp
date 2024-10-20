@@ -146,17 +146,27 @@ void Camera::update() {
     _frustum[FarFace].distance = _viewProjection[3][3] - _viewProjection[3][2];
     _frustum[FarFace].normalize();
 
+    auto projectionT = glm::transpose(_projection);
+
+    vec4 frustumX = projectionT[3] + projectionT[0];
+    vec4 frustumY = projectionT[3] + projectionT[1];
+    frustumX /= glm::length(frustumX.xyz());
+    frustumY /= glm::length(frustumY.xyz());
+
     _sceneData.view               = _view;
     _sceneData.viewProjection     = _viewProjection;
     _sceneData.prevViewProjection = _prevViewProjection;
     _sceneData.invViewProjection  = glm::inverse(_viewProjection);
     _sceneData.viewPosition       = glm::vec4(_position, 1.0f);
     _sceneData.eye                = glm::vec4(_front, 1.0f);
-    _sceneData.planes             = glm::vec2(_farPlane, _nearPlane);
+    _sceneData.frustum            = vec4(frustumX.x, frustumX.z, frustumY.y, frustumY.z);
+    _sceneData.p00p11             = glm::vec2(_projection[0][0], _projection[1][1]);
+    _sceneData.farNear            = glm::vec2(_farPlane, _nearPlane);
     _sceneData.jitter             = _jitter;
     _sceneData.prevJitter         = _prevJitter;
     _sceneData.invResolution      = { 1.0f / width, 1.0f / height };
     _sceneData.resolution         = { width, height };
+    _sceneData.lodTarget          = (2.0f / _sceneData.p00p11.y) * _sceneData.invResolution.x;
 
     auto ptr = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
     *ptr     = _sceneData;
@@ -297,7 +307,7 @@ glm::mat4 Camera::infinitePerspectiveReverse(gerium_float32_t fov,
                                              gerium_float32_t aspect,
                                              gerium_float32_t nearPlane) noexcept {
     const auto f = 1.0f / glm::tan(fov / 2.0f);
-    auto result = glm::zero<glm::mat4>();
+    auto result  = glm::zero<glm::mat4>();
     result[0][0] = f / aspect;
     result[1][1] = f;
     result[2][2] = 0.0f;

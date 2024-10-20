@@ -10,19 +10,19 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform Scene {
     SceneData scene;
 };
 
-layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer Commands {
+layout(std430, binding = 0, set = GLOBAL_DATA_SET) readonly buffer Commands {
     MeshTaskCommand commands[];
 };
 
-layout(std430, binding = 1, set = MESH_DATA_SET) readonly buffer ClusterMeshInstances {
+layout(std430, binding = 1, set = GLOBAL_DATA_SET) readonly buffer ClusterMeshInstances {
     ClusterMeshInstance instances[];
 };
 
-layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer ClusterMeshs {
+layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer ClusterMeshs {
     ClusterMesh meshes[];
 };
 
-layout(std430, binding = 3, set = MESH_DATA_SET) readonly buffer Meshlets {
+layout(std430, binding = 3, set = GLOBAL_DATA_SET) readonly buffer Meshlets {
     Meshlet meshlets[];
 };
 

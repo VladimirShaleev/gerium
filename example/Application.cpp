@@ -105,14 +105,16 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
     if (_clearVisibility) {
         gerium_buffer_h visibility;
         check(gerium_renderer_get_buffer(renderer, "visibility", true, &visibility));
-        gerium_command_buffer_fill_buffer(commandBuffer, visibility, 0, 134217728, 0);
+        gerium_command_buffer_fill_buffer(commandBuffer, visibility, 0, 134'217'728, 0);
         _clearVisibility = false;
     }
 
+    auto camera = application()->getCamera();
     gerium_buffer_h commandCount;
     check(gerium_renderer_get_buffer(renderer, "command_count", 1, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet0, SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet0, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet1, MESH_DATA_SET);
     gerium_command_buffer_fill_buffer(commandBuffer, commandCount, 0, 4, 0);
     gerium_command_buffer_dispatch(commandBuffer, 1, 1, 1);
@@ -167,7 +169,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     check(gerium_renderer_get_buffer(renderer, "command_count", 0, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, MESH_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
     gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, 1, 12);
 }
 
@@ -262,6 +264,12 @@ void Application::createScene() {
     // auto dragon = loadClusterMesh(_clusterDatas, "dragon.obj");
     uploadClusterDatas(_clusterDatas, 0);
 
+    glm::quat rot{};
+    glm::vec3 scale{};
+    glm::vec3 translate{};
+    glm::vec3 skew{};
+    glm::vec4 perspective{};
+
     for (int i = 0; i < 25; ++i) {
         float x = (i % 5) * 2.0f;
         float z = (i / 5) * 2.0f;
@@ -269,10 +277,14 @@ void Application::createScene() {
         // if (i % 2 == 0) {
         bunny.world        = glm::translate(glm::vec3(x, 0.0f, z));
         bunny.inverseWorld = glm::inverse(bunny.world);
+        glm::decompose(bunny.world, scale, rot, translate, skew, perspective);
+        bunny.scale = glm::max(scale.x, glm::max(scale.y, scale.z));
         _instances.push_back(bunny);
         //} else {
         //    dragon.world = glm::translate(glm::vec3(x, 0.0f, z)) * glm::scale(glm::vec3(1.0f, 1.0f, 1.0f) * 3.0f);
         //    dragon.inverseWorld = glm::inverse(dragon.world);
+        //    glm::decompose(dragon.world, scale, rot, translate, skew, perspective);
+        //    dragon.scale = glm::max(scale.x, glm::max(scale.y, scale.z));
         //    _instances.push_back(dragon);
         //}
     }
@@ -403,9 +415,23 @@ ClusterMeshInstance Application::loadClusterMesh(ClusterDatas& clusterDatas, std
     meshopt_optimizeVertexCache(indices.data(), indicesOrigin.data(), indexCount, vertexCount);
     meshopt_optimizeVertexFetch(vertices, indices.data(), indexCount, vertices, vertexCount, sizeof(VertexOptimized));
 
+    glm::vec3 center{};
+    for (int i = 0; i < vertexCount; ++i) {
+        const auto& v = vertices[i];
+        center += v.position.xyz();
+    }
+    center /= float(vertexCount);
+
+    float radius = 0;
+    for (int i = 0; i < vertexCount; ++i) {
+        const auto& v = vertices[i];
+        radius        = glm::max(radius, glm::distance(center, v.position.xyz()));
+    }
+
     result.mesh = glm::uint(clusterDatas.meshes.size());
     clusterDatas.meshes.push_back({});
-    auto& meshLods = clusterDatas.meshes.back();
+    auto& meshLods           = clusterDatas.meshes.back();
+    meshLods.centerAndRadius = glm::vec4(center, radius);
 
     while (meshLods.lodCount < std::size(meshLods.lods)) {
         auto& lod = meshLods.lods[meshLods.lodCount++];

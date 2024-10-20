@@ -4,23 +4,27 @@
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-layout(std140, binding = 0, set = SCENE_DATA_SET) uniform DrawDataUBO {
+layout(std140, binding = 0, set = SCENE_DATA_SET) uniform Scene {
+    SceneData scene;
+};
+
+layout(std140, binding = 0, set = GLOBAL_DATA_SET) uniform DrawDataUBO {
     DrawData drawData;
 };
 
-layout(std430, binding = 1, set = SCENE_DATA_SET) buffer CommandCount {
+layout(std430, binding = 1, set = GLOBAL_DATA_SET) buffer CommandCount {
     uint commandCount;
 };
 
-layout(std430, binding = 2, set = SCENE_DATA_SET) writeonly buffer Commands {
+layout(std430, binding = 2, set = GLOBAL_DATA_SET) writeonly buffer Commands {
     MeshTaskCommand commands[];
 };
 
-layout(std430, binding = 3, set = SCENE_DATA_SET) buffer Visibility {
+layout(std430, binding = 3, set = GLOBAL_DATA_SET) buffer Visibility {
     uint8_t visibility[];
 };
 
-// layout(binding = 4, set = SCENE_DATA_SET) uniform sampler2D depthPyramid;
+// layout(binding = 4, set = GLOBAL_DATA_SET) uniform sampler2D depthPyramid;
 
 layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer ClusterMeshInstances {
     ClusterMeshInstance instances[];
@@ -34,6 +38,13 @@ layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer Meshlets {
     Meshlet meshlets[];
 };
 
+const bool late =
+#ifdef LATE
+    true;
+#else
+    false;
+#endif
+
 void main() {
     uint index = gl_GlobalInvocationID.x;
 
@@ -41,7 +52,25 @@ void main() {
         return;
     }
 
+    if (!late && uint(visibility[index]) == 1) {
+        return;
+    }
+
     uint meshIndex = instances[index].mesh;
+    ClusterMesh mesh = meshes[meshIndex];
+    ClusterMeshInstance instance = instances[index];
+
+    vec3 center = (scene.view * instance.world * vec4(mesh.centerAndRadius.xyz, 1.0)).xyz;
+    float radius = instance.scale * mesh.centerAndRadius.w;
+
+    bool visible = true;
+    visible = visible && center.z * scene.frustum.y - abs(center.x) * scene.frustum.x > -radius;
+    visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
+    visible = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
+
+    if (!visible) {
+        return;
+    }
 
     ClusterMeshLod lod = meshes[meshIndex].lods[0];
 

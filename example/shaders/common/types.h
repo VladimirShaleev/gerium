@@ -15,11 +15,14 @@ struct SHADER_ALIGN SceneData {
     mat4  invViewProjection;
     vec4  viewPosition;
     vec4  eye;
-    vec2  planes;
+    vec4  frustum;
+    vec2  p00p11;
+    vec2  farNear;
     vec2  jitter;
     vec2  prevJitter;
     vec2  invResolution;
     ivec2 resolution;
+    float lodTarget;
 };
 
 struct SHADER_ALIGN DrawData {
@@ -84,6 +87,7 @@ struct ClusterMeshLod {
 };
 
 struct SHADER_ALIGN ClusterMesh {
+    vec4           centerAndRadius;
     uint           lodCount;
     ClusterMeshLod lods[8];
 };
@@ -92,6 +96,7 @@ struct SHADER_ALIGN ClusterMeshInstance {
     mat4  world;
     mat4  inverseWorld;
     uvec4 textures;
+    float scale;
     uint  mesh; 
 };
 

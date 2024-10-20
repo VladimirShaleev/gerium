@@ -1,8 +1,9 @@
 #ifndef COMMON_DEFINES_H
 #define COMMON_DEFINES_H
 
-#define SCENE_DATA_SET 0
-#define MESH_DATA_SET  1
+#define SCENE_DATA_SET  0
+#define GLOBAL_DATA_SET 1
+#define MESH_DATA_SET   2
 
 #define TASK_GROUP_SIZE 64
 #define MESH_GROUP_SIZE 64
