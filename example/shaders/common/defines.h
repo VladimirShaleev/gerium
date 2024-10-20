@@ -13,6 +13,12 @@
 #define PI 3.1415926538
 
 #ifdef __cplusplus
+#define SHADER_ALIGN alignas(16)
+#else
+#define SHADER_ALIGN
+#endif
+
+#ifdef __cplusplus
 using namespace glm;
 #endif
 

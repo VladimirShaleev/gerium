@@ -20,7 +20,4 @@ void main() {
     float result = max(max(max(color00, color01), color10), color11);
 
     imageStore(reduce, ivec2(gl_GlobalInvocationID.xy), vec4(result, 0.0, 0.0, 0.0));
-
-    // groupMemoryBarrier();
-    // barrier();
 }
