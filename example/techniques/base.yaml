@@ -30,6 +30,28 @@ pipelines:
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.frag.glsl
         
+  - render pass: gbuffer_late_pass
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_FILL
+      cull mode: GERIUM_CULL_MODE_FRONT
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+    depth stencil:
+      depth test enable: true
+      depth write enable: true
+      depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+    shaders:
+      - type: GERIUM_SHADER_TYPE_TASK
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.task.glsl
+      - type: GERIUM_SHADER_TYPE_MESH
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.mesh.glsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.frag.glsl
+        macros:
+          - LATE: 1
+
   - render pass: present_pass
     shaders:
       - type: GERIUM_SHADER_TYPE_VERTEX
@@ -46,6 +68,12 @@ pipelines:
         name: shaders/culling.comp.glsl
 
   - render pass: indirect_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/indirect.comp.glsl
+
+  - render pass: indirect_late_pass
     shaders:
       - type: GERIUM_SHADER_TYPE_COMPUTE
         lang: GERIUM_SHADER_LANGUAGE_GLSL

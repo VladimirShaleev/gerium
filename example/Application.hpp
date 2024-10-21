@@ -73,7 +73,7 @@ private:
 
 class IndirectPass final : public RenderPass {
 public:
-    IndirectPass() : RenderPass("indirect_pass") {
+    IndirectPass(bool late) : RenderPass(!late ? "indirect_pass" : "indirect_late_pass"), _latePass(late) {
     }
 
     void render(gerium_frame_graph_t frameGraph,
@@ -87,11 +87,12 @@ public:
 
 private:
     DescriptorSet _descriptorSet;
+    bool _latePass{};
 };
 
 class GBufferPass final : public RenderPass {
 public:
-    GBufferPass() : RenderPass("gbuffer_pass") {
+    GBufferPass(bool late) : RenderPass(!late ? "gbuffer_pass" : "gbuffer_late_pass"), _latePass(late) {
     }
 
     void render(gerium_frame_graph_t frameGraph,
@@ -105,6 +106,7 @@ public:
 
 private:
     DescriptorSet _descriptorSet;
+    bool _latePass{};
 };
 
 class PresentPass final : public RenderPass {
@@ -245,9 +247,11 @@ private:
     DepthPyramidPass _depthPyramidPass{};
     CullingPass _cullingPass{ false };
     CullingPass _cullingLatePass{ true };
-    GBufferPass _gbufferPass{};
+    GBufferPass _gbufferPass{ false };
+    GBufferPass _gbufferLatePass{ true };
     PresentPass _presentPass{};
-    IndirectPass _indirectPass{};
+    IndirectPass _indirectPass{ false };
+    IndirectPass _indirectLatePass{ true };
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};

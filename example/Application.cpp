@@ -111,7 +111,7 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
 
     auto camera = application()->getCamera();
     gerium_buffer_h commandCount;
-    check(gerium_renderer_get_buffer(renderer, "command_count", 1, &commandCount));
+    check(gerium_renderer_get_buffer(renderer, !_latePass ? "command_count" : "command_count_late", 1, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet0, GLOBAL_DATA_SET);
@@ -125,7 +125,7 @@ void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     _descriptorSet0 = application()->resourceManager().createDescriptorSet("", true);
     _descriptorSet1 = application()->resourceManager().createDescriptorSet("", true);
     gerium_renderer_bind_buffer(renderer, _descriptorSet0, 0, application()->drawData());
-    gerium_renderer_bind_resource(renderer, _descriptorSet0, 1, "command_count");
+    gerium_renderer_bind_resource(renderer, _descriptorSet0, 1, !_latePass ? "command_count" : "command_count_late");
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 2, "commands");
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 3, "visibility");
     if (_latePass) {
@@ -153,7 +153,7 @@ void IndirectPass::render(gerium_frame_graph_t frameGraph,
 
 void IndirectPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "command_count");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, !_latePass ? "command_count" : "command_count_late");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "commands");
 }
 
@@ -168,7 +168,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t totalWorkers) {
     auto camera = application()->getCamera();
     gerium_buffer_h commandCount;
-    check(gerium_renderer_get_buffer(renderer, "command_count", 0, &commandCount));
+    check(gerium_renderer_get_buffer(renderer, !_latePass ? "command_count" : "command_count_late", 0, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
@@ -599,6 +599,8 @@ void Application::initialize() {
     addPass(_indirectPass);
     addPass(_depthPyramidPass);
     addPass(_cullingLatePass);
+    addPass(_indirectLatePass);
+    addPass(_gbufferLatePass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());

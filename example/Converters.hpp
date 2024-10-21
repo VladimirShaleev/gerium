@@ -5,7 +5,7 @@
 
 namespace YAML {
 
-static gerium_uint8_t buffer[2048]{};
+static gerium_uint8_t buffer[4096]{};
 static gerium_uint32_t offset{};
 
 void resetBuffer() noexcept {
