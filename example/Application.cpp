@@ -102,11 +102,11 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    if (!_latePass && _clearVisibility) {
+    if (!_latePass && !_clearedVisibility) {
         gerium_buffer_h visibility;
         check(gerium_renderer_get_buffer(renderer, "visibility", true, &visibility));
-        gerium_command_buffer_fill_buffer(commandBuffer, visibility, 0, 134'217'728, 0);
-        _clearVisibility = false;
+        gerium_command_buffer_fill_buffer(commandBuffer, visibility, 0, 134'217'728, 0xFFFFFFFF);
+        _clearedVisibility = true;
     }
 
     auto camera = application()->getCamera();

@@ -153,6 +153,8 @@ void Camera::update() {
     frustumX /= glm::length(frustumX.xyz());
     frustumY /= glm::length(frustumY.xyz());
 
+    _pyramidResolution = glm::uvec2(width, height) / 2;
+
     _sceneData.view               = _view;
     _sceneData.viewProjection     = _viewProjection;
     _sceneData.prevViewProjection = _prevViewProjection;
@@ -166,6 +168,7 @@ void Camera::update() {
     _sceneData.prevJitter         = _prevJitter;
     _sceneData.invResolution      = { 1.0f / width, 1.0f / height };
     _sceneData.resolution         = { width, height };
+    _sceneData.pyramidResolution  = { float(_pyramidResolution.x), float(_pyramidResolution.y) };
     _sceneData.lodTarget          = (2.0f / _sceneData.p00p11.y) * _sceneData.invResolution.x;
 
     auto ptr = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);

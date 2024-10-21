@@ -1,6 +1,7 @@
 #version 450
 
 #include "common/types.h"
+#include "common/utils.h"
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -21,7 +22,7 @@ layout(std430, binding = 2, set = GLOBAL_DATA_SET) writeonly buffer Commands {
 };
 
 layout(std430, binding = 3, set = GLOBAL_DATA_SET) buffer Visibility {
-    uint visibility[];
+    uint8_t visibility[];
 };
 
 #ifdef LATE
@@ -40,13 +41,6 @@ layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer Meshlets {
     Meshlet meshlets[];
 };
 
-const bool late =
-#ifdef LATE
-    true;
-#else
-    false;
-#endif
-
 void main() {
     uint index = gl_GlobalInvocationID.x;
 
@@ -54,11 +48,11 @@ void main() {
         return;
     }
 
-    visibility[index] = 1;
-
-    if (!late && visibility[index] == 0) {
+#ifndef LATE
+    if (uint(visibility[index]) == 0) {
         return;
     }
+#endif
 
     ClusterMeshInstance instance = instances[index];
     uint meshIndex = instance.mesh;
@@ -72,11 +66,29 @@ void main() {
     visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
     visible = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
 
-    if (late && visible) {
+#ifdef LATE
+    if (visible) {
+        vec4 aabb;
+        if (projectSphere(center, radius, scene.farNear.y, scene.p00p11.x, scene.p00p11.y, aabb)) {
+            float width = (aabb.z - aabb.x) * scene.pyramidResolution.x;
+            float height = (aabb.w - aabb.y) * scene.pyramidResolution.y;
 
+            float level = ceil(log2(max(width, height)));
+
+            float depth = textureLod(depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+            float depthSphere = scene.farNear.y / (center.z - radius);
+
+            visible = visible && depthSphere > depth;
+        }
     }
+#endif
 
-    if (visible && (!late || visibility[index] == 0)) {
+    if (visible
+    #ifdef LATE
+        && uint(visibility[index]) == 0
+    #endif
+        ) {
+
         uint lodIndex = 0;
 
         float distance = max(length(center) - radius, 0);
@@ -97,12 +109,10 @@ void main() {
             commands[count + i].drawId = index;
             commands[count + i].taskOffset = lod.meshletOffset + i * TASK_GROUP_SIZE;
             commands[count + i].taskCount = min(TASK_GROUP_SIZE, lod.meshletCount - i * TASK_GROUP_SIZE);
-            commands[count + i].visibility = visibility[index];
-            commands[count + i].visibilityOffset = instance.visibilityOffset + i * TASK_GROUP_SIZE;
         }
     }
     
-	if (late) {
-		visibility[index] = visible ? 1 : 0;
-    }
+#ifdef LATE
+    visibility[index] = visible ? uint8_t(1) : uint8_t(0);
+#endif
 }

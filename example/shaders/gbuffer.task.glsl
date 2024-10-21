@@ -48,7 +48,7 @@ void main() {
     uint drawId = command.drawId;
     uint taskOffset = command.taskOffset;
     uint taskCount = command.taskCount;
-    uint lateDrawVisibility = command.visibility;
+    // uint lateDrawVisibility = command.visibility;
 
     ClusterMeshInstance instance = instances[drawId];
     uint meshIndex = instance.mesh;
@@ -56,7 +56,7 @@ void main() {
 
     uint mgi = gl_LocalInvocationID.x;
     uint mi = gl_LocalInvocationID.x + taskOffset;
-    uint mvi = mgi + command.visibilityOffset;
+    // uint mvi = mgi + command.visibilityOffset;
 
     sharedCount = 0;
     barrier();
@@ -73,35 +73,38 @@ void main() {
     bool visible = valid;
     bool skip = false;
 
-    uint meshletVisibilityBit = visibility[mvi >> 5] & (1u << (mvi & 31));
+    // uint meshletVisibilityBit = visibility[mvi >> 5] & (1u << (mvi & 31));
 
-    if (!late && meshletVisibilityBit == 0) {
-        visible = false;
-    }
+    // if (!late && meshletVisibilityBit == 0) {
+    //     visible = false;
+    // }
 
-    if (late && lateDrawVisibility == 1 && meshletVisibilityBit != 0) {
-        skip = true;
-    }
+    // if (late && lateDrawVisibility == 1 && meshletVisibilityBit != 0) {
+    //     skip = true;
+    // }
 
     visible = visible && !coneCulling(center, radius, coneAxis, coneCutoff, vec3(0, 0, 0));
     visible = visible && center.z * scene.frustum.y - abs(center.x) * scene.frustum.x > -radius;
     visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
     visible = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
 
-    if (late && visible) {
+    // if (late && visible) {
 
-    }
+    // }
 
-    if (late && valid) {
+    // if (late && valid) {
+    //     if (visible) {
+    //         // atomicOr(visibility[mvi >> 5], 1u << (mvi & 31));
+    //     } else {
+    //         // atomicAnd(visibility[mvi >> 5], ~(1u << (mvi & 31)));
+    //     }
+    // }
 
-    }
+    // if (visible && !skip) {
+    //     uint index = atomicAdd(sharedCount, 1);
+    // }
 
-    if (visible && !skip) {
-		uint index = atomicAdd(sharedCount, 1);
-    }
-
-    payload.drawId = drawId;
-    payload.meshletIndices[gl_LocalInvocationID.x] = mi;
+    payload.meshletIndices[gl_LocalInvocationID.x] = commandId | (mgi << 24);
 
     EmitMeshTasksEXT(taskCount, 1, 1);
 }

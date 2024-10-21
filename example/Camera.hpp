@@ -119,6 +119,8 @@ private:
     glm::mat4 _viewProjection{};
     glm::mat4 _prevViewProjection{};
 
+    glm::uvec2 _pyramidResolution{};
+
     Plane _frustum[6]{};
 
     SceneData _sceneData{};

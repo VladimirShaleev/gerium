@@ -22,6 +22,7 @@ struct SHADER_ALIGN SceneData {
     vec2  prevJitter;
     vec2  invResolution;
     ivec2 resolution;
+    ivec2 pyramidResolution;
     float lodTarget;
 };
 
@@ -34,8 +35,8 @@ struct SHADER_ALIGN MeshTaskCommand {
     uint drawId;
     uint taskOffset;
     uint taskCount;
-    uint visibility;
-    uint visibilityOffset;
+    // uint visibility;
+    // uint visibilityOffset;
 };
 
 #if (defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)) || defined(__cplusplus)

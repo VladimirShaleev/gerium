@@ -12,6 +12,10 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform Scene {
     SceneData scene;
 };
 
+layout(std430, binding = 0, set = GLOBAL_DATA_SET) readonly buffer Commands {
+    MeshTaskCommand commands[];
+};
+
 layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer ClusterMeshInstances {
     ClusterMeshInstance instances[];
 };
@@ -48,7 +52,10 @@ uint hash(uint a) {
 
 void main() {
     uint ti = gl_LocalInvocationID.x;
-    uint mi = payload.meshletIndices[gl_WorkGroupID.x];
+    uint ci = payload.meshletIndices[gl_WorkGroupID.x];
+
+	MeshTaskCommand	command = commands[ci & 0xffffff];
+	uint mi = command.taskOffset + (ci >> 24);
 
     uint mhash = hash(mi);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
@@ -69,7 +76,7 @@ void main() {
 
         vec3 normal = vec3(int(vertices[index].normal.x), int(vertices[index].normal.y), int(vertices[index].normal.z)) / 127.0 - 1.0;
     
-        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * instances[payload.drawId].world * vertices[index].position;
+        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * instances[command.drawId].world * vertices[index].position;
         color[offset] = vec4(mcolor, 1.0);
     }
 
