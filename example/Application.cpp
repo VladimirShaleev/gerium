@@ -221,6 +221,9 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
         ImGui::Checkbox("Show profiler", &drawProfiler);
         ImGui::Checkbox("Debug camera", &settings.DebugCamera);
         ImGui::Checkbox("Move debug camera", &settings.MoveDebugCamera);
+
+        gerium_frame_graph_enable_node(frameGraph, "debug_occlusion_pass", settings.DebugCamera);
+        gerium_frame_graph_enable_node(frameGraph, "debug_line_pass", settings.DebugCamera);
     }
 
     ImGui::End();

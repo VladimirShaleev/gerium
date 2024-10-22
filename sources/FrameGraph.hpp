@@ -101,6 +101,8 @@ public:
                  const gerium_resource_input_t* inputs,
                  gerium_uint32_t outputCount,
                  const gerium_resource_output_t* outputs);
+    void enableNode(gerium_utf8_t name, gerium_bool_t enable);
+
     void addBuffer(gerium_utf8_t name, BufferHandle handle);
     void addTexture(gerium_utf8_t name, TextureHandle handle);
 

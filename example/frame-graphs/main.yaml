@@ -104,7 +104,7 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: stub_dep_0
         size: 4
-        usage: [GERIUM_BUFFER_USAGE_INDIRECT_BIT]
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
 
   - name: debug_occlusion_pass
     inputs:
@@ -140,4 +140,4 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: stub_dep_1
         size: 4
-        usage: [GERIUM_BUFFER_USAGE_INDIRECT_BIT]
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]

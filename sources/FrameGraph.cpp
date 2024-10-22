@@ -89,6 +89,20 @@ void FrameGraph::addNode(gerium_utf8_t name,
     _hasChanges = true;
 }
 
+void FrameGraph::enableNode(gerium_utf8_t name, gerium_bool_t enable) {
+    const auto key = hash(name);
+
+    if (auto it = _nodeCache.find(key); it != _nodeCache.end()) {
+        auto node     = _nodes.access(it->second);
+        node->enabled = enable;
+    } else {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name](auto& stream) {
+            stream << "Node '" << name << "' not found in frame graph";
+        });
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
+    }
+}
+
 void FrameGraph::addBuffer(gerium_utf8_t name, BufferHandle handle) {
     if (handle != Undefined) {
         _externalCache[hash(name)] = { handle, false };
@@ -683,6 +697,16 @@ gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
     GERIUM_ASSERT_ARG(output_count == 0 || (output_count > 0 && outputs));
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<FrameGraph*>(frame_graph)->addNode(name, compute, input_count, inputs, output_count, outputs);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_frame_graph_enable_node(gerium_frame_graph_t frame_graph,
+                                               gerium_utf8_t name,
+                                               gerium_bool_t enable) {
+    assert(frame_graph);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->enableNode(name, enable);
     GERIUM_END_SAFE_BLOCK
 }
 

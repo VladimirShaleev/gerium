@@ -1430,10 +1430,6 @@ gerium_renderer_render(gerium_renderer_t renderer,
 gerium_public gerium_result_t
 gerium_renderer_present(gerium_renderer_t renderer);
 
-gerium_public gerium_result_t
-gerium_frame_graph_create(gerium_renderer_t renderer,
-                          gerium_frame_graph_t* frame_graph);
-
 gerium_public void
 gerium_command_buffer_set_viewport(gerium_command_buffer_t command_buffer,
                                    gerium_uint16_t x,
@@ -1524,6 +1520,10 @@ gerium_public void
 gerium_command_buffer_barrier_texture_read(gerium_command_buffer_t command_buffer,
                                            gerium_texture_h handle);
 
+gerium_public gerium_result_t
+gerium_frame_graph_create(gerium_renderer_t renderer,
+                          gerium_frame_graph_t* frame_graph);
+
 gerium_public gerium_frame_graph_t
 gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);
 
@@ -1548,6 +1548,11 @@ gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             const gerium_resource_input_t* inputs,
                             gerium_uint32_t output_count,
                             const gerium_resource_output_t* outputs);
+
+gerium_public gerium_result_t
+gerium_frame_graph_enable_node(gerium_frame_graph_t frame_graph,
+                               gerium_utf8_t name,
+                               gerium_bool_t enable);
 
 gerium_public gerium_result_t
 gerium_frame_graph_add_buffer(gerium_frame_graph_t frame_graph,
