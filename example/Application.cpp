@@ -264,6 +264,87 @@ void DebugOcclusionPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_re
     _descriptorSet = nullptr;
 }
 
+void DebugLinePass::render(gerium_frame_graph_t frameGraph,
+                           gerium_renderer_t renderer,
+                           gerium_command_buffer_t commandBuffer,
+                           gerium_uint32_t worker,
+                           gerium_uint32_t totalWorkers) {
+    if (application()->settings().DebugCamera) {
+        gerium_uint32_t vertices = 0;
+
+        auto dataV = (glm::vec3*) gerium_renderer_map_buffer(renderer, _vertices, 0, sizeof(glm::vec3) * _maxPoints);
+
+        auto primaryCamera = application()->getCamera();
+
+        const auto nearPlane = primaryCamera->nearPlane();
+        const auto farPlane  = 0.999f;
+
+        const auto aspect = float(application()->width()) / application()->height();
+        const auto persp =
+            glm::perspective(primaryCamera->fov(), aspect, primaryCamera->nearPlane(), primaryCamera->farPlane());
+
+        auto invV = glm::inverse(persp * primaryCamera->view());
+
+        const glm::vec4 point0 = invV * glm::vec4(-1.0f, -1.0f, nearPlane, 1.0f);
+        const glm::vec4 point1 = invV * glm::vec4(-1.0f, -1.0f, farPlane, 1.0f);
+        const glm::vec4 point2 = invV * glm::vec4(1.0f, -1.0f, nearPlane, 1.0f);
+        const glm::vec4 point3 = invV * glm::vec4(1.0f, -1.0f, farPlane, 1.0f);
+        const glm::vec4 point4 = invV * glm::vec4(-1.0f, 1.0f, nearPlane, 1.0f);
+        const glm::vec4 point5 = invV * glm::vec4(-1.0f, 1.0f, farPlane, 1.0f);
+        const glm::vec4 point6 = invV * glm::vec4(1.0f, 1.0f, nearPlane, 1.0f);
+        const glm::vec4 point7 = invV * glm::vec4(1.0f, 1.0f, farPlane, 1.0f);
+
+        dataV[vertices++] = glm::vec3(point0.xyz()) / point0.w;
+        dataV[vertices++] = glm::vec3(point1.xyz()) / point1.w;
+        dataV[vertices++] = glm::vec3(point2.xyz()) / point2.w;
+        dataV[vertices++] = glm::vec3(point3.xyz()) / point3.w;
+        dataV[vertices++] = glm::vec3(point4.xyz()) / point4.w;
+        dataV[vertices++] = glm::vec3(point5.xyz()) / point5.w;
+        dataV[vertices++] = glm::vec3(point6.xyz()) / point6.w;
+        dataV[vertices++] = glm::vec3(point7.xyz()) / point7.w;
+
+        dataV[vertices++] = glm::vec3(point0.xyz()) / point0.w;
+        dataV[vertices++] = glm::vec3(point2.xyz()) / point2.w;
+        dataV[vertices++] = glm::vec3(point2.xyz()) / point2.w;
+        dataV[vertices++] = glm::vec3(point6.xyz()) / point6.w;
+        dataV[vertices++] = glm::vec3(point6.xyz()) / point6.w;
+        dataV[vertices++] = glm::vec3(point4.xyz()) / point4.w;
+        dataV[vertices++] = glm::vec3(point4.xyz()) / point4.w;
+        dataV[vertices++] = glm::vec3(point0.xyz()) / point0.w;
+
+        dataV[vertices++] = glm::vec3(point1.xyz()) / point1.w;
+        dataV[vertices++] = glm::vec3(point3.xyz()) / point3.w;
+        dataV[vertices++] = glm::vec3(point3.xyz()) / point3.w;
+        dataV[vertices++] = glm::vec3(point7.xyz()) / point7.w;
+        dataV[vertices++] = glm::vec3(point7.xyz()) / point7.w;
+        dataV[vertices++] = glm::vec3(point5.xyz()) / point5.w;
+        dataV[vertices++] = glm::vec3(point5.xyz()) / point5.w;
+        dataV[vertices++] = glm::vec3(point1.xyz()) / point1.w;
+
+        gerium_renderer_unmap_buffer(renderer, _vertices);
+
+        auto camera = application()->getDebugCamera();
+        gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), 0);
+        gerium_command_buffer_bind_vertex_buffer(commandBuffer, _vertices, 0, 0);
+        gerium_command_buffer_draw(commandBuffer, 0, vertices, 0, 1);
+    }
+}
+
+void DebugLinePass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "debug_meshlet");
+
+    _maxPoints = 48;
+    _vertices  = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_VERTEX_BIT, true, "lines_vertices", nullptr, sizeof(glm::vec3) * _maxPoints);
+}
+
+void DebugLinePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
+    _vertices      = nullptr;
+}
+
 Application::Application() {
     check(gerium_logger_create("example", &_logger));
 }
@@ -647,6 +728,7 @@ void Application::initialize() {
     addPass(_indirectLatePass);
     addPass(_gbufferLatePass);
     addPass(_debugOcclusionPass);
+    addPass(_debugLinePass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());

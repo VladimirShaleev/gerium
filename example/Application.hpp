@@ -132,12 +132,32 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
-                
+
     void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
 private:
     DescriptorSet _descriptorSet;
+};
+
+class DebugLinePass final : public RenderPass {
+public:
+    DebugLinePass() : RenderPass("debug_line_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    int _maxPoints{};
+    DescriptorSet _descriptorSet{};
+    Buffer _vertices{};
 };
 
 class Application final {
@@ -276,6 +296,7 @@ private:
     IndirectPass _indirectPass{ false };
     IndirectPass _indirectLatePass{ true };
     DebugOcclusionPass _debugOcclusionPass;
+    DebugLinePass _debugLinePass{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};

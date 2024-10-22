@@ -5,6 +5,8 @@ frame graph:
         name: color
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: debug_meshlet
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: stub_dep
 
   - name: gbuffer_pass
     inputs:
@@ -136,3 +138,15 @@ frame graph:
         format: GERIUM_FORMAT_D32_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         clear depth stencil attachment: [0.0, 0]
+
+  - name: debug_line_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: debug_meshlet
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: debug_depth
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: stub_dep
+        size: 4
+        usage: [GERIUM_BUFFER_USAGE_INDIRECT_BIT]
