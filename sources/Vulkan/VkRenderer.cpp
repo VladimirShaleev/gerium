@@ -351,12 +351,14 @@ void VkRenderer::onTextureSampler(TextureHandle handle,
                                   gerium_filter_t mipFilter,
                                   gerium_address_mode_t addressModeU,
                                   gerium_address_mode_t addressModeV,
-                                  gerium_address_mode_t addressModeW) {
+                                  gerium_address_mode_t addressModeW,
+                                  gerium_reduction_mode_t reductionMode) {
     SamplerCreation sc;
     sc.setMinMagMip(toVkFilter(minFilter), toVkFilter(magFilter), toVkSamplerMipmapMode(mipFilter))
         .setAddressModeUvw(toVkSamplerAddressMode(addressModeU),
                            toVkSamplerAddressMode(addressModeV),
-                           toVkSamplerAddressMode(addressModeW));
+                           toVkSamplerAddressMode(addressModeW))
+        .setReductionMode(toVkSamplerReductionMode(reductionMode));
     auto oldSampler = _device->getTextureSampler(handle);
     auto sampler    = _device->createSampler(sc);
     _device->linkTextureSampler(handle, sampler);

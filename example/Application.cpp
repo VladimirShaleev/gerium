@@ -5,31 +5,27 @@ void DepthPyramidPass::render(gerium_frame_graph_t frameGraph,
                               gerium_command_buffer_t commandBuffer,
                               gerium_uint32_t worker,
                               gerium_uint32_t totalWorkers) {
-    auto width  = _depthPyramidWidth;
-    auto height = _depthPyramidHeight;
-
     gerium_texture_h depth;
     gerium_renderer_get_texture(renderer, "depth", false, false, &depth);
     gerium_renderer_texture_sampler(renderer,
                                     depth,
-                                    GERIUM_FILTER_NEAREST,
-                                    GERIUM_FILTER_NEAREST,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
                                     GERIUM_FILTER_NEAREST,
                                     GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
                                     GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE);
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_REDUCTION_MODE_MIN);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
 
     for (gerium_uint16_t m = 0; m < _depthPyramidMipLevels; ++m) {
-        auto groupX = (width + 7) / 8;
-        auto groupY = (height + 7) / 8;
-        width /= 2;
-        height /= 2;
+        auto levelWidth  = std::max(1, _depthPyramidWidth >> m);
+        auto levelHeight = std::max(1, _depthPyramidHeight >> m);
 
         gerium_command_buffer_barrier_texture_write(commandBuffer, _depthPyramidMips[m]);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[m], 0);
-        gerium_command_buffer_dispatch(commandBuffer, groupX, groupY, 1);
+        gerium_command_buffer_dispatch(commandBuffer, getGroupCount(levelWidth, 32), getGroupCount(levelHeight, 32), 1);
         gerium_command_buffer_barrier_texture_read(commandBuffer, _depthPyramidMips[m]);
     }
 }
@@ -47,6 +43,9 @@ void DepthPyramidPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_rend
     for (auto& mip : _depthPyramidMips) {
         mip = nullptr;
     }
+    for (auto& buffer : _imageSizes) {
+        buffer = nullptr;
+    }
     for (auto& set : _descriptorSets) {
         set = nullptr;
     }
@@ -55,8 +54,8 @@ void DepthPyramidPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_rend
 void DepthPyramidPass::createDepthPyramid(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     uninitialize(frameGraph, renderer);
 
-    _depthPyramidWidth     = application()->width() / 2;
-    _depthPyramidHeight    = application()->height() / 2;
+    _depthPyramidWidth     = previousPow2(application()->width());
+    _depthPyramidHeight    = previousPow2(application()->height());
     _depthPyramidMipLevels = calcMipLevels(_depthPyramidWidth, _depthPyramidHeight);
 
     gerium_texture_info_t info{};
@@ -72,16 +71,23 @@ void DepthPyramidPass::createDepthPyramid(gerium_frame_graph_t frameGraph, geriu
     _depthPyramid = application()->resourceManager().createTexture(info, nullptr, 0);
     gerium_renderer_texture_sampler(renderer,
                                     _depthPyramid,
-                                    GERIUM_FILTER_NEAREST,
-                                    GERIUM_FILTER_NEAREST,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
                                     GERIUM_FILTER_NEAREST,
                                     GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
                                     GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE);
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_REDUCTION_MODE_MIN);
 
     gerium_frame_graph_add_texture(frameGraph, "depth_pyramid", _depthPyramid);
 
     for (gerium_uint16_t m = 0; m < _depthPyramidMipLevels; ++m) {
+        auto levelWidth  = std::max(1, _depthPyramidWidth >> m);
+        auto levelHeight = std::max(1, _depthPyramidHeight >> m);
+        auto imageSize   = glm::vec2(levelWidth, levelHeight);
+        _imageSizes[m]   = application()->resourceManager().createBuffer(
+            GERIUM_BUFFER_USAGE_UNIFORM_BIT, false, "", &imageSize.x, sizeof(imageSize));
+
         auto name = "depth_pyramid_mip_" + std::to_string(m);
 
         _depthPyramidMips[m] = application()->resourceManager().createTextureView(name, _depthPyramid, m, 1);
@@ -90,9 +96,11 @@ void DepthPyramidPass::createDepthPyramid(gerium_frame_graph_t frameGraph, geriu
         if (m == 0) {
             gerium_renderer_bind_resource(renderer, _descriptorSets[m], 0, "depth");
             gerium_renderer_bind_texture(renderer, _descriptorSets[m], 1, 0, _depthPyramidMips[m]);
+            gerium_renderer_bind_buffer(renderer, _descriptorSets[m], 2, _imageSizes[m]);
         } else {
             gerium_renderer_bind_texture(renderer, _descriptorSets[m], 0, 0, _depthPyramidMips[m - 1]);
             gerium_renderer_bind_texture(renderer, _descriptorSets[m], 1, 0, _depthPyramidMips[m]);
+            gerium_renderer_bind_buffer(renderer, _descriptorSets[m], 2, _imageSizes[m]);
         }
     }
 }
@@ -282,27 +290,30 @@ void Application::createScene() {
 
     uint32_t meshletVisibilityCount = 0;
 
-    for (int i = 0; i < 25; ++i) {
-        float x = (i % 5) * 2.0f;
-        float z = (i / 5) * 2.0f;
+    for (int iy = 0; iy < 4; ++iy) {
+        for (int i = 0; i < 16; ++i) {
+            float x = (i % 4) * 1.0f;
+            float z = (i / 4) * 1.0f;
+            float y = (iy) * 1.0f;
 
-        // if (i % 2 == 0) {
-        bunny.world        = glm::translate(glm::vec3(x, 0.0f, z));
-        bunny.inverseWorld = glm::inverse(bunny.world);
-        glm::decompose(bunny.world, scale, rot, translate, skew, perspective);
-        bunny.orientation      = glm::vec4(rot.x, rot.y, rot.z, rot.w);
-        bunny.scale            = glm::max(scale.x, glm::max(scale.y, scale.z));
-        bunny.visibilityOffset = meshletVisibilityCount;
-        meshletVisibilityCount += bunnyMeshletCount;
+            // if (i % 2 == 0) {
+            bunny.world        = glm::translate(glm::vec3(x, y, z));
+            bunny.inverseWorld = glm::inverse(bunny.world);
+            glm::decompose(bunny.world, scale, rot, translate, skew, perspective);
+            bunny.orientation      = glm::vec4(rot.x, rot.y, rot.z, rot.w);
+            bunny.scale            = glm::max(scale.x, glm::max(scale.y, scale.z));
+            bunny.visibilityOffset = meshletVisibilityCount;
+            meshletVisibilityCount += bunnyMeshletCount;
 
-        _instances.push_back(bunny);
-        //} else {
-        //    dragon.world = glm::translate(glm::vec3(x, 0.0f, z)) * glm::scale(glm::vec3(1.0f, 1.0f, 1.0f) * 3.0f);
-        //    dragon.inverseWorld = glm::inverse(dragon.world);
-        //    glm::decompose(dragon.world, scale, rot, translate, skew, perspective);
-        //    dragon.scale = glm::max(scale.x, glm::max(scale.y, scale.z));
-        //    _instances.push_back(dragon);
-        //}
+            _instances.push_back(bunny);
+            //} else {
+            //    dragon.world = glm::translate(glm::vec3(x, 0.0f, z)) * glm::scale(glm::vec3(1.0f, 1.0f, 1.0f) * 3.0f);
+            //    dragon.inverseWorld = glm::inverse(dragon.world);
+            //    glm::decompose(dragon.world, scale, rot, translate, skew, perspective);
+            //    dragon.scale = glm::max(scale.x, glm::max(scale.y, scale.z));
+            //    _instances.push_back(dragon);
+            //}
+        }
     }
 
     DrawData drawData{};

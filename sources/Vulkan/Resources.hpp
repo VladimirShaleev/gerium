@@ -51,30 +51,37 @@ struct SamplerCreation {
     VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     VkSamplerAddressMode addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
+    VkSamplerReductionMode reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+
     const char* name = nullptr;
 
-    SamplerCreation& setMinMagMip(VkFilter min, VkFilter mag, VkSamplerMipmapMode mip) {
+    SamplerCreation& setMinMagMip(VkFilter min, VkFilter mag, VkSamplerMipmapMode mip) noexcept {
         minFilter = min;
         magFilter = mag;
         mipFilter = mip;
         return *this;
     }
 
-    SamplerCreation& setAddressModeU(VkSamplerAddressMode u) {
+    SamplerCreation& setAddressModeU(VkSamplerAddressMode u) noexcept {
         addressModeU = u;
         return *this;
     }
 
-    SamplerCreation& setAddressModeUv(VkSamplerAddressMode u, VkSamplerAddressMode v) {
+    SamplerCreation& setAddressModeUv(VkSamplerAddressMode u, VkSamplerAddressMode v) noexcept {
         addressModeU = u;
         addressModeV = v;
         return *this;
     }
 
-    SamplerCreation& setAddressModeUvw(VkSamplerAddressMode u, VkSamplerAddressMode v, VkSamplerAddressMode w) {
+    SamplerCreation& setAddressModeUvw(VkSamplerAddressMode u, VkSamplerAddressMode v, VkSamplerAddressMode w) noexcept {
         addressModeU = u;
         addressModeV = v;
         addressModeW = w;
+        return *this;
+    }
+
+    SamplerCreation& setReductionMode(VkSamplerReductionMode reduction) noexcept {
+        reductionMode = reduction;
         return *this;
     }
 

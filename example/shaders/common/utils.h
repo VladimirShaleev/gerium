@@ -22,7 +22,7 @@ bool projectSphere(vec3 c, float r, float znear, float P00, float P11, out vec4 
     float maxy = (vy * c.y + cr.z) / (vy * c.z - cr.y);
 
     aabb = vec4(minx * P00, miny * P11, maxx * P00, maxy * P11);
-    aabb = aabb.xwzy * vec4(0.5f, -0.5f, 0.5f, -0.5f) + vec4(0.5f);
+    aabb = aabb.xwzy * vec4(0.5, -0.5, 0.5, -0.5) + vec4(0.5);
 
     return true;
 }

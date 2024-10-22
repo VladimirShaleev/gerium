@@ -153,7 +153,7 @@ void Camera::update() {
     frustumX /= glm::length(frustumX.xyz());
     frustumY /= glm::length(frustumY.xyz());
 
-    _pyramidResolution = glm::uvec2(width, height) / 2;
+    _pyramidResolution = glm::uvec2(previousPow2(width), previousPow2(height));
 
     _sceneData.view               = _view;
     _sceneData.viewProjection     = _viewProjection;

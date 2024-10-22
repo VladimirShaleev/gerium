@@ -76,8 +76,9 @@ void Renderer::textureSampler(TextureHandle handle,
                               gerium_filter_t mipFilter,
                               gerium_address_mode_t addressModeU,
                               gerium_address_mode_t addressModeV,
-                              gerium_address_mode_t addressModeW) {
-    onTextureSampler(handle, minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW);
+                              gerium_address_mode_t addressModeW,
+                              gerium_reduction_mode_t reductionMode) {
+    onTextureSampler(handle, minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW, reductionMode);
 }
 
 BufferHandle Renderer::getBuffer(gerium_utf8_t resource, bool fromOutput) {
@@ -311,12 +312,19 @@ gerium_result_t gerium_renderer_texture_sampler(gerium_renderer_t renderer,
                                                 gerium_filter_t mip_filter,
                                                 gerium_address_mode_t address_mode_u,
                                                 gerium_address_mode_t address_mode_v,
-                                                gerium_address_mode_t address_mode_w) {
+                                                gerium_address_mode_t address_mode_w,
+                                                gerium_reduction_mode_t reduction_mode) {
     assert(renderer);
 
     GERIUM_BEGIN_SAFE_BLOCK
-        alias_cast<Renderer*>(renderer)->textureSampler(
-            { handle.index }, min_filter, mag_filter, mip_filter, address_mode_u, address_mode_v, address_mode_w);
+        alias_cast<Renderer*>(renderer)->textureSampler({ handle.index },
+                                                        min_filter,
+                                                        mag_filter,
+                                                        mip_filter,
+                                                        address_mode_u,
+                                                        address_mode_v,
+                                                        address_mode_w,
+                                                        reduction_mode);
     GERIUM_END_SAFE_BLOCK
 }
 

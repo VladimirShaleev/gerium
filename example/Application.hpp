@@ -47,6 +47,7 @@ private:
     gerium_uint16_t _depthPyramidMipLevels{};
     Texture _depthPyramid{};
     Texture _depthPyramidMips[16]{};
+    Buffer _imageSizes[16]{};
     DescriptorSet _descriptorSets[16]{};
 };
 

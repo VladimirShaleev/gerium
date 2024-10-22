@@ -50,7 +50,8 @@ public:
                         gerium_filter_t mipFilter,
                         gerium_address_mode_t addressModeU,
                         gerium_address_mode_t addressModeV,
-                        gerium_address_mode_t addressModeW);
+                        gerium_address_mode_t addressModeW,
+                        gerium_reduction_mode_t reductionMode);
     BufferHandle getBuffer(gerium_utf8_t resource, bool fromOutput);
     TextureHandle getTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame);
 
@@ -114,7 +115,8 @@ private:
                                   gerium_filter_t mipFilter,
                                   gerium_address_mode_t addressModeU,
                                   gerium_address_mode_t addressModeV,
-                                  gerium_address_mode_t addressModeW) = 0;
+                                  gerium_address_mode_t addressModeW,
+                                  gerium_reduction_mode_t reductionMode) = 0;
 
     virtual BufferHandle onGetBuffer(gerium_utf8_t resource, bool fromOutput)                           = 0;
     virtual TextureHandle onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) = 0;

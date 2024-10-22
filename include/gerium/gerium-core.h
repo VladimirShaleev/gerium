@@ -725,6 +725,14 @@ typedef enum
 
 typedef enum
 {
+    GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE  = 0,
+    GERIUM_REDUCTION_MODE_MIN               = 1,
+    GERIUM_REDUCTION_MODE_MAX               = 2,
+    GERIUM_REDUCTION_MODE_MAX_ENUM          = 0x7FFFFFFF
+} gerium_reduction_mode_t;
+
+typedef enum
+{
     GERIUM_RESOURCE_TYPE_BUFFER     = 0,
     GERIUM_RESOURCE_TYPE_TEXTURE    = 1,
     GERIUM_RESOURCE_TYPE_ATTACHMENT = 2,
@@ -1351,7 +1359,8 @@ gerium_renderer_texture_sampler(gerium_renderer_t renderer,
                                 gerium_filter_t mip_filter,
                                 gerium_address_mode_t address_mode_u,
                                 gerium_address_mode_t address_mode_v,
-                                gerium_address_mode_t address_mode_w);
+                                gerium_address_mode_t address_mode_w,
+                                gerium_reduction_mode_t reduction_mode);
 
 gerium_public gerium_result_t
 gerium_renderer_get_buffer(gerium_renderer_t renderer,

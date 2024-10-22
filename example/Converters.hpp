@@ -447,8 +447,8 @@ struct convert<gerium_color_blend_attachment_state_t> {
         rhs.src_color_blend_factor = node["src color blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
         rhs.dst_color_blend_factor = node["dst color blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
         rhs.color_blend_op         = node["color blend op"].as<gerium_blend_op_t>(GERIUM_BLEND_OP_ADD);
-        rhs.src_alpha_blend_factor = node["src alpha blend factor"].as<gerium_blend_factor_t>();
-        rhs.dst_alpha_blend_factor = node["dst alpha blend factor"].as<gerium_blend_factor_t>();
+        rhs.src_alpha_blend_factor = node["src alpha blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
+        rhs.dst_alpha_blend_factor = node["dst alpha blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
         rhs.alpha_blend_op         = node["alpha blend op"].as<gerium_blend_op_t>(GERIUM_BLEND_OP_ADD);
         return true;
     }

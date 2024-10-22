@@ -1,28 +1,21 @@
 #version 450
 
+#include "common/defines.h"
+
 layout(set = 0, binding = 0) uniform sampler2D depth;
 
 layout(set = 0, binding = 1, r32f) uniform writeonly image2D reduce;
 
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+layout(std140, binding = 2, set = SCENE_DATA_SET) uniform ImageSize {
+    vec2 imageSize;
+};
 
 void main() {
-    ivec2 texelPosition00 = ivec2(gl_GlobalInvocationID.xy) * 2;
-    ivec2 texelPosition01 = texelPosition00 + ivec2(0, 1);
-    ivec2 texelPosition10 = texelPosition00 + ivec2(1, 0);
-    ivec2 texelPosition11 = texelPosition00 + ivec2(1, 1);
-    
-    float color00 = texelFetch(depth, texelPosition00, 0).r;
-    float color01 = texelFetch(depth, texelPosition01, 0).r;
-    float color10 = texelFetch(depth, texelPosition10, 0).r;
-    float color11 = texelFetch(depth, texelPosition11, 0).r;
+	uvec2 pos = ivec2(gl_GlobalInvocationID.xy);
 
-    float result = 
-    #ifdef INVERTED_Z
-        min(min(min(color00, color01), color10), color11);
-    #else
-        max(max(max(color00, color01), color10), color11);
-    #endif
+    float result = texture(depth, (vec2(pos) + vec2(0.5)) / imageSize).r;
 
-    imageStore(reduce, ivec2(gl_GlobalInvocationID.xy), vec4(result, 0.0, 0.0, 0.0));
+    imageStore(reduce, ivec2(pos), vec4(result));
 }

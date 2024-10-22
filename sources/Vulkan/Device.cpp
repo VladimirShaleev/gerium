@@ -525,6 +525,13 @@ SamplerHandle Device::createSampler(const SamplerCreation& creation) {
     createInfo.maxLod                  = 16;
     createInfo.borderColor             = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
     createInfo.unnormalizedCoordinates = VK_FALSE;
+
+    VkSamplerReductionModeCreateInfo reductionInfo{ VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO };
+    if (creation.reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE) {
+        reductionInfo.reductionMode = creation.reductionMode;
+        createInfo.pNext            = &reductionInfo;
+    }
+
     check(_vkTable.vkCreateSampler(_device, &createInfo, getAllocCalls(), &sampler->vkSampler));
 
     setObjectName(VK_OBJECT_TYPE_SAMPLER, (uint64_t) sampler->vkSampler, sampler->name);
@@ -1632,6 +1639,8 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
 
     VkPhysicalDeviceVulkan12Features features12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
     features12.pNext = &features11;
+    features12.samplerFilterMinmax =
+        testFeatures12.samplerFilterMinmax; // TODO: add flag for reduction GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT
     if (_bindlessSupported) {
         features12.descriptorBindingPartiallyBound = testFeatures12.descriptorBindingPartiallyBound;
         features12.runtimeDescriptorArray          = testFeatures12.runtimeDescriptorArray;
@@ -3114,6 +3123,7 @@ gerium_uint64_t Device::calcSamplerHash(const SamplerCreation& creation) noexcep
     seed = hash(creation.addressModeU, seed);
     seed = hash(creation.addressModeV, seed);
     seed = hash(creation.addressModeW, seed);
+    seed = hash(creation.reductionMode, seed);
 
     return seed;
 }

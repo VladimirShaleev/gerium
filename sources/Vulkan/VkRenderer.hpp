@@ -64,7 +64,8 @@ private:
                           gerium_filter_t mipFilter,
                           gerium_address_mode_t addressModeU,
                           gerium_address_mode_t addressModeV,
-                          gerium_address_mode_t addressModeW) override;
+                          gerium_address_mode_t addressModeW,
+                          gerium_reduction_mode_t reductionMode) override;
 
     BufferHandle onGetBuffer(gerium_utf8_t resource, bool fromOutput) override;
     TextureHandle onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) override;

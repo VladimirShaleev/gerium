@@ -66,6 +66,11 @@ inline T previousPow2(T value) noexcept {
     return result;
 }
 
+template <typename T>
+inline T getGroupCount(T threadCount, T localSize) noexcept {
+	return (threadCount + localSize - 1) / localSize;
+}
+
 inline gerium_float32_t halton(gerium_sint32_t i, gerium_sint32_t b) noexcept {
     auto f  = 1.0f;
     auto r  = 0.0f;

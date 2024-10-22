@@ -73,12 +73,12 @@ void main() {
             float width = (aabb.z - aabb.x) * scene.pyramidResolution.x;
             float height = (aabb.w - aabb.y) * scene.pyramidResolution.y;
 
-            float level = ceil(log2(max(width, height)));
+            float level = max(floor(log2(max(width, height))) - 1, 0);
 
             float depth = textureLod(depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
             float depthSphere = scene.farNear.y / (center.z - radius);
 
-            visible = visible && depthSphere > depth;
+            visible = depthSphere > depth;
         }
     }
 #endif

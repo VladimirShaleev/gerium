@@ -403,6 +403,10 @@ gerium_inline VkSamplerAddressMode toVkSamplerAddressMode(gerium_address_mode_t 
     return (VkSamplerAddressMode) mode;
 }
 
+gerium_inline VkSamplerReductionMode toVkSamplerReductionMode(gerium_reduction_mode_t mode) noexcept {
+    return (VkSamplerReductionMode) mode;
+}
+
 gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type) noexcept {
     constexpr VkImageViewType types[] = { VK_IMAGE_VIEW_TYPE_1D,       VK_IMAGE_VIEW_TYPE_2D,
                                           VK_IMAGE_VIEW_TYPE_3D,       VK_IMAGE_VIEW_TYPE_1D_ARRAY,
