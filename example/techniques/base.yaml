@@ -92,3 +92,29 @@ pipelines:
         name: shaders/culling.comp.glsl
         macros:
           - LATE: 1
+
+  - render pass: debug_occlusion_pass
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_FILL
+      cull mode: GERIUM_CULL_MODE_FRONT
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+      depth clamp enable: 0
+      depth bias enable: 0
+      depth bias constant factor: 0.0
+      depth bias clamp: 0.0
+      depth bias slope factor: 0.0
+      line width: 1.0
+    depth stencil:
+      depth test enable: true
+      depth write enable: true
+      depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+    shaders:
+      - type: GERIUM_SHADER_TYPE_TASK
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.task.glsl
+      - type: GERIUM_SHADER_TYPE_MESH
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.mesh.glsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.frag.glsl

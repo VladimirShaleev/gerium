@@ -3,6 +3,8 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: color
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: debug_meshlet
 
   - name: gbuffer_pass
     inputs:
@@ -112,3 +114,25 @@ frame graph:
         name: depth
         format: GERIUM_FORMAT_D32_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_LOAD
+
+  - name: debug_occlusion_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: command_count
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: command_count_late
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: commands
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: visibility
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: debug_meshlet
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        clear color attachment: [1.0, 1.0, 1.0, 1.0]
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: debug_depth
+        format: GERIUM_FORMAT_D32_SFLOAT
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        clear depth stencil attachment: [0.0, 0]

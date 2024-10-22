@@ -208,8 +208,9 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t totalWorkers) {
     static bool drawProfiler = false;
 
-    auto ds = application()->resourceManager().createDescriptorSet("");
-    gerium_renderer_bind_resource(renderer, ds, 0, "color");
+    auto ds        = application()->resourceManager().createDescriptorSet("");
+    auto& settings = application()->settings();
+    gerium_renderer_bind_resource(renderer, ds, 0, application()->settings().DebugCamera ? "debug_meshlet" : "color");
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
@@ -225,9 +226,42 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
         ImGui::Text("Meshlets: %s", application()->meshShaderSupported() ? "hardware" : "software");
         ImGui::Separator();
         ImGui::Checkbox("Show profiler", &drawProfiler);
+        ImGui::Checkbox("Debug camera", &settings.DebugCamera);
     }
 
     ImGui::End();
+}
+
+void DebugOcclusionPass::render(gerium_frame_graph_t frameGraph,
+                                gerium_renderer_t renderer,
+                                gerium_command_buffer_t commandBuffer,
+                                gerium_uint32_t worker,
+                                gerium_uint32_t totalWorkers) {
+    auto camera = application()->getDebugCamera();
+    gerium_buffer_h commandCount;
+    check(gerium_renderer_get_buffer(renderer, "command_count", 0, &commandCount));
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
+    gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, 1, 12);
+}
+
+void DebugOcclusionPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    auto& datas    = application()->clusterDatas();
+    _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
+
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "commands");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "visibility");
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, application()->instances());
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, datas.meshesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, datas.meshletsBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, datas.vertexIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, datas.primitiveIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, datas.verticesBuffer);
+}
+
+void DebugOcclusionPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
 }
 
 Application::Application() {
@@ -612,13 +646,15 @@ void Application::initialize() {
     addPass(_cullingLatePass);
     addPass(_indirectLatePass);
     addPass(_gbufferLatePass);
+    addPass(_debugOcclusionPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
     _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
 
     createScene();
-    _camera = Camera(_application, _resourceManager);
+    _camera      = Camera(_application, _resourceManager);
+    _debugCamera = Camera(_application, _resourceManager);
 
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);
@@ -698,7 +734,7 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
         }
     }
 
-    auto camera = getCamera();
+    auto camera = settings().DebugCamera ? getDebugCamera() : getCamera();
     camera->rotate(pitch, yaw, 1.0f);
     camera->zoom(zoom, 1.0f);
 
@@ -755,6 +791,7 @@ void Application::frame(gerium_uint64_t elapsedMs) {
 
     _resourceManager.update(elapsedMs);
 
+    getDebugCamera()->update();
     getCamera()->update();
 
     gerium_renderer_render(_renderer, _frameGraph);

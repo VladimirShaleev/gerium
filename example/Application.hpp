@@ -7,7 +7,7 @@
 
 struct Settings {
     bool DrawBBox;
-    bool Camera2;
+    bool DebugCamera;
 };
 
 struct ClusterDatas {
@@ -122,6 +122,24 @@ public:
                 gerium_uint32_t totalWorkers) override;
 };
 
+class DebugOcclusionPass final : public RenderPass {
+public:
+    DebugOcclusionPass() : RenderPass("debug_occlusion_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+                
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    DescriptorSet _descriptorSet;
+};
+
 class Application final {
 public:
     Application();
@@ -147,6 +165,10 @@ public:
 
     Camera* getCamera() noexcept {
         return &_camera;
+    }
+
+    Camera* getDebugCamera() noexcept {
+        return &_debugCamera;
     }
 
     gerium_uint16_t width() const noexcept {
@@ -253,11 +275,13 @@ private:
     PresentPass _presentPass{};
     IndirectPass _indirectPass{ false };
     IndirectPass _indirectLatePass{ true };
+    DebugOcclusionPass _debugOcclusionPass;
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};
     ResourceManager _resourceManager{};
     Camera _camera{};
+    Camera _debugCamera{};
 
     gerium_uint16_t _prevWidth{};
     gerium_uint16_t _prevHeight{};

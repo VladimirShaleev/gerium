@@ -75,7 +75,7 @@ void main() {
         uint index  = meshletVertices[vertexOffset + offset];
 
         vec3 normal = vec3(int(vertices[index].normal.x), int(vertices[index].normal.y), int(vertices[index].normal.z)) / 127.0 - 1.0;
-    
+
         gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * instances[command.drawId].world * vertices[index].position;
         color[offset] = vec4(mcolor, 1.0);
     }
