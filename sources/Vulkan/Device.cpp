@@ -348,19 +348,34 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
         buffer->mappedData = static_cast<uint8_t*>(allocationInfo.pMappedData);
     }
 
-    if (creation.initialData) {
+    if (creation.initialData || creation.hasFillValue) {
         VkMemoryPropertyFlags memPropFlags;
         vmaGetAllocationMemoryProperties(_vmaAllocator, buffer->vmaAllocation, &memPropFlags);
 
+        auto fill = [&creation](void* data) {
+            auto ptr = (gerium_uint32_t*) data;
+            for (uint32_t i = 0; i < creation.size / 4; i++) {
+                *ptr++ = creation.fillValue;
+            }
+        };
+
         if (memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
             if (buffer->mappedData) {
-                memcpy(buffer->mappedData, creation.initialData, (size_t) creation.size);
+                if (creation.initialData) {
+                    memcpy(buffer->mappedData, creation.initialData, (size_t) creation.size);
+                } else {
+                    fill(buffer->mappedData);
+                }
             } else {
                 void* data = mapBuffer(handle);
-                memcpy(data, creation.initialData, (size_t) creation.size);
+                if (creation.initialData) {
+                    memcpy(data, creation.initialData, (size_t) creation.size);
+                } else {
+                    fill(data);
+                }
                 unmapBuffer(handle);
             }
-        } else {
+        } else if (creation.initialData) {
             BufferCreation stagingCreation{};
             stagingCreation.set(dynamicBufferFlags, ResourceUsageType::Dynamic, buffer->size);
             auto stagingBuffer = createBuffer(stagingCreation);
@@ -371,6 +386,8 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 
             _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
             destroyBuffer(stagingBuffer);
+        } else {
+            _frameCommandBuffer->fillBuffer(handle, 0, buffer->size, creation.fillValue);
         }
     }
 

@@ -524,6 +524,21 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
+
+                auto index = 0;
+                if (resource->info.texture.handles[1] != Undefined) {
+                    index = resource->saveForNextFrame ? _prevFrame : _frame;
+                }
+                auto texture      = resource->info.texture.handles[index];
+                const auto format = toVkFormat(resource->info.texture.format);
+                
+                if (hasDepthOrStencil(format)) {
+                    cb->addImageBarrier(
+                        texture, !node->compute ? ResourceState::DepthWrite : ResourceState::UnorderedAccess, 0, 1);
+                } else {
+                    cb->addImageBarrier(
+                        texture, !node->compute ? ResourceState::RenderTarget : ResourceState::UnorderedAccess, 0, 1);
+                }
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
                 auto buffer = resource->info.buffer.handle;
                 constexpr auto states =

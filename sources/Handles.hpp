@@ -38,6 +38,8 @@ struct BufferCreation {
     uint32_t size                          = 0;
     bool persistent                        = false;
     void* initialData                      = nullptr;
+    bool hasFillValue                      = false;
+    gerium_uint32_t fillValue              = 0;
     const char* name                       = nullptr;
 
     BufferCreation& reset() {
@@ -59,6 +61,13 @@ struct BufferCreation {
 
     BufferCreation& setInitialData(void* data) noexcept {
         initialData = data;
+        return *this;
+    }
+
+    BufferCreation& setFillValue(gerium_uint32_t fillValue) noexcept {
+        assert(!initialData);
+        hasFillValue = true;
+        this->fillValue = fillValue;
         return *this;
     }
 

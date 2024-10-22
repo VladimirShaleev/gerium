@@ -644,7 +644,7 @@ typedef enum
 typedef enum
 {
     GERIUM_RENDER_PASS_OP_DONT_CARE = 0,
-    GERIUM_RENDER_PASS_OP_LOAD      = 1,
+    GERIUM_RENDER_PASS_OP_LOAD      = 1, // TODO: remove
     GERIUM_RENDER_PASS_OP_CLEAR     = 2,
     GERIUM_RENDER_PASS_OP_MAX_ENUM  = 0x7FFFFFFF
 } gerium_render_pass_op_t;
@@ -1008,6 +1008,7 @@ typedef struct
     gerium_clear_color_attachment_state_t         clear_color_attachment;
     gerium_clear_depth_stencil_attachment_state_t clear_depth_stencil_attachment;
     gerium_uint32_t                               size;
+    gerium_uint32_t                               fill_value;
     gerium_buffer_usage_flags_t                   usage;
 } gerium_resource_output_t;
 

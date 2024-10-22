@@ -515,6 +515,7 @@ struct convert<gerium_resource_output_t> {
 
         rhs.size  = node["size"].as<gerium_uint32_t>(0);
         rhs.usage = GERIUM_BUFFER_USAGE_NONE_BIT;
+        rhs.fill_value = node["fill value"].as<gerium_uint32_t>(0);
 
         for (const auto& usage :
              node["usage"].as<std::vector<gerium_buffer_usage_flags_t>>(std::vector<gerium_buffer_usage_flags_t>{})) {

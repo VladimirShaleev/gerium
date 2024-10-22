@@ -22,6 +22,10 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     auto texture = _device->_textures.access(handle);
     auto states  = getTextureStates(handle);
 
+    if (mipLevel == 0 && mipCount == 1 && states[0] == newState) {
+        return;
+    }
+
     auto srcFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(srcQueueType);
     auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
 

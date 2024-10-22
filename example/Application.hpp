@@ -70,7 +70,6 @@ private:
     DescriptorSet _descriptorSet0{};
     DescriptorSet _descriptorSet1{};
     bool _latePass{};
-    bool _clearedVisibility{};
 };
 
 class IndirectPass final : public RenderPass {

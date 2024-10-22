@@ -110,13 +110,6 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    if (!_latePass && !_clearedVisibility) {
-        gerium_buffer_h visibility;
-        check(gerium_renderer_get_buffer(renderer, "visibility", true, &visibility));
-        gerium_command_buffer_fill_buffer(commandBuffer, visibility, 0, 134'217'728, 0xFFFFFFFF);
-        _clearedVisibility = true;
-    }
-
     auto camera = application()->getCamera();
     gerium_buffer_h commandCount;
     check(gerium_renderer_get_buffer(renderer, !_latePass ? "command_count" : "command_count_late", 1, &commandCount));
@@ -188,7 +181,7 @@ void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "commands");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "visibility");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "meshlet_visibility");
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, application()->instances());
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, datas.meshesBuffer);
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, datas.meshletsBuffer);

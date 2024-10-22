@@ -304,6 +304,7 @@ void FrameGraph::compile() {
                         BufferCreation creation{};
                         creation
                             .set(resource->info.buffer.usage, ResourceUsageType::Immutable, resource->info.buffer.size)
+                            .setFillValue(resource->info.buffer.fillValue)
                             .setName(resource->name);
                         resource->info.buffer.handle = _renderer->createBuffer(creation);
                     }
@@ -552,9 +553,10 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
         }
         calcFramebufferSize(resource->info);
     } else {
-        resource->info.buffer.size   = output.size;
-        resource->info.buffer.usage  = output.usage;
-        resource->info.buffer.handle = Undefined;
+        resource->info.buffer.size      = output.size;
+        resource->info.buffer.usage     = output.usage;
+        resource->info.buffer.fillValue = output.fill_value;
+        resource->info.buffer.handle    = Undefined;
     }
 
     if (output.type != GERIUM_RESOURCE_TYPE_REFERENCE) {
