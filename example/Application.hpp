@@ -8,6 +8,7 @@
 struct Settings {
     bool DrawBBox;
     bool DebugCamera;
+    bool MoveDebugCamera;
 };
 
 struct ClusterDatas {

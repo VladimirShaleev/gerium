@@ -227,6 +227,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
         ImGui::Separator();
         ImGui::Checkbox("Show profiler", &drawProfiler);
         ImGui::Checkbox("Debug camera", &settings.DebugCamera);
+        ImGui::Checkbox("Move debug camera", &settings.MoveDebugCamera);
     }
 
     ImGui::End();
@@ -816,7 +817,7 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
         }
     }
 
-    auto camera = settings().DebugCamera ? getDebugCamera() : getCamera();
+    auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? getDebugCamera() : getCamera();
     camera->rotate(pitch, yaw, 1.0f);
     camera->zoom(zoom, 1.0f);
 
