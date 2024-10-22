@@ -111,13 +111,13 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass,
         VkClearValue clearValues[kMaxImageOutputs + 1];
 
         for (gerium_uint32_t o = 0; o < renderPassObj->output.numColorFormats; ++o) {
-            if (renderPassObj->output.colorOperations[o] == GERIUM_RENDER_PASS_OP_CLEAR) {
+            if (renderPassObj->output.colorOperations[o] == RenderPassOp::Clear) {
                 clearValues[clearValuesCount++] = _clearColors[o];
             }
         }
 
         if (renderPassObj->output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
-            if (renderPassObj->output.depthOperation == GERIUM_RENDER_PASS_OP_CLEAR) {
+            if (renderPassObj->output.depthOperation == RenderPassOp::Clear) {
                 clearValues[clearValuesCount++] = _clearDepthStencil;
             }
         }

@@ -538,12 +538,15 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
     resource->info.type = output.type;
 
     if (output.type != GERIUM_RESOURCE_TYPE_BUFFER) {
+        const auto renderPassOp =
+            output.render_pass_op == GERIUM_RENDER_PASS_OP_DONT_CARE ? RenderPassOp::DontCare : RenderPassOp::Clear;
+
         resource->info.texture.format            = output.format;
         resource->info.texture.width             = output.width;
         resource->info.texture.height            = output.height;
         resource->info.texture.depth             = 1;
         resource->info.texture.autoScale         = output.auto_scale;
-        resource->info.texture.operation         = output.render_pass_op;
+        resource->info.texture.operation         = renderPassOp;
         resource->info.texture.colorWriteMask    = output.color_write_mask;
         resource->info.texture.colorBlend        = output.color_blend_attachment;
         resource->info.texture.clearColor        = output.clear_color_attachment;

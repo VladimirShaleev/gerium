@@ -644,8 +644,7 @@ typedef enum
 typedef enum
 {
     GERIUM_RENDER_PASS_OP_DONT_CARE = 0,
-    GERIUM_RENDER_PASS_OP_LOAD      = 1, // TODO: remove
-    GERIUM_RENDER_PASS_OP_CLEAR     = 2,
+    GERIUM_RENDER_PASS_OP_CLEAR     = 1,
     GERIUM_RENDER_PASS_OP_MAX_ENUM  = 0x7FFFFFFF
 } gerium_render_pass_op_t;
 

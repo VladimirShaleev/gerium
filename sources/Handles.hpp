@@ -32,6 +32,12 @@ enum class TextureFlags {
 };
 GERIUM_FLAGS(TextureFlags)
 
+enum class RenderPassOp {
+    DontCare = 0,
+    Load     = 1,
+    Clear    = 2,
+};
+
 struct BufferCreation {
     gerium_buffer_usage_flags_t usageFlags = {};
     ResourceUsageType usage                = ResourceUsageType::Immutable;
@@ -66,7 +72,7 @@ struct BufferCreation {
 
     BufferCreation& setFillValue(gerium_uint32_t fillValue) noexcept {
         assert(!initialData);
-        hasFillValue = true;
+        hasFillValue    = true;
         this->fillValue = fillValue;
         return *this;
     }
