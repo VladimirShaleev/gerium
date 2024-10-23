@@ -188,6 +188,7 @@ void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, datas.vertexIndicesBuffer);
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, datas.primitiveIndicesBuffer);
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, datas.verticesBuffer);
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 8, "depth_pyramid");
 }
 
 void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -236,7 +237,7 @@ void DebugOcclusionPass::render(gerium_frame_graph_t frameGraph,
                                 gerium_uint32_t totalWorkers) {
     auto camera = application()->getDebugCamera();
     gerium_buffer_h commandCount;
-    check(gerium_renderer_get_buffer(renderer, "command_count", 0, &commandCount));
+    check(gerium_renderer_get_buffer(renderer, "command_count_late", 0, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
@@ -248,7 +249,7 @@ void DebugOcclusionPass::initialize(gerium_frame_graph_t frameGraph, gerium_rend
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "commands");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "visibility");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "meshlet_visibility");
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, application()->instances());
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, datas.meshesBuffer);
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, datas.meshletsBuffer);

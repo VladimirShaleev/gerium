@@ -68,7 +68,7 @@ inline T previousPow2(T value) noexcept {
 
 template <typename T>
 inline T getGroupCount(T threadCount, T localSize) noexcept {
-	return (threadCount + localSize - 1) / localSize;
+    return (threadCount + localSize - 1) / localSize;
 }
 
 inline gerium_float32_t halton(gerium_sint32_t i, gerium_sint32_t b) noexcept {

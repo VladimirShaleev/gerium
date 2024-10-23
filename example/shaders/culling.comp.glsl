@@ -83,14 +83,9 @@ void main() {
     }
 #endif
 
-    if (visible
+    uint lodIndex = 0;
+    if (visible) {
     #ifdef LATE
-        && uint(visibility[index]) == 0
-    #endif
-        ) {
-
-        uint lodIndex = 0;
-
         float distance = max(length(center) - radius, 0);
         float threshold = distance * scene.lodTarget / instance.scale;
 
@@ -99,6 +94,9 @@ void main() {
                 lodIndex = i;
             }
         }
+    #else
+        lodIndex = uint(visibility[index]) - 1;
+    #endif
 
         ClusterMeshLod lod = meshes[meshIndex].lods[lodIndex];
 
@@ -109,10 +107,11 @@ void main() {
             commands[count + i].drawId = index;
             commands[count + i].taskOffset = lod.meshletOffset + i * TASK_GROUP_SIZE;
             commands[count + i].taskCount = min(TASK_GROUP_SIZE, lod.meshletCount - i * TASK_GROUP_SIZE);
+            commands[count + i].visibilityOffset = instance.visibilityOffset + i * TASK_GROUP_SIZE;
         }
     }
     
 #ifdef LATE
-    visibility[index] = visible ? uint8_t(1) : uint8_t(0);
+    visibility[index] = visible ? uint8_t(lodIndex + 1) : uint8_t(0);
 #endif
 }

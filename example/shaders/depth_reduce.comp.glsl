@@ -13,7 +13,7 @@ layout(std140, binding = 2, set = SCENE_DATA_SET) uniform ImageSize {
 };
 
 void main() {
-	uvec2 pos = ivec2(gl_GlobalInvocationID.xy);
+    uvec2 pos = ivec2(gl_GlobalInvocationID.xy);
 
     float result = texture(depth, (vec2(pos) + vec2(0.5)) / imageSize).r;
 

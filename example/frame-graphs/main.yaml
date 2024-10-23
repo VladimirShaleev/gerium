@@ -1,13 +1,4 @@
 frame graph:
-  - name: present_pass
-    inputs:
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: color
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: debug_meshlet
-      - type: GERIUM_RESOURCE_TYPE_REFERENCE
-        name: stub_dep_1
-
   - name: gbuffer_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
@@ -27,7 +18,8 @@ frame graph:
         clear depth stencil attachment: [0.0, 0]
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: meshlet_visibility
-        size: 12080
+        size: 48320
+        fill value: 4294967295
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
 
   - name: culling_pass
@@ -80,6 +72,19 @@ frame graph:
         name: depth_pyramid
         external: true
 
+  - name: present_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: color
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: debug_depth
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: debug_meshlet
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
+        name: stub_dep_1
+
   - name: indirect_late_pass
     compute: true
     inputs:
@@ -95,7 +100,9 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
       - type: GERIUM_RESOURCE_TYPE_BUFFER
-        name: visibility
+        name: meshlet_visibility
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth_pyramid
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: color
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
@@ -109,13 +116,11 @@ frame graph:
   - name: debug_occlusion_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
-        name: command_count
-      - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: command_count_late
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
       - type: GERIUM_RESOURCE_TYPE_BUFFER
-        name: visibility
+        name: meshlet_visibility
       - type: GERIUM_RESOURCE_TYPE_REFERENCE
         name: stub_dep_0
     outputs:

@@ -43,14 +43,14 @@ pipelines:
       - type: GERIUM_SHADER_TYPE_TASK
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.task.glsl
+        macros:
+          - LATE: 1
       - type: GERIUM_SHADER_TYPE_MESH
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.mesh.glsl
       - type: GERIUM_SHADER_TYPE_FRAGMENT
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.frag.glsl
-        macros:
-          - LATE: 1
 
   - render pass: present_pass
     shaders:
@@ -106,6 +106,8 @@ pipelines:
       - type: GERIUM_SHADER_TYPE_TASK
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.task.glsl
+        macros:
+          - DEBUG_OCCLUSION: 1
       - type: GERIUM_SHADER_TYPE_MESH
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.mesh.glsl

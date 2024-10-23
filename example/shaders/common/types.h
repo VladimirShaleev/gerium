@@ -35,8 +35,7 @@ struct SHADER_ALIGN MeshTaskCommand {
     uint drawId;
     uint taskOffset;
     uint taskCount;
-    // uint visibility;
-    // uint visibilityOffset;
+    uint visibilityOffset;
 };
 
 #if (defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)) || defined(__cplusplus)
@@ -107,8 +106,7 @@ struct SHADER_ALIGN ClusterMeshInstance {
 };
 
 struct MeshTaskPayload {
-    uint drawId;
-    uint meshletIndices[TASK_GROUP_SIZE];
+    uint clusterIndices[TASK_GROUP_SIZE];
 };
 
 #endif

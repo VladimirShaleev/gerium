@@ -52,10 +52,15 @@ uint hash(uint a) {
 
 void main() {
     uint ti = gl_LocalInvocationID.x;
-    uint ci = payload.meshletIndices[gl_WorkGroupID.x];
+    uint ci = payload.clusterIndices[gl_WorkGroupID.x];
 
-	MeshTaskCommand	command = commands[ci & 0xffffff];
-	uint mi = command.taskOffset + (ci >> 24);
+    if (ci == ~0) {
+        SetMeshOutputsEXT(0, 0);
+        return;
+    }
+
+    MeshTaskCommand command = commands[ci & 0xffffff];
+    uint mi = command.taskOffset + (ci >> 24);
 
     uint mhash = hash(mi);
     vec3 mcolor = vec3(float(mhash & 255), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.0;
