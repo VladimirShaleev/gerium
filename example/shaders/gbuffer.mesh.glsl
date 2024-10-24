@@ -3,6 +3,7 @@
 #extension GL_EXT_mesh_shader: require
 
 #include "common/types.h"
+#include "common/utils.h"
 
 layout(local_size_x = MESH_GROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles) out;
@@ -39,16 +40,6 @@ layout(std430, binding = 7, set = GLOBAL_DATA_SET) readonly buffer Vertices {
 taskPayloadSharedEXT MeshTaskPayload payload;
 
 layout(location = 0) out vec4 color[];
-
-uint hash(uint a) {
-    a = (a + 0x7ed55d16) + (a << 12);
-    a = (a ^ 0xc761c23c) ^ (a >> 19);
-    a = (a + 0x165667b1) + (a << 5);
-    a = (a + 0xd3a2646c) ^ (a << 9);
-    a = (a + 0xfd7046c5) + (a << 3);
-    a = (a ^ 0xb55a4f09) ^ (a >> 16);
-    return a;
-}
 
 void main() {
     uint ti = gl_LocalInvocationID.x;

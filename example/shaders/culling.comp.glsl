@@ -95,10 +95,10 @@ void main() {
             }
         }
     #else
-        lodIndex = uint(visibility[index]) - 1;
+        lodIndex = min(uint(visibility[index]), mesh.lodCount) - 1;
     #endif
 
-        ClusterMeshLod lod = meshes[meshIndex].lods[lodIndex];
+        ClusterMeshLod lod = mesh.lods[lodIndex];
 
         uint taskGroups = (lod.meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
         uint count = atomicAdd(commandCount, taskGroups);

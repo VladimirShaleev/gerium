@@ -392,7 +392,6 @@ void Application::createScene() {
         bunnyMeshletCount = std::max(bunnyMeshletCount, mesh.lods[i].meshletCount);
     }
 
-    // auto dragon = loadClusterMesh(_clusterDatas, "dragon.obj");
     uploadClusterDatas(_clusterDatas, 0);
 
     glm::quat rot{};
@@ -409,7 +408,6 @@ void Application::createScene() {
             float z = (i / 4) * 1.0f;
             float y = (iy) * 1.0f;
 
-            // if (i % 2 == 0) {
             bunny.world        = glm::translate(glm::vec3(x, y, z));
             bunny.inverseWorld = glm::inverse(bunny.world);
             glm::decompose(bunny.world, scale, rot, translate, skew, perspective);
@@ -419,13 +417,6 @@ void Application::createScene() {
             meshletVisibilityCount += bunnyMeshletCount;
 
             _instances.push_back(bunny);
-            //} else {
-            //    dragon.world = glm::translate(glm::vec3(x, 0.0f, z)) * glm::scale(glm::vec3(1.0f, 1.0f, 1.0f) * 3.0f);
-            //    dragon.inverseWorld = glm::inverse(dragon.world);
-            //    glm::decompose(dragon.world, scale, rot, translate, skew, perspective);
-            //    dragon.scale = glm::max(scale.x, glm::max(scale.y, scale.z));
-            //    _instances.push_back(dragon);
-            //}
         }
     }
 
