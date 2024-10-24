@@ -1,3 +1,13 @@
+/*
+ * This code is based on the Niagara project https://github.com/zeux/niagara
+ *
+ *    MIT License
+ * 
+ *    Copyright (c) 2018 Arseny Kapoulkine
+ *
+ *    https://github.com/zeux/niagara/blob/6e1f3f5f5a21363b328e251377bfdf0093b6b405/src/shaders/meshlet.task.glsl
+ */
+
 #version 450
 
 #extension GL_EXT_mesh_shader: require
@@ -62,6 +72,7 @@ void main() {
 
         bool visible = true;
     #ifndef LATE
+        // At the EARLY stage we learn about visibility from the visibility table of meshlets
         visible = meshletVisibilityBit != 0;
     #endif
 
@@ -101,6 +112,7 @@ void main() {
         }
     #endif
 
+        // At LATE stage we draw the meshlet only if it was not drawn at EARLY stage.
         if (visible
         #ifdef LATE
             && meshletVisibilityBit == 0

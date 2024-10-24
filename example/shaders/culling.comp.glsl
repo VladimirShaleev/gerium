@@ -1,3 +1,14 @@
+/*
+ * This code is based on the Niagara project https://github.com/zeux/niagara
+ * Some changes have been made here to make the first frame render more efficient.
+ *
+ *    MIT License
+ * 
+ *    Copyright (c) 2018 Arseny Kapoulkine
+ *
+ *    https://github.com/zeux/niagara/blob/6e1f3f5f5a21363b328e251377bfdf0093b6b405/src/shaders/drawcull.comp.glsl
+ */
+
 #version 450
 
 #include "common/types.h"
@@ -61,6 +72,8 @@ void main() {
     vec3 center = (scene.view * instance.world * vec4(mesh.centerAndRadius.xyz, 1.0)).xyz;
     float radius = instance.scale * mesh.centerAndRadius.w;
 
+    // Technically, this check is not necessary in an EARLY pass, but it can culling
+    // instances that have gone out of the camera's field of view.
     bool visible = true;
     visible = visible && center.z * scene.frustum.y - abs(center.x) * scene.frustum.x > -radius;
     visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
@@ -84,8 +97,14 @@ void main() {
 #endif
 
     uint lodIndex = 0;
+
+    // Here we create tasks for rendering if the instance is visible regardless 
+    // of whether it is the EARLY pass or LATE pass. The task shader will reject meshlets
+    // anyway. This is done so that the meshlet visibility table (meshletVisibility)
+    // can be updated when the camera moves.
     if (visible) {
     #ifdef LATE
+        // On the LATE pass we calculate the LOD level
         float distance = max(length(center) - radius, 0);
         float threshold = distance * scene.lodTarget / instance.scale;
 
@@ -95,6 +114,14 @@ void main() {
             }
         }
     #else
+        // On the EARLY pass we select the LOD level from the visibility table.
+        // This is different from the Niagara project. This is done so that when
+        // rendering the first frame we select all the instances with the least
+        // detail (on startup, all bits of the visibility and meshletVisibility
+        // tables are filled with ones), and on the LATE pass we calculate LODs.
+        // This will allow the first frame to build a depth pyramid more efficiently
+        // using low-detail meshes. This will also make the camera movement more
+        // adaptive to the selection of LODs.
         lodIndex = min(uint(visibility[index]), mesh.lodCount) - 1;
     #endif
 
@@ -112,6 +139,7 @@ void main() {
     }
     
 #ifdef LATE
+    // In the instance (draw) visibility table we store the instance LOD level plus 1
     visibility[index] = visible ? uint8_t(lodIndex + 1) : uint8_t(0);
 #endif
 }

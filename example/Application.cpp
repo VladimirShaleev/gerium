@@ -223,6 +223,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
         ImGui::Checkbox("Debug camera", &settings.DebugCamera);
         ImGui::Checkbox("Move debug camera", &settings.MoveDebugCamera);
 
+        // disable debug passes from frame graph if debug camera is disabled
         gerium_frame_graph_enable_node(frameGraph, "debug_occlusion_pass", settings.DebugCamera);
         gerium_frame_graph_enable_node(frameGraph, "debug_line_pass", settings.DebugCamera);
     }
@@ -235,6 +236,11 @@ void DebugOcclusionPass::render(gerium_frame_graph_t frameGraph,
                                 gerium_command_buffer_t commandBuffer,
                                 gerium_uint32_t worker,
                                 gerium_uint32_t totalWorkers) {
+    // On the debug pass (debug camera) we simply call vkCmdDrawMeshTasksIndirectEXT
+    // again with the indirect draw buffer already filled. This works because we already
+    // have the visibility buffers filled visibility and meshletVisibility after LATE passes
+    // of culling.comp.glsl and gbuffer.task.glsl shaders. We just change the view and
+    // projection matrices to the debug camera    
     auto camera = application()->getDebugCamera();
     gerium_buffer_h commandCount;
     check(gerium_renderer_get_buffer(renderer, "command_count_late", 0, &commandCount));

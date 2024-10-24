@@ -1,3 +1,13 @@
+/*
+ * This code is based on the Niagara project https://github.com/zeux/niagara
+ *
+ *    MIT License
+ * 
+ *    Copyright (c) 2018 Arseny Kapoulkine
+ *
+ *    https://github.com/zeux/niagara/blob/6e1f3f5f5a21363b328e251377bfdf0093b6b405/src/shaders/tasksubmit.comp.glsl
+ */
+
 #version 450
 
 #include "common/types.h"
