@@ -40,79 +40,76 @@ taskPayloadSharedEXT MeshTaskPayload payload;
 shared int sharedCount;
 
 void main() {
+    uint mgi = gl_LocalInvocationID.x;
     uint commandId = gl_WorkGroupID.x * 64 + gl_WorkGroupID.y;
     MeshTaskCommand command = commands[commandId];
+
     uint drawId = command.drawId;
     uint taskOffset = command.taskOffset;
     uint taskCount = command.taskCount;
 
-    ClusterMeshInstance instance = instances[drawId];
-    uint meshIndex = instance.mesh;
-    ClusterMesh mesh = meshes[meshIndex];
-
-    uint mgi = gl_LocalInvocationID.x;
-    uint mi = mgi + taskOffset;
-	uint mvi = mgi + command.visibilityOffset;
-    bool valid = mgi < taskCount;
-
-    uint meshletVisibilityBit = meshletVisibility[mvi >> 5] & (1u << (mvi & 31));
-    
     sharedCount = 0;
     barrier();
 
-    bool visible = true;
-#ifndef LATE
-    visible = meshletVisibilityBit != 0;
-#endif
+    if (mgi < taskCount) {  
+        ClusterMeshInstance instance = instances[drawId];
+        uint meshIndex = instance.mesh;
+        ClusterMesh mesh = meshes[meshIndex];
 
-#ifndef DEBUG_OCCLUSION
-    vec3 center = (scene.view * instance.world * vec4(meshlets[mi].centerAndRadius.xyz, 1.0)).xyz;
-    float radius = instance.scale * meshlets[mi].centerAndRadius.w;
-    float coneCutoff = int(meshlets[mi].coneAxisAndCutoff.w) / 127.0;
-    vec4 coneAxis = scene.view * vec4(rotateQuaternion(vec3(
-        int(meshlets[mi].coneAxisAndCutoff.x) / 127.0, 
-        int(meshlets[mi].coneAxisAndCutoff.y) / 127.0, 
-        int(meshlets[mi].coneAxisAndCutoff.z) / 127.0), instance.orientation), 0);
+        uint mi = mgi + taskOffset;
+        uint mvi = mgi + command.visibilityOffset;
+        uint meshletVisibilityBit = meshletVisibility[mvi >> 5] & (1u << (mvi & 31));
 
-    visible = visible && !coneCulling(center, radius, coneAxis.xyz, coneCutoff, vec3(0, 0, 0));
-    visible = visible && center.z * scene.frustum.y - abs(center.x) * scene.frustum.x > -radius;
-    visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
-    visible = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
-#endif
+        bool visible = true;
+    #ifndef LATE
+        visible = meshletVisibilityBit != 0;
+    #endif
 
-#ifdef LATE
-    if (visible) {
-        vec4 aabb;
-        if (projectSphere(center, radius, scene.farNear.y, scene.p00p11.x, scene.p00p11.y, aabb)) {
-            float width = (aabb.z - aabb.x) * scene.pyramidResolution.x;
-            float height = (aabb.w - aabb.y) * scene.pyramidResolution.y;
+        vec3 center = (scene.view * instance.world * vec4(meshlets[mi].centerAndRadius.xyz, 1.0)).xyz;
+        float radius = instance.scale * meshlets[mi].centerAndRadius.w;
+        float coneCutoff = int(meshlets[mi].coneAxisAndCutoff.w) / 127.0;
+        vec4 coneAxis = scene.view * vec4(rotateQuaternion(vec3(
+            int(meshlets[mi].coneAxisAndCutoff.x) / 127.0, 
+            int(meshlets[mi].coneAxisAndCutoff.y) / 127.0, 
+            int(meshlets[mi].coneAxisAndCutoff.z) / 127.0), instance.orientation), 0);
 
-            float level = max(floor(log2(max(width, height))) - 1, 0);
+        visible = visible && !coneCulling(center, radius, coneAxis.xyz, coneCutoff, vec3(0, 0, 0));
+        visible = visible && center.z * scene.frustum.y - abs(center.x) * scene.frustum.x > -radius;
+        visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
+        visible = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
 
-            float depth = textureLod(depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
-            float depthSphere = scene.farNear.y / (center.z - radius);
+    #ifdef LATE
+        if (visible) {
+            vec4 aabb;
+            if (projectSphere(center, radius, scene.farNear.y, scene.p00p11.x, scene.p00p11.y, aabb)) {
+                float width = (aabb.z - aabb.x) * scene.pyramidResolution.x;
+                float height = (aabb.w - aabb.y) * scene.pyramidResolution.y;
 
-            visible = depthSphere > depth;
+                float level = floor(log2(max(width, height)));
+
+                float depth = textureLod(depthPyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+                float depthSphere = scene.farNear.y / (center.z - radius);
+
+                visible = depthSphere > depth;
+            }
         }
-    }
 
-    if (valid) {
         if (visible) {
             atomicOr(meshletVisibility[mvi >> 5], 1u << (mvi & 31));
         } else {
             atomicAnd(meshletVisibility[mvi >> 5], ~(1u << (mvi & 31)));
         }
-    }
-#endif
-
-    if (valid && visible
-    #ifdef LATE
-        && meshletVisibilityBit == 0
     #endif
-        ) {
-        uint index = atomicAdd(sharedCount, 1);
 
-        payload.clusterIndices[index] = commandId | (mgi << 24);
+        if (visible
+        #ifdef LATE
+            && meshletVisibilityBit == 0
+        #endif
+            ) {
+            uint index = atomicAdd(sharedCount, 1);
+
+            payload.clusterIndices[index] = commandId | (mgi << 24);
+        }
     }
 
     barrier();
