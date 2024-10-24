@@ -1,0 +1,7 @@
+bunny.obj (https://casual-effects.com/data/)
+
+    Triangles: 144046
+    Vertices: 72378
+    Updated: 2017-08-06
+    License: Stanford Scan
+    © 1996 Stanford University
