@@ -17,6 +17,20 @@ For a deeper understanding of frame graphs, consider the following resources:
 - [Talk by Yuriy O’Donnell at GDC 2017. Electronic Arts / DICE. FrameGraph: Extensible Rendering Architecture in Frostbite](https://www.slideshare.net/slideshow/framegraph-extensible-rendering-architecture-in-frostbite/72795495)
 - [Epic Games. Rendering Dependency Graph](https://docs.unrealengine.com/4.27/en-US/ProgrammingAndScripting/Rendering/RenderDependencyGraph/)
 
+Examples created using this framework:
+
+- Clustered shading:
+
+  <img src="https://media.githubusercontent.com/media/VladimirShaleev/gerium/refs/heads/main/doc/clustered-shading.gif" alt="clustered shading" width="700">
+
+- Scene with over 9 million polygons (Meshlet occlusion culling):
+  
+  <img src="https://media.githubusercontent.com/media/VladimirShaleev/gerium/refs/heads/main/doc/occlusion-culling.gif" alt="occlusion culling" width="700">
+
+  <img src="https://media.githubusercontent.com/media/VladimirShaleev/gerium/refs/heads/main/doc/occlusion-culling-profiler.gif" alt="occlusion culling (profiler)" width="700">
+
+  More videos on [youtube channel](https://youtu.be/VmefQtZl29g)
+
 Currently, the framework supports the following platforms and graphics APIs:
 
 - Windows (Vulkan API);
