@@ -2043,6 +2043,12 @@ void Device::resizeSwapchain() {
     if (oldSwapchain) {
         _vkTable.vkDestroySwapchainKHR(_device, oldSwapchain, getAllocCalls());
     }
+
+    for (auto descriptorSet : _descriptorSets) {
+        if (descriptorSet->global) {
+            descriptorSet->changed = 1;
+        }
+    }
 }
 
 void Device::printValidationLayers() {

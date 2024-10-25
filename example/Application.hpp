@@ -223,6 +223,10 @@ public:
         return _instancesBuffer;
     }
 
+    gerium_uint32_t instanceCount() const noexcept {
+        return gerium_uint32_t(_instances.size());
+    }
+
 private:
     void addPass(RenderPass& renderPass);
     void createScene();

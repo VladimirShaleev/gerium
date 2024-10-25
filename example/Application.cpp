@@ -86,12 +86,12 @@ void DepthPyramidPass::createDepthPyramid(gerium_frame_graph_t frameGraph, geriu
         auto levelHeight = std::max(1, _depthPyramidHeight >> m);
         auto imageSize   = glm::vec2(levelWidth, levelHeight);
         _imageSizes[m]   = application()->resourceManager().createBuffer(
-            GERIUM_BUFFER_USAGE_UNIFORM_BIT, false, "", &imageSize.x, sizeof(imageSize));
+            GERIUM_BUFFER_USAGE_UNIFORM_BIT, false, "", &imageSize.x, sizeof(imageSize), 0);
 
         auto name = "depth_pyramid_mip_" + std::to_string(m);
 
-        _depthPyramidMips[m] = application()->resourceManager().createTextureView(name, _depthPyramid, m, 1);
-        _descriptorSets[m]   = application()->resourceManager().createDescriptorSet("", true);
+        _depthPyramidMips[m] = application()->resourceManager().createTextureView(name, _depthPyramid, m, 1, 0);
+        _descriptorSets[m]   = application()->resourceManager().createDescriptorSet("", true, 0);
 
         if (m == 0) {
             gerium_renderer_bind_resource(renderer, _descriptorSets[m], 0, "depth");
@@ -110,6 +110,7 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    auto groupSize = getGroupCount(application()->instanceCount(), 64U);
     auto camera = application()->getCamera();
     gerium_buffer_h commandCount;
     check(gerium_renderer_get_buffer(renderer, !_latePass ? "command_count" : "command_count_late", 1, &commandCount));
@@ -118,7 +119,7 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet0, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet1, MESH_DATA_SET);
     gerium_command_buffer_fill_buffer(commandBuffer, commandCount, 0, 4, 0);
-    gerium_command_buffer_dispatch(commandBuffer, 1, 1, 1);
+    gerium_command_buffer_dispatch(commandBuffer, groupSize, 1, 1);
 }
 
 void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -222,10 +223,6 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
         ImGui::Checkbox("Show profiler", &drawProfiler);
         ImGui::Checkbox("Debug camera", &settings.DebugCamera);
         ImGui::Checkbox("Move debug camera", &settings.MoveDebugCamera);
-
-        // disable debug passes from frame graph if debug camera is disabled
-        gerium_frame_graph_enable_node(frameGraph, "debug_occlusion_pass", settings.DebugCamera);
-        gerium_frame_graph_enable_node(frameGraph, "debug_line_pass", settings.DebugCamera);
     }
 
     ImGui::End();
@@ -240,7 +237,7 @@ void DebugOcclusionPass::render(gerium_frame_graph_t frameGraph,
     // again with the indirect draw buffer already filled. This works because we already
     // have the visibility buffers filled visibility and meshletVisibility after LATE passes
     // of culling.comp.glsl and gbuffer.task.glsl shaders. We just change the view and
-    // projection matrices to the debug camera    
+    // projection matrices to the debug camera
     auto camera = application()->getDebugCamera();
     gerium_buffer_h commandCount;
     check(gerium_renderer_get_buffer(renderer, "command_count_late", 0, &commandCount));
@@ -549,7 +546,7 @@ ClusterMeshInstance Application::loadClusterMesh(ClusterDatas& clusterDatas, std
         vertices, verticesOrigin.data(), verticesOrigin.size(), sizeof(VertexOptimized), remap.data());
     meshopt_remapIndexBuffer(indices.data(), indicesOrigin.data(), indexCount, remap.data());
 
-    meshopt_optimizeVertexCache(indices.data(), indicesOrigin.data(), indexCount, vertexCount);
+    meshopt_optimizeVertexCache(indices.data(), indices.data(), indexCount, vertexCount);
     meshopt_optimizeVertexFetch(vertices, indices.data(), indexCount, vertices, vertexCount, sizeof(VertexOptimized));
 
     glm::vec3 center{};
@@ -852,6 +849,10 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
 
 void Application::frame(gerium_uint64_t elapsedMs) {
     pollInput(elapsedMs);
+
+    // disable debug passes from frame graph if debug camera is disabled
+    gerium_frame_graph_enable_node(_frameGraph, "debug_occlusion_pass", _settings.DebugCamera);
+    gerium_frame_graph_enable_node(_frameGraph, "debug_line_pass", _settings.DebugCamera);
 
     if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return;

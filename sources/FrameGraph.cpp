@@ -93,8 +93,11 @@ void FrameGraph::enableNode(gerium_utf8_t name, gerium_bool_t enable) {
     const auto key = hash(name);
 
     if (auto it = _nodeCache.find(key); it != _nodeCache.end()) {
-        auto node     = _nodes.access(it->second);
-        node->enabled = enable;
+        auto node = _nodes.access(it->second);
+        if ((node->enabled != 0) != (enable != 0)) {
+            node->enabled = enable;
+            _hasChanges   = true;
+        }
     } else {
         _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name](auto& stream) {
             stream << "Node '" << name << "' not found in frame graph";
@@ -180,9 +183,7 @@ void FrameGraph::compile() {
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
-        if (node->enabled) {
-            computeEdges(node);
-        }
+        computeEdges(node);
     }
 
     gerium_uint32_t sortedNodeCount = 0;
@@ -229,7 +230,7 @@ void FrameGraph::compile() {
         }
     }
 
-    std::copy_n(_sortedNodes.crbegin() + (kMaxNodes - _nodeGraphCount), sortedNodeCount, _nodeGraph.begin());
+    std::copy_n(_sortedNodes.crbegin() + (kMaxNodes - sortedNodeCount), sortedNodeCount, _nodeGraph.begin());
 
     for (auto& item : _allocations) {
         item = Undefined;
@@ -403,6 +404,8 @@ void FrameGraph::compile() {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
         }
     }
+
+    _hasChanges = false;
 }
 
 void FrameGraph::resize(gerium_uint16_t oldWidth,
@@ -469,7 +472,6 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
             _hasChanges = true;
         }
     }
-    compile();
 }
 
 const FrameGraphResource* FrameGraph::getResource(FrameGraphResourceHandle handle) const noexcept {
@@ -528,6 +530,10 @@ gerium_uint32_t FrameGraph::nodeCount() const noexcept {
 
 const FrameGraphNode* FrameGraph::getNode(gerium_uint32_t index) const noexcept {
     return _nodes.access(_nodeGraph[index]);
+}
+
+const FrameGraphNode* FrameGraph::getNode(FrameGraphNodeHandle handle) const noexcept {
+    return _nodes.access(handle);
 }
 
 const FrameGraphNode* FrameGraph::getNode(gerium_utf8_t name) const noexcept {

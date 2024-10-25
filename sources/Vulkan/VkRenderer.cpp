@@ -112,6 +112,26 @@ void VkRenderer::sendTextureToGraphic() {
     }
 }
 
+bool VkRenderer::isResourceEnabled(FrameGraph& frameGraph, const FrameGraphResource* resource) const noexcept {
+    if (resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE || resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+        auto index = 0;
+        if (resource->info.texture.handles[1] != Undefined) {
+            index = resource->saveForNextFrame ? _prevFrame : _frame;
+        }
+        if (resource->info.texture.handles[index] != Undefined) {
+            return true;
+        }
+
+    } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+        if (resource->info.buffer.handle != Undefined) {
+            return true;
+        }
+    } else {
+        return true;
+    }
+    return frameGraph.getNode(resource->producer)->enabled;
+}
+
 gerium_feature_flags_t VkRenderer::onGetEnabledFeatures() const noexcept {
     auto result = GERIUM_FEATURE_NONE_BIT;
     if (_device->bindlessSupported()) {
@@ -266,7 +286,7 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
         auto& info    = resource->info;
         auto index    = resource->saveForNextFrame ? textureIndex : 0;
 
-        if (info.type == GERIUM_RESOURCE_TYPE_BUFFER || info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
+        if (info.type != GERIUM_RESOURCE_TYPE_ATTACHMENT) {
             continue;
         }
 
@@ -293,8 +313,7 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
     for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
         auto inputResource = frameGraph.getResource(node->inputs[i]);
 
-        if (inputResource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ||
-            inputResource->info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
+        if (inputResource->info.type != GERIUM_RESOURCE_TYPE_ATTACHMENT) {
             continue;
         }
 
@@ -312,10 +331,6 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
             height = info.texture.height;
         } else {
             assert(height == info.texture.height);
-        }
-
-        if (inputResource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
-            continue;
         }
 
         if (hasDepthOrStencil(toVkFormat(info.texture.format))) {
@@ -460,6 +475,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         _width  = width;
         _height = height;
     }
+    frameGraph.compile();
 
     gerium_uint32_t allTotalWorkers[kMaxNodes];
     for (gerium_uint32_t i = 0, worker = 0; i < frameGraph.nodeCount(); ++i) {
@@ -506,6 +522,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
             frameGraph.fillExternalResource(node->inputs[i]);
             auto resource = frameGraph.getResource(node->inputs[i]);
+            if (!isResourceEnabled(frameGraph, resource)) {
+                continue;
+            }
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_TEXTURE) {
                 auto index = 0;
@@ -531,7 +550,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 }
                 auto texture      = resource->info.texture.handles[index];
                 const auto format = toVkFormat(resource->info.texture.format);
-                
+
                 if (hasDepthOrStencil(format)) {
                     cb->addImageBarrier(
                         texture, !node->compute ? ResourceState::DepthWrite : ResourceState::UnorderedAccess, 0, 1);

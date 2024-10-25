@@ -121,6 +121,7 @@ public:
     gerium_uint32_t nodeCount() const noexcept;
     const FrameGraphNode* getNode(gerium_uint32_t index) const noexcept;
     const FrameGraphNode* getNode(gerium_utf8_t name) const noexcept;
+    const FrameGraphNode* getNode(FrameGraphNodeHandle handle) const noexcept;
     const FrameGraphRenderPass* getPass(FrameGraphRenderPassHandle handle) const noexcept;
 
 private:

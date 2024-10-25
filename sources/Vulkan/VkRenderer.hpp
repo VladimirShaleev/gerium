@@ -31,6 +31,7 @@ private:
 
     void createTransferBuffer();
     void sendTextureToGraphic();
+    bool isResourceEnabled(FrameGraph& frameGraph, const FrameGraphResource* resource) const noexcept;
 
     gerium_feature_flags_t onGetEnabledFeatures() const noexcept override;
 
