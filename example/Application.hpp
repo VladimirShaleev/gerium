@@ -12,20 +12,13 @@ struct Settings {
 };
 
 struct Cluster {
-    std::vector<VertexNonCompressed> vertices;
-    std::vector<MeshletNonCompressed> meshlets;
-    std::vector<MeshNonCompressed> meshes;
-    std::vector<uint32_t> vertexIndices;
-    std::vector<uint8_t> primitiveIndices;
-    std::vector<Instance> instances;
-
-    Buffer verticesBuffer;
-    Buffer meshletsBuffer;
-    Buffer meshesBuffer;
-    Buffer vertexIndicesBuffer;
-    Buffer primitiveIndicesBuffer;
-    Buffer instancesBuffer;
     gerium_uint32_t instanceCount;
+    Buffer vertices;
+    Buffer meshlets;
+    Buffer vertexIndices;
+    Buffer primitiveIndices;
+    Buffer meshes;
+    Buffer instances;
 };
 
 class DepthPyramidPass final : public RenderPass {
@@ -225,7 +218,7 @@ public:
 private:
     void addPass(RenderPass& renderPass);
     void createScene();
-    void uploadCluster(Cluster& cluster, gerium_uint32_t id);
+    Cluster loadCluster(std::string_view name);
 
     void initialize();
     void uninitialize();

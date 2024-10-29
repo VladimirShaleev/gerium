@@ -38,6 +38,10 @@ struct SHADER_ALIGN MeshTaskCommand {
     uint visibilityOffset;
 };
 
+struct MeshTaskPayload {
+    uint clusterIndices[TASK_GROUP_SIZE];
+};
+
 struct SHADER_ALIGN Instance {
     mat4  world;
     mat4  inverseWorld;
@@ -113,9 +117,5 @@ struct MeshNonCompressed {
 #define Mesh MeshNonCompressed
 #endif
 #endif
-
-struct MeshTaskPayload {
-    uint clusterIndices[TASK_GROUP_SIZE];
-};
 
 #endif

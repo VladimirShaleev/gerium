@@ -16,13 +16,12 @@
     "marl",
     "stb",
     
-    "nlohmann-json",
     "yaml-cpp",
     "glm",
     "magic-enum",
-    "tinyobjloader",
-    "assimp",
-    "meshoptimizer"
+    "meshoptimizer",
+    "argparse",
+    "assimp"
   ],
   "overrides": [
     {
