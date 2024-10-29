@@ -24,7 +24,10 @@ using namespace glm;
 #endif
 
 #ifdef __cplusplus
-#define f16vec2 u16vec2
+#define float16_t u16
+#define f16vec2   u16vec2
+#define f16vec3   u16vec3
+#define f16vec4   u16vec4
 #endif
 
 #endif

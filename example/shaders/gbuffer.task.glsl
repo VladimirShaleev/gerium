@@ -29,12 +29,12 @@ layout(std430, binding = 1, set = GLOBAL_DATA_SET) buffer MeshletVisibility {
     uint meshletVisibility[];
 };
 
-layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer ClusterMeshInstances {
-    ClusterMeshInstance instances[];
+layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer Instances {
+    Instance instances[];
 };
 
-layout(std430, binding = 3, set = GLOBAL_DATA_SET) readonly buffer ClusterMeshs {
-    ClusterMesh meshes[];
+layout(std430, binding = 3, set = GLOBAL_DATA_SET) readonly buffer Meshs {
+    Mesh meshes[];
 };
 
 layout(std430, binding = 4, set = GLOBAL_DATA_SET) readonly buffer Meshlets {
@@ -62,10 +62,6 @@ void main() {
     barrier();
 
     if (mgi < taskCount) {  
-        ClusterMeshInstance instance = instances[drawId];
-        uint meshIndex = instance.mesh;
-        ClusterMesh mesh = meshes[meshIndex];
-
         uint mi = mgi + taskOffset;
         uint mvi = mgi + command.visibilityOffset;
         uint meshletVisibilityBit = meshletVisibility[mvi >> 5] & (1u << (mvi & 31));
@@ -76,13 +72,15 @@ void main() {
         visible = meshletVisibilityBit != 0;
     #endif
 
-        vec3 center = (scene.view * instance.world * vec4(meshlets[mi].centerAndRadius.xyz, 1.0)).xyz;
-        float radius = instance.scale * meshlets[mi].centerAndRadius.w;
-        float coneCutoff = int(meshlets[mi].coneAxisAndCutoff.w) / 127.0;
-        vec4 coneAxis = scene.view * vec4(rotateQuaternion(vec3(
-            int(meshlets[mi].coneAxisAndCutoff.x) / 127.0, 
-            int(meshlets[mi].coneAxisAndCutoff.y) / 127.0, 
-            int(meshlets[mi].coneAxisAndCutoff.z) / 127.0), instance.orientation), 0);
+        Instance instance = instances[drawId];
+        mat4 worldView = scene.view * instance.world;
+        vec3 center = (worldView * vec4(meshlets[mi].center[0], meshlets[mi].center[1], meshlets[mi].center[2], 1.0)).xyz;
+        float radius = instance.scale * float(meshlets[mi].radius);
+        float coneCutoff = int(meshlets[mi].coneCutoff) / 127.0;
+        vec4 coneAxis = worldView * vec4(
+            int(meshlets[mi].coneAxis[0]) / 127.0, 
+            int(meshlets[mi].coneAxis[1]) / 127.0, 
+            int(meshlets[mi].coneAxis[2]) / 127.0, 0.0);
 
         visible = visible && !coneCulling(center, radius, coneAxis.xyz, coneCutoff, vec3(0, 0, 0));
         visible = visible && center.z * scene.frustum.y - abs(center.x) * scene.frustum.x > -radius;

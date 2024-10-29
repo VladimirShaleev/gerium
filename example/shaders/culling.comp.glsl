@@ -40,12 +40,12 @@ layout(std430, binding = 3, set = GLOBAL_DATA_SET) buffer Visibility {
 layout(binding = 4, set = GLOBAL_DATA_SET) uniform sampler2D depthPyramid;
 #endif
 
-layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer ClusterMeshInstances {
-    ClusterMeshInstance instances[];
+layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer Instances {
+    Instance instances[];
 };
 
-layout(std430, binding = 1, set = MESH_DATA_SET) readonly buffer ClusterMeshs {
-    ClusterMesh meshes[];
+layout(std430, binding = 1, set = MESH_DATA_SET) readonly buffer Meshs {
+    Mesh meshes[];
 };
 
 layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer Meshlets {
@@ -65,12 +65,11 @@ void main() {
     }
 #endif
 
-    ClusterMeshInstance instance = instances[index];
+    Instance instance = instances[index];
     uint meshIndex = instance.mesh;
-    ClusterMesh mesh = meshes[meshIndex];
 
-    vec3 center = (scene.view * instance.world * vec4(mesh.centerAndRadius.xyz, 1.0)).xyz;
-    float radius = instance.scale * mesh.centerAndRadius.w;
+    vec3 center = (scene.view * instance.world * vec4(meshes[meshIndex].center[0], meshes[meshIndex].center[1], meshes[meshIndex].center[2], 1.0)).xyz;
+    float radius = instance.scale * float(meshes[meshIndex].radius);
 
     // Technically, this check is not necessary in an EARLY pass, but it can culling
     // instances that have gone out of the camera's field of view.
@@ -96,6 +95,7 @@ void main() {
     }
 #endif
 
+    uint lodCount = uint(meshes[meshIndex].lodCount);
     uint lodIndex = 0;
 
     // Here we create tasks for rendering if the instance is visible regardless 
@@ -108,8 +108,8 @@ void main() {
         float distance = max(length(center) - radius, 0);
         float threshold = distance * scene.lodTarget / instance.scale;
 
-        for (uint i = 1; i < mesh.lodCount; ++i) {
-            if (mesh.lods[i].lodError < threshold) {
+        for (uint i = 1; i < lodCount; ++i) {
+            if (meshes[meshIndex].lods[i].lodError < threshold) {
                 lodIndex = i;
             }
         }
@@ -122,10 +122,10 @@ void main() {
         // This will allow the first frame to build a depth pyramid more efficiently
         // using low-detail meshes. This will also make the camera movement more
         // adaptive to the selection of LODs.
-        lodIndex = min(uint(visibility[index]), mesh.lodCount) - 1;
+        lodIndex = min(uint(visibility[index]), lodCount) - 1;
     #endif
 
-        ClusterMeshLod lod = mesh.lods[lodIndex];
+        MeshLod lod = meshes[meshIndex].lods[lodIndex];
 
         uint taskGroups = (lod.meshletCount + TASK_GROUP_SIZE - 1) / TASK_GROUP_SIZE;
         uint count = atomicAdd(commandCount, taskGroups);

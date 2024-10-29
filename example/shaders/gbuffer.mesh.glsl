@@ -27,8 +27,8 @@ layout(std430, binding = 0, set = GLOBAL_DATA_SET) readonly buffer Commands {
     MeshTaskCommand commands[];
 };
 
-layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer ClusterMeshInstances {
-    ClusterMeshInstance instances[];
+layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer Instances {
+    Instance instances[];
 };
 
 layout(std430, binding = 4, set = GLOBAL_DATA_SET) readonly buffer Meshlets {
@@ -80,9 +80,10 @@ void main() {
         uint offset = min(ti + batch * MESH_GROUP_SIZE, vertexCount - 1);
         uint index  = meshletVertices[vertexOffset + offset];
 
-        vec3 normal = vec3(int(vertices[index].normal.x), int(vertices[index].normal.y), int(vertices[index].normal.z)) / 127.0 - 1.0;
+        vec4 position = vec4(float(vertices[index].px), float(vertices[index].py), float(vertices[index].pz), 1.0);
+        // vec3 normal   = vec3(int(vertices[index].nx), int(vertices[index].ny), int(vertices[index].nz)) / 127.0 - 1.0;
 
-        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * instances[command.drawId].world * vertices[index].position;
+        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * instances[command.drawId].world * position;
         color[offset] = vec4(mcolor, 1.0);
     }
 

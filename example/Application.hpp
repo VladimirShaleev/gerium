@@ -11,18 +11,21 @@ struct Settings {
     bool MoveDebugCamera;
 };
 
-struct ClusterDatas {
-    std::vector<VertexOptimized> vertices;
-    std::vector<MeshletOptimized> meshlets;
-    std::vector<ClusterMesh> meshes;
+struct Cluster {
+    std::vector<VertexNonCompressed> vertices;
+    std::vector<MeshletNonCompressed> meshlets;
+    std::vector<MeshNonCompressed> meshes;
     std::vector<uint32_t> vertexIndices;
     std::vector<uint8_t> primitiveIndices;
+    std::vector<Instance> instances;
 
     Buffer verticesBuffer;
     Buffer meshletsBuffer;
     Buffer meshesBuffer;
     Buffer vertexIndicesBuffer;
     Buffer primitiveIndicesBuffer;
+    Buffer instancesBuffer;
+    gerium_uint32_t instanceCount;
 };
 
 class DepthPyramidPass final : public RenderPass {
@@ -211,32 +214,18 @@ public:
         return _baseTechnique;
     }
 
-    ClusterDatas& clusterDatas() noexcept {
-        return _clusterDatas;
+    Cluster& cluster() noexcept {
+        return _cluster;
     }
 
     gerium_buffer_h drawData() const noexcept {
         return _drawData;
     }
 
-    gerium_buffer_h instances() const noexcept {
-        return _instancesBuffer;
-    }
-
-    gerium_uint32_t instanceCount() const noexcept {
-        return gerium_uint32_t(_instances.size());
-    }
-
 private:
     void addPass(RenderPass& renderPass);
     void createScene();
-    void uploadClusterDatas(ClusterDatas& clusterDatas, gerium_uint32_t id);
-    ClusterMeshInstance loadClusterMesh(ClusterDatas& clusterDatas, std::string_view name) const;
-    size_t appendMeshlets(ClusterDatas& clusterDatas,
-                          const VertexOptimized* vertices,
-                          size_t verticesOffset,
-                          size_t verticesCount,
-                          const std::vector<uint32_t>& indices) const;
+    void uploadCluster(Cluster& cluster, gerium_uint32_t id);
 
     void initialize();
     void uninitialize();
@@ -266,6 +255,7 @@ private:
             func();
             return true;
         } catch (...) {
+            uninitialize();
             _error = std::current_exception();
             return false;
         }
@@ -276,6 +266,7 @@ private:
         try {
             return func();
         } catch (...) {
+            uninitialize();
             _error = std::current_exception();
             return 0;
         }
@@ -317,10 +308,8 @@ private:
 
     Technique _baseTechnique{};
 
-    ClusterDatas _clusterDatas{};
-    std::vector<ClusterMeshInstance> _instances{};
+    Cluster _cluster{};
     Buffer _drawData{};
-    Buffer _instancesBuffer{};
 };
 
 #endif

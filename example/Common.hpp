@@ -36,6 +36,9 @@
 
 #include <magic_enum.hpp>
 
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 #include <tiny_obj_loader.h>
 
 #include <meshoptimizer.h>

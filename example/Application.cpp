@@ -110,8 +110,8 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    auto groupSize = getGroupCount(application()->instanceCount(), 64U);
-    auto camera = application()->getCamera();
+    auto groupSize = getGroupCount(application()->cluster().instanceCount, 64U);
+    auto camera    = application()->getCamera();
     gerium_buffer_h commandCount;
     check(gerium_renderer_get_buffer(renderer, !_latePass ? "command_count" : "command_count_late", 1, &commandCount));
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
@@ -123,7 +123,7 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    auto& datas     = application()->clusterDatas();
+    auto& cluster   = application()->cluster();
     _descriptorSet0 = application()->resourceManager().createDescriptorSet("", true);
     _descriptorSet1 = application()->resourceManager().createDescriptorSet("", true);
     gerium_renderer_bind_buffer(renderer, _descriptorSet0, 0, application()->drawData());
@@ -133,9 +133,9 @@ void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     if (_latePass) {
         gerium_renderer_bind_resource(renderer, _descriptorSet0, 4, "depth_pyramid");
     }
-    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 0, application()->instances());
-    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 1, datas.meshesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 2, datas.meshletsBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 0, cluster.instancesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 1, cluster.meshesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 2, cluster.meshletsBuffer);
 }
 
 void CullingPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -178,17 +178,17 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    auto& datas    = application()->clusterDatas();
+    auto& cluster  = application()->cluster();
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "commands");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "meshlet_visibility");
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, application()->instances());
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, datas.meshesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, datas.meshletsBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, datas.vertexIndicesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, datas.primitiveIndicesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, datas.verticesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, cluster.instancesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, cluster.meshesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, cluster.meshletsBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, cluster.vertexIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, cluster.primitiveIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, cluster.verticesBuffer);
     gerium_renderer_bind_resource(renderer, _descriptorSet, 8, "depth_pyramid");
 }
 
@@ -248,17 +248,17 @@ void DebugOcclusionPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void DebugOcclusionPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    auto& datas    = application()->clusterDatas();
+    auto& cluster  = application()->cluster();
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "commands");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "meshlet_visibility");
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, application()->instances());
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, datas.meshesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, datas.meshletsBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, datas.vertexIndicesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, datas.primitiveIndicesBuffer);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, datas.verticesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, cluster.instancesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, cluster.meshesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, cluster.meshletsBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, cluster.vertexIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, cluster.primitiveIndicesBuffer);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, cluster.verticesBuffer);
 }
 
 void DebugOcclusionPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -386,148 +386,111 @@ void Application::addPass(RenderPass& renderPass) {
     gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
 }
 
-void Application::createScene() {
-    auto bunny = loadClusterMesh(_clusterDatas, "bunny.obj");
+size_t appendMeshlets(Cluster& cluster,
+                      const VertexNonCompressed* vertices,
+                      size_t verticesOffset,
+                      size_t verticesCount,
+                      const std::vector<uint32_t>& indices) {
+    constexpr size_t maxVertices  = MESH_MAX_VERTICES;
+    constexpr size_t maxTriangles = MESH_MAX_PRIMITIVES;
+    constexpr float coneWeight    = 0.5f;
 
-    glm::uint bunnyMeshletCount = 0;
-    const auto mesh             = _clusterDatas.meshes[bunny.mesh];
-    for (uint32_t i = 0; i < mesh.lodCount; ++i) {
-        bunnyMeshletCount = std::max(bunnyMeshletCount, mesh.lods[i].meshletCount);
-    }
+    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), maxVertices, maxTriangles));
+    std::vector<unsigned int> meshletVertices(meshlets.size() * maxVertices);
+    std::vector<unsigned char> meshletTriangles(meshlets.size() * maxTriangles * 3);
 
-    uploadClusterDatas(_clusterDatas, 0);
+    meshlets.resize(meshopt_buildMeshlets(meshlets.data(),
+                                          meshletVertices.data(),
+                                          meshletTriangles.data(),
+                                          indices.data(),
+                                          indices.size(),
+                                          &vertices[0].px,
+                                          verticesCount,
+                                          sizeof(VertexNonCompressed),
+                                          maxVertices,
+                                          maxTriangles,
+                                          coneWeight));
 
-    glm::quat rot{};
-    glm::vec3 scale{};
-    glm::vec3 translate{};
-    glm::vec3 skew{};
-    glm::vec4 perspective{};
+    for (auto& meshlet : meshlets) {
+        meshopt_optimizeMeshlet(&meshletVertices[meshlet.vertex_offset],
+                                &meshletTriangles[meshlet.triangle_offset],
+                                meshlet.triangle_count,
+                                meshlet.vertex_count);
 
-    uint32_t meshletVisibilityCount = 0;
+        const auto vertexOffset    = cluster.vertexIndices.size();
+        const auto primitiveOffset = cluster.primitiveIndices.size();
 
-    for (int iy = 0; iy < 4; ++iy) {
-        for (int i = 0; i < 16; ++i) {
-            float x = (i % 4) * 1.0f;
-            float z = (i / 4) * 1.0f;
-            float y = (iy) * 1.0f;
-
-            bunny.world        = glm::translate(glm::vec3(x, y, z));
-            bunny.inverseWorld = glm::inverse(bunny.world);
-            glm::decompose(bunny.world, scale, rot, translate, skew, perspective);
-            bunny.orientation      = glm::vec4(rot.x, rot.y, rot.z, rot.w);
-            bunny.scale            = glm::max(scale.x, glm::max(scale.y, scale.z));
-            bunny.visibilityOffset = meshletVisibilityCount;
-            meshletVisibilityCount += bunnyMeshletCount;
-
-            _instances.push_back(bunny);
+        for (unsigned int i = 0; i < meshlet.vertex_count; ++i) {
+            cluster.vertexIndices.push_back(verticesOffset + meshletVertices[meshlet.vertex_offset + i]);
         }
+
+        for (unsigned int i = 0; i < meshlet.triangle_count * 3; ++i) {
+            cluster.primitiveIndices.push_back(meshletTriangles[meshlet.triangle_offset + i]);
+        }
+
+        const auto bounds = meshopt_computeMeshletBounds(&meshletVertices[meshlet.vertex_offset],
+                                                         &meshletTriangles[meshlet.triangle_offset],
+                                                         meshlet.triangle_count,
+                                                         &vertices[0].px,
+                                                         verticesCount,
+                                                         sizeof(VertexNonCompressed));
+
+        MeshletNonCompressed meshletInfo = {};
+        meshletInfo.vertexOffset         = uint32_t(vertexOffset);
+        meshletInfo.primitiveOffset      = uint32_t(primitiveOffset);
+        meshletInfo.vertexCount          = meshlet.vertex_count;
+        meshletInfo.primitiveCount       = meshlet.triangle_count;
+
+        meshletInfo.center[0]   = bounds.center[0];
+        meshletInfo.center[1]   = bounds.center[1];
+        meshletInfo.center[2]   = bounds.center[2];
+        meshletInfo.radius      = bounds.radius;
+        meshletInfo.coneAxis[0] = bounds.cone_axis[0];
+        meshletInfo.coneAxis[1] = bounds.cone_axis[1];
+        meshletInfo.coneAxis[2] = bounds.cone_axis[2];
+        meshletInfo.coneCutoff  = bounds.cone_cutoff;
+
+        cluster.meshlets.push_back(meshletInfo);
     }
 
-    DrawData drawData{};
-    drawData.drawCount = glm::uint(_instances.size());
-    drawData.lodTarget = 0;
-    _drawData =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT, false, "draw_data", &drawData, sizeof(drawData));
-
-    _instancesBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                     false,
-                                                     "instances",
-                                                     _instances.data(),
-                                                     sizeof(_instances[0]) * _instances.size());
+    return meshlets.size();
 }
 
-void Application::uploadClusterDatas(ClusterDatas& clusterDatas, gerium_uint32_t id) {
-    auto strId = '_' + std::to_string(id);
-    clusterDatas.verticesBuffer =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                      false,
-                                      "vertices_buffer" + strId,
-                                      clusterDatas.vertices.data(),
-                                      sizeof(clusterDatas.vertices[0]) * clusterDatas.vertices.size());
+std::pair<Instance, uint32_t> loadMesh(Cluster& cluster, const aiMesh* mesh) {
+    Instance result{};
+    uint32_t maxMeshlets = 0;
 
-    clusterDatas.meshletsBuffer =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                      false,
-                                      "meshlets_buffer" + strId,
-                                      clusterDatas.meshlets.data(),
-                                      sizeof(clusterDatas.meshlets[0]) * clusterDatas.meshlets.size());
-
-    clusterDatas.meshesBuffer =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                      false,
-                                      "meshes_buffer" + strId,
-                                      clusterDatas.meshes.data(),
-                                      sizeof(clusterDatas.meshes[0]) * clusterDatas.meshes.size());
-
-    clusterDatas.vertexIndicesBuffer =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                      false,
-                                      "vertex_indices_buffer" + strId,
-                                      clusterDatas.vertexIndices.data(),
-                                      sizeof(clusterDatas.vertexIndices[0]) * clusterDatas.vertexIndices.size());
-
-    clusterDatas.primitiveIndicesBuffer =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                      false,
-                                      "primitive_indices_buffer" + strId,
-                                      clusterDatas.primitiveIndices.data(),
-                                      sizeof(clusterDatas.primitiveIndices[0]) * clusterDatas.primitiveIndices.size());
-
-    clusterDatas.vertices.clear();
-    clusterDatas.meshlets.clear();
-    clusterDatas.meshes.clear();
-    clusterDatas.vertexIndices.clear();
-    clusterDatas.primitiveIndices.clear();
-}
-
-ClusterMeshInstance Application::loadClusterMesh(ClusterDatas& clusterDatas, std::string_view name) const {
-    ClusterMeshInstance result{};
-
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-    auto fileName                = (appDir / "models" / name).string();
-
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-
-    std::string warn;
-    std::string err;
-
-    auto resultLoad = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName.c_str());
-
-    if (!warn.empty()) {
-        gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_WARNING, warn.c_str());
-    }
-
-    if (!err.empty()) {
-        gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_WARNING, err.c_str());
-    }
-
-    if (!resultLoad) {
-        throw std::runtime_error("Load .obj model failed");
-    }
-
-    const auto& mesh = shapes[0].mesh;
-    auto indexCount  = mesh.indices.size();
+    auto indexCount = mesh->mNumFaces * 3;
     std::vector<uint32_t> remap(indexCount);
     std::vector<uint32_t> indicesOrigin(indexCount);
-    std::vector<VertexOptimized> verticesOrigin(attrib.vertices.size());
+    std::vector<VertexNonCompressed> verticesOrigin(mesh->mNumVertices);
 
-    for (size_t i = 0; i < indexCount; ++i) {
-        auto vi = mesh.indices[i].vertex_index * 3;
-        auto ni = mesh.indices[i].normal_index * 3;
-        // auto ti = mesh.indices[i].texcoord_index * 2;
+    for (int v = 0; v < mesh->mNumVertices; ++v) {
+        const auto vertex   = mesh->mVertices[v];
+        const auto normal   = mesh->mNormals[v];
+        const auto texcoord = mesh->mTextureCoords[0][v];
 
-        indicesOrigin[i] = vi / 3;
+        auto pos = glm::vec3(vertex.x, vertex.y, vertex.z);
+        auto n   = glm::vec3(normal.x, normal.y, normal.z) * 127.0f + 127.5f;
+        auto uv  = glm::vec2(texcoord.x, 1.0f - texcoord.y);
 
-        auto pos = glm::vec3(attrib.vertices[vi + 0], attrib.vertices[vi + 1], attrib.vertices[vi + 2]);
-        auto n   = glm::vec3(attrib.normals[ni + 0], attrib.normals[ni + 1], attrib.normals[ni + 2]) * 127.0f + 127.5f;
-        // auto uv  = glm::vec2(attrib.texcoords[ti + 0], attrib.texcoords[ti + 1]);
+        verticesOrigin[v].px = pos.x;
+        verticesOrigin[v].py = pos.y;
+        verticesOrigin[v].pz = pos.z;
+        verticesOrigin[v].nx = normal.x;
+        verticesOrigin[v].ny = normal.y;
+        verticesOrigin[v].nz = normal.z;
+        verticesOrigin[v].tu = uv.x;
+        verticesOrigin[v].tv = uv.y;
+    }
 
-        verticesOrigin[indicesOrigin[i]].position = glm::vec4(pos, 1.0f);
-        verticesOrigin[indicesOrigin[i]].normal   = glm::u8vec4(uint8_t(n.x), uint8_t(n.y), uint8_t(n.z), uint8_t(0));
-        // verticesOrigin[indicesOrigin[i]].texcoord.x = meshopt_quantizeHalf(uv.x);
-        // verticesOrigin[indicesOrigin[i]].texcoord.y = meshopt_quantizeHalf(uv.y);
+    for (int i = 0; i < mesh->mNumFaces; ++i) {
+        const aiFace* face = &mesh->mFaces[i];
+        assert(face->mNumIndices == 3);
+
+        indicesOrigin[i * 3 + 0] = face->mIndices[0];
+        indicesOrigin[i * 3 + 1] = face->mIndices[1];
+        indicesOrigin[i * 3 + 2] = face->mIndices[2];
     }
 
     auto vertexCount = meshopt_generateVertexRemap(remap.data(),
@@ -535,53 +498,57 @@ ClusterMeshInstance Application::loadClusterMesh(ClusterDatas& clusterDatas, std
                                                    indexCount,
                                                    verticesOrigin.data(),
                                                    verticesOrigin.size(),
-                                                   sizeof(VertexOptimized));
+                                                   sizeof(VertexNonCompressed));
 
-    auto offsetVertices = clusterDatas.vertices.size();
-    clusterDatas.vertices.resize(offsetVertices + vertexCount);
-    VertexOptimized* vertices = clusterDatas.vertices.data() + offsetVertices;
+    auto offsetVertices = cluster.vertices.size();
+    cluster.vertices.resize(offsetVertices + vertexCount);
+    VertexNonCompressed* vertices = cluster.vertices.data() + offsetVertices;
     std::vector<uint32_t> indices(indexCount);
 
     meshopt_remapVertexBuffer(
-        vertices, verticesOrigin.data(), verticesOrigin.size(), sizeof(VertexOptimized), remap.data());
+        vertices, verticesOrigin.data(), verticesOrigin.size(), sizeof(VertexNonCompressed), remap.data());
     meshopt_remapIndexBuffer(indices.data(), indicesOrigin.data(), indexCount, remap.data());
 
     meshopt_optimizeVertexCache(indices.data(), indices.data(), indexCount, vertexCount);
-    meshopt_optimizeVertexFetch(vertices, indices.data(), indexCount, vertices, vertexCount, sizeof(VertexOptimized));
+    meshopt_optimizeVertexFetch(
+        vertices, indices.data(), indexCount, vertices, vertexCount, sizeof(VertexNonCompressed));
 
     glm::vec3 center{};
     for (int i = 0; i < vertexCount; ++i) {
         const auto& v = vertices[i];
-        center += v.position.xyz();
+        center += glm::vec3(v.px, v.py, v.pz);
     }
     center /= float(vertexCount);
 
     float radius = 0;
     for (int i = 0; i < vertexCount; ++i) {
         const auto& v = vertices[i];
-        radius        = glm::max(radius, glm::distance(center, v.position.xyz()));
+        radius        = glm::max(radius, glm::distance(center, glm::vec3(v.px, v.py, v.pz)));
     }
 
-    result.mesh = glm::uint(clusterDatas.meshes.size());
-    clusterDatas.meshes.push_back({});
-    float lodError           = 0.0f;
-    float normalWeights[3]   = { 1.f, 1.f, 1.f };
-    auto& meshLods           = clusterDatas.meshes.back();
-    meshLods.centerAndRadius = glm::vec4(center, radius);
+    result.mesh = glm::uint(cluster.meshes.size());
+    cluster.meshes.push_back({});
+    float lodError         = 0.0f;
+    float normalWeights[3] = { 0.5f, 0.5f, 0.5f };
+    auto& meshLods         = cluster.meshes.back();
+    meshLods.center[0]     = center.x;
+    meshLods.center[1]     = center.y;
+    meshLods.center[2]     = center.z;
+    meshLods.radius        = radius;
+    meshLods.bboxMin[0]    = mesh->mAABB.mMin.x;
+    meshLods.bboxMin[1]    = mesh->mAABB.mMin.y;
+    meshLods.bboxMin[2]    = mesh->mAABB.mMin.z;
+    meshLods.bboxMax[0]    = mesh->mAABB.mMax.x;
+    meshLods.bboxMax[1]    = mesh->mAABB.mMax.y;
+    meshLods.bboxMax[2]    = mesh->mAABB.mMax.z;
 
-    const auto lodScale = meshopt_simplifyScale(&vertices->position.x, vertexCount, sizeof(VertexOptimized));
-
-    std::vector<glm::vec3> normals(vertexCount);
-    for (int i = 0; i < vertexCount; ++i) {
-        auto normal = glm::vec3(vertices[i].normal.xyz());
-        normals[i]  = normal / 127.0f - 1.0f;
-    }
+    const auto lodScale = meshopt_simplifyScale(&vertices->px, vertexCount, sizeof(VertexNonCompressed));
 
     while (meshLods.lodCount < std::size(meshLods.lods)) {
         auto& lod = meshLods.lods[meshLods.lodCount++];
 
-        lod.meshletOffset = uint32_t(clusterDatas.meshlets.size());
-        lod.meshletCount  = uint32_t(appendMeshlets(clusterDatas, vertices, offsetVertices, vertexCount, indices));
+        lod.meshletOffset = uint32_t(cluster.meshlets.size());
+        lod.meshletCount  = uint32_t(appendMeshlets(cluster, vertices, offsetVertices, vertexCount, indices));
         lod.lodError      = lodError * lodScale;
 
         if (meshLods.lodCount < std::size(meshLods.lods)) {
@@ -589,11 +556,11 @@ ClusterMeshInstance Application::loadClusterMesh(ClusterDatas& clusterDatas, std
             size_t nextIndices       = meshopt_simplifyWithAttributes(indices.data(),
                                                                 indices.data(),
                                                                 indices.size(),
-                                                                &vertices->position.x,
+                                                                &vertices->px,
                                                                 vertexCount,
-                                                                sizeof(VertexOptimized),
-                                                                &normals[0].x,
-                                                                sizeof(glm::vec3),
+                                                                sizeof(VertexNonCompressed),
+                                                                &vertices->nx,
+                                                                sizeof(VertexNonCompressed),
                                                                 normalWeights,
                                                                 3,
                                                                 nullptr,
@@ -612,72 +579,205 @@ ClusterMeshInstance Application::loadClusterMesh(ClusterDatas& clusterDatas, std
         }
     }
 
-    return result;
-}
-
-size_t Application::appendMeshlets(ClusterDatas& clusterDatas,
-                                   const VertexOptimized* vertices,
-                                   size_t verticesOffset,
-                                   size_t verticesCount,
-                                   const std::vector<uint32_t>& indices) const {
-    constexpr size_t maxVertices  = MESH_MAX_VERTICES;
-    constexpr size_t maxTriangles = MESH_MAX_PRIMITIVES;
-    constexpr float coneWeight    = 0.5f;
-
-    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), maxVertices, maxTriangles));
-    std::vector<unsigned int> meshletVertices(meshlets.size() * maxVertices);
-    std::vector<unsigned char> meshletTriangles(meshlets.size() * maxTriangles * 3);
-
-    meshlets.resize(meshopt_buildMeshlets(meshlets.data(),
-                                          meshletVertices.data(),
-                                          meshletTriangles.data(),
-                                          indices.data(),
-                                          indices.size(),
-                                          &vertices[0].position.x,
-                                          verticesCount,
-                                          sizeof(VertexOptimized),
-                                          maxVertices,
-                                          maxTriangles,
-                                          coneWeight));
-
-    for (auto& meshlet : meshlets) {
-        meshopt_optimizeMeshlet(&meshletVertices[meshlet.vertex_offset],
-                                &meshletTriangles[meshlet.triangle_offset],
-                                meshlet.triangle_count,
-                                meshlet.vertex_count);
-
-        const auto vertexOffset    = clusterDatas.vertexIndices.size();
-        const auto primitiveOffset = clusterDatas.primitiveIndices.size();
-
-        for (unsigned int i = 0; i < meshlet.vertex_count; ++i) {
-            clusterDatas.vertexIndices.push_back(verticesOffset + meshletVertices[meshlet.vertex_offset + i]);
-        }
-
-        for (unsigned int i = 0; i < meshlet.triangle_count * 3; ++i) {
-            clusterDatas.primitiveIndices.push_back(meshletTriangles[meshlet.triangle_offset + i]);
-        }
-
-        const auto bounds = meshopt_computeMeshletBounds(&meshletVertices[meshlet.vertex_offset],
-                                                         &meshletTriangles[meshlet.triangle_offset],
-                                                         meshlet.triangle_count,
-                                                         &vertices[0].position.x,
-                                                         verticesCount,
-                                                         sizeof(VertexOptimized));
-
-        MeshletOptimized meshletInfo = {};
-        meshletInfo.vertexOffset     = uint32_t(vertexOffset);
-        meshletInfo.primitiveOffset  = uint32_t(primitiveOffset);
-        meshletInfo.vertexCount      = meshlet.vertex_count;
-        meshletInfo.primitiveCount   = meshlet.triangle_count;
-
-        meshletInfo.centerAndRadius = glm::vec4(bounds.center[0], bounds.center[1], bounds.center[2], bounds.radius);
-        meshletInfo.coneAxisAndCutoff =
-            glm::i8vec4(bounds.cone_axis_s8[0], bounds.cone_axis_s8[1], bounds.cone_axis_s8[2], bounds.cone_cutoff_s8);
-
-        clusterDatas.meshlets.push_back(meshletInfo);
+    for (uint32_t i = 0; i < meshLods.lodCount; ++i) {
+        maxMeshlets = std::max(maxMeshlets, meshLods.lods[i].meshletCount);
     }
 
-    return meshlets.size();
+    return { result, maxMeshlets };
+}
+
+void recursive(Cluster& cluster,
+               std::unordered_map<const aiMesh*, std::pair<Instance, uint32_t>>& cacheInstances,
+               uint32_t& meshletVisibilityOffset,
+               const aiScene* sc,
+               const aiNode* nd,
+               const glm::mat4& parentTransform) {
+    unsigned int i;
+    unsigned int n = 0;
+    aiMatrix4x4 m  = nd->mTransformation;
+
+    m.Transpose();
+    glm::mat4 localTransform;
+    localTransform[0] = glm::vec4(m.a1, m.a2, m.a3, m.a4);
+    localTransform[1] = glm::vec4(m.b1, m.b2, m.b3, m.b4);
+    localTransform[2] = glm::vec4(m.c1, m.c2, m.c3, m.c4);
+    localTransform[3] = glm::vec4(m.d1, m.d2, m.d3, m.d4);
+
+    const auto worldTransform = parentTransform * localTransform;
+
+    for (; n < nd->mNumMeshes; ++n) {
+        const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
+
+        Instance newInstance{};
+        uint32_t maxMeshlets{};
+
+        if (auto it = cacheInstances.find(mesh); it != cacheInstances.end()) {
+            newInstance = it->second.first;
+            maxMeshlets = it->second.second;
+        } else {
+            auto [i, m]          = loadMesh(cluster, mesh);
+            newInstance          = i;
+            maxMeshlets          = m;
+            cacheInstances[mesh] = { newInstance, maxMeshlets };
+        }
+
+        glm::quat rot{};
+        glm::vec3 scale{};
+        glm::vec3 translate{};
+        glm::vec3 skew{};
+        glm::vec4 perspective{};
+        glm::decompose(worldTransform, scale, rot, translate, skew, perspective);
+
+        newInstance.world            = worldTransform;
+        newInstance.inverseWorld     = glm::inverse(newInstance.world);
+        newInstance.scale            = std::max(std::max(scale.x, scale.y), scale.z);
+        newInstance.visibilityOffset = meshletVisibilityOffset;
+
+        meshletVisibilityOffset += maxMeshlets;
+
+        cluster.instances.push_back(newInstance);
+    }
+
+    for (n = 0; n < nd->mNumChildren; ++n) {
+        recursive(cluster, cacheInstances, meshletVisibilityOffset, sc, nd->mChildren[n], worldTransform);
+    }
+}
+
+void Application::createScene() {
+    std::unordered_map<const aiMesh*, std::pair<Instance, uint32_t>> cacheInstances;
+
+    auto fileName = "<path>.fbx";
+
+    constexpr auto removePrimitives =
+        aiPrimitiveType_POINT | aiPrimitiveType_LINE | aiPrimitiveType_POLYGON | aiPrimitiveType_NGONEncodingFlag;
+
+    constexpr auto flags =
+        aiProcess_FindInstances | aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_GenBoundingBoxes;
+
+    Assimp::Importer importer;
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, removePrimitives);
+
+    auto scene                       = importer.ReadFile(fileName, flags);
+    uint32_t meshletVisibilityOffset = 0;
+    recursive(_cluster, cacheInstances, meshletVisibilityOffset, scene, scene->mRootNode, 1.0f);
+    importer.FreeScene();
+
+    uploadCluster(_cluster, 0);
+
+    DrawData drawData{};
+    drawData.drawCount = glm::uint(_cluster.instanceCount);
+    drawData.lodTarget = 0;
+    _drawData =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT, false, "draw_data", &drawData, sizeof(drawData));
+}
+
+void Application::uploadCluster(Cluster& cluster, gerium_uint32_t id) {
+    std::vector<VertexCompressed> vertices(cluster.vertices.size());
+    for (size_t i = 0; i < cluster.vertices.size(); ++i) {
+        auto n = glm::vec3(cluster.vertices[i].nx, cluster.vertices[i].ny, cluster.vertices[i].nz) * 127.0f + 127.5f;
+
+        vertices[i].px = meshopt_quantizeHalf(cluster.vertices[i].px);
+        vertices[i].py = meshopt_quantizeHalf(cluster.vertices[i].py);
+        vertices[i].pz = meshopt_quantizeHalf(cluster.vertices[i].pz);
+        vertices[i].nx = uint8_t(n.x);
+        vertices[i].ny = uint8_t(n.y);
+        vertices[i].nz = uint8_t(n.z);
+        vertices[i].tu = meshopt_quantizeHalf(cluster.vertices[i].tu);
+        vertices[i].tv = meshopt_quantizeHalf(cluster.vertices[i].tv);
+    }
+
+    std::vector<MeshletCompressed> meshlets(cluster.meshlets.size());
+    for (size_t i = 0; i < cluster.meshlets.size(); ++i) {
+        auto coneAxis8X = (int8_t) meshopt_quantizeSnorm(cluster.meshlets[i].coneAxis[0], 8);
+        auto coneAxis8Y = (int8_t) meshopt_quantizeSnorm(cluster.meshlets[i].coneAxis[1], 8);
+        auto coneAxis8Z = (int8_t) meshopt_quantizeSnorm(cluster.meshlets[i].coneAxis[2], 8);
+
+        float coneAxis8eX = fabsf(coneAxis8X / 127.f - cluster.meshlets[i].coneAxis[0]);
+        float coneAxis8eY = fabsf(coneAxis8Y / 127.f - cluster.meshlets[i].coneAxis[1]);
+        float coneAxis8eZ = fabsf(coneAxis8Z / 127.f - cluster.meshlets[i].coneAxis[2]);
+
+        int coneCutoff8 = int(127 * (cluster.meshlets[i].coneCutoff + coneAxis8eX + coneAxis8eY + coneAxis8eZ) + 1);
+
+        meshlets[i].center[0]       = meshopt_quantizeHalf(cluster.meshlets[i].center[0]);
+        meshlets[i].center[1]       = meshopt_quantizeHalf(cluster.meshlets[i].center[1]);
+        meshlets[i].center[2]       = meshopt_quantizeHalf(cluster.meshlets[i].center[2]);
+        meshlets[i].radius          = meshopt_quantizeHalf(cluster.meshlets[i].radius);
+        meshlets[i].coneAxis[0]     = coneAxis8X;
+        meshlets[i].coneAxis[1]     = coneAxis8Y;
+        meshlets[i].coneAxis[2]     = coneAxis8Z;
+        meshlets[i].coneCutoff      = (coneCutoff8 > 127) ? 127 : (int8_t) (coneCutoff8);
+        meshlets[i].vertexOffset    = cluster.meshlets[i].vertexOffset;
+        meshlets[i].primitiveOffset = cluster.meshlets[i].primitiveOffset;
+        meshlets[i].vertexCount     = (uint16_t) cluster.meshlets[i].vertexCount;
+        meshlets[i].primitiveCount  = (uint16_t) cluster.meshlets[i].primitiveCount;
+    }
+
+    std::vector<MeshCompressed> meshes(cluster.meshes.size());
+    for (size_t i = 0; i < cluster.meshes.size(); ++i) {
+        meshes[i].center[0]  = meshopt_quantizeHalf(cluster.meshes[i].center[0]);
+        meshes[i].center[1]  = meshopt_quantizeHalf(cluster.meshes[i].center[1]);
+        meshes[i].center[2]  = meshopt_quantizeHalf(cluster.meshes[i].center[2]);
+        meshes[i].radius     = meshopt_quantizeHalf(cluster.meshes[i].radius);
+        meshes[i].bboxMin[0] = meshopt_quantizeHalf(cluster.meshes[i].bboxMin[0]);
+        meshes[i].bboxMin[1] = meshopt_quantizeHalf(cluster.meshes[i].bboxMin[1]);
+        meshes[i].bboxMin[2] = meshopt_quantizeHalf(cluster.meshes[i].bboxMin[2]);
+        meshes[i].bboxMax[0] = meshopt_quantizeHalf(cluster.meshes[i].bboxMax[0]);
+        meshes[i].bboxMax[1] = meshopt_quantizeHalf(cluster.meshes[i].bboxMax[1]);
+        meshes[i].bboxMax[2] = meshopt_quantizeHalf(cluster.meshes[i].bboxMax[2]);
+        meshes[i].lodCount   = uint8_t(cluster.meshes[i].lodCount);
+
+        for (size_t l = 0; l < cluster.meshes[i].lodCount; ++l) {
+            meshes[i].lods[l] = cluster.meshes[i].lods[l];
+        }
+    }
+
+    auto strId             = '_' + std::to_string(id);
+    cluster.verticesBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                           false,
+                                                           "vertices_buffer" + strId,
+                                                           vertices.data(),
+                                                           sizeof(vertices[0]) * vertices.size());
+
+    cluster.meshletsBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                           false,
+                                                           "meshlets_buffer" + strId,
+                                                           meshlets.data(),
+                                                           sizeof(meshlets[0]) * meshlets.size());
+
+    cluster.meshesBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                         false,
+                                                         "meshes_buffer" + strId,
+                                                         meshes.data(),
+                                                         sizeof(meshes[0]) * meshes.size());
+
+    cluster.vertexIndicesBuffer =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                      false,
+                                      "vertex_indices_buffer" + strId,
+                                      cluster.vertexIndices.data(),
+                                      sizeof(cluster.vertexIndices[0]) * cluster.vertexIndices.size());
+
+    cluster.primitiveIndicesBuffer =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                      false,
+                                      "primitive_indices_buffer" + strId,
+                                      cluster.primitiveIndices.data(),
+                                      sizeof(cluster.primitiveIndices[0]) * cluster.primitiveIndices.size());
+
+    cluster.instancesBuffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                            false,
+                                                            "instances" + strId,
+                                                            cluster.instances.data(),
+                                                            sizeof(cluster.instances[0]) * cluster.instances.size());
+
+    cluster.instanceCount = gerium_uint32_t(cluster.instances.size());
+
+    cluster.vertices.clear();
+    cluster.meshlets.clear();
+    cluster.meshes.clear();
+    cluster.vertexIndices.clear();
+    cluster.primitiveIndices.clear();
+    cluster.instances.clear();
 }
 
 void Application::initialize() {
@@ -737,8 +837,7 @@ void Application::initialize() {
 
 void Application::uninitialize() {
     if (_renderer) {
-        _instancesBuffer = {};
-        _clusterDatas    = {};
+        _cluster = {};
 
         _asyncLoader.destroy();
 

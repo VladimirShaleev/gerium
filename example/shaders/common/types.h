@@ -38,72 +38,81 @@ struct SHADER_ALIGN MeshTaskCommand {
     uint visibilityOffset;
 };
 
-#if (defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)) || defined(__cplusplus)
-struct SHADER_ALIGN VertexOptimized {
-    vec4    position;
-    u8vec4  normal;
-    f16vec2 texcoord;
+struct SHADER_ALIGN Instance {
+    mat4  world;
+    mat4  inverseWorld;
+    float scale;
+    uint  mesh;
+    uint  visibilityOffset;
 };
 
-struct SHADER_ALIGN MeshletOptimized {
-    vec4     centerAndRadius;
-    i8vec4   coneAxisAndCutoff;
-    uint     vertexOffset;
-    uint     primitiveOffset;
-    uint16_t vertexCount;
-    uint16_t primitiveCount;
-};
-
-#ifndef __cplusplus
-#define Vertex VertexOptimized
-#define Meshlet MeshletOptimized
-#endif
-#endif
-
-#if !defined(SHADER_8BIT_STORAGE_SUPPORTED) || !defined(SHADER_16BIT_STORAGE_SUPPORTED) || defined(__cplusplus)
-// TODO: add structs for legacy pipeline
-struct SHADER_ALIGN VertexLegacy {
-    vec4 position;
-    vec4 normal;
-    vec2 texcoord;
-};
-
-struct SHADER_ALIGN MeshletLegacy {
-    vec4     centerAndRadius;
-    vec4     coneAxisAndCutoff;
-    uint     vertexOffset;
-    uint     primitiveOffset;
-    uint16_t vertexCount;
-    uint16_t primitiveCount;
-};
-
-#ifndef __cplusplus
-#define Vertex VertexLegacy
-#define Meshlet MeshletLegacy
-#endif
-#endif
-
-struct ClusterMeshLod {
+struct MeshLod {
     uint  meshletOffset;
     uint  meshletCount;
     float lodError;
 };
 
-struct SHADER_ALIGN ClusterMesh {
-    vec4           centerAndRadius;
-    uint           lodCount;
-    ClusterMeshLod lods[8];
+#if (defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)) || defined(__cplusplus)
+struct VertexCompressed {
+    float16_t px, py, pz;
+    uint8_t   nx, ny, nz;
+    float16_t tu, tv;
 };
 
-struct SHADER_ALIGN ClusterMeshInstance {
-    mat4  world;
-    mat4  inverseWorld;
-    uvec4 textures;
-    vec4  orientation;
-    float scale;
-    uint  mesh;
-    uint  visibilityOffset;
+struct MeshletCompressed {
+    float16_t center[3], radius;
+    int8_t    coneAxis[3], coneCutoff;
+    uint      vertexOffset;
+    uint      primitiveOffset;
+    uint16_t  vertexCount;
+    uint16_t  primitiveCount;
 };
+
+struct MeshCompressed {
+    float16_t center[3], radius;
+    float16_t bboxMin[3];
+    float16_t bboxMax[3];
+    uint8_t   lodCount;
+    MeshLod   lods[8];
+};
+
+#ifndef __cplusplus
+#define Vertex VertexCompressed
+#define Meshlet MeshletCompressed
+#define Mesh MeshCompressed
+#endif
+#endif
+
+#if !defined(SHADER_8BIT_STORAGE_SUPPORTED) || !defined(SHADER_16BIT_STORAGE_SUPPORTED) || defined(__cplusplus)
+struct VertexNonCompressed {
+    float px, py, pz;
+    float nx, ny, nz;
+    float tu, tv;
+};
+
+struct MeshletNonCompressed {
+    float center[3], radius;
+    float coneAxis[3], coneCutoff;
+    uint  vertexOffset;
+    uint  primitiveOffset;
+    uint  vertexCount;
+    uint  primitiveCount;
+};
+
+struct MeshNonCompressed {
+    float   center[3], radius;
+    float   bboxMin[3];
+    float   bboxMax[3];
+    uint    lodCount;
+    MeshLod lods[8];
+};
+
+#ifndef __cplusplus
+#define Vertex VertexNonCompressed
+#define Meshlet MeshletNonCompressed
+#define Mesh MeshNonCompressed
+#endif
+#endif
 
 struct MeshTaskPayload {
     uint clusterIndices[TASK_GROUP_SIZE];

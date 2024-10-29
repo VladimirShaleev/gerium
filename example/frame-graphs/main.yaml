@@ -18,7 +18,7 @@ frame graph:
         clear depth stencil attachment: [0.0, 0]
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: meshlet_visibility
-        size: 48320
+        size: 134217728
         fill value: 4294967295
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
 
@@ -31,7 +31,7 @@ frame graph:
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
-        size: 134217728
+        size: 268435456
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: visibility
