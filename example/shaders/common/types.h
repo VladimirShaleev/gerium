@@ -76,6 +76,10 @@ struct MeshCompressed {
     float16_t center[3], radius;
     float16_t bboxMin[3];
     float16_t bboxMax[3];
+    uint16_t  baseTexture;
+    uint16_t  metalnessTexture;
+    uint16_t  normalTexture;
+    uint8_t   transparency;
     uint8_t   lodCount;
     MeshLod   lods[8];
 };
@@ -107,6 +111,10 @@ struct MeshNonCompressed {
     float   center[3], radius;
     float   bboxMin[3];
     float   bboxMax[3];
+    uint    baseTexture;
+    uint    metalnessTexture;
+    uint    normalTexture;
+    uint    transparency;
     uint    lodCount;
     MeshLod lods[8];
 };

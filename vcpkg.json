@@ -21,7 +21,9 @@
     "magic-enum",
     "meshoptimizer",
     "argparse",
-    "assimp"
+    "assimp",
+    "gli",
+    "ktx"
   ],
   "overrides": [
     {

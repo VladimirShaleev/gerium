@@ -1,20 +1,33 @@
 #include <filesystem>
 #include <fstream>
 
+#define GLM_FORCE_SWIZZLE
 #define GLM_ENABLE_EXPERIMENTAL
+#define GLM_FORCE_EXPLICIT_CTOR
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <argparse/argparse.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <glm/ext.hpp>
+#include <ktx.h>
 #include <meshoptimizer.h>
+#include <stb_image.h>
+#include <stb_image_write.h>
 
 #include "../shaders/common/types.h"
+
+#define make_vec4 fix_make_vec4
+#include <gli/copy.hpp>
+#include <gli/gli.hpp>
+#include <gli/sampler.hpp>
 
 struct Cluster {
     std::vector<VertexNonCompressed> vertices;
     std::vector<MeshletNonCompressed> meshlets;
     std::vector<MeshNonCompressed> meshes;
+    std::vector<uint16_t> materials;
     std::vector<uint32_t> vertexIndices;
     std::vector<uint8_t> primitiveIndices;
     std::vector<Instance> instances;
@@ -23,15 +36,210 @@ struct Cluster {
 struct Cache {
     std::unordered_map<const aiMesh*, Instance> instances{};
     std::unordered_map<const aiMesh*, uint32_t> maxMeshlets{};
+    std::unordered_map<std::string, std::pair<uint32_t, bool>> materials{};
     uint32_t meshletVisibilityOffset{};
 };
 
 struct Configuration {
+    std::filesystem::path inputFile;
+    std::filesystem::path outputFile;
+    bool textures;
     size_t maxVertices;
     size_t maxTriangles;
     float coneWeight;
     float normalWeight;
+    std::vector<std::string> skip;
 };
+
+struct PBRProperties {
+    glm::vec4 baseColor;
+    float metallic;
+    float roughness;
+};
+
+static PBRProperties calcPBRPropertiesFromPhong(const glm::vec4& diffuse,
+                                                const glm::vec3& specularColor,
+                                                float specularFactor,
+                                                float shininessExponent,
+                                                float opacity) {
+    glm::vec3 specular      = glm::vec3(specularColor.r, specularColor.g, specularColor.b) * specularFactor;
+    float specularIntensity = specular.r * 0.2125f + specular.g * 0.7154f + specular.b * 0.0721f;
+    float diffuseBrightness =
+        0.299f * diffuse.r * diffuse.r + 0.587f * diffuse.g * diffuse.g + 0.114f * diffuse.b * diffuse.b;
+    float specularBrightness =
+        0.299f * specular.r * specular.r + 0.587f * specular.g * specular.g + 0.114f * specular.b * specular.b;
+    float specularStrength              = glm::max(glm::max(specular.r, specular.g), specular.b);
+    float dielectricSpecularReflectance = 0.04;
+    float oneMinusSpecularStrength      = 1.0 - specularStrength;
+
+    // calc roughness
+    float roughness = glm::sqrt(2 / (shininessExponent * specularIntensity + 2));
+
+    // calc metalness
+    float A          = dielectricSpecularReflectance;
+    float B          = (diffuseBrightness * (oneMinusSpecularStrength / (1 - A)) + specularBrightness) - 2 * A;
+    float C          = A - specularBrightness;
+    float squareRoot = glm::sqrt(glm::max(0.0f, B * B - 4.0f * A * C));
+    float value      = (-B + squareRoot) / (2 * A);
+    float metalness  = glm::clamp(value, 0.0f, 1.0f);
+
+    // calc albedo
+    glm::vec3 dielectricColor =
+        glm::vec3(diffuse.r, diffuse.g, diffuse.b) *
+        (oneMinusSpecularStrength / (1.0f - dielectricSpecularReflectance) / glm::max(1e-4f, 1.0f - metalness));
+    glm::vec3 metalColor =
+        (specular - dielectricSpecularReflectance * (1.0f - metalness)) * (1.0f / glm::max(1e-4f, metalness));
+    glm::vec3 albedoRawColor = glm::lerp(dielectricColor, metalColor, metalness * metalness);
+    glm::vec3 albedoRgb      = glm::clamp(albedoRawColor, 0.0f, 1.0f);
+
+    return { glm::vec4(albedoRgb, diffuse.a * opacity), metalness, roughness };
+}
+
+static std::pair<uint32_t, bool> convertTextures(Cache& cache,
+                                                 const Configuration& config,
+                                                 const aiMaterial* material) {
+    aiShadingMode shadingMode;
+    auto result = material->Get<aiShadingMode>(AI_MATKEY_SHADING_MODEL, &shadingMode, nullptr);
+    assert(result == aiReturn_SUCCESS);
+    assert(shadingMode == aiShadingMode_Phong);
+
+    float opacity           = 1.0f;
+    float shininessExponent = 0.0f;
+    float specularFactor    = 0.0f;
+    aiColor3D specularColor{};
+    aiColor3D diffuse{};
+    assert(material->Get(AI_MATKEY_OPACITY, opacity) == aiReturn_SUCCESS);
+    assert(material->Get(AI_MATKEY_SHININESS, shininessExponent) == aiReturn_SUCCESS);
+    assert(material->Get(AI_MATKEY_SHININESS_STRENGTH, specularFactor) == aiReturn_SUCCESS);
+    assert(material->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == aiReturn_SUCCESS);
+    assert(material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == aiReturn_SUCCESS);
+
+    const auto pbrProps = calcPBRPropertiesFromPhong(glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f),
+                                                     glm::vec3(specularColor.r, specularColor.g, specularColor.b),
+                                                     specularFactor,
+                                                     shininessExponent,
+                                                     opacity);
+
+    auto numBase     = material->GetTextureCount(aiTextureType_DIFFUSE);
+    auto numNormal   = material->GetTextureCount(aiTextureType_NORMALS);
+    auto numSpecular = material->GetTextureCount(aiTextureType_SPECULAR);
+
+    aiString diffuseName, normalName, specularName;
+    material->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0), diffuseName);
+    material->Get(AI_MATKEY_TEXTURE(aiTextureType_NORMALS, 0), normalName);
+    material->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), specularName);
+
+    if (auto it = cache.materials.find(diffuseName.C_Str()); it != cache.materials.end()) {
+        return it->second;
+    }
+
+    std::cout << diffuseName.data << std::endl;
+
+    const auto path             = config.inputFile.parent_path();
+    const auto diffuseFileName  = path / diffuseName.C_Str();
+    const auto normalFileName   = path / normalName.C_Str();
+    const auto specularFileName = path / specularName.C_Str();
+
+    gli::texture2d diffuseTex(gli::load(diffuseFileName.string()));
+    gli::texture2d normalTex(gli::load(normalFileName.string()));
+    gli::texture2d specularTex =
+        specularName.length ? gli::texture2d(gli::load(specularFileName.string())) : gli::texture2d();
+    assert(!diffuseTex.empty());
+    assert(!normalTex.empty());
+
+    gli::texture2d diffuseRGBA8 = gli::convert(diffuseTex, gli::FORMAT_RGBA8_UNORM_PACK8);
+    gli::texture2d normalRGBA8  = gli::convert(normalTex, gli::FORMAT_RGBA8_UNORM_PACK8);
+    gli::texture2d specularRGBA8 =
+        specularName.length ? gli::convert(specularTex, gli::FORMAT_RGBA8_UNORM_PACK8) : specularTex;
+
+    gli::sampler2d<float> diffuseSampler(diffuseRGBA8, gli::WRAP_REPEAT, gli::FILTER_LINEAR, gli::FILTER_LINEAR);
+    gli::sampler2d<float> normalSampler(normalRGBA8, gli::WRAP_REPEAT, gli::FILTER_LINEAR, gli::FILTER_LINEAR);
+    gli::sampler2d<float> specularSampler(
+        specularName.length ? specularRGBA8 : diffuseRGBA8, gli::WRAP_REPEAT, gli::FILTER_LINEAR, gli::FILTER_LINEAR);
+
+    auto outDir = config.outputFile.parent_path() / "textures";
+    std::filesystem::create_directories(outDir);
+
+    auto index = uint32_t(cache.materials.size());
+    auto name  = config.outputFile.filename().replace_extension().string() + "_" + std::to_string(index);
+
+    auto baseNameOut      = (outDir / (name + "_base.png")).make_preferred().string();
+    auto normalNameOut    = (outDir / (name + "_normal.png")).make_preferred().string();
+    auto metalnessNameOut = (outDir / (name + "_metalness.png")).make_preferred().string();
+
+    gli::texture2d baseTexOut(gli::FORMAT_RGBA8_UNORM_PACK8, diffuseRGBA8.extent(), diffuseRGBA8.levels());
+    gli::texture2d normalTexOut(gli::FORMAT_RGBA8_UNORM_PACK8, diffuseRGBA8.extent(), diffuseRGBA8.levels());
+    gli::texture2d metalnessTexOut(gli::FORMAT_RGBA8_UNORM_PACK8, diffuseRGBA8.extent(), diffuseRGBA8.levels());
+
+    bool transparency = false;
+
+    for (auto m = diffuseRGBA8.base_level(); m < diffuseRGBA8.max_level() - 1; ++m) {
+        auto width  = diffuseRGBA8.extent(m).x;
+        auto height = diffuseRGBA8.extent(m).y;
+
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                glm::vec2 uv = glm::vec2((x + 0.5f) / width, (y + 0.5f) / height);
+
+                auto nlevel = float(m) / (diffuseRGBA8.levels() - 1);
+
+                const auto ndiff = diffuseSampler.texture_lod(uv, m);
+                const auto nnorm = normalSampler.texture_lod(uv, m);
+                const auto nspec = specularName.length == 0
+                                       ? glm::vec4(0.0f, shininessExponent, specularFactor, 1.0f)
+                                       : specularSampler.texture_lod(uv, nlevel * (specularRGBA8.levels() - 1));
+
+                const auto rg   = nnorm.rg() * 2.0f - 1.0f;
+                const auto blue = sqrt(1 - rg.r * rg.r - rg.g * rg.g) / 2.0f + 0.5f;
+
+                const auto result = calcPBRPropertiesFromPhong(
+                    ndiff, glm::vec3(specularColor.r, specularColor.g, specularColor.b), nspec.b, nspec.g, opacity);
+
+                uint32_t base =
+                    (uint32_t(result.baseColor.r * 255.0f) << 0) | (uint32_t(result.baseColor.g * 255.0f) << 8) |
+                    (uint32_t(result.baseColor.b * 255.0f) << 16) | (uint32_t(result.baseColor.a * 255.0f) << 24);
+                uint32_t normal = (uint32_t(nnorm.r * 255.0f) << 0) | (uint32_t(nnorm.g * 255.0f) << 8) |
+                                  (uint32_t(blue * 255.0f) << 16) | (uint32_t(1.0f * 255.0f) << 24);
+                uint32_t metalness = (uint32_t(result.metallic * 255.0f) << 0) |
+                                     (uint32_t(result.roughness * 255.0f) << 8) | (uint32_t(1.0f * 255.0f) << 16) |
+                                     (uint32_t(1.0f * 255.0f) << 24);
+                baseTexOut.store({ x, y }, m, base);
+                normalTexOut.store({ x, y }, m, normal);
+                metalnessTexOut.store({ x, y }, m, metalness);
+
+                if (result.baseColor.a < 1.0f) {
+                    transparency = true;
+                }
+            }
+        }
+        break; // png not supported mil levels
+    }
+
+    stbi_write_png(baseNameOut.c_str(),
+                   diffuseRGBA8.extent(0).x,
+                   diffuseRGBA8.extent(0).y,
+                   4,
+                   baseTexOut.data(0, 0, 0),
+                   diffuseRGBA8.extent(0).x * 4);
+    stbi_write_png(normalNameOut.c_str(),
+                   diffuseRGBA8.extent(0).x,
+                   diffuseRGBA8.extent(0).y,
+                   4,
+                   normalTexOut.data(0, 0, 0),
+                   diffuseRGBA8.extent(0).x * 4);
+    stbi_write_png(metalnessNameOut.c_str(),
+                   diffuseRGBA8.extent(0).x,
+                   diffuseRGBA8.extent(0).y,
+                   4,
+                   metalnessTexOut.data(0, 0, 0),
+                   diffuseRGBA8.extent(0).x * 4);
+
+    if (transparency) {
+        std::cout << "  material has transparency" << std::endl;
+    }
+    cache.materials[diffuseName.C_Str()] = { index, transparency };
+    return { index, transparency };
+}
 
 static size_t appendMeshlets(Cluster& cluster,
                              const VertexNonCompressed* vertices,
@@ -101,7 +309,8 @@ static size_t appendMeshlets(Cluster& cluster,
     return meshlets.size();
 }
 
-void appendMesh(Cluster& cluster, Cache& cache, const Configuration& config, const aiScene* sc, const aiMesh* mesh) {
+static void appendMesh(
+    Cluster& cluster, Cache& cache, const Configuration& config, const aiScene* sc, const aiMesh* mesh) {
     if (cache.instances.count(mesh)) {
         return;
     }
@@ -176,24 +385,26 @@ void appendMesh(Cluster& cluster, Cache& cache, const Configuration& config, con
     instance.mesh = glm::uint(cluster.meshes.size());
     cluster.meshes.push_back({});
 
-    auto material    = sc->mMaterials[mesh->mMaterialIndex];
-    auto numTextures = material->GetTextureCount(aiTextureType_DIFFUSE);
-    aiString textureName;
-    if (numTextures > 0) {
-        material->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE, 0), textureName);
+    bool transparency = false;
+    if (config.textures && sc->HasMaterials()) {
+        const auto material           = sc->mMaterials[mesh->mMaterialIndex];
+        const auto [materialIndex, t] = convertTextures(cache, config, material);
+        cluster.materials.push_back(uint16_t(materialIndex));
+        transparency = t;
     }
 
-    auto& meshLods      = cluster.meshes.back();
-    meshLods.center[0]  = center.x;
-    meshLods.center[1]  = center.y;
-    meshLods.center[2]  = center.z;
-    meshLods.radius     = radius;
-    meshLods.bboxMin[0] = mesh->mAABB.mMin.x;
-    meshLods.bboxMin[1] = mesh->mAABB.mMin.y;
-    meshLods.bboxMin[2] = mesh->mAABB.mMin.z;
-    meshLods.bboxMax[0] = mesh->mAABB.mMax.x;
-    meshLods.bboxMax[1] = mesh->mAABB.mMax.y;
-    meshLods.bboxMax[2] = mesh->mAABB.mMax.z;
+    auto& meshLods        = cluster.meshes.back();
+    meshLods.center[0]    = center.x;
+    meshLods.center[1]    = center.y;
+    meshLods.center[2]    = center.z;
+    meshLods.radius       = radius;
+    meshLods.bboxMin[0]   = mesh->mAABB.mMin.x;
+    meshLods.bboxMin[1]   = mesh->mAABB.mMin.y;
+    meshLods.bboxMin[2]   = mesh->mAABB.mMin.z;
+    meshLods.bboxMax[0]   = mesh->mAABB.mMax.x;
+    meshLods.bboxMax[1]   = mesh->mAABB.mMax.y;
+    meshLods.bboxMax[2]   = mesh->mAABB.mMax.z;
+    meshLods.transparency = transparency ? 1 : 0;
 
     auto lodScale = meshopt_simplifyScale(&vertices->px, vertexCount, sizeof(VertexNonCompressed));
 
@@ -257,6 +468,14 @@ static void recursiveParsing(Cluster& cluster,
     for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
         const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
 
+        bool skip = std::find_if(config.skip.cbegin(), config.skip.cend(), [mesh](const auto& item) {
+            return mesh->mName.C_Str() == item;
+        }) != config.skip.cend();
+
+        if (skip) {
+            continue;
+        }
+
         appendMesh(cluster, cache, config, sc, mesh);
         Instance newInstance = cache.instances[mesh];
         uint32_t maxMeshlets = cache.maxMeshlets[mesh];
@@ -311,10 +530,12 @@ int main(int argc, char* argv[]) {
     std::string path;
     std::string out;
     bool compress       = false;
+    bool textures       = false;
     size_t maxVertices  = 64;
     size_t maxTriangles = 124;
     double coneWeight   = 0.5f;
     double normalWeight = 0.5f;
+    std::vector<std::string> skip;
     program.add_argument("scene").help("path to glTF scene").required().store_into(path);
     program.add_argument("-o", "--out").help("out path").store_into(out);
     program.add_argument("-c", "--compress")
@@ -327,6 +548,8 @@ int main(int argc, char* argv[]) {
         .help("cone weight for calc cutoff angle of the first meshlet's normal cone")
         .store_into(coneWeight);
     program.add_argument("--nweight").help("normal weight").store_into(normalWeight);
+    program.add_argument("-s", "--skip").help("list of mesh names to skip when exporting").append().store_into(skip);
+    program.add_argument("-t", "--textures").help("convert textures").store_into(textures);
 
     try {
         program.parse_args(argc, argv);
@@ -335,12 +558,6 @@ int main(int argc, char* argv[]) {
         std::cerr << program;
         return EXIT_FAILURE;
     }
-
-    auto cluster = packCluster(path,
-                               Configuration{ .maxVertices  = maxVertices,
-                                              .maxTriangles = maxTriangles,
-                                              .coneWeight   = float(coneWeight),
-                                              .normalWeight = float(normalWeight) });
 
     auto dir = out.length() ? out : std::filesystem::current_path();
     std::filesystem::path name;
@@ -351,7 +568,20 @@ int main(int argc, char* argv[]) {
         name = "result";
     }
 
-    std::ofstream stream(dir / name.replace_extension(".cluster"), std::ios::binary);
+    std::filesystem::create_directories(dir);
+    auto outputFile = dir / name.replace_extension(".cluster");
+
+    auto cluster = packCluster(path,
+                               Configuration{ .inputFile    = path,
+                                              .outputFile   = outputFile,
+                                              .textures     = textures,
+                                              .maxVertices  = maxVertices,
+                                              .maxTriangles = maxTriangles,
+                                              .coneWeight   = float(coneWeight),
+                                              .normalWeight = float(normalWeight),
+                                              .skip         = skip });
+
+    std::ofstream stream(outputFile, std::ios::binary);
     if (stream.fail()) {
         return EXIT_FAILURE;
     }
@@ -414,17 +644,18 @@ int main(int argc, char* argv[]) {
 
         for (const auto& m : cluster.meshes) {
             MeshCompressed mc{};
-            mc.center[0]  = meshopt_quantizeHalf(m.center[0]);
-            mc.center[1]  = meshopt_quantizeHalf(m.center[1]);
-            mc.center[2]  = meshopt_quantizeHalf(m.center[2]);
-            mc.radius     = meshopt_quantizeHalf(m.radius);
-            mc.bboxMin[0] = meshopt_quantizeHalf(m.bboxMin[0]);
-            mc.bboxMin[1] = meshopt_quantizeHalf(m.bboxMin[1]);
-            mc.bboxMin[2] = meshopt_quantizeHalf(m.bboxMin[2]);
-            mc.bboxMax[0] = meshopt_quantizeHalf(m.bboxMax[0]);
-            mc.bboxMax[1] = meshopt_quantizeHalf(m.bboxMax[1]);
-            mc.bboxMax[2] = meshopt_quantizeHalf(m.bboxMax[2]);
-            mc.lodCount   = uint8_t(m.lodCount);
+            mc.center[0]    = meshopt_quantizeHalf(m.center[0]);
+            mc.center[1]    = meshopt_quantizeHalf(m.center[1]);
+            mc.center[2]    = meshopt_quantizeHalf(m.center[2]);
+            mc.radius       = meshopt_quantizeHalf(m.radius);
+            mc.bboxMin[0]   = meshopt_quantizeHalf(m.bboxMin[0]);
+            mc.bboxMin[1]   = meshopt_quantizeHalf(m.bboxMin[1]);
+            mc.bboxMin[2]   = meshopt_quantizeHalf(m.bboxMin[2]);
+            mc.bboxMax[0]   = meshopt_quantizeHalf(m.bboxMax[0]);
+            mc.bboxMax[1]   = meshopt_quantizeHalf(m.bboxMax[1]);
+            mc.bboxMax[2]   = meshopt_quantizeHalf(m.bboxMax[2]);
+            mc.transparency = uint8_t(m.transparency);
+            mc.lodCount     = uint8_t(m.lodCount);
             for (int i = 0; i < std::size(mc.lods); ++i) {
                 mc.lods[i] = m.lods[i];
             }
@@ -451,6 +682,10 @@ int main(int argc, char* argv[]) {
     stream.write((const char*) cluster.primitiveIndices.data(),
                  cluster.primitiveIndices.size() * sizeof(cluster.primitiveIndices[0]));
     stream.write((const char*) cluster.instances.data(), cluster.instances.size() * sizeof(cluster.instances[0]));
+    if (textures) {
+        stream.write((const char*) cluster.materials.data(), cluster.materials.size() * sizeof(cluster.materials[0]));
+    }
 
+    std::cout << "success" << std::endl;
     return EXIT_SUCCESS;
 }
