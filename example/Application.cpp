@@ -427,12 +427,20 @@ Cluster Application::loadCluster(std::string_view name) {
     cluster += instancesSize;
 
     for (auto& instance : instances) {
-        auto textureName =
+        auto baseName =
             std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_base";
-        auto textureFullName =
-            (appDir / "models" / "textures" / std::filesystem::path(textureName).replace_extension("png")).string();
+        auto metalnessName =
+            std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_metalness";
+        auto normalName =
+            std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_normal";
+        auto baseFullName =
+            (appDir / "models" / "textures" / std::filesystem::path(baseName).replace_extension("png")).string();
+        auto metalnessFullName =
+            (appDir / "models" / "textures" / std::filesystem::path(metalnessName).replace_extension("png")).string();
+        auto normalFullName =
+            (appDir / "models" / "textures" / std::filesystem::path(normalName).replace_extension("png")).string();
 
-        _textures.push_back(_resourceManager.loadTexture(textureFullName));
+        _textures.push_back(_resourceManager.loadTexture(baseFullName));
         gerium_renderer_texture_sampler(_renderer,
                                         _textures.back(),
                                         GERIUM_FILTER_LINEAR,
@@ -443,6 +451,30 @@ Cluster Application::loadCluster(std::string_view name) {
                                         GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
                                         GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
         instance.baseTexture = ((gerium_texture_h) _textures.back()).index;
+        
+        _textures.push_back(_resourceManager.loadTexture(metalnessFullName));
+        gerium_renderer_texture_sampler(_renderer,
+                                        _textures.back(),
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_ADDRESS_MODE_REPEAT,
+                                        GERIUM_ADDRESS_MODE_REPEAT,
+                                        GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                        GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
+        instance.metalnessTexture = ((gerium_texture_h) _textures.back()).index;
+        
+        _textures.push_back(_resourceManager.loadTexture(normalFullName));
+        gerium_renderer_texture_sampler(_renderer,
+                                        _textures.back(),
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_ADDRESS_MODE_REPEAT,
+                                        GERIUM_ADDRESS_MODE_REPEAT,
+                                        GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                        GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
+        instance.normalTexture = ((gerium_texture_h) _textures.back()).index;
     }
 
     result.instances = _resourceManager.createBuffer(

@@ -26,7 +26,7 @@ void main() {
     T = normalize(T - dot(T, N) * N);
     mat3 TBN = mat3(T, B, N);
 
-    vec3 normalTex = texture(globalTextures[nonuniformEXT(0)], texcoord).rgb * 2.0 - 1.0;
+    vec3 normalTex = texture(globalTextures[nonuniformEXT(instances[instanceId].normalTexture)], texcoord).rgb * 2.0 - 1.0;
     vec3 normalTBN = normalize(TBN * normalTex);
 
     outColor = texture(globalTextures[nonuniformEXT(instances[instanceId].baseTexture)], texcoord);

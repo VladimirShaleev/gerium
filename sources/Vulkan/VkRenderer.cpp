@@ -773,7 +773,7 @@ void VkRenderer::loadThread() noexcept {
         commandBuffer->copyBuffer(_transferBuffer, request.texture, (gerium_uint32_t) currentOffset);
         commandBuffer->submit(QueueType::CopyTransfer, false);
 
-        if (tasks.size() > _transferMaxTasks) {
+        if (tasks.size() >= _transferMaxTasks) {
             _transferCommandPool.wait(QueueType::CopyTransfer);
             _transferBufferOffset = 0;
             finishLoad();
