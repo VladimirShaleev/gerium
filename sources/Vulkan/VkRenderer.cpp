@@ -382,18 +382,15 @@ void VkRenderer::onTextureSampler(TextureHandle handle,
     }
 }
 
-BufferHandle VkRenderer::onGetBuffer(gerium_utf8_t resource, bool fromOutput) {
-    // TODO: use fromOutput
-    if (auto handle = _device->findInputResource(resource); handle != Undefined) {
+BufferHandle VkRenderer::onGetBuffer(gerium_utf8_t resource) {
+    if (auto handle = _device->findInputResource(resource, false); handle != Undefined) {
         return handle;
     }
     throw Exception(GERIUM_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
-TextureHandle VkRenderer::onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) {
-    // TODO: use fromOutput
-    // TODO: use fromPreviousFrame
-    if (auto handle = _device->findInputResource(resource); handle != Undefined) {
+TextureHandle VkRenderer::onGetTexture(gerium_utf8_t resource, bool fromPreviousFrame) {
+    if (auto handle = _device->findInputResource(resource, fromPreviousFrame); handle != Undefined) {
         return handle;
     }
     throw Exception(GERIUM_RESULT_ERROR_INVALID_ARGUMENT);
@@ -427,7 +424,7 @@ void VkRenderer::onDestroyRenderPass(RenderPassHandle handle) noexcept {
 }
 
 void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept {
-    _device->bind(handle, binding, buffer);
+    _device->bind(handle, binding, 0, buffer, _device->isBufferDynamic(buffer));
 }
 
 void VkRenderer::onBind(DescriptorSetHandle handle,
@@ -437,8 +434,11 @@ void VkRenderer::onBind(DescriptorSetHandle handle,
     _device->bind(handle, binding, element, texture);
 }
 
-void VkRenderer::onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept {
-    _device->bind(handle, binding, 0, Undefined, resourceInput, false);
+void VkRenderer::onBind(DescriptorSetHandle handle,
+                        gerium_uint16_t binding,
+                        gerium_utf8_t resourceInput,
+                        bool fromPreviousFrame) noexcept {
+    _device->bind(handle, binding, 0, Undefined, false, resourceInput, fromPreviousFrame);
 }
 
 gerium_data_t VkRenderer::onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept {
@@ -531,6 +531,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (resource->info.texture.handles[1] != Undefined) {
                     index = resource->saveForNextFrame ? _prevFrame : _frame;
                 }
+
                 auto texture      = resource->info.texture.handles[index];
                 const auto format = toVkFormat(resource->info.texture.format);
 
@@ -539,7 +540,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 } else {
                     cb->addImageBarrier(texture, ResourceState::ShaderResource, 0, 1);
                 }
-                _device->addInputResource(resource, i, texture);
+                _device->addInputResource(resource, texture, resource->saveForNextFrame);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
@@ -558,12 +559,15 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                     cb->addImageBarrier(
                         texture, !node->compute ? ResourceState::RenderTarget : ResourceState::UnorderedAccess, 0, 1);
                 }
+                if (node->compute) {
+                    _device->addInputResource(resource, texture, resource->saveForNextFrame);
+                }
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
                 auto buffer = resource->info.buffer.handle;
                 constexpr auto states =
                     ResourceState::UnorderedAccess | ResourceState::IndirectArgument | ResourceState::ShaderResource;
                 cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess, states);
-                _device->addInputResource(resource, i, buffer);
+                _device->addInputResource(resource, buffer, false);
             }
         }
 
@@ -599,12 +603,12 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                     }
                 }
                 if (node->compute) {
-                    _device->addInputResource(resource, node->inputCount + i, texture);
+                    _device->addInputResource(resource, texture, false);
                 }
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
                 auto buffer = resource->info.buffer.handle;
                 cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
-                _device->addInputResource(resource, node->inputCount + i, buffer);
+                _device->addInputResource(resource, buffer, false);
             }
         }
 

@@ -399,6 +399,7 @@ struct DescriptorSet {
         gerium_uint16_t binding;
         gerium_uint16_t element;
         gerium_utf8_t resource;
+        bool previousFrame;
         Handle handle;
     };
     VkDescriptorSet vkDescriptorSet;

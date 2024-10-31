@@ -55,12 +55,9 @@ public:
               gerium_uint16_t binding,
               gerium_uint16_t element,
               Handle resource,
+              bool dynamic                = false,
               gerium_utf8_t resourceInput = nullptr,
-              bool dynamic                = false);
-    void bind(DescriptorSetHandle handle,
-              uint16_t binding,
-              BufferHandle resource,
-              gerium_utf8_t resourceInput = nullptr);
+              bool fromPreviousFrame      = false);
     VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle,
                                         DescriptorSetLayoutHandle layoutHandle,
                                         FrameGraph* frameGraph);
@@ -74,8 +71,9 @@ public:
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
     void clearInputResources();
-    void addInputResource(const FrameGraphResource* resource, gerium_uint32_t index, Handle handle);
-    Handle findInputResource(gerium_utf8_t resource) const noexcept;
+    void addInputResource(const FrameGraphResource* resource, Handle handle, bool fromPreviousFrame);
+    Handle findInputResource(gerium_utf8_t resource, bool fromPreviousFrame) const noexcept;
+    static gerium_uint64_t calcKeyInputResource(gerium_utf8_t resource, bool fromPreviousFrame) noexcept;
 
     bool isSupportedFormat(gerium_format_t format) noexcept;
 
@@ -167,6 +165,10 @@ public:
         info.format  = toGeriumFormat(texture->vkFormat);
         info.type    = texture->type;
         info.name    = texture->name;
+    }
+
+    bool isBufferDynamic(BufferHandle handle) const noexcept {
+        return _buffers.access(handle)->parent != Undefined;
     }
 
     bool isSupportedTransferQueue() const noexcept {
@@ -379,7 +381,7 @@ private:
     VkDescriptorSet _freeDescriptorSetQueue2[64]{};
     gerium_uint32_t _numFreeDescriptorSetQueue{};
     gerium_uint32_t _numFreeDescriptorSetQueue2{};
-    std::map<std::string, std::pair<const FrameGraphResource*, Handle>> _currentInputResources{};
+    std::map<gerium_uint64_t, Handle> _currentInputResources{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};

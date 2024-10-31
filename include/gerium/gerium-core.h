@@ -1365,13 +1365,11 @@ gerium_renderer_texture_sampler(gerium_renderer_t renderer,
 gerium_public gerium_result_t
 gerium_renderer_get_buffer(gerium_renderer_t renderer,
                            gerium_utf8_t resource,
-                           gerium_bool_t from_output,
                            gerium_buffer_h* handle);
 
 gerium_public gerium_result_t
 gerium_renderer_get_texture(gerium_renderer_t renderer,
                             gerium_utf8_t resource,
-                            gerium_bool_t from_output,
                             gerium_bool_t from_previous_frame,
                             gerium_texture_h* handle);
 
@@ -1408,7 +1406,8 @@ gerium_public void
 gerium_renderer_bind_resource(gerium_renderer_t renderer,
                               gerium_descriptor_set_h handle,
                               gerium_uint16_t binding,
-                              gerium_utf8_t resource_input);
+                              gerium_utf8_t resource_input,
+                              gerium_bool_t from_previous_frame);
 
 gerium_public gerium_data_t
 gerium_renderer_map_buffer(gerium_renderer_t renderer,

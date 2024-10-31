@@ -68,8 +68,8 @@ private:
                           gerium_address_mode_t addressModeW,
                           gerium_reduction_mode_t reductionMode) override;
 
-    BufferHandle onGetBuffer(gerium_utf8_t resource, bool fromOutput) override;
-    TextureHandle onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) override;
+    BufferHandle onGetBuffer(gerium_utf8_t resource) override;
+    TextureHandle onGetTexture(gerium_utf8_t resource, bool fromPreviousFrame) override;
 
     void onDestroyBuffer(BufferHandle handle) noexcept override;
     void onDestroyTexture(TextureHandle handle) noexcept override;
@@ -83,7 +83,10 @@ private:
                 gerium_uint16_t binding,
                 gerium_uint16_t element,
                 TextureHandle texture) noexcept override;
-    void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept override;
+    void onBind(DescriptorSetHandle handle,
+                gerium_uint16_t binding,
+                gerium_utf8_t resourceInput,
+                bool fromPreviousFrame) noexcept override;
 
     gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept override;
     void onUnmapBuffer(BufferHandle handle) noexcept override;

@@ -1280,9 +1280,11 @@ void Device::bind(DescriptorSetHandle handle,
                   gerium_uint16_t binding,
                   gerium_uint16_t element,
                   Handle resource,
+                  bool dynamic,
                   gerium_utf8_t resourceInput,
-                  bool dynamic) {
-    auto descriptorSet = _descriptorSets.access(handle);
+                  bool fromPreviousFrame) {
+    auto descriptorSet       = _descriptorSets.access(handle);
+    auto internResourceInput = intern(resourceInput);
 
     const auto key = calcBindingKey(binding, element);
 
@@ -1299,11 +1301,12 @@ void Device::bind(DescriptorSetHandle handle,
                 DescriptorSet tempDescriptorSet{};
                 tempDescriptorSet.vkDescriptorSet = descriptorSet->vkDescriptorSet;
 
-                auto& item    = tempDescriptorSet.bindings[key];
-                item.binding  = binding;
-                item.element  = element;
-                item.resource = resourceInput;
-                item.handle   = resource;
+                auto& item         = tempDescriptorSet.bindings[key];
+                item.binding       = binding;
+                item.element       = element;
+                item.resource      = internResourceInput;
+                item.previousFrame = fromPreviousFrame;
+                item.handle        = resource;
                 VkWriteDescriptorSet descriptorWrite[1]{};
                 VkDescriptorBufferInfo bufferInfo[1]{};
                 VkDescriptorImageInfo imageInfo[1]{};
@@ -1317,31 +1320,28 @@ void Device::bind(DescriptorSetHandle handle,
     }
 
     if (auto it = descriptorSet->bindings.find(key); it != descriptorSet->bindings.end()) {
-        if (it->second.binding != binding || it->second.element != element || it->second.resource != resourceInput ||
-            it->second.handle != resource) {
-            it->second.binding  = binding;
-            it->second.element  = element;
-            it->second.resource = resourceInput;
-            it->second.handle   = resource;
+        if (it->second.binding != binding || it->second.element != element || it->second.resource != internResourceInput ||
+            it->second.handle != resource || it->second.previousFrame != fromPreviousFrame) {
+            it->second.binding       = binding;
+            it->second.element       = element;
+            it->second.resource      = internResourceInput;
+            it->second.previousFrame = fromPreviousFrame;
+            it->second.handle        = resource;
 
             if (!descriptorSet->changed) {
                 descriptorSet->changed = !dynamic;
             }
         }
     } else {
-        auto& item    = descriptorSet->bindings[key];
-        item.binding  = binding;
-        item.element  = element;
-        item.resource = resourceInput;
-        item.handle   = resource;
+        auto& item         = descriptorSet->bindings[key];
+        item.binding       = binding;
+        item.element       = element;
+        item.resource      = internResourceInput;
+        item.previousFrame = fromPreviousFrame;
+        item.handle        = resource;
 
         descriptorSet->changed = true;
     }
-}
-
-void Device::bind(DescriptorSetHandle handle, uint16_t binding, BufferHandle resource, gerium_utf8_t resourceInput) {
-    auto dynamic = _buffers.access(resource)->parent != Undefined;
-    bind(handle, binding, 0, (Handle) resource, resourceInput, dynamic);
 }
 
 VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
@@ -1359,11 +1359,8 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         bool swapToPrevResource = false;
         for (auto& [_, item] : descriptorSet->bindings) {
             if (item.resource) {
-                auto priorityResource = std::string(item.resource) + '-' + std::to_string(item.binding);
-                auto it               = _currentInputResources.find(priorityResource);
-                auto [_, resourceHandle] =
-                    it != _currentInputResources.end() ? it->second : _currentInputResources[item.resource];
-                bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
+                auto resourceHandle = findInputResource(item.resource, item.previousFrame);
+                bind(handle, item.binding, item.element, resourceHandle, false, item.resource, item.previousFrame);
             }
         }
 
@@ -1432,17 +1429,22 @@ void Device::clearInputResources() {
     _currentInputResources.clear();
 }
 
-void Device::addInputResource(const FrameGraphResource* resource, gerium_uint32_t index, Handle handle) {
-    _currentInputResources[resource->name] = { resource, handle };
-
-    _currentInputResources[std::string(resource->name) + '-' + std::to_string(index)] = { resource, handle };
+void Device::addInputResource(const FrameGraphResource* resource, Handle handle, bool fromPreviousFrame) {
+    const auto key              = calcKeyInputResource(resource->name, fromPreviousFrame);
+    _currentInputResources[key] = handle;
 }
 
-Handle Device::findInputResource(gerium_utf8_t resource) const noexcept {
-    if (auto it = _currentInputResources.find(resource); it != _currentInputResources.end()) {
-        return it->second.second;
+Handle Device::findInputResource(gerium_utf8_t resource, bool fromPreviousFrame) const noexcept {
+    const auto key = calcKeyInputResource(resource, fromPreviousFrame);
+    if (auto it = _currentInputResources.find(key); it != _currentInputResources.end()) {
+        return it->second;
     }
     return Undefined;
+}
+
+gerium_uint64_t Device::calcKeyInputResource(gerium_utf8_t resource, bool fromPreviousFrame) noexcept {
+    auto key = hash(resource);
+    return hash(fromPreviousFrame, key);
 }
 
 bool Device::isSupportedFormat(gerium_format_t format) noexcept {

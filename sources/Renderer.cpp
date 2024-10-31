@@ -81,12 +81,12 @@ void Renderer::textureSampler(TextureHandle handle,
     onTextureSampler(handle, minFilter, magFilter, mipFilter, addressModeU, addressModeV, addressModeW, reductionMode);
 }
 
-BufferHandle Renderer::getBuffer(gerium_utf8_t resource, bool fromOutput) {
-    return onGetBuffer(resource, fromOutput);
+BufferHandle Renderer::getBuffer(gerium_utf8_t resource) {
+    return onGetBuffer(resource);
 }
 
-TextureHandle Renderer::getTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) {
-    return onGetTexture(resource, fromOutput, fromPreviousFrame);
+TextureHandle Renderer::getTexture(gerium_utf8_t resource, bool fromPreviousFrame) {
+    return onGetTexture(resource, fromPreviousFrame);
 }
 
 void Renderer::destroyBuffer(BufferHandle handle) noexcept {
@@ -124,8 +124,11 @@ void Renderer::bind(DescriptorSetHandle handle,
     onBind(handle, binding, element, texture);
 }
 
-void Renderer::bind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept {
-    onBind(handle, binding, resourceInput);
+void Renderer::bind(DescriptorSetHandle handle,
+                    gerium_uint16_t binding,
+                    gerium_utf8_t resourceInput,
+                    bool fromPreviousFrame) noexcept {
+    onBind(handle, binding, resourceInput, fromPreviousFrame);
 }
 
 gerium_data_t Renderer::mapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept {
@@ -330,26 +333,24 @@ gerium_result_t gerium_renderer_texture_sampler(gerium_renderer_t renderer,
 
 gerium_result_t gerium_renderer_get_buffer(gerium_renderer_t renderer,
                                            gerium_utf8_t resource,
-                                           gerium_bool_t from_output,
                                            gerium_buffer_h* handle) {
     assert(renderer);
     assert(handle);
 
     GERIUM_BEGIN_SAFE_BLOCK
-        *handle = alias_cast<Renderer*>(renderer)->getBuffer(resource, from_output);
+        *handle = alias_cast<Renderer*>(renderer)->getBuffer(resource);
     GERIUM_END_SAFE_BLOCK
 }
 
 gerium_result_t gerium_renderer_get_texture(gerium_renderer_t renderer,
                                             gerium_utf8_t resource,
-                                            gerium_bool_t from_output,
                                             gerium_bool_t from_previous_frame,
                                             gerium_texture_h* handle) {
     assert(renderer);
     assert(handle);
 
     GERIUM_BEGIN_SAFE_BLOCK
-        *handle = alias_cast<Renderer*>(renderer)->getTexture(resource, from_output, from_previous_frame);
+        *handle = alias_cast<Renderer*>(renderer)->getTexture(resource, from_previous_frame);
     GERIUM_END_SAFE_BLOCK
 }
 
@@ -393,9 +394,10 @@ void gerium_renderer_bind_texture(gerium_renderer_t renderer,
 void gerium_renderer_bind_resource(gerium_renderer_t renderer,
                                    gerium_descriptor_set_h handle,
                                    gerium_uint16_t binding,
-                                   gerium_utf8_t resource_input) {
+                                   gerium_utf8_t resource_input,
+                                   gerium_bool_t from_previous_frame) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->bind({ handle.index }, binding, resource_input);
+    return alias_cast<Renderer*>(renderer)->bind({ handle.index }, binding, resource_input, from_previous_frame);
 }
 
 gerium_data_t gerium_renderer_map_buffer(gerium_renderer_t renderer,

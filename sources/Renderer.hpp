@@ -52,8 +52,8 @@ public:
                         gerium_address_mode_t addressModeV,
                         gerium_address_mode_t addressModeW,
                         gerium_reduction_mode_t reductionMode);
-    BufferHandle getBuffer(gerium_utf8_t resource, bool fromOutput);
-    TextureHandle getTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame);
+    BufferHandle getBuffer(gerium_utf8_t resource);
+    TextureHandle getTexture(gerium_utf8_t resource, bool fromPreviousFrame);
 
     void destroyBuffer(BufferHandle handle) noexcept;
     void destroyTexture(TextureHandle handle) noexcept;
@@ -67,7 +67,10 @@ public:
               gerium_uint16_t binding,
               gerium_uint16_t element,
               TextureHandle texture) noexcept;
-    void bind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept;
+    void bind(DescriptorSetHandle handle,
+              gerium_uint16_t binding,
+              gerium_utf8_t resourceInput,
+              bool fromPreviousFrame) noexcept;
 
     gerium_data_t mapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept;
     void unmapBuffer(BufferHandle handle) noexcept;
@@ -118,8 +121,8 @@ private:
                                   gerium_address_mode_t addressModeW,
                                   gerium_reduction_mode_t reductionMode) = 0;
 
-    virtual BufferHandle onGetBuffer(gerium_utf8_t resource, bool fromOutput)                           = 0;
-    virtual TextureHandle onGetTexture(gerium_utf8_t resource, bool fromOutput, bool fromPreviousFrame) = 0;
+    virtual BufferHandle onGetBuffer(gerium_utf8_t resource)                           = 0;
+    virtual TextureHandle onGetTexture(gerium_utf8_t resource, bool fromPreviousFrame) = 0;
 
     virtual void onDestroyBuffer(BufferHandle handle) noexcept               = 0;
     virtual void onDestroyTexture(TextureHandle handle) noexcept             = 0;
@@ -128,12 +131,17 @@ private:
     virtual void onDestroyRenderPass(RenderPassHandle handle) noexcept       = 0;
     virtual void onDestroyFramebuffer(FramebufferHandle handle) noexcept     = 0;
 
-    virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept         = 0;
+    virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, BufferHandle buffer) noexcept = 0;
+
     virtual void onBind(DescriptorSetHandle handle,
                         gerium_uint16_t binding,
                         gerium_uint16_t element,
-                        TextureHandle texture) noexcept                                                            = 0;
-    virtual void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept = 0;
+                        TextureHandle texture) noexcept = 0;
+
+    virtual void onBind(DescriptorSetHandle handle,
+                        gerium_uint16_t binding,
+                        gerium_utf8_t resourceInput,
+                        bool fromPreviousFrame) noexcept = 0;
 
     virtual gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept = 0;
     virtual void onUnmapBuffer(BufferHandle handle) noexcept                                                      = 0;
