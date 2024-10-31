@@ -343,7 +343,7 @@ static void appendMesh(
         verticesOrigin[v].tz = tangent.z;
         verticesOrigin[v].ts = tangentW;
         verticesOrigin[v].tu = texcoord.x;
-        verticesOrigin[v].tv = 1.0f - texcoord.y;
+        verticesOrigin[v].tv = texcoord.y;
     }
 
     for (int i = 0; i < mesh->mNumFaces; ++i) {
@@ -390,13 +390,13 @@ static void appendMesh(
     float lodError         = 0.0f;
     float normalWeights[3] = { config.normalWeight, config.normalWeight, config.normalWeight };
 
-    bool transparency = false;
+    bool transparency      = false;
     uint32_t materialIndex = 0;
     if (config.textures && sc->HasMaterials()) {
-        const auto material           = sc->mMaterials[mesh->mMaterialIndex];
-        const auto [i, t] = convertTextures(cache, config, material);
-        transparency = t;
-        materialIndex = i;
+        const auto material = sc->mMaterials[mesh->mMaterialIndex];
+        const auto [i, t]   = convertTextures(cache, config, material);
+        transparency        = t;
+        materialIndex       = i;
     }
 
     instance.mesh             = glm::uint(cluster.meshes.size());
@@ -519,7 +519,8 @@ static Cluster packCluster(const std::string& path, const Configuration& config)
         aiPrimitiveType_POINT | aiPrimitiveType_LINE | aiPrimitiveType_POLYGON | aiPrimitiveType_NGONEncodingFlag;
 
     constexpr auto flags = aiProcess_FindInstances | aiProcess_Triangulate | aiProcess_SortByPType |
-                           aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace;
+                           aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace | aiProcess_MakeLeftHanded |
+                           aiProcess_FlipUVs;
 
     Assimp::Importer importer;
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, removePrimitives);

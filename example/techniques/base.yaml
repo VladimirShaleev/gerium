@@ -3,7 +3,7 @@ pipelines:
   - render pass: gbuffer_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_FILL
-      cull mode: GERIUM_CULL_MODE_FRONT
+      cull mode: GERIUM_CULL_MODE_BACK
       front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
       depth clamp enable: 0
       depth bias enable: 0
@@ -33,7 +33,7 @@ pipelines:
   - render pass: gbuffer_late_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_FILL
-      cull mode: GERIUM_CULL_MODE_FRONT
+      cull mode: GERIUM_CULL_MODE_BACK
       front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
     depth stencil:
       depth test enable: true
@@ -96,7 +96,7 @@ pipelines:
   - render pass: debug_occlusion_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_FILL
-      cull mode: GERIUM_CULL_MODE_FRONT
+      cull mode: GERIUM_CULL_MODE_BACK
       front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
     depth stencil:
       depth test enable: true
