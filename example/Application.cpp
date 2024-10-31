@@ -1,5 +1,25 @@
 #include "Application.hpp"
 
+void IndirectPass::render(gerium_frame_graph_t frameGraph,
+                          gerium_renderer_t renderer,
+                          gerium_command_buffer_t commandBuffer,
+                          gerium_uint32_t worker,
+                          gerium_uint32_t totalWorkers) {
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, SCENE_DATA_SET);
+    gerium_command_buffer_dispatch(commandBuffer, 1, 1, 1);
+}
+
+void IndirectPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, !_latePass ? "command_count" : "command_count_late");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "commands");
+}
+
+void IndirectPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
+}
+
 void DepthPyramidPass::render(gerium_frame_graph_t frameGraph,
                               gerium_renderer_t renderer,
                               gerium_command_buffer_t commandBuffer,
@@ -7,15 +27,7 @@ void DepthPyramidPass::render(gerium_frame_graph_t frameGraph,
                               gerium_uint32_t totalWorkers) {
     gerium_texture_h depth;
     gerium_renderer_get_texture(renderer, "depth", false, false, &depth);
-    gerium_renderer_texture_sampler(renderer,
-                                    depth,
-                                    GERIUM_FILTER_LINEAR,
-                                    GERIUM_FILTER_LINEAR,
-                                    GERIUM_FILTER_NEAREST,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_REDUCTION_MODE_MIN);
+    assignReductionSampler(renderer, depth);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
 
@@ -69,15 +81,7 @@ void DepthPyramidPass::createDepthPyramid(gerium_frame_graph_t frameGraph, geriu
 
     application()->resourceManager().update(0);
     _depthPyramid = application()->resourceManager().createTexture(info, nullptr, 0);
-    gerium_renderer_texture_sampler(renderer,
-                                    _depthPyramid,
-                                    GERIUM_FILTER_LINEAR,
-                                    GERIUM_FILTER_LINEAR,
-                                    GERIUM_FILTER_NEAREST,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
-                                    GERIUM_REDUCTION_MODE_MIN);
+    assignReductionSampler(renderer, _depthPyramid);
 
     gerium_frame_graph_add_texture(frameGraph, "depth_pyramid", _depthPyramid);
 
@@ -95,14 +99,24 @@ void DepthPyramidPass::createDepthPyramid(gerium_frame_graph_t frameGraph, geriu
 
         if (m == 0) {
             gerium_renderer_bind_resource(renderer, _descriptorSets[m], 0, "depth");
-            gerium_renderer_bind_texture(renderer, _descriptorSets[m], 1, 0, _depthPyramidMips[m]);
-            gerium_renderer_bind_buffer(renderer, _descriptorSets[m], 2, _imageSizes[m]);
         } else {
             gerium_renderer_bind_texture(renderer, _descriptorSets[m], 0, 0, _depthPyramidMips[m - 1]);
-            gerium_renderer_bind_texture(renderer, _descriptorSets[m], 1, 0, _depthPyramidMips[m]);
-            gerium_renderer_bind_buffer(renderer, _descriptorSets[m], 2, _imageSizes[m]);
         }
+        gerium_renderer_bind_texture(renderer, _descriptorSets[m], 1, 0, _depthPyramidMips[m]);
+        gerium_renderer_bind_buffer(renderer, _descriptorSets[m], 2, _imageSizes[m]);
     }
+}
+
+void DepthPyramidPass::assignReductionSampler(gerium_renderer_t renderer, gerium_texture_h texture) {
+    gerium_renderer_texture_sampler(renderer,
+                                    texture,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_NEAREST,
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_REDUCTION_MODE_MIN);
 }
 
 void CullingPass::render(gerium_frame_graph_t frameGraph,
@@ -117,7 +131,7 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet0, GLOBAL_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet1, MESH_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->cluster().descriptorSet, CLUSTER_DATA_SET);
     gerium_command_buffer_fill_buffer(commandBuffer, commandCount, 0, 4, 0);
     gerium_command_buffer_dispatch(commandBuffer, groupSize, 1, 1);
 }
@@ -125,7 +139,6 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
 void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     auto& cluster   = application()->cluster();
     _descriptorSet0 = application()->resourceManager().createDescriptorSet("", true);
-    _descriptorSet1 = application()->resourceManager().createDescriptorSet("", true);
     gerium_renderer_bind_buffer(renderer, _descriptorSet0, 0, application()->drawData());
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 1, !_latePass ? "command_count" : "command_count_late");
     gerium_renderer_bind_resource(renderer, _descriptorSet0, 2, "commands");
@@ -133,34 +146,10 @@ void CullingPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t 
     if (_latePass) {
         gerium_renderer_bind_resource(renderer, _descriptorSet0, 4, "depth_pyramid");
     }
-    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 0, cluster.instances);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 1, cluster.meshes);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet1, 2, cluster.meshlets);
 }
 
 void CullingPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _descriptorSet1 = nullptr;
     _descriptorSet0 = nullptr;
-}
-
-void IndirectPass::render(gerium_frame_graph_t frameGraph,
-                          gerium_renderer_t renderer,
-                          gerium_command_buffer_t commandBuffer,
-                          gerium_uint32_t worker,
-                          gerium_uint32_t totalWorkers) {
-    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, SCENE_DATA_SET);
-    gerium_command_buffer_dispatch(commandBuffer, 1, 1, 1);
-}
-
-void IndirectPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, !_latePass ? "command_count" : "command_count_late");
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "commands");
-}
-
-void IndirectPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _descriptorSet = nullptr;
 }
 
 void GBufferPass::render(gerium_frame_graph_t frameGraph,
@@ -174,22 +163,15 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->cluster().descriptorSet, CLUSTER_DATA_SET);
     gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, 1, 12);
 }
 
 void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    auto& cluster  = application()->cluster();
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
-
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "commands");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "meshlet_visibility");
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 2, cluster.instances);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 3, cluster.meshes);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 4, cluster.meshlets);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 5, cluster.vertexIndices);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 6, cluster.primitiveIndices);
-    gerium_renderer_bind_buffer(renderer, _descriptorSet, 7, cluster.vertices);
-    gerium_renderer_bind_resource(renderer, _descriptorSet, 8, "depth_pyramid");
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 2, "depth_pyramid");
 }
 
 void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -444,6 +426,14 @@ Cluster Application::loadCluster(std::string_view name) {
         _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "instances" + id, cluster, instancesSize);
     cluster += instancesSize;
 
+    result.descriptorSet = _resourceManager.createDescriptorSet("descriptor_set" + id, true);
+    gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 0, result.vertices);
+    gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 1, result.meshlets);
+    gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 2, result.vertexIndices);
+    gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 3, result.primitiveIndices);
+    gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 4, result.meshes);
+    gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 5, result.instances);
+
     return result;
 }
 
@@ -666,7 +656,7 @@ void Application::state(gerium_application_state_t state) {
 
 gerium_bool_t Application::frame(gerium_application_t application, gerium_data_t data, gerium_uint64_t elapsedMs) {
     auto app = (Application*) data;
-    return app->cppCall([app, elapsedMs]() {
+    return app->cppCallWrap([app, elapsedMs]() {
         app->frame(elapsedMs);
     });
 }
@@ -675,7 +665,7 @@ gerium_bool_t Application::state(gerium_application_t application,
                                  gerium_data_t data,
                                  gerium_application_state_t state) {
     auto app = (Application*) data;
-    return app->cppCall([app, state]() {
+    return app->cppCallWrap([app, state]() {
         app->state(state);
     });
 }
@@ -685,14 +675,14 @@ gerium_uint32_t Application::prepare(gerium_frame_graph_t frameGraph,
                                      gerium_uint32_t maxWorkers,
                                      gerium_data_t data) {
     auto renderPass = (RenderPass*) data;
-    return renderPass->application()->cppCallInt([renderPass, frameGraph, renderer, maxWorkers]() {
+    return renderPass->application()->cppCallWrap([renderPass, frameGraph, renderer, maxWorkers]() {
         return renderPass->prepare(frameGraph, renderer, maxWorkers);
     });
 }
 
 gerium_bool_t Application::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer, gerium_data_t data) {
     auto renderPass = (RenderPass*) data;
-    return renderPass->application()->cppCall([renderPass, frameGraph, renderer]() {
+    return renderPass->application()->cppCallWrap([renderPass, frameGraph, renderer]() {
         renderPass->resize(frameGraph, renderer);
     });
 }
@@ -704,7 +694,7 @@ gerium_bool_t Application::render(gerium_frame_graph_t frameGraph,
                                   gerium_uint32_t totalWorkers,
                                   gerium_data_t data) {
     auto renderPass = (RenderPass*) data;
-    return renderPass->application()->cppCall(
+    return renderPass->application()->cppCallWrap(
         [renderPass, frameGraph, renderer, commandBuffer, worker, totalWorkers]() {
         renderPass->render(frameGraph, renderer, commandBuffer, worker, totalWorkers);
     });

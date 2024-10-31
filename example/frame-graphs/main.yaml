@@ -31,11 +31,11 @@ frame graph:
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
-        size: 268435456
+        size: 134217728
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: visibility
-        size: 134217728
+        size: 4096
         fill value: 4294967295
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
 

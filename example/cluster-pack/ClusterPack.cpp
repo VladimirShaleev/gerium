@@ -60,8 +60,7 @@ struct PBRProperties {
 static PBRProperties calcPBRPropertiesFromPhong(const glm::vec4& diffuse,
                                                 const glm::vec3& specularColor,
                                                 float specularFactor,
-                                                float shininessExponent,
-                                                float opacity) {
+                                                float shininessExponent) {
     glm::vec3 specular      = glm::vec3(specularColor.r, specularColor.g, specularColor.b) * specularFactor;
     float specularIntensity = specular.r * 0.2125f + specular.g * 0.7154f + specular.b * 0.0721f;
     float diffuseBrightness =
@@ -92,7 +91,7 @@ static PBRProperties calcPBRPropertiesFromPhong(const glm::vec4& diffuse,
     glm::vec3 albedoRawColor = glm::lerp(dielectricColor, metalColor, metalness * metalness);
     glm::vec3 albedoRgb      = glm::clamp(albedoRawColor, 0.0f, 1.0f);
 
-    return { glm::vec4(albedoRgb, diffuse.a * opacity), metalness, roughness };
+    return { glm::vec4(albedoRgb, diffuse.a), metalness, roughness };
 }
 
 static std::pair<uint32_t, bool> convertTextures(Cache& cache,
@@ -108,17 +107,16 @@ static std::pair<uint32_t, bool> convertTextures(Cache& cache,
     float specularFactor    = 0.0f;
     aiColor3D specularColor{};
     aiColor3D diffuse{};
-    assert(material->Get(AI_MATKEY_OPACITY, opacity) == aiReturn_SUCCESS);
-    assert(material->Get(AI_MATKEY_SHININESS, shininessExponent) == aiReturn_SUCCESS);
-    assert(material->Get(AI_MATKEY_SHININESS_STRENGTH, specularFactor) == aiReturn_SUCCESS);
-    assert(material->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == aiReturn_SUCCESS);
-    assert(material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == aiReturn_SUCCESS);
+    material->Get(AI_MATKEY_OPACITY, opacity);
+    material->Get(AI_MATKEY_SHININESS, shininessExponent);
+    material->Get(AI_MATKEY_SHININESS_STRENGTH, specularFactor);
+    material->Get(AI_MATKEY_COLOR_SPECULAR, specularColor);
+    material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
 
-    const auto pbrProps = calcPBRPropertiesFromPhong(glm::vec4(diffuse.r, diffuse.g, diffuse.b, 1.0f),
+    const auto pbrProps = calcPBRPropertiesFromPhong(glm::vec4(diffuse.r, diffuse.g, diffuse.b, opacity),
                                                      glm::vec3(specularColor.r, specularColor.g, specularColor.b),
                                                      specularFactor,
-                                                     shininessExponent,
-                                                     opacity);
+                                                     shininessExponent);
 
     auto numBase     = material->GetTextureCount(aiTextureType_DIFFUSE);
     auto numNormal   = material->GetTextureCount(aiTextureType_NORMALS);
@@ -192,8 +190,12 @@ static std::pair<uint32_t, bool> convertTextures(Cache& cache,
                 const auto rg   = nnorm.rg() * 2.0f - 1.0f;
                 const auto blue = sqrt(1 - rg.r * rg.r - rg.g * rg.g) / 2.0f + 0.5f;
 
-                const auto result = calcPBRPropertiesFromPhong(
-                    ndiff, glm::vec3(specularColor.r, specularColor.g, specularColor.b), nspec.b, nspec.g, opacity);
+                auto result = calcPBRPropertiesFromPhong(
+                    ndiff, glm::vec3(specularColor.r, specularColor.g, specularColor.b), nspec.b, nspec.g);
+
+                result.baseColor *= pbrProps.baseColor;
+                result.metallic *= pbrProps.metallic;
+                result.roughness *= pbrProps.roughness;
 
                 uint32_t base =
                     (uint32_t(result.baseColor.r * 255.0f) << 0) | (uint32_t(result.baseColor.g * 255.0f) << 8) |

@@ -32,7 +32,6 @@ public:
                     gerium_float32_t alpha) noexcept;
     void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer, bool useSecondaryCommandBuffers);
-    // void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
     void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset = 0);
     void generateMipmaps(TextureHandle handle);

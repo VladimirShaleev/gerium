@@ -40,16 +40,16 @@ layout(std430, binding = 3, set = GLOBAL_DATA_SET) buffer Visibility {
 layout(binding = 4, set = GLOBAL_DATA_SET) uniform sampler2D depthPyramid;
 #endif
 
-layout(std430, binding = 0, set = MESH_DATA_SET) readonly buffer Instances {
-    Instance instances[];
+layout(std430, binding = 1, set = CLUSTER_DATA_SET) readonly buffer Meshlets {
+    Meshlet meshlets[];
 };
 
-layout(std430, binding = 1, set = MESH_DATA_SET) readonly buffer Meshs {
+layout(std430, binding = 4, set = CLUSTER_DATA_SET) readonly buffer Meshs {
     Mesh meshes[];
 };
 
-layout(std430, binding = 2, set = MESH_DATA_SET) readonly buffer Meshlets {
-    Meshlet meshlets[];
+layout(std430, binding = 5, set = CLUSTER_DATA_SET) readonly buffer Instances {
+    Instance instances[];
 };
 
 void main() {

@@ -29,21 +29,21 @@ layout(std430, binding = 1, set = GLOBAL_DATA_SET) buffer MeshletVisibility {
     uint meshletVisibility[];
 };
 
-layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer Instances {
-    Instance instances[];
-};
+#ifdef LATE
+layout(binding = 2, set = GLOBAL_DATA_SET) uniform sampler2D depthPyramid;
+#endif
 
-layout(std430, binding = 3, set = GLOBAL_DATA_SET) readonly buffer Meshs {
-    Mesh meshes[];
-};
-
-layout(std430, binding = 4, set = GLOBAL_DATA_SET) readonly buffer Meshlets {
+layout(std430, binding = 1, set = CLUSTER_DATA_SET) readonly buffer Meshlets {
     Meshlet meshlets[];
 };
 
-#ifdef LATE
-layout(binding = 8, set = GLOBAL_DATA_SET) uniform sampler2D depthPyramid;
-#endif
+layout(std430, binding = 4, set = CLUSTER_DATA_SET) readonly buffer Meshs {
+    Mesh meshes[];
+};
+
+layout(std430, binding = 5, set = CLUSTER_DATA_SET) readonly buffer Instances {
+    Instance instances[];
+};
 
 taskPayloadSharedEXT MeshTaskPayload payload;
 

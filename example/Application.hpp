@@ -19,6 +19,26 @@ struct Cluster {
     Buffer primitiveIndices;
     Buffer meshes;
     Buffer instances;
+    DescriptorSet descriptorSet;
+};
+
+class IndirectPass final : public RenderPass {
+public:
+    IndirectPass(bool late) : RenderPass(!late ? "indirect_pass" : "indirect_late_pass"), _latePass(late) {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    DescriptorSet _descriptorSet;
+    bool _latePass{};
 };
 
 class DepthPyramidPass final : public RenderPass {
@@ -38,6 +58,7 @@ public:
 
 private:
     void createDepthPyramid(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
+    static void assignReductionSampler(gerium_renderer_t renderer, gerium_texture_h texture);
 
     gerium_uint16_t _depthPyramidWidth{};
     gerium_uint16_t _depthPyramidHeight{};
@@ -64,26 +85,6 @@ public:
 
 private:
     DescriptorSet _descriptorSet0{};
-    DescriptorSet _descriptorSet1{};
-    bool _latePass{};
-};
-
-class IndirectPass final : public RenderPass {
-public:
-    IndirectPass(bool late) : RenderPass(!late ? "indirect_pass" : "indirect_late_pass"), _latePass(late) {
-    }
-
-    void render(gerium_frame_graph_t frameGraph,
-                gerium_renderer_t renderer,
-                gerium_command_buffer_t commandBuffer,
-                gerium_uint32_t worker,
-                gerium_uint32_t totalWorkers) override;
-
-    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-
-private:
-    DescriptorSet _descriptorSet;
     bool _latePass{};
 };
 
@@ -242,26 +243,29 @@ private:
                                 gerium_uint32_t totalWorkers,
                                 gerium_data_t data);
 
+    // We wrap the call into a C++ member function so that we can propagate the exception, 
+    // if it occurs, back to the C++ code and rethrow it after the C API callback has done
     template <typename Func>
-    bool cppCall(Func&& func) noexcept {
-        try {
-            func();
-            return true;
-        } catch (...) {
-            uninitialize();
-            _error = std::current_exception();
-            return false;
-        }
-    }
+    std::conditional_t<std::is_same_v<std::invoke_result_t<Func>, void>, bool, std::invoke_result_t<Func>>
+    cppCallWrap(Func&& func) noexcept {
+        using ReturnType = std::invoke_result_t<Func>;
 
-    template <typename Func>
-    gerium_uint32_t cppCallInt(Func&& func) noexcept {
+        constexpr auto isVoidReturn = std::is_same_v<ReturnType, void>;
         try {
-            return func();
+            if constexpr (isVoidReturn) {
+                func();
+                return true;
+            } else {
+                return func();
+            }
         } catch (...) {
             uninitialize();
             _error = std::current_exception();
-            return 0;
+            if constexpr (isVoidReturn) {
+                return false;
+            } else {
+                return ReturnType();
+            }
         }
     }
 

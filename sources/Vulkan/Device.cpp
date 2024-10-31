@@ -2334,6 +2334,10 @@ std::vector<uint32_t> Device::compile(const char* code,
         options.AddMacroDefinition("SHADER_16BIT_STORAGE_SUPPORTED"s, "1"s);
     }
 
+    if (!_enableValidations) {
+        options.AddMacroDefinition("NDEBUG"s, "1"s);
+    }
+
     for (gerium_uint32_t i = 0; i < numMacros; ++i) {
         const auto& macro = macros[i];
         options.AddMacroDefinition(macro.name, macro.value);

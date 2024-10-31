@@ -27,24 +27,24 @@ layout(std430, binding = 0, set = GLOBAL_DATA_SET) readonly buffer Commands {
     MeshTaskCommand commands[];
 };
 
-layout(std430, binding = 2, set = GLOBAL_DATA_SET) readonly buffer Instances {
-    Instance instances[];
+layout(std430, binding = 0, set = CLUSTER_DATA_SET) readonly buffer Vertices {
+    Vertex vertices[];
 };
 
-layout(std430, binding = 4, set = GLOBAL_DATA_SET) readonly buffer Meshlets {
+layout(std430, binding = 1, set = CLUSTER_DATA_SET) readonly buffer Meshlets {
     Meshlet meshlets[];
 };
 
-layout(std430, binding = 5, set = GLOBAL_DATA_SET) readonly buffer MeshletVertices {
+layout(std430, binding = 2, set = CLUSTER_DATA_SET) readonly buffer MeshletVertices {
     uint meshletVertices[];
 };
 
-layout(std430, binding = 6, set = GLOBAL_DATA_SET) readonly buffer MeshletPrimitives {
+layout(std430, binding = 3, set = CLUSTER_DATA_SET) readonly buffer MeshletPrimitives {
     uint8_t meshletPrimitives[];
 };
 
-layout(std430, binding = 7, set = GLOBAL_DATA_SET) readonly buffer Vertices {
-    Vertex vertices[];
+layout(std430, binding = 5, set = CLUSTER_DATA_SET) readonly buffer Instances {
+    Instance instances[];
 };
 
 taskPayloadSharedEXT MeshTaskPayload payload;

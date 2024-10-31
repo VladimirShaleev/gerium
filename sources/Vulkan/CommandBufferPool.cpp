@@ -139,17 +139,6 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass,
     }
 }
 
-// void CommandBuffer::bindPipeline(PipelineHandle pipeline) {
-//     if (_currentPipeline != pipeline) {
-//         auto pipelineObj = _device->_pipelines.access(pipeline);
-//         _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
-//         _currentPipeline = pipeline;
-//         for (auto& set : _currentDescriptorSets) {
-//             set = Undefined;
-//         }
-//     }
-// }
-
 void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
     auto srcBuffer = _device->_buffers.access(src);
     auto dstBuffer = _device->_buffers.access(dst);
