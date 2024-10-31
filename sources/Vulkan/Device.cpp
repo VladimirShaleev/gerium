@@ -1320,8 +1320,9 @@ void Device::bind(DescriptorSetHandle handle,
     }
 
     if (auto it = descriptorSet->bindings.find(key); it != descriptorSet->bindings.end()) {
-        if (it->second.binding != binding || it->second.element != element || it->second.resource != internResourceInput ||
-            it->second.handle != resource || it->second.previousFrame != fromPreviousFrame) {
+        if (it->second.binding != binding || it->second.element != element ||
+            it->second.resource != internResourceInput || it->second.handle != resource ||
+            it->second.previousFrame != fromPreviousFrame) {
             it->second.binding       = binding;
             it->second.element       = element;
             it->second.resource      = internResourceInput;
@@ -1638,6 +1639,7 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures);
 
     _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS_BIT) == GERIUM_FEATURE_BINDLESS_BIT &&
+                         testFeatures12.shaderSampledImageArrayNonUniformIndexing &&
                          testFeatures12.descriptorBindingPartiallyBound && testFeatures12.runtimeDescriptorArray &&
                          testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
     _meshShaderSupported  = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
@@ -1661,8 +1663,9 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     features12.samplerFilterMinmax =
         testFeatures12.samplerFilterMinmax; // TODO: add flag for reduction GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT
     if (_bindlessSupported) {
-        features12.descriptorBindingPartiallyBound = testFeatures12.descriptorBindingPartiallyBound;
-        features12.runtimeDescriptorArray          = testFeatures12.runtimeDescriptorArray;
+        features12.shaderSampledImageArrayNonUniformIndexing = testFeatures12.shaderSampledImageArrayNonUniformIndexing;
+        features12.descriptorBindingPartiallyBound           = testFeatures12.descriptorBindingPartiallyBound;
+        features12.runtimeDescriptorArray                    = testFeatures12.runtimeDescriptorArray;
         features12.descriptorBindingSampledImageUpdateAfterBind =
             testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
     }

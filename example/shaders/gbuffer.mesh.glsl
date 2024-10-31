@@ -50,15 +50,15 @@ layout(std430, binding = 5, set = CLUSTER_DATA_SET) readonly buffer Instances {
 taskPayloadSharedEXT MeshTaskPayload payload;
 
 layout(location = 0) out vec4 color[];
+layout(location = 1) out vec2 texcoord[];
+layout(location = 2) out vec3 normal[];
+layout(location = 3) out vec3 tangent[];
+layout(location = 4) out vec3 bitangent[];
+layout(location = 5) flat out uint instanceId[];
 
 void main() {
     uint ti = gl_LocalInvocationID.x;
     uint ci = payload.clusterIndices[gl_WorkGroupID.x];
-
-    if (ci == ~0) {
-        SetMeshOutputsEXT(0, 0);
-        return;
-    }
 
     MeshTaskCommand command = commands[ci & 0xffffff];
     uint mi = command.taskOffset + (ci >> 24);
@@ -80,11 +80,21 @@ void main() {
         uint offset = min(ti + batch * MESH_GROUP_SIZE, vertexCount - 1);
         uint index  = meshletVertices[vertexOffset + offset];
 
-        vec4 position = vec4(float(vertices[index].px), float(vertices[index].py), float(vertices[index].pz), 1.0);
-        // vec3 normal   = vec3(int(vertices[index].nx), int(vertices[index].ny), int(vertices[index].nz)) / 127.0 - 1.0;
+        vec4 vPosition = vec4(float(vertices[index].px), float(vertices[index].py), float(vertices[index].pz), 1.0);
+        vec2 vTexcoord = vec2(float(vertices[index].tu), float(vertices[index].tv));
+        vec3 vNormal   = vec3(int(vertices[index].nx), int(vertices[index].ny), int(vertices[index].nz)) / 127.0 - 1.0;
+        vec3 vTangent  = vec3(int(vertices[index].tx), int(vertices[index].ty), int(vertices[index].tz)) / 127.0 - 1.0;
 
-        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * instances[command.drawId].world * position;
-        color[offset] = vec4(mcolor, 1.0);
+        vec3 worldNormal  = normalize(mat3(instances[command.drawId].inverseWorld) * vNormal);
+        vec3 worldTangent = normalize(mat3(instances[command.drawId].inverseWorld) * vTangent);
+
+        gl_MeshVerticesEXT[offset].gl_Position = scene.viewProjection * instances[command.drawId].world * vPosition;
+        color[offset]      = vec4(mcolor, 1.0);
+        texcoord[offset]   = vTexcoord;
+        normal[offset]     = worldNormal;
+        tangent[offset]    = worldTangent;
+        bitangent[offset]  = cross(worldNormal, worldTangent) * int(vertices[index].ts);
+        instanceId[offset] = command.drawId;
     }
 
     for (uint batch = 0; batch < primitiveBatches; batch++) {

@@ -208,6 +208,10 @@ public:
         return _baseTechnique;
     }
 
+    gerium_descriptor_set_h texturesSet() const noexcept {
+        return _texturesSet;
+    }
+
     Cluster& cluster() noexcept {
         return _cluster;
     }
@@ -305,6 +309,9 @@ private:
 
     Technique _baseTechnique{};
 
+    Texture _emptyTexture{};
+    std::vector<Texture> _textures{};
+    DescriptorSet _texturesSet{};
     Cluster _cluster{};
     Buffer _drawData{};
 };

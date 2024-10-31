@@ -27,7 +27,6 @@ struct Cluster {
     std::vector<VertexNonCompressed> vertices;
     std::vector<MeshletNonCompressed> meshlets;
     std::vector<MeshNonCompressed> meshes;
-    std::vector<uint16_t> materials;
     std::vector<uint32_t> vertexIndices;
     std::vector<uint8_t> primitiveIndices;
     std::vector<Instance> instances;
@@ -326,9 +325,12 @@ static void appendMesh(
     std::vector<VertexNonCompressed> verticesOrigin(mesh->mNumVertices);
 
     for (int v = 0; v < mesh->mNumVertices; ++v) {
-        const auto vertex   = mesh->mVertices[v];
-        const auto normal   = mesh->mNormals[v];
-        const auto texcoord = mesh->mTextureCoords[0][v];
+        const auto vertex    = mesh->mVertices[v];
+        const auto normal    = glm::vec3(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
+        const auto tangent   = glm::vec3(mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z);
+        const auto bitangent = glm::vec3(mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z);
+        const auto texcoord  = mesh->mTextureCoords[0][v];
+        const auto tangentW  = (glm::dot(glm::cross(normal, tangent), bitangent) < 0.0f) ? -1.0f : 1.0f;
 
         verticesOrigin[v].px = vertex.x;
         verticesOrigin[v].py = vertex.y;
@@ -336,6 +338,10 @@ static void appendMesh(
         verticesOrigin[v].nx = normal.x;
         verticesOrigin[v].ny = normal.y;
         verticesOrigin[v].nz = normal.z;
+        verticesOrigin[v].tx = tangent.x;
+        verticesOrigin[v].ty = tangent.y;
+        verticesOrigin[v].tz = tangent.z;
+        verticesOrigin[v].ts = tangentW;
         verticesOrigin[v].tu = texcoord.x;
         verticesOrigin[v].tv = 1.0f - texcoord.y;
     }
@@ -384,29 +390,33 @@ static void appendMesh(
     float lodError         = 0.0f;
     float normalWeights[3] = { config.normalWeight, config.normalWeight, config.normalWeight };
 
-    instance.mesh = glm::uint(cluster.meshes.size());
-    cluster.meshes.push_back({});
-
     bool transparency = false;
+    uint32_t materialIndex = 0;
     if (config.textures && sc->HasMaterials()) {
         const auto material           = sc->mMaterials[mesh->mMaterialIndex];
-        const auto [materialIndex, t] = convertTextures(cache, config, material);
-        cluster.materials.push_back(uint16_t(materialIndex));
+        const auto [i, t] = convertTextures(cache, config, material);
         transparency = t;
+        materialIndex = i;
     }
 
-    auto& meshLods        = cluster.meshes.back();
-    meshLods.center[0]    = center.x;
-    meshLods.center[1]    = center.y;
-    meshLods.center[2]    = center.z;
-    meshLods.radius       = radius;
-    meshLods.bboxMin[0]   = mesh->mAABB.mMin.x;
-    meshLods.bboxMin[1]   = mesh->mAABB.mMin.y;
-    meshLods.bboxMin[2]   = mesh->mAABB.mMin.z;
-    meshLods.bboxMax[0]   = mesh->mAABB.mMax.x;
-    meshLods.bboxMax[1]   = mesh->mAABB.mMax.y;
-    meshLods.bboxMax[2]   = mesh->mAABB.mMax.z;
-    meshLods.transparency = transparency ? 1 : 0;
+    instance.mesh             = glm::uint(cluster.meshes.size());
+    instance.baseTexture      = materialIndex;
+    instance.metalnessTexture = materialIndex;
+    instance.normalTexture    = materialIndex;
+    instance.transparency     = transparency ? 1 : 0;
+
+    cluster.meshes.push_back({});
+    auto& meshLods      = cluster.meshes.back();
+    meshLods.center[0]  = center.x;
+    meshLods.center[1]  = center.y;
+    meshLods.center[2]  = center.z;
+    meshLods.radius     = radius;
+    meshLods.bboxMin[0] = mesh->mAABB.mMin.x;
+    meshLods.bboxMin[1] = mesh->mAABB.mMin.y;
+    meshLods.bboxMin[2] = mesh->mAABB.mMin.z;
+    meshLods.bboxMax[0] = mesh->mAABB.mMax.x;
+    meshLods.bboxMax[1] = mesh->mAABB.mMax.y;
+    meshLods.bboxMax[2] = mesh->mAABB.mMax.z;
 
     auto lodScale = meshopt_simplifyScale(&vertices->px, vertexCount, sizeof(VertexNonCompressed));
 
@@ -508,8 +518,8 @@ static Cluster packCluster(const std::string& path, const Configuration& config)
     constexpr auto removePrimitives =
         aiPrimitiveType_POINT | aiPrimitiveType_LINE | aiPrimitiveType_POLYGON | aiPrimitiveType_NGONEncodingFlag;
 
-    constexpr auto flags =
-        aiProcess_FindInstances | aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_GenBoundingBoxes;
+    constexpr auto flags = aiProcess_FindInstances | aiProcess_Triangulate | aiProcess_SortByPType |
+                           aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace;
 
     Assimp::Importer importer;
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, removePrimitives);
@@ -605,6 +615,8 @@ int main(int argc, char* argv[]) {
 
         for (const auto& v : cluster.vertices) {
             auto n = glm::vec3(v.nx, v.ny, v.nz) * 127.0f + 127.5f;
+            auto t = glm::vec3(v.tx, v.ty, v.tz) * 127.0f + 127.5f;
+            auto s = v.tz < 0.0f ? -1 : 1;
             VertexCompressed vc{};
             vc.px = meshopt_quantizeHalf(v.px);
             vc.py = meshopt_quantizeHalf(v.py);
@@ -612,6 +624,10 @@ int main(int argc, char* argv[]) {
             vc.nx = uint8_t(n.x);
             vc.ny = uint8_t(n.y);
             vc.nz = uint8_t(n.z);
+            vc.tx = uint8_t(t.x);
+            vc.ty = uint8_t(t.y);
+            vc.tz = uint8_t(t.z);
+            vc.ts = int8_t(s);
             vc.tu = meshopt_quantizeHalf(v.tu);
             vc.tv = meshopt_quantizeHalf(v.tv);
             stream.write((const char*) &vc, sizeof(vc));
@@ -646,18 +662,17 @@ int main(int argc, char* argv[]) {
 
         for (const auto& m : cluster.meshes) {
             MeshCompressed mc{};
-            mc.center[0]    = meshopt_quantizeHalf(m.center[0]);
-            mc.center[1]    = meshopt_quantizeHalf(m.center[1]);
-            mc.center[2]    = meshopt_quantizeHalf(m.center[2]);
-            mc.radius       = meshopt_quantizeHalf(m.radius);
-            mc.bboxMin[0]   = meshopt_quantizeHalf(m.bboxMin[0]);
-            mc.bboxMin[1]   = meshopt_quantizeHalf(m.bboxMin[1]);
-            mc.bboxMin[2]   = meshopt_quantizeHalf(m.bboxMin[2]);
-            mc.bboxMax[0]   = meshopt_quantizeHalf(m.bboxMax[0]);
-            mc.bboxMax[1]   = meshopt_quantizeHalf(m.bboxMax[1]);
-            mc.bboxMax[2]   = meshopt_quantizeHalf(m.bboxMax[2]);
-            mc.transparency = uint8_t(m.transparency);
-            mc.lodCount     = uint8_t(m.lodCount);
+            mc.center[0]  = meshopt_quantizeHalf(m.center[0]);
+            mc.center[1]  = meshopt_quantizeHalf(m.center[1]);
+            mc.center[2]  = meshopt_quantizeHalf(m.center[2]);
+            mc.radius     = meshopt_quantizeHalf(m.radius);
+            mc.bboxMin[0] = meshopt_quantizeHalf(m.bboxMin[0]);
+            mc.bboxMin[1] = meshopt_quantizeHalf(m.bboxMin[1]);
+            mc.bboxMin[2] = meshopt_quantizeHalf(m.bboxMin[2]);
+            mc.bboxMax[0] = meshopt_quantizeHalf(m.bboxMax[0]);
+            mc.bboxMax[1] = meshopt_quantizeHalf(m.bboxMax[1]);
+            mc.bboxMax[2] = meshopt_quantizeHalf(m.bboxMax[2]);
+            mc.lodCount   = uint8_t(m.lodCount);
             for (int i = 0; i < std::size(mc.lods); ++i) {
                 mc.lods[i] = m.lods[i];
             }
@@ -684,9 +699,6 @@ int main(int argc, char* argv[]) {
     stream.write((const char*) cluster.primitiveIndices.data(),
                  cluster.primitiveIndices.size() * sizeof(cluster.primitiveIndices[0]));
     stream.write((const char*) cluster.instances.data(), cluster.instances.size() * sizeof(cluster.instances[0]));
-    if (textures) {
-        stream.write((const char*) cluster.materials.data(), cluster.materials.size() * sizeof(cluster.materials[0]));
-    }
 
     std::cout << "success" << std::endl;
     return EXIT_SUCCESS;

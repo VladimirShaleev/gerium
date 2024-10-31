@@ -47,6 +47,10 @@ struct SHADER_ALIGN Instance {
     mat4  inverseWorld;
     float scale;
     uint  mesh;
+    uint  baseTexture;
+    uint  metalnessTexture;
+    uint  normalTexture;
+    uint  transparency;
     uint  visibilityOffset;
 };
 
@@ -60,6 +64,8 @@ struct MeshLod {
 struct VertexCompressed {
     float16_t px, py, pz;
     uint8_t   nx, ny, nz;
+    uint8_t   tx, ty, tz;
+    int8_t    ts;
     float16_t tu, tv;
 };
 
@@ -76,10 +82,6 @@ struct MeshCompressed {
     float16_t center[3], radius;
     float16_t bboxMin[3];
     float16_t bboxMax[3];
-    uint16_t  baseTexture;
-    uint16_t  metalnessTexture;
-    uint16_t  normalTexture;
-    uint8_t   transparency;
     uint8_t   lodCount;
     MeshLod   lods[8];
 };
@@ -95,6 +97,8 @@ struct MeshCompressed {
 struct VertexNonCompressed {
     float px, py, pz;
     float nx, ny, nz;
+    float tx, ty, tz;
+    float ts;
     float tu, tv;
 };
 
@@ -111,10 +115,6 @@ struct MeshNonCompressed {
     float   center[3], radius;
     float   bboxMin[3];
     float   bboxMax[3];
-    uint    baseTexture;
-    uint    metalnessTexture;
-    uint    normalTexture;
-    uint    transparency;
     uint    lodCount;
     MeshLod lods[8];
 };

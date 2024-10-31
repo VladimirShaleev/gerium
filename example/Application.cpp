@@ -166,6 +166,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->cluster().descriptorSet, CLUSTER_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->texturesSet(), TEXTURE_SET);
     gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, 1, 12);
 }
 
@@ -421,9 +422,31 @@ Cluster Application::loadCluster(std::string_view name) {
         GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "primitive_indices" + id, cluster, primitiveIndicesSize);
     cluster += primitiveIndicesSize;
 
-    result.instances =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "instances" + id, cluster, instancesSize);
+    std::vector<Instance> instances(result.instanceCount);
+    memcpy(instances.data(), cluster, instancesSize);
     cluster += instancesSize;
+
+    for (auto& instance : instances) {
+        auto textureName =
+            std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_base";
+        auto textureFullName =
+            (appDir / "models" / "textures" / std::filesystem::path(textureName).replace_extension("png")).string();
+
+        _textures.push_back(_resourceManager.loadTexture(textureFullName));
+        gerium_renderer_texture_sampler(_renderer,
+                                        _textures.back(),
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_FILTER_LINEAR,
+                                        GERIUM_ADDRESS_MODE_REPEAT,
+                                        GERIUM_ADDRESS_MODE_REPEAT,
+                                        GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                        GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
+        instance.baseTexture = ((gerium_texture_h) _textures.back()).index;
+    }
+
+    result.instances = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "instances" + id, instances.data(), instancesSize);
 
     result.descriptorSet = _resourceManager.createDescriptorSet("descriptor_set" + id, true);
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 0, result.vertices);
@@ -483,6 +506,23 @@ void Application::initialize() {
     _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
 
     createScene();
+
+    gerium_texture_info_t info{};
+    info.width            = 1;
+    info.height           = 1;
+    info.depth            = 1;
+    info.mipmaps          = 1;
+    info.format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
+    info.type             = GERIUM_TEXTURE_TYPE_2D;
+    info.name             = "empty_texture";
+    gerium_uint32_t white = 0xFF000000;
+    _emptyTexture         = _resourceManager.createTexture(info, (gerium_cdata_t) &white);
+    _texturesSet          = _resourceManager.createDescriptorSet("texture_bindless", true);
+    for (const auto& texture : _textures) {
+        gerium_texture_h handle = texture;
+        gerium_renderer_bind_texture(_renderer, _texturesSet, 0, handle.index, handle);
+    }
+
     _camera      = Camera(_application, _resourceManager);
     _debugCamera = Camera(_application, _resourceManager);
 
@@ -493,7 +533,10 @@ void Application::initialize() {
 
 void Application::uninitialize() {
     if (_renderer) {
-        _cluster = {};
+        _cluster     = {};
+        _texturesSet = nullptr;
+        _textures.clear();
+        _emptyTexture = nullptr;
 
         _asyncLoader.destroy();
 

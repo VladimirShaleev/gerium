@@ -37,10 +37,6 @@ layout(std430, binding = 1, set = CLUSTER_DATA_SET) readonly buffer Meshlets {
     Meshlet meshlets[];
 };
 
-layout(std430, binding = 4, set = CLUSTER_DATA_SET) readonly buffer Meshs {
-    Mesh meshes[];
-};
-
 layout(std430, binding = 5, set = CLUSTER_DATA_SET) readonly buffer Instances {
     Instance instances[];
 };
