@@ -12,6 +12,13 @@
 #define MESH_MAX_VERTICES   64
 #define MESH_MAX_PRIMITIVES 124
 
+#define OUTPUT_FINAL_RESULT 0
+#define OUTPUT_MESHLETS     1
+#define OUTPUT_ALBEDO       2
+#define OUTPUT_NORMAL       3
+#define OUTPUT_METALNESS    4
+#define OUTPUT_ROUGHNESS    5
+
 #define PI 3.1415926538
 
 #ifdef __cplusplus

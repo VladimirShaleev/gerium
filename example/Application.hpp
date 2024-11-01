@@ -4,12 +4,7 @@
 #include "Camera.hpp"
 #include "RenderPass.hpp"
 #include "ResourceManager.hpp"
-
-struct Settings {
-    bool DrawBBox;
-    bool DebugCamera;
-    bool MoveDebugCamera;
-};
+#include "Settings.hpp"
 
 struct Cluster {
     gerium_uint32_t instanceCount;
@@ -247,7 +242,7 @@ private:
                                 gerium_uint32_t totalWorkers,
                                 gerium_data_t data);
 
-    // We wrap the call into a C++ member function so that we can propagate the exception, 
+    // We wrap the call into a C++ member function so that we can propagate the exception,
     // if it occurs, back to the C++ code and rethrow it after the C API callback has done
     template <typename Func>
     std::conditional_t<std::is_same_v<std::invoke_result_t<Func>, void>, bool, std::invoke_result_t<Func>>

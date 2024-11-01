@@ -208,6 +208,19 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     if (ImGui::Begin("Settings")) {
         ImGui::Text("Meshlets: %s", application()->meshShaderSupported() ? "hardware" : "software");
         ImGui::Separator();
+        constexpr auto outputNames = magic_enum::enum_names<SettingsOutput>();
+        if (ImGui::BeginCombo("Output", outputNames[(int) settings.Output].data())) {
+            for (auto i = 0; i < std::size(outputNames); ++i) {
+                auto isSelected = i == (int) settings.Output;
+                if (ImGui::Selectable(outputNames[i].data(), isSelected)) {
+                    settings.Output = (SettingsOutput) i;
+                }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
         ImGui::Checkbox("Show profiler", &drawProfiler);
         ImGui::Checkbox("Debug camera", &settings.DebugCamera);
         ImGui::Checkbox("Move debug camera", &settings.MoveDebugCamera);
@@ -427,8 +440,7 @@ Cluster Application::loadCluster(std::string_view name) {
     cluster += instancesSize;
 
     for (auto& instance : instances) {
-        auto baseName =
-            std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_base";
+        auto baseName = std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_base";
         auto metalnessName =
             std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_metalness";
         auto normalName =
@@ -451,7 +463,7 @@ Cluster Application::loadCluster(std::string_view name) {
                                         GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
                                         GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
         instance.baseTexture = ((gerium_texture_h) _textures.back()).index;
-        
+
         _textures.push_back(_resourceManager.loadTexture(metalnessFullName));
         gerium_renderer_texture_sampler(_renderer,
                                         _textures.back(),
@@ -463,7 +475,7 @@ Cluster Application::loadCluster(std::string_view name) {
                                         GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
                                         GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
         instance.metalnessTexture = ((gerium_texture_h) _textures.back()).index;
-        
+
         _textures.push_back(_resourceManager.loadTexture(normalFullName));
         gerium_renderer_texture_sampler(_renderer,
                                         _textures.back(),
@@ -699,8 +711,8 @@ void Application::frame(gerium_uint64_t elapsedMs) {
 
     _resourceManager.update(elapsedMs);
 
-    getDebugCamera()->update();
-    getCamera()->update();
+    getDebugCamera()->update(settings().Output);
+    getCamera()->update(settings().Output);
 
     gerium_renderer_render(_renderer, _frameGraph);
     gerium_renderer_present(_renderer);

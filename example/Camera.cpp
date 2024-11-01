@@ -68,7 +68,7 @@ void Camera::jittering(gerium_float32_t dx, gerium_float32_t dy) {
     _jitter.y   = dy;
 }
 
-void Camera::update() {
+void Camera::update(SettingsOutput output) {
     if (_active == nullptr) {
         _active = this;
     }
@@ -170,6 +170,7 @@ void Camera::update() {
     _sceneData.resolution         = { width, height };
     _sceneData.pyramidResolution  = { float(_pyramidResolution.x), float(_pyramidResolution.y) };
     _sceneData.lodTarget          = (2.0f / _sceneData.p00p11.y) * _sceneData.invResolution.x;
+    _sceneData.settingsOutput     = (glm::uint) output;
 
     auto ptr = (SceneData*) gerium_renderer_map_buffer(_renderer, _data, 0, 0);
     *ptr     = _sceneData;

@@ -24,6 +24,7 @@ struct SHADER_ALIGN SceneData {
     ivec2 resolution;
     ivec2 pyramidResolution;
     float lodTarget;
+    uint  settingsOutput;
 };
 
 struct SHADER_ALIGN DrawData {
@@ -44,7 +45,7 @@ struct MeshTaskPayload {
 
 struct SHADER_ALIGN Instance {
     mat4  world;
-    mat4  inverseWorld;
+    mat4  normalMatrix;
     float scale;
     uint  mesh;
     uint  baseTexture;
