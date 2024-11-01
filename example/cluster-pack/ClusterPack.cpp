@@ -310,69 +310,6 @@ static size_t appendMeshlets(Cluster& cluster,
     return meshlets.size();
 }
 
-// Eric Lengyel
-// https://terathon.com/blog/tangent-space.html
-static void calcTangents(std::vector<VertexNonCompressed>& vertices, const std::vector<uint32_t>& indices) {
-    std::vector<glm::vec3> tan2(vertices.size());
-
-    for (int primitive = 0; primitive < indices.size() / 3; ++primitive) {
-        const auto i1 = indices[primitive * 3 + 0];
-        const auto i2 = indices[primitive * 3 + 1];
-        const auto i3 = indices[primitive * 3 + 2];
-
-        const auto v1 = glm::vec3(vertices[i1].px, vertices[i1].py, vertices[i1].pz);
-        const auto v2 = glm::vec3(vertices[i2].px, vertices[i2].py, vertices[i2].pz);
-        const auto v3 = glm::vec3(vertices[i3].px, vertices[i3].py, vertices[i3].pz);
-
-        const glm::vec2 w1 = glm::vec2(vertices[i1].tu, vertices[i1].tv);
-        const glm::vec2 w2 = glm::vec2(vertices[i2].tu, vertices[i2].tv);
-        const glm::vec2 w3 = glm::vec2(vertices[i3].tu, vertices[i3].tv);
-
-        const auto x1 = v2.x - v1.x;
-        const auto x2 = v3.x - v1.x;
-        const auto y1 = v2.y - v1.y;
-        const auto y2 = v3.y - v1.y;
-        const auto z1 = v2.z - v1.z;
-        const auto z2 = v3.z - v1.z;
-
-        const auto s1 = w2.x - w1.x;
-        const auto s2 = w3.x - w1.x;
-        const auto t1 = w2.y - w1.y;
-        const auto t2 = w3.y - w1.y;
-
-        const auto r    = 1.0f / (s1 * t2 - s2 * t1);
-        const auto sdir = glm::vec3((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
-        const auto tdir = glm::vec3((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
-
-        vertices[i1].tx += sdir.x;
-        vertices[i1].ty += sdir.y;
-        vertices[i1].tz += sdir.z;
-        vertices[i2].tx += sdir.x;
-        vertices[i2].ty += sdir.y;
-        vertices[i2].tz += sdir.z;
-        vertices[i3].tx += sdir.x;
-        vertices[i3].ty += sdir.y;
-        vertices[i3].tz += sdir.z;
-
-        tan2[i1] += tdir;
-        tan2[i2] += tdir;
-        tan2[i3] += tdir;
-    }
-
-    for (int vertex = 0; vertex < vertices.size(); ++vertex) {
-        const auto n = glm::vec3(vertices[vertex].nx, vertices[vertex].ny, vertices[vertex].nz);
-        const auto t = glm::vec3(vertices[vertex].tx, vertices[vertex].ty, vertices[vertex].tz);
-
-        auto tangent = glm::vec4(glm::normalize(t - n * glm::dot(n, t)), 0.0f);
-        tangent.w    = glm::dot(glm::cross(n, t), tan2[vertex]) < 0.0f ? -1.0f : 1.0f;
-
-        vertices[vertex].tx = tangent.x;
-        vertices[vertex].ty = tangent.y;
-        vertices[vertex].tz = tangent.z;
-        vertices[vertex].ts = tangent.w;
-    }
-}
-
 static void appendMesh(
     Cluster& cluster, Cache& cache, const Configuration& config, const aiScene* sc, const aiMesh* mesh) {
     if (cache.instances.count(mesh)) {
@@ -388,12 +325,12 @@ static void appendMesh(
     std::vector<VertexNonCompressed> verticesOrigin(mesh->mNumVertices);
 
     for (int v = 0; v < mesh->mNumVertices; ++v) {
-        const auto vertex = mesh->mVertices[v];
-        const auto normal = glm::vec3(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
-        // const auto tangent   = glm::vec3(mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z);
-        // const auto bitangent = glm::vec3(mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z);
-        const auto texcoord = mesh->mTextureCoords[0][v];
-        // const auto tangentW  = (glm::dot(glm::cross(normal, tangent), bitangent) < 0.0f) ? -1.0f : 1.0f;
+        const auto vertex    = mesh->mVertices[v];
+        const auto normal    = glm::vec3(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
+        const auto tangent   = glm::vec3(mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z);
+        const auto bitangent = glm::vec3(mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z);
+        const auto tangentW  = (glm::dot(glm::cross(normal, tangent), bitangent) < 0.0f) ? -1.0f : 1.0f;
+        const auto texcoord  = mesh->mTextureCoords[0][v];
 
         verticesOrigin[v].px = vertex.x;
         verticesOrigin[v].py = vertex.y;
@@ -401,10 +338,10 @@ static void appendMesh(
         verticesOrigin[v].nx = normal.x;
         verticesOrigin[v].ny = normal.y;
         verticesOrigin[v].nz = normal.z;
-        verticesOrigin[v].tx = 0.0f;
-        verticesOrigin[v].ty = 0.0f;
-        verticesOrigin[v].tz = 0.0f;
-        verticesOrigin[v].ts = 0.0f;
+        verticesOrigin[v].tx = tangent.x;
+        verticesOrigin[v].ty = tangent.y;
+        verticesOrigin[v].tz = tangent.z;
+        verticesOrigin[v].ts = tangentW;
         verticesOrigin[v].tu = texcoord.x;
         verticesOrigin[v].tv = texcoord.y;
     }
@@ -416,8 +353,6 @@ static void appendMesh(
         indicesOrigin[i * 3 + 1] = face->mIndices[1];
         indicesOrigin[i * 3 + 2] = face->mIndices[2];
     }
-
-    calcTangents(verticesOrigin, indicesOrigin);
 
     auto vertexCount = meshopt_generateVertexRemap(remap.data(),
                                                    indicesOrigin.data(),
@@ -584,7 +519,8 @@ static Cluster packCluster(const std::string& path, const Configuration& config)
         aiPrimitiveType_POINT | aiPrimitiveType_LINE | aiPrimitiveType_POLYGON | aiPrimitiveType_NGONEncodingFlag;
 
     constexpr auto flags = aiProcess_FindInstances | aiProcess_Triangulate | aiProcess_SortByPType |
-                           aiProcess_GenBoundingBoxes | aiProcess_MakeLeftHanded | aiProcess_FlipUVs;
+                           aiProcess_GenBoundingBoxes | aiProcess_MakeLeftHanded | aiProcess_FlipUVs |
+                           aiProcess_CalcTangentSpace;
 
     Assimp::Importer importer;
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, removePrimitives);
@@ -681,7 +617,7 @@ int main(int argc, char* argv[]) {
         for (const auto& v : cluster.vertices) {
             auto n = glm::vec3(v.nx, v.ny, v.nz) * 127.0f + 127.5f;
             auto t = glm::vec3(v.tx, v.ty, v.tz) * 127.0f + 127.5f;
-            auto s = v.tz < 0.0f ? -1 : 1;
+            auto s = v.ts < 0.0f ? -1 : 1;
             VertexCompressed vc{};
             vc.px = meshopt_quantizeHalf(v.px);
             vc.py = meshopt_quantizeHalf(v.py);
