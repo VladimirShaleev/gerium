@@ -190,13 +190,23 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t totalWorkers) {
     static bool drawProfiler = false;
 
-    auto ds                  = application()->resourceManager().createDescriptorSet("");
-    auto& settings           = application()->settings();
-    const auto presentTexure = application()->settings().DebugCamera ? "debug_meshlet" : "color";
-    gerium_renderer_bind_resource(renderer, ds, 0, presentTexure, false);
+    auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
+
+    auto ds                 = application()->resourceManager().createDescriptorSet("");
+    auto& settings          = application()->settings();
+    const auto albedoTexure = application()->settings().DebugCamera ? "debug_albedo" : "albedo";
+    const auto normalTexure = application()->settings().DebugCamera ? "debug_normal" : "normal";
+    const auto aoRoughnessMetallicTexure =
+        application()->settings().DebugCamera ? "debug_ao_roughness_metallic" : "ao_roughness_metallic";
+    const auto motionTexure = application()->settings().DebugCamera ? "debug_motion" : "motion";
+    gerium_renderer_bind_resource(renderer, ds, 0, albedoTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 1, normalTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 2, aoRoughnessMetallicTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 3, motionTexure, false);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, GLOBAL_DATA_SET);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
     if (drawProfiler) {

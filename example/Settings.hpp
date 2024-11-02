@@ -9,7 +9,8 @@ enum SettingsOutput {
     Albedo      = OUTPUT_ALBEDO,
     Normal      = OUTPUT_NORMAL,
     Metalness   = OUTPUT_METALNESS,
-    Roughness   = OUTPUT_ROUGHNESS
+    Roughness   = OUTPUT_ROUGHNESS,
+    Motion      = OUTPUT_MOTION
 };
 
 struct Settings {

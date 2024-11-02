@@ -18,6 +18,7 @@
 #define OUTPUT_NORMAL       3
 #define OUTPUT_METALNESS    4
 #define OUTPUT_ROUGHNESS    5
+#define OUTPUT_MOTION       6
 
 #define PI 3.1415926538
 
