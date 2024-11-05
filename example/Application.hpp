@@ -102,6 +102,18 @@ private:
     bool _latePass{};
 };
 
+class LightPass final : public RenderPass {
+public:
+    LightPass() : RenderPass("light_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+};
+
 class PresentPass final : public RenderPass {
 public:
     PresentPass() : RenderPass("present_pass") {
@@ -286,7 +298,8 @@ private:
     PresentPass _presentPass{};
     IndirectPass _indirectPass{ false };
     IndirectPass _indirectLatePass{ true };
-    DebugOcclusionPass _debugOcclusionPass;
+    DebugOcclusionPass _debugOcclusionPass{};
+    LightPass _lightPass{};
     DebugLinePass _debugLinePass{};
     std::vector<RenderPass*> _renderPasses{};
 

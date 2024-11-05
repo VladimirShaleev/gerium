@@ -100,7 +100,7 @@ void main() {
         texcoord[offset]     = vTexcoord;
         normal[offset]       = worldNormal;
         tangent[offset]      = worldTangent;
-        bitangent[offset]    = cross(worldNormal, worldTangent) * int(vertices[index].ts);
+        bitangent[offset]    = cross(worldNormal, worldTangent) * -int(vertices[index].ts);
         instanceId[offset]   = command.drawId;
     }
 

@@ -90,6 +90,11 @@ frame graph:
   - name: present_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: color
+
+  - name: light_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: depth
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: albedo
@@ -111,6 +116,11 @@ frame graph:
         name: debug_motion
       - type: GERIUM_RESOURCE_TYPE_REFERENCE
         name: stub_dep_1
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: color
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
 
   - name: indirect_late_pass
     compute: true

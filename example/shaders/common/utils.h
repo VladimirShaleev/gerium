@@ -41,4 +41,11 @@ uint hash(uint a) {
     return a;
 }
 
+vec3 worldPositionFromDepth(vec2 uv, float rawDepth, mat4 invViewProjection) {
+    vec4 pos = vec4(uv.x * 2.0 - 1.0, uv.y * -2.0 + 1.0, rawDepth, 1.0);
+    vec4 worldPos = invViewProjection * pos;
+
+    return worldPos.xyz / worldPos.w;
+}
+
 #endif

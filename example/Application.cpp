@@ -183,11 +183,11 @@ void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
     _descriptorSet = nullptr;
 }
 
-void PresentPass::render(gerium_frame_graph_t frameGraph,
-                         gerium_renderer_t renderer,
-                         gerium_command_buffer_t commandBuffer,
-                         gerium_uint32_t worker,
-                         gerium_uint32_t totalWorkers) {
+void LightPass::render(gerium_frame_graph_t frameGraph,
+                       gerium_renderer_t renderer,
+                       gerium_command_buffer_t commandBuffer,
+                       gerium_uint32_t worker,
+                       gerium_uint32_t totalWorkers) {
     static bool drawProfiler = false;
 
     auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
@@ -198,7 +198,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     const auto normalTexure = application()->settings().DebugCamera ? "debug_normal" : "normal";
     const auto aoRoughnessMetallicTexure =
         application()->settings().DebugCamera ? "debug_ao_roughness_metallic" : "ao_roughness_metallic";
-    const auto motionTexure = application()->settings().DebugCamera ? "debug_motion" : "motion";
+    const auto motionTexure = application()->settings().DebugCamera ? "debug_depth" : "depth";
     gerium_renderer_bind_resource(renderer, ds, 0, albedoTexure, false);
     gerium_renderer_bind_resource(renderer, ds, 1, normalTexure, false);
     gerium_renderer_bind_resource(renderer, ds, 2, aoRoughnessMetallicTexure, false);
@@ -207,6 +207,22 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, GLOBAL_DATA_SET);
+    gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+}
+
+void PresentPass::render(gerium_frame_graph_t frameGraph,
+                         gerium_renderer_t renderer,
+                         gerium_command_buffer_t commandBuffer,
+                         gerium_uint32_t worker,
+                         gerium_uint32_t totalWorkers) {
+    static bool drawProfiler = false;
+
+    auto& settings = application()->settings();
+    auto ds        = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_resource(renderer, ds, 0, "color", false);
+
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
     if (drawProfiler) {
@@ -553,6 +569,7 @@ void Application::initialize() {
     addPass(_indirectLatePass);
     addPass(_gbufferLatePass);
     addPass(_debugOcclusionPass);
+    addPass(_lightPass);
     addPass(_debugLinePass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();

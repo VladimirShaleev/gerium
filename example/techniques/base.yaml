@@ -113,6 +113,15 @@ pipelines:
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/gbuffer.frag.glsl
 
+  - render pass: light_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_HLSL
+        name: shaders/screen.vert.hlsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/light.frag.glsl
+
   - render pass: debug_line_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_LINE
