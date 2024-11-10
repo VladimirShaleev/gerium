@@ -29,6 +29,8 @@ struct Cluster {
     std::vector<MeshNonCompressed> meshes;
     std::vector<uint32_t> vertexIndices;
     std::vector<uint8_t> primitiveIndices;
+    std::vector<SimpleMesh> simpleMeshes;
+    std::vector<uint32_t> simpleIndices;
     std::vector<Instance> instances;
 };
 
@@ -456,6 +458,25 @@ static void appendMesh(
         }
     }
 
+    auto offsetIndices = cluster.simpleIndices.size();
+    cluster.simpleIndices.resize(offsetIndices + indices.size());
+    auto shadowIndices = cluster.simpleIndices.data() + offsetIndices;
+
+    meshopt_generateShadowIndexBuffer(
+        shadowIndices, indices.data(), indices.size(), &vertices->px, vertexCount, 12, sizeof(VertexNonCompressed));
+    meshopt_optimizeVertexCache(shadowIndices, shadowIndices, indices.size(), vertexCount);
+
+    cluster.simpleMeshes.push_back({});
+    auto& simpleMesh           = cluster.simpleMeshes.back();
+    simpleMesh.vertexOffset    = offsetVertices;
+    simpleMesh.primitiveOffset = offsetIndices;
+    simpleMesh.vertexCount     = vertexCount;
+    simpleMesh.primitiveCount  = indices.size() / 3;
+
+    if (indices.size() > 65535) {
+        printf("  shadow indices: %d\n", int(indices.size()));
+    }
+
     cache.instances[mesh]   = instance;
     cache.maxMeshlets[mesh] = maxMeshlets;
 }
@@ -601,17 +622,21 @@ int main(int argc, char* argv[]) {
 
     auto vertexIndicesSize   = uint32_t(cluster.vertexIndices.size() * sizeof(cluster.vertexIndices[0]));
     auto primitivIndicesSize = uint32_t(cluster.primitiveIndices.size() * sizeof(cluster.primitiveIndices[0]));
+    auto simpleIndicesSize   = uint32_t(cluster.simpleIndices.size() * sizeof(cluster.simpleIndices[0]));
     auto instancesSize       = uint32_t(cluster.instances.size() * sizeof(cluster.instances[0]));
+    auto simpleMeshesSize    = uint32_t(cluster.simpleMeshes.size() * sizeof(SimpleMesh));
 
     if (compress) {
-        auto verticesSize = uint32_t(cluster.vertices.size() * sizeof(VertexCompressed));
-        auto meshletsSize = uint32_t(cluster.meshlets.size() * sizeof(MeshletCompressed));
-        auto meshesSize   = uint32_t(cluster.meshes.size() * sizeof(MeshCompressed));
+        auto verticesSize     = uint32_t(cluster.vertices.size() * sizeof(VertexCompressed));
+        auto meshletsSize     = uint32_t(cluster.meshlets.size() * sizeof(MeshletCompressed));
+        auto meshesSize       = uint32_t(cluster.meshes.size() * sizeof(MeshCompressed));
         stream.write((const char*) &verticesSize, sizeof(verticesSize));
         stream.write((const char*) &meshletsSize, sizeof(meshletsSize));
         stream.write((const char*) &meshesSize, sizeof(meshesSize));
+        stream.write((const char*) &simpleMeshesSize, sizeof(simpleMeshesSize));
         stream.write((const char*) &vertexIndicesSize, sizeof(vertexIndicesSize));
         stream.write((const char*) &primitivIndicesSize, sizeof(primitivIndicesSize));
+        stream.write((const char*) &simpleIndicesSize, sizeof(simpleIndicesSize));
         stream.write((const char*) &instancesSize, sizeof(instancesSize));
 
         for (const auto& v : cluster.vertices) {
@@ -686,8 +711,10 @@ int main(int argc, char* argv[]) {
         stream.write((const char*) &verticesSize, sizeof(verticesSize));
         stream.write((const char*) &meshletsSize, sizeof(meshletsSize));
         stream.write((const char*) &meshesSize, sizeof(meshesSize));
+        stream.write((const char*) &simpleMeshesSize, sizeof(simpleMeshesSize));
         stream.write((const char*) &vertexIndicesSize, sizeof(vertexIndicesSize));
         stream.write((const char*) &primitivIndicesSize, sizeof(primitivIndicesSize));
+        stream.write((const char*) &simpleIndicesSize, sizeof(simpleIndicesSize));
         stream.write((const char*) &instancesSize, sizeof(instancesSize));
 
         stream.write((const char*) cluster.vertices.data(), cluster.vertices.size() * sizeof(cluster.vertices[0]));
@@ -695,10 +722,14 @@ int main(int argc, char* argv[]) {
         stream.write((const char*) cluster.meshes.data(), cluster.meshes.size() * sizeof(cluster.meshes[0]));
     }
 
+    stream.write((const char*) cluster.simpleMeshes.data(),
+                 cluster.simpleMeshes.size() * sizeof(cluster.simpleMeshes[0]));
     stream.write((const char*) cluster.vertexIndices.data(),
                  cluster.vertexIndices.size() * sizeof(cluster.vertexIndices[0]));
     stream.write((const char*) cluster.primitiveIndices.data(),
                  cluster.primitiveIndices.size() * sizeof(cluster.primitiveIndices[0]));
+    stream.write((const char*) cluster.simpleIndices.data(),
+                 cluster.simpleIndices.size() * sizeof(cluster.simpleIndices[0]));
     stream.write((const char*) cluster.instances.data(), cluster.instances.size() * sizeof(cluster.instances[0]));
 
     std::cout << "success" << std::endl;

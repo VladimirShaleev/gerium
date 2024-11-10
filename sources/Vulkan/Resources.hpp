@@ -26,6 +26,9 @@ constexpr uint32_t kGlobalPoolElements      = 4096;
 constexpr uint32_t kBindlessPoolElements    = 1024;
 constexpr uint32_t kDescriptorSetsPoolSize  = 4096;
 
+constexpr uint32_t kFfxBrixelizerMaxCascades = 24;
+constexpr uint32_t kNumBrixelizerCascades    = kFfxBrixelizerMaxCascades / 3;
+
 struct SamplerHandle : Handle {};
 struct DescriptorSetLayoutHandle : Handle {};
 struct ProgramHandle : Handle {};
@@ -345,6 +348,7 @@ struct Buffer {
     VkDeviceMemory     vkDeviceMemory;
     VkBufferUsageFlags vkUsageFlags;
     ResourceUsageType  usage;
+    ResourceState      state;
     gerium_uint32_t    size;
     gerium_uint32_t    globalOffset;
     void*              mappedData;

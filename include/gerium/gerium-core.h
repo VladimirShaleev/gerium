@@ -484,8 +484,9 @@ typedef enum
     GERIUM_FEATURE_NONE_BIT           = 0,
     GERIUM_FEATURE_BINDLESS_BIT       = 1,
     GERIUM_FEATURE_MESH_SHADER_BIT    = 2,
-    GERIUM_FEATURE_8_BIT_STORAGE_BIT  = 4,
-    GERIUM_FEATURE_16_BIT_STORAGE_BIT = 8,
+    GERIUM_FEATURE_FIDELITY_FX_BIT    = 4,
+    GERIUM_FEATURE_8_BIT_STORAGE_BIT  = 8,
+    GERIUM_FEATURE_16_BIT_STORAGE_BIT = 16,
     GERIUM_FEATURE_MAX_ENUM           = 0x7FFFFFFF
 } gerium_feature_flags_t;
 GERIUM_FLAGS(gerium_feature_flags_t)
@@ -1510,6 +1511,14 @@ gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
                                   gerium_uint32_t offset,
                                   gerium_uint32_t size,
                                   gerium_uint32_t data);
+
+gerium_public void
+gerium_command_buffer_barrier_buffer_write(gerium_command_buffer_t command_buffer,
+                                           gerium_buffer_h handle);
+
+gerium_public void
+gerium_command_buffer_barrier_buffer_read(gerium_command_buffer_t command_buffer,
+                                          gerium_buffer_h handle);
 
 gerium_public void
 gerium_command_buffer_barrier_texture_write(gerium_command_buffer_t command_buffer,

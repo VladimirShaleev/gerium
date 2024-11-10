@@ -219,7 +219,8 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 
     auto& settings = application()->settings();
     auto ds        = application()->resourceManager().createDescriptorSet("");
-    gerium_renderer_bind_resource(renderer, ds, 0, "color", false);
+    gerium_renderer_bind_resource(
+        renderer, ds, 0, settings.Output == SettingsOutput::FinalResult ? "color" : "debug_bsdf", false);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
@@ -367,6 +368,99 @@ void DebugLinePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_rendere
     _vertices      = nullptr;
 }
 
+void BSDF::render(gerium_frame_graph_t frameGraph,
+                  gerium_renderer_t renderer,
+                  gerium_command_buffer_t commandBuffer,
+                  gerium_uint32_t worker,
+                  gerium_uint32_t totalWorkers) {
+    for (int i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
+        gerium_command_buffer_barrier_buffer_write(commandBuffer, application()->cascadeAABBTrees(i));
+        gerium_command_buffer_barrier_buffer_write(commandBuffer, application()->cascadeBrickMaps(i));
+    }
+
+    auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
+    auto brixelizerContext = gerium_renderer_get_ffx_brixelizer_context(renderer);
+    auto commandList       = gerium_command_buffer_get_ffx_command_list(commandBuffer);
+
+    gerium_buffer_h brickAabbs;
+    gerium_buffer_h scratchBuffer;
+    check(gerium_renderer_get_buffer(renderer, "brick_aabbs", &brickAabbs));
+    check(gerium_renderer_get_buffer(renderer, "ffx_scratch_buffer", &scratchBuffer));
+
+    size_t scratchBufferSize = 0;
+
+    FfxBrixelizerStats stats{};
+
+    FfxBrixelizerUpdateDescription desc{};
+    desc.frameIndex           = _frameIndex++;
+    desc.sdfCenter[0]         = camera->position().x;
+    desc.sdfCenter[1]         = camera->position().y;
+    desc.sdfCenter[2]         = camera->position().z;
+    desc.maxReferences        = 32 * (1 << 20);
+    desc.maxBricksPerBake     = 1 << 14;
+    desc.triangleSwapSize     = 300 * (1 << 20);
+    desc.outScratchBufferSize = &scratchBufferSize;
+    desc.outStats             = &stats;
+
+    desc.resources.sdfAtlas   = gerium_renderer_get_ffx_texture(renderer, application()->bsdfAtlas());
+    desc.resources.brickAABBs = gerium_renderer_get_ffx_buffer(renderer, brickAabbs);
+    for (uint32_t i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
+        desc.resources.cascadeResources[i].aabbTree =
+            gerium_renderer_get_ffx_buffer(renderer, application()->cascadeAABBTrees(i));
+        desc.resources.cascadeResources[i].brickMap =
+            gerium_renderer_get_ffx_buffer(renderer, application()->cascadeBrickMaps(i));
+    }
+
+    auto cascadeIndexOffset = 2 * (FFX_BRIXELIZER_MAX_CASCADES / 3);
+
+    gerium_texture_h debugBSDF;
+    check(gerium_renderer_get_texture(renderer, "debug_bsdf", false, &debugBSDF));
+    FfxBrixelizerDebugVisualizationDescription debugDesc{};
+    const auto inverseView       = glm::inverse(camera->view());
+    const auto inverseProjection = glm::inverse(camera->projection());
+    memcpy(&debugDesc.inverseViewMatrix, &inverseView[0][0], sizeof(debugDesc.inverseViewMatrix));
+    memcpy(&debugDesc.inverseProjectionMatrix, &inverseProjection[0][0], sizeof(debugDesc.inverseProjectionMatrix));
+    debugDesc.debugState        = FFX_BRIXELIZER_TRACE_DEBUG_MODE_ITERATIONS;
+    debugDesc.startCascadeIndex = cascadeIndexOffset;
+    debugDesc.endCascadeIndex   = cascadeIndexOffset + (FFX_BRIXELIZER_MAX_CASCADES / 3) - 1;
+    debugDesc.tMin              = 0.0f;
+    debugDesc.tMax              = 100000.0f;
+    debugDesc.sdfSolveEps       = 0.5f;
+    debugDesc.renderWidth       = application()->width();
+    debugDesc.renderHeight      = application()->height();
+    debugDesc.output            = gerium_renderer_get_ffx_texture(renderer, debugBSDF);
+
+    FfxBrixelizerPopulateDebugAABBsFlags populateDebugAABBFlags = FFX_BRIXELIZER_POPULATE_AABBS_NONE;
+
+    // if (1) {
+    //     populateDebugAABBFlags =
+    //         (FfxBrixelizerPopulateDebugAABBsFlags) (populateDebugAABBFlags |
+    //                                                 FFX_BRIXELIZER_POPULATE_AABBS_STATIC_INSTANCES);
+    // }
+
+    // if (1) {
+    //     populateDebugAABBFlags = (FfxBrixelizerPopulateDebugAABBsFlags) (populateDebugAABBFlags |
+    //                                                                      FFX_BRIXELIZER_POPULATE_AABBS_CASCADE_AABBS);
+    // }
+
+    desc.debugVisualizationDesc  = &debugDesc;
+    desc.populateDebugAABBsFlags = populateDebugAABBFlags;
+
+    auto scratch = gerium_renderer_get_ffx_buffer(renderer, scratchBuffer);
+    // scratch.description.stride = 16;
+
+    ffxBrixelizerBakeUpdate(brixelizerContext, &desc, application()->brixelizerBakedUpdateDesc());
+    assert(scratchBufferSize < (1 << 30) &&
+           L"Required Brixelizer scratch memory size larger than available GPU buffer.");
+
+    ffxBrixelizerUpdate(brixelizerContext, application()->brixelizerBakedUpdateDesc(), scratch, commandList);
+
+    for (int i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
+        gerium_command_buffer_barrier_buffer_read(commandBuffer, application()->cascadeAABBTrees(i));
+        gerium_command_buffer_barrier_buffer_read(commandBuffer, application()->cascadeBrickMaps(i));
+    }
+}
+
 Application::Application() {
     check(gerium_logger_create("example", &_logger));
 }
@@ -415,6 +509,46 @@ void Application::createScene() {
     drawData.lodTarget = 0;
     _drawData =
         _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT, false, "draw_data", &drawData, sizeof(drawData));
+
+    gerium_texture_info_t info{};
+    info.width   = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+    info.height  = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+    info.depth   = FFX_BRIXELIZER_STATIC_CONFIG_SDF_ATLAS_SIZE;
+    info.mipmaps = 1;
+    info.format  = GERIUM_FORMAT_R8_UNORM;
+    info.type    = GERIUM_TEXTURE_TYPE_3D;
+    info.name    = "bsdf_atlas";
+    _bsdfAtlas   = _resourceManager.createTexture(info, nullptr);
+
+    gerium_renderer_texture_sampler(_renderer,
+                                    _bsdfAtlas,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_NEAREST,
+                                    GERIUM_ADDRESS_MODE_REPEAT,
+                                    GERIUM_ADDRESS_MODE_REPEAT,
+                                    GERIUM_ADDRESS_MODE_REPEAT,
+                                    GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
+
+    gerium_frame_graph_add_texture(_frameGraph, "bsdf_atlas", _bsdfAtlas);
+
+    for (uint32_t i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
+        auto index = std::to_string(i);
+        _cascadeAABBTrees[i] =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                          false,
+                                          "cascade_aabb_tree_" + index,
+                                          nullptr,
+                                          FFX_BRIXELIZER_CASCADE_AABB_TREE_SIZE);
+        _cascadeBrickMaps[i] =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                          false,
+                                          "cascade_brick_map_" + index,
+                                          nullptr,
+                                          FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE);
+    }
+
+    _brixelizerBakedUpdateDesc = std::make_unique<FfxBrixelizerBakedUpdateDescription>();
 }
 
 Cluster Application::loadCluster(std::string_view name) {
@@ -432,26 +566,49 @@ Cluster Application::loadCluster(std::string_view name) {
     auto verticesSize         = *data++;
     auto meshletsSize         = *data++;
     auto meshesSize           = *data++;
+    auto simpleMeshesSize     = *data++;
     auto vertexIndecesSize    = *data++;
     auto primitiveIndicesSize = *data++;
+    auto shadowIndicesSize    = *data++;
     auto instancesSize        = *data++;
 
     Cluster result{};
     result.instanceCount = instancesSize / sizeof(Instance);
 
+    const auto vertexCount = verticesSize / sizeof(VertexCompressed);
+
     auto cluster = (const gerium_uint8_t*) data;
 
     result.vertices =
         _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "vertices" + id, cluster, verticesSize);
+
+    std::vector<f16vec4> shadowVertices(vertexCount);
+    const auto vertices = (VertexCompressed*) cluster;
+    const auto halfOne  = meshopt_quantizeHalf(1.0f);
+    for (size_t i = 0; i < vertexCount; ++i) {
+        shadowVertices[i].x = vertices[i].px;
+        shadowVertices[i].y = vertices[i].py;
+        shadowVertices[i].z = vertices[i].pz;
+        shadowVertices[i].w = halfOne;
+    }
+    result.shadowVertices = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "shadow_vertices" + id, shadowVertices.data(), vertexCount * 8);
     cluster += verticesSize;
 
     result.meshlets =
         _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "meshlets" + id, cluster, meshletsSize);
     cluster += meshletsSize;
 
-    result.meshes =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "meshes" + id, cluster, meshesSize);
+    std::vector<MeshCompressed> meshes(meshesSize / sizeof(MeshCompressed));
+    memcpy(meshes.data(), cluster, meshesSize);
     cluster += meshesSize;
+
+    result.meshes =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "meshes" + id, meshes.data(), meshesSize);
+
+    std::vector<SimpleMesh> simpleMeshes(simpleMeshesSize / sizeof(SimpleMesh));
+    memcpy(simpleMeshes.data(), cluster, simpleMeshesSize);
+    cluster += simpleMeshesSize;
 
     result.vertexIndices = _resourceManager.createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "vertex_indices" + id, cluster, vertexIndecesSize);
@@ -460,6 +617,10 @@ Cluster Application::loadCluster(std::string_view name) {
     result.primitiveIndices = _resourceManager.createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "primitive_indices" + id, cluster, primitiveIndicesSize);
     cluster += primitiveIndicesSize;
+
+    result.shadowIndices = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "shadow_indices" + id, cluster, shadowIndicesSize);
+    cluster += shadowIndicesSize;
 
     std::vector<Instance> instances(result.instanceCount);
     memcpy(instances.data(), cluster, instancesSize);
@@ -526,6 +687,95 @@ Cluster Application::loadCluster(std::string_view name) {
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 4, result.meshes);
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 5, result.instances);
 
+    auto brixelizerContext = gerium_renderer_get_ffx_brixelizer_context(_renderer);
+
+    uint32_t shadowIndex = 0;
+    uint32_t vertexIndex = 0;
+    FfxBrixelizerBufferDescription shadowBufferDescs[2];
+    shadowBufferDescs[0].buffer   = gerium_renderer_get_ffx_buffer(_renderer, result.shadowIndices);
+    shadowBufferDescs[0].outIndex = &shadowIndex;
+    shadowBufferDescs[1].buffer   = gerium_renderer_get_ffx_buffer(_renderer, result.shadowVertices);
+    shadowBufferDescs[1].outIndex = &vertexIndex;
+    if (ffxBrixelizerRegisterBuffers(brixelizerContext, shadowBufferDescs, 2) != FFX_OK) {
+        throw std::runtime_error("Register brixelizer buffers faield");
+    }
+
+    for (const auto& instance : instances) {
+        _brixelizerInstances.push_back(FFX_BRIXELIZER_INVALID_ID);
+
+        const auto& transform  = instance.world;
+        const auto& mesh       = meshes[instance.mesh];
+        const auto& simpleMesh = simpleMeshes[instance.mesh];
+        const auto aabbMin     = glm::vec4(meshopt_dequantizeHalf(mesh.bboxMin[0]),
+                                       meshopt_dequantizeHalf(mesh.bboxMin[1]),
+                                       meshopt_dequantizeHalf(mesh.bboxMin[2]),
+                                       1.0f);
+        const auto aabbMax     = glm::vec4(meshopt_dequantizeHalf(mesh.bboxMax[0]),
+                                       meshopt_dequantizeHalf(mesh.bboxMax[1]),
+                                       meshopt_dequantizeHalf(mesh.bboxMax[2]),
+                                       1.0f);
+        const auto extents     = aabbMax - aabbMin;
+
+        const glm::vec4 aabbCorners[8] = {
+            aabbMin + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+            aabbMin + glm::vec4(extents.x, 0.0f, 0.0f, 0.0f),
+            aabbMin + glm::vec4(0.0f, 0.0f, extents.z, 0.0f),
+            aabbMin + glm::vec4(extents.x, 0.0f, extents.z, 0.0f),
+            aabbMin + glm::vec4(0.0f, extents.y, 0.0f, 0.0f),
+            aabbMin + glm::vec4(extents.x, extents.y, 0.0f, 0.0f),
+            aabbMin + glm::vec4(0.0f, extents.y, extents.z, 0.0f),
+            aabbMin + glm::vec4(extents.x, extents.y, extents.z, 0.0f),
+        };
+
+        auto minExtents = glm::vec4(INFINITY, INFINITY, INFINITY, INFINITY);
+        auto maxExtents = glm::vec4(-INFINITY, -INFINITY, -INFINITY, -INFINITY);
+
+        for (uint32_t i = 0; i < 8; i++) {
+            const auto point = transform * aabbCorners[i];
+            minExtents       = glm::min(minExtents, point);
+            maxExtents       = glm::max(maxExtents, point);
+        }
+
+        FfxBrixelizerInstanceDescription desc{};
+        for (int i = 0; i < 3; ++i) {
+            desc.aabb.min[i] = minExtents[i];
+            desc.aabb.max[i] = maxExtents[i];
+        }
+        for (int r = 0; r < 3; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                desc.transform[r * 4 + c] = glm::column(transform, c)[r];
+            }
+        }
+
+        // auto sv = _resourceManager.createBuffer(
+        //     GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "", ((const uint8_t*) shadowVertices.data()) + simpleMesh.vertexOffset * sizeof(f16vec4), simpleMesh.vertexCount * 8);
+        // result.shadowVertices.push_back(sv);
+        //     
+        // uint32_t vertexIndex = 0;
+        // FfxBrixelizerBufferDescription shadowBufferDescs[1];
+        // shadowBufferDescs[0].buffer   = gerium_renderer_get_ffx_buffer(_renderer, sv);
+        // shadowBufferDescs[0].outIndex = &vertexIndex;
+        // if (ffxBrixelizerRegisterBuffers(brixelizerContext, shadowBufferDescs, 1) != FFX_OK) {
+        //     throw std::runtime_error("Register brixelizer buffers faield");
+        // }
+
+        desc.maxCascade         = 0; // ?????
+        desc.indexFormat        = FFX_INDEX_TYPE_UINT32;
+        desc.indexBuffer        = shadowIndex;
+        desc.indexBufferOffset  = simpleMesh.primitiveOffset * 4;
+        desc.triangleCount      = simpleMesh.primitiveCount;
+        desc.vertexBuffer       = vertexIndex;
+        desc.vertexStride       = sizeof(f16vec4);
+        desc.vertexBufferOffset = simpleMesh.vertexOffset * sizeof(f16vec4);
+        desc.vertexCount        = simpleMesh.vertexCount;
+        desc.vertexFormat       = FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT;
+        desc.flags              = FFX_BRIXELIZER_INSTANCE_FLAG_NONE;
+        desc.outInstanceID      = &_brixelizerInstances.back();
+        if (ffxBrixelizerCreateInstances(brixelizerContext, &desc, 1) != FFX_OK) {
+            throw std::runtime_error("Create brixelizer instance failed");
+        }
+    }
+
     return result;
 }
 
@@ -545,7 +795,8 @@ void Application::initialize() {
 
     check(gerium_renderer_create(_application,
                                  GERIUM_FEATURE_BINDLESS_BIT | GERIUM_FEATURE_MESH_SHADER_BIT |
-                                     GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT,
+                                     GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
+                                     GERIUM_FEATURE_FIDELITY_FX_BIT,
                                  GERIUM_VERSION_ENCODE(1, 0, 0),
                                  debug,
                                  &_renderer));
@@ -571,6 +822,7 @@ void Application::initialize() {
     addPass(_debugOcclusionPass);
     addPass(_lightPass);
     addPass(_debugLinePass);
+    addPass(_bsdfPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());

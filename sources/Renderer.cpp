@@ -151,6 +151,18 @@ void Renderer::present() {
     onPresent();
 }
 
+FfxBrixelizerContext* Renderer::getFfxBrixelizerContext() noexcept {
+    return onGetFfxBrixelizerContext();
+}
+
+FfxResource Renderer::getFfxBuffer(BufferHandle handle) const noexcept {
+    return onGetFfxBuffer(handle);
+}
+
+FfxResource Renderer::getFfxTexture(TextureHandle handle) const noexcept {
+    return onGetFfxTexture(handle);
+}
+
 Profiler* Renderer::getProfiler() noexcept {
     return onGetProfiler();
 }
@@ -436,3 +448,22 @@ gerium_result_t gerium_renderer_present(gerium_renderer_t renderer) {
         alias_cast<Renderer*>(renderer)->present();
     GERIUM_END_SAFE_BLOCK
 }
+
+#ifdef GERIUM_FIDELITY_FX
+
+FfxBrixelizerContext* gerium_renderer_get_ffx_brixelizer_context(gerium_renderer_t renderer) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->getFfxBrixelizerContext();
+}
+
+FfxResource gerium_renderer_get_ffx_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->getFfxBuffer({ handle.index });
+}
+
+FfxResource gerium_renderer_get_ffx_texture(gerium_renderer_t renderer, gerium_texture_h handle) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->getFfxTexture({ handle.index });
+}
+
+#endif

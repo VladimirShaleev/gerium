@@ -128,6 +128,16 @@ CMRC_DECLARE(gerium::resources);
 // Stb
 #include <stb_image.h>
 
+// FidelityFX
+#ifdef GERIUM_FIDELITY_FX
+# include <FidelityFX/host/backends/vk/ffx_vk.h>
+# include <FidelityFX/host/ffx_brixelizer.h>
+# include <FidelityFX/host/ffx_brixelizergi.h>
+# include <FidelityFX/host/ffx_error.h>
+# include <FidelityFX/host/ffx_interface.h>
+# include <FidelityFX/host/ffx_types.h>
+#endif
+
 #include "gerium/gerium.h"
 
 typedef ptrdiff_t gerium_sint_t;
@@ -292,12 +302,27 @@ gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
     }
 }
 
+template <typename T>
+gerium_inline bool contains(const std::vector<T>& v, T item) noexcept {
+    return std::find(v.cbegin(), v.cend(), item) != v.cend();
+}
+
+gerium_inline bool contains(const std::vector<const char*>& v, const char* item) noexcept {
+    return std::find_if(v.cbegin(), v.cend(), [item](const auto value) {
+        return value == item || strcmp(value, item) == 0;
+    }) != v.cend();
+}
+
 gerium_inline gerium_uint32_t calcTextureSize(gerium_uint16_t width,
                                               gerium_uint16_t height,
                                               gerium_uint16_t depth,
                                               gerium_format_t format) noexcept {
     return width * height * depth * formatBlockSize(format);
 }
+
+gerium_uint32_t nameColor(gerium_utf8_t name);
+
+glm::vec4 nameColorVec4(gerium_utf8_t name);
 
 } // namespace gerium
 

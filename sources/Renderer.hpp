@@ -79,6 +79,10 @@ public:
     void render(FrameGraph& frameGraph);
     void present();
 
+    FfxBrixelizerContext* getFfxBrixelizerContext() noexcept;
+    FfxResource getFfxBuffer(BufferHandle handle) const noexcept;
+    FfxResource getFfxTexture(TextureHandle handle) const noexcept;
+
     Profiler* getProfiler() noexcept;
     void getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept;
 
@@ -149,6 +153,10 @@ private:
     virtual bool onNewFrame()                     = 0;
     virtual void onRender(FrameGraph& frameGraph) = 0;
     virtual void onPresent()                      = 0;
+
+    virtual FfxBrixelizerContext* onGetFfxBrixelizerContext() noexcept       = 0;
+    virtual FfxResource onGetFfxBuffer(BufferHandle handle) const noexcept   = 0;
+    virtual FfxResource onGetFfxTexture(TextureHandle handle) const noexcept = 0;
 
     virtual Profiler* onGetProfiler() noexcept                                                      = 0;
     virtual void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept = 0;

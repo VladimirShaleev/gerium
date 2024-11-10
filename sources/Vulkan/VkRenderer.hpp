@@ -95,6 +95,10 @@ private:
     void onRender(FrameGraph& frameGraph) override;
     void onPresent() override;
 
+    FfxBrixelizerContext* onGetFfxBrixelizerContext() noexcept override;
+    FfxResource onGetFfxBuffer(BufferHandle handle) const noexcept override;
+    FfxResource onGetFfxTexture(TextureHandle handle) const noexcept override;
+
     Profiler* onGetProfiler() noexcept override;
     void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept override;
 

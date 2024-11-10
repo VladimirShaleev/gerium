@@ -9,6 +9,13 @@ Device::~Device() {
     if (_device) {
         _vkTable.vkDeviceWaitIdle(_device);
 
+#ifdef GERIUM_FIDELITY_FX
+        if (_fidelityFXSupported) {
+            ffxBrixelizerGIContextDestroy(&_brixelizerGIContext);
+            ffxBrixelizerContextDestroy(&_brixelizerContext);
+        }
+#endif
+
         ImGui_ImplVulkan_Shutdown();
         _application->shutdownImGui();
         ImGui::DestroyContext();
@@ -131,6 +138,7 @@ void Device::create(Application* application,
     createSynchronizations();
     createSwapchain(application);
     createImGui(application);
+    createFidelityFX();
 }
 
 bool Device::newFrame() {
@@ -269,6 +277,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 
     buffer->vkUsageFlags = toVkBufferUsageFlags(creation.usageFlags);
     buffer->usage        = creation.usage;
+    buffer->state        = ResourceState::Undefined;
     buffer->size         = creation.size;
     buffer->name         = intern(creation.name);
     buffer->parent       = Undefined;
@@ -377,7 +386,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
             }
         } else if (creation.initialData) {
             BufferCreation stagingCreation{};
-            stagingCreation.set(dynamicBufferFlags, ResourceUsageType::Dynamic, buffer->size);
+            stagingCreation.set(GERIUM_BUFFER_USAGE_STORAGE_BIT, ResourceUsageType::Dynamic, buffer->size);
             auto stagingBuffer = createBuffer(stagingCreation);
 
             auto ptr = mapBuffer(stagingBuffer, 0, buffer->size);
@@ -1496,7 +1505,7 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     const auto layers     = selectValidationLayers();
     const auto extensions = selectExtensions();
 
-    if (layers.empty()) {
+    if (layers.empty() || !contains(extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
         _enableDebugNames = false;
     }
 
@@ -1572,18 +1581,23 @@ void Device::createPhysicalDevice() {
 }
 
 void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags) {
+    _fidelityFXSupported = featureFlags & GERIUM_FEATURE_FIDELITY_FX_BIT;
+#ifndef GERIUM_FIDELITY_FX
+    _fidelityFXSupported = false;
+#endif
+
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
-    const auto extensions    = selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT);
+    const auto extensions =
+        selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT, _fidelityFXSupported);
 
-    _memoryBudgetSupported = std::find_if(extensions.cbegin(), extensions.cend(), [](const auto extension) {
-        return strcmp(extension, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME) == 0;
-    }) != std::end(extensions);
+    _memoryBudgetSupported = contains(extensions, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+    
+    _fidelityFXSupported =
+        _fidelityFXSupported && contains(extensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
 
     _meshShaderSupported = (featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT) == GERIUM_FEATURE_MESH_SHADER_BIT &&
-                           std::find_if(extensions.cbegin(), extensions.cend(), [](const auto extension) {
-        return strcmp(extension, VK_EXT_MESH_SHADER_EXTENSION_NAME) == 0;
-    }) != std::end(extensions);
+                           contains(extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME);
 
     _8BitStorageSupported = (featureFlags & GERIUM_FEATURE_8_BIT_STORAGE_BIT) == GERIUM_FEATURE_8_BIT_STORAGE_BIT;
 
@@ -1642,6 +1656,8 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
                          testFeatures12.shaderSampledImageArrayNonUniformIndexing &&
                          testFeatures12.descriptorBindingPartiallyBound && testFeatures12.runtimeDescriptorArray &&
                          testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
+    _fidelityFXSupported = _fidelityFXSupported && testFeatures12.shaderStorageBufferArrayNonUniformIndexing &&
+                           testFeatures12.shaderFloat16;
     _meshShaderSupported  = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
     _8BitStorageSupported = _8BitStorageSupported && testFeatures12.storageBuffer8BitAccess &&
                             testFeatures12.uniformAndStorageBuffer8BitAccess && testFeatures12.shaderInt8;
@@ -1668,6 +1684,11 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
         features12.runtimeDescriptorArray                    = testFeatures12.runtimeDescriptorArray;
         features12.descriptorBindingSampledImageUpdateAfterBind =
             testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
+    }
+    if (_fidelityFXSupported) {
+        features12.shaderFloat16 = testFeatures12.shaderFloat16;
+        features12.shaderStorageBufferArrayNonUniformIndexing =
+            testFeatures12.shaderStorageBufferArrayNonUniformIndexing;
     }
     if (_8BitStorageSupported) {
         features12.storageBuffer8BitAccess           = testFeatures12.storageBuffer8BitAccess;
@@ -2039,6 +2060,56 @@ void Device::createImGui(Application* application) {
     ImGui_ImplVulkan_CreateFontsTexture();
 }
 
+void Device::createFidelityFX() {
+#ifdef GERIUM_FIDELITY_FX
+    if (!_fidelityFXSupported) {
+        return;
+    }
+
+    _brixelizerParams.sdfCenter[0] = 0.0f;
+    _brixelizerParams.sdfCenter[1] = 0.0f;
+    _brixelizerParams.sdfCenter[2] = 0.0f;
+    _brixelizerParams.numCascades  = kNumBrixelizerCascades;
+    _brixelizerParams.flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
+
+    auto voxelSize = 0.2f;
+    for (uint32_t i = 0; i < _brixelizerParams.numCascades; ++i) {
+        auto& cascade     = _brixelizerParams.cascadeDescs[i];
+        cascade.flags     = (FfxBrixelizerCascadeFlag) (FFX_BRIXELIZER_CASCADE_STATIC | FFX_BRIXELIZER_CASCADE_DYNAMIC);
+        cascade.voxelSize = voxelSize;
+        voxelSize *= 2.0f;
+    }
+
+    VkDeviceContext vkContext{};
+    vkContext.vkDevice         = _device;
+    vkContext.vkPhysicalDevice = _physicalDevice;
+    vkContext.vkDeviceProcAddr = _vkTable.vkGetDeviceProcAddr;
+
+    const size_t scratchBufferSize = ffxGetScratchMemorySizeVK(_physicalDevice, 2);
+    _brixelizerScratchBuffer       = std::unique_ptr<uint8_t[]>(new uint8_t[scratchBufferSize]);
+    memset(_brixelizerScratchBuffer.get(), 0, scratchBufferSize);
+
+    ffxGetInterfaceVK(
+        &_brixelizerParams.backendInterface, &vkContext, _brixelizerScratchBuffer.get(), scratchBufferSize, 2);
+
+    FfxErrorCode errorCode = ffxBrixelizerContextCreate(&_brixelizerParams, &_brixelizerContext);
+    if (errorCode != FFX_OK) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN);
+    }
+
+    FfxBrixelizerGIContextDescription desc{};
+    desc.flags              = FFX_BRIXELIZER_GI_FLAG_DEPTH_INVERTED;
+    desc.internalResolution = FFX_BRIXELIZER_GI_INTERNAL_RESOLUTION_50_PERCENT;
+    desc.displaySize        = { _swapchainExtent.width, _swapchainExtent.height };
+    desc.backendInterface   = _brixelizerParams.backendInterface;
+
+    errorCode = ffxBrixelizerGIContextCreate(&_brixelizerGIContext, &desc);
+    if (errorCode != FFX_OK) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN);
+    }
+#endif
+}
+
 void Device::resizeSwapchain() {
     _vkTable.vkDeviceWaitIdle(_device);
 
@@ -2329,6 +2400,10 @@ std::vector<uint32_t> Device::compile(const char* code,
 
     if (_meshShaderSupported) {
         options.AddMacroDefinition("MESH_SHADER_SUPPORTED"s, "1"s);
+    }
+
+    if (_fidelityFXSupported) {
+        options.AddMacroDefinition("FIDELITY_FX_SUPPORTED"s, "1"s);
     }
 
     if (_8BitStorageSupported) {
@@ -2759,7 +2834,7 @@ int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
     }
 
     try {
-        selectDeviceExtensions(device, false);
+        selectDeviceExtensions(device, false, false);
     } catch (const Exception& exc) {
         if (exc.result() == GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED) {
             return 0;
@@ -2900,7 +2975,9 @@ std::vector<const char*> Device::selectExtensions() {
     return checkExtensions(extensions);
 }
 
-std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device, bool meshShader) {
+std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device,
+                                                        bool meshShader,
+                                                        bool memoryRequirements2) {
     std::vector<std::pair<const char*, bool>> extensions = {
         { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
         { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false }
@@ -2908,6 +2985,10 @@ std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device,
 
     if (meshShader) {
         extensions.emplace_back(VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
+    }
+
+    if (memoryRequirements2) {
+        extensions.emplace_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, false);
     }
 
     for (const auto& extension : onGetDeviceExtensions()) {
@@ -3007,7 +3088,7 @@ std::vector<const char*> Device::checkValidationLayers(const std::vector<const c
 
         for (const auto& layer : layers) {
             _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, [&results, layer](auto& stream) {
-                const auto found = std::find(results.cbegin(), results.cend(), layer) != results.cend();
+                const auto found = contains(results, layer);
                 stream << "Layer "sv << layer << ' ' << (found ? "found"sv : "not found"sv);
             });
         }
@@ -3037,7 +3118,7 @@ std::vector<const char*> Device::checkExtensions(const std::vector<std::pair<con
     }
 
     for (const auto& [extension, required] : extensions) {
-        const auto notFound = std::find(results.cbegin(), results.cend(), extension) == results.cend();
+        const auto notFound = !contains(results, extension);
         if (notFound && required) {
             check(VK_ERROR_EXTENSION_NOT_PRESENT);
         }

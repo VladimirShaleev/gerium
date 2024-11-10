@@ -21,7 +21,6 @@ public:
                          QueueType srcQueueType = QueueType::Graphics,
                          QueueType dstQueueType = QueueType::Graphics);
     void addBufferBarrier(BufferHandle handle,
-                          ResourceState srcState,
                           ResourceState dstState,
                           QueueType srcQueueType = QueueType::Graphics,
                           QueueType dstQueueType = QueueType::Graphics);
@@ -37,6 +36,8 @@ public:
     void generateMipmaps(TextureHandle handle);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
+    void pushLabel(gerium_utf8_t name);
+    void popLabel();
     void submit(QueueType queue, bool wait = true);
     void execute(gerium_uint32_t numCommandBuffers, CommandBuffer* commandBuffers[]);
 
@@ -86,8 +87,12 @@ private:
                       gerium_uint32_t size,
                       gerium_uint32_t data) noexcept override;
 
+    void onBarrierBufferWrite(BufferHandle handle) noexcept override;
+    void onBarrierBufferRead(BufferHandle handle) noexcept override;
     void onBarrierTextureWrite(TextureHandle handle) noexcept override;
     void onBarrierTextureRead(TextureHandle handle) noexcept override;
+
+    FfxCommandList onGetFfxCommandList() noexcept override;
 
     void bindDescriptorSets();
     uint32_t getFamilyIndex(QueueType queue) const noexcept;

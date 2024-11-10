@@ -55,7 +55,7 @@ Application* VkRenderer::application() noexcept {
 
 void VkRenderer::createTransferBuffer() {
     BufferCreation bc;
-    bc.reset().set({}, ResourceUsageType::Staging, 128 * 1024 * 1024).setName("staging_buffer").setPersistent(true);
+    bc.reset().set({}, ResourceUsageType::Staging, 256 * 1024 * 1024).setName("staging_buffer").setPersistent(true);
     _transferBuffer       = _device->createBuffer(bc);
     _transferBufferOffset = 0;
 
@@ -513,6 +513,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         }
         _currentRenderPassName = node->name;
 
+        cb->pushLabel(node->name);
         cb->pushMarker(node->name);
 
         gerium_uint16_t width;
@@ -566,7 +567,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 auto buffer = resource->info.buffer.handle;
                 constexpr auto states =
                     ResourceState::UnorderedAccess | ResourceState::IndirectArgument | ResourceState::ShaderResource;
-                cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess, states);
+                cb->addBufferBarrier(buffer, states);
                 _device->addInputResource(resource, buffer, false);
             }
         }
@@ -607,7 +608,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 }
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
                 auto buffer = resource->info.buffer.handle;
-                cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess, ResourceState::UnorderedAccess);
+                cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess);
                 _device->addInputResource(resource, buffer, false);
             }
         }
@@ -677,9 +678,11 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 imguiCb->setFrameGraph(&frameGraph);
 
                 ImGui::Render();
+                imguiCb->pushLabel("imgui");
                 imguiCb->pushMarker("imgui");
                 ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCb->vkCommandBuffer());
                 imguiCb->popMarker();
+                imguiCb->popLabel();
                 if (useWorkers) {
                     cb->execute(1, &imguiCb);
                 }
@@ -693,6 +696,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         }
 
         cb->popMarker();
+        cb->popLabel();
 
         ++totalWorkerIndex;
     }
@@ -716,6 +720,18 @@ void VkRenderer::onPresent() {
 
     _prevFrame = _frame;
     _frame     = (_frame + 1) % 2;
+}
+
+FfxBrixelizerContext* VkRenderer::onGetFfxBrixelizerContext() noexcept {
+    return _device->ffxBrixelizerContext();
+}
+
+FfxResource VkRenderer::onGetFfxBuffer(BufferHandle handle) const noexcept {
+    return _device->ffxBuffer(handle);
+}
+
+FfxResource VkRenderer::onGetFfxTexture(TextureHandle handle) const noexcept {
+    return _device->ffxTexture(handle);
 }
 
 Profiler* VkRenderer::onGetProfiler() noexcept {

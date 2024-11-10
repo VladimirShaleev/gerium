@@ -37,6 +37,9 @@
 
 #include <meshoptimizer.h>
 
+#include <FidelityFX/host/ffx_brixelizer.h>
+#include <FidelityFX/host/ffx_brixelizergi.h>
+
 #include "Finally.hpp"
 #include "shaders/common/types.h"
 

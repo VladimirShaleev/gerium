@@ -82,12 +82,24 @@ void CommandBuffer::fillBuffer(BufferHandle handle,
     onFillBuffer(handle, offset, size, data);
 }
 
+void CommandBuffer::barrierBufferWrite(BufferHandle handle) noexcept {
+    onBarrierBufferWrite(handle);
+}
+
+void CommandBuffer::barrierBufferRead(BufferHandle handle) noexcept {
+    onBarrierBufferRead(handle);
+}
+
 void CommandBuffer::barrierTextureWrite(TextureHandle handle) noexcept {
     onBarrierTextureWrite(handle);
 }
 
 void CommandBuffer::barrierTextureRead(TextureHandle handle) noexcept {
     onBarrierTextureRead(handle);
+}
+
+FfxCommandList CommandBuffer::getFfxCommandList() noexcept {
+    return onGetFfxCommandList();
 }
 
 Renderer* CommandBuffer::getRenderer() noexcept {
@@ -210,6 +222,16 @@ void gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
     alias_cast<CommandBuffer*>(command_buffer)->fillBuffer({ handle.index }, offset, size, data);
 }
 
+void gerium_command_buffer_barrier_buffer_write(gerium_command_buffer_t command_buffer, gerium_buffer_h handle) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->barrierBufferWrite({ handle.index });
+}
+
+void gerium_command_buffer_barrier_buffer_read(gerium_command_buffer_t command_buffer, gerium_buffer_h handle) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)->barrierBufferRead({ handle.index });
+}
+
 void gerium_command_buffer_barrier_texture_write(gerium_command_buffer_t command_buffer, gerium_texture_h handle) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->barrierTextureWrite({ handle.index });
@@ -218,4 +240,9 @@ void gerium_command_buffer_barrier_texture_write(gerium_command_buffer_t command
 void gerium_command_buffer_barrier_texture_read(gerium_command_buffer_t command_buffer, gerium_texture_h handle) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->barrierTextureRead({ handle.index });
+}
+
+FfxCommandList gerium_command_buffer_get_ffx_command_list(gerium_command_buffer_t command_buffer) {
+    assert(command_buffer);
+    return alias_cast<CommandBuffer*>(command_buffer)->getFfxCommandList();
 }

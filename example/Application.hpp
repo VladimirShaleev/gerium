@@ -12,6 +12,8 @@ struct Cluster {
     Buffer meshlets;
     Buffer vertexIndices;
     Buffer primitiveIndices;
+    Buffer shadowVertices;
+    Buffer shadowIndices;
     Buffer meshes;
     Buffer instances;
     DescriptorSet descriptorSet;
@@ -164,6 +166,21 @@ private:
     Buffer _vertices{};
 };
 
+class BSDF final : public RenderPass {
+public:
+    BSDF() : RenderPass("bsdf_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+private:
+    gerium_uint32_t _frameIndex{};
+};
+
 class Application final {
 public:
     Application();
@@ -225,6 +242,22 @@ public:
 
     gerium_buffer_h drawData() const noexcept {
         return _drawData;
+    }
+
+    gerium_texture_h bsdfAtlas() const noexcept {
+        return _bsdfAtlas;
+    }
+
+    gerium_buffer_h cascadeAABBTrees(gerium_uint32_t index) const noexcept {
+        return _cascadeAABBTrees[index];
+    }
+
+    gerium_buffer_h cascadeBrickMaps(gerium_uint32_t index) const noexcept {
+        return _cascadeBrickMaps[index];
+    }
+
+    FfxBrixelizerBakedUpdateDescription* brixelizerBakedUpdateDesc() noexcept {
+        return _brixelizerBakedUpdateDesc.get();
     }
 
 private:
@@ -301,6 +334,7 @@ private:
     DebugOcclusionPass _debugOcclusionPass{};
     LightPass _lightPass{};
     DebugLinePass _debugLinePass{};
+    BSDF _bsdfPass{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};
@@ -322,6 +356,14 @@ private:
     DescriptorSet _texturesSet{};
     Cluster _cluster{};
     Buffer _drawData{};
+
+    std::vector<FfxBrixelizerInstanceID> _brixelizerInstances{};
+    std::vector<uint32_t> _brixelizerIndexBuffers{};
+    std::vector<uint32_t> _brixelizerVertexBuffers{};
+    Texture _bsdfAtlas{};
+    Buffer _cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES]{};
+    Buffer _cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES]{};
+    std::unique_ptr<FfxBrixelizerBakedUpdateDescription> _brixelizerBakedUpdateDesc{};
 };
 
 #endif

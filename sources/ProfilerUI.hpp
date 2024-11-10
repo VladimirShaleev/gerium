@@ -26,8 +26,6 @@ private:
 
     //uint32_t initialFramesPaused = 3;
 
-    std::map<uint64_t, uint32_t> nameToColor;
-
     uint32_t totalMemoryUsed;
 };
 

@@ -59,7 +59,6 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
 }
 
 void CommandBuffer::addBufferBarrier(BufferHandle handle,
-                                     ResourceState srcState,
                                      ResourceState dstState,
                                      QueueType srcQueueType,
                                      QueueType dstQueueType) {
@@ -71,7 +70,7 @@ void CommandBuffer::addBufferBarrier(BufferHandle handle,
     auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
 
     VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-    barrier.srcAccessMask       = toVkAccessFlags(srcState);
+    barrier.srcAccessMask       = toVkAccessFlags(buffer->state);
     barrier.dstAccessMask       = toVkAccessFlags(dstState);
     barrier.srcQueueFamilyIndex = srcFamily;
     barrier.dstQueueFamilyIndex = dstFamily;
@@ -84,6 +83,7 @@ void CommandBuffer::addBufferBarrier(BufferHandle handle,
 
     _device->vkTable().vkCmdPipelineBarrier(
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+    buffer->state = dstState;
 }
 
 void CommandBuffer::clearColor(gerium_uint32_t index,
@@ -268,6 +268,26 @@ void CommandBuffer::popMarker() {
         auto queryIndex = _device->profiler()->popTimestamp();
         _device->vkTable().vkCmdWriteTimestamp(
             _commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, _device->_queryPool, queryIndex);
+    }
+}
+
+void CommandBuffer::pushLabel(gerium_utf8_t name) {
+    if (_device->_enableDebugNames) {
+        const auto color = nameColorVec4(name);
+        VkDebugUtilsLabelEXT label{};
+        label.sType      = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        label.pLabelName = name;
+        label.color[0]   = color.r;
+        label.color[1]   = color.g;
+        label.color[2]   = color.b;
+        label.color[3]   = color.a;
+        _device->vkTable().vkCmdBeginDebugUtilsLabelEXT(_commandBuffer, &label);
+    }
+}
+
+void CommandBuffer::popLabel() {
+    if (_device->_enableDebugNames) {
+        _device->vkTable().vkCmdEndDebugUtilsLabelEXT(_commandBuffer);
     }
 }
 
@@ -472,8 +492,17 @@ void CommandBuffer::onFillBuffer(BufferHandle handle,
                                  gerium_uint32_t size,
                                  gerium_uint32_t data) noexcept {
     auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
+    addBufferBarrier(handle, ResourceState::CopyDest);
     _device->vkTable().vkCmdFillBuffer(_commandBuffer, vkBuffer, vkOffset, VkDeviceSize{ size }, data);
-    addBufferBarrier(handle, ResourceState::CopyDest, ResourceState::CopyDest);
+    addBufferBarrier(handle, ResourceState::ShaderResource);
+}
+
+void CommandBuffer::onBarrierBufferWrite(BufferHandle handle) noexcept {
+    addBufferBarrier(handle, ResourceState::UnorderedAccess);
+}
+
+void CommandBuffer::onBarrierBufferRead(BufferHandle handle) noexcept {
+    addBufferBarrier(handle, ResourceState::UnorderedAccess | ResourceState::IndirectArgument | ResourceState::ShaderResource);
 }
 
 void CommandBuffer::onBarrierTextureWrite(TextureHandle handle) noexcept {
@@ -484,6 +513,10 @@ void CommandBuffer::onBarrierTextureWrite(TextureHandle handle) noexcept {
 void CommandBuffer::onBarrierTextureRead(TextureHandle handle) noexcept {
     auto texture = _device->_textures.access(handle);
     addImageBarrier(handle, ResourceState::ShaderResource, texture->mipBase, texture->mipLevels);
+}
+
+FfxCommandList CommandBuffer::onGetFfxCommandList() noexcept {
+    return reinterpret_cast<FfxCommandList>(_commandBuffer);
 }
 
 void CommandBuffer::bindDescriptorSets() {

@@ -175,6 +175,94 @@ public:
         return !_queueFamilies.transferIsGraphic;
     }
 
+    FfxBrixelizerContext* ffxBrixelizerContext() noexcept {
+        if (!_fidelityFXSupported) {
+            return nullptr;
+        }
+#ifdef GERIUM_FIDELITY_FX
+        return &_brixelizerContext;
+#else
+        return nullptr;
+#endif
+    }
+
+    FfxResource ffxBuffer(BufferHandle handle) const noexcept {
+        auto buffer = _buffers.access(handle);
+
+        FfxResourceDescription resourceDescription{};
+        resourceDescription.type   = FFX_RESOURCE_TYPE_BUFFER;
+        resourceDescription.size   = buffer->size;
+        resourceDescription.flags  = FFX_RESOURCE_FLAGS_NONE;
+        resourceDescription.usage  = FFX_RESOURCE_USAGE_READ_ONLY;
+        // resourceDescription.stride = 16;
+        if (buffer->vkUsageFlags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
+            resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_UAV);
+        }
+
+        FfxResource resource{};
+        resource.resource    = reinterpret_cast<void*>(buffer->vkBuffer);
+        resource.description = resourceDescription;
+        resource.state       = FFX_RESOURCE_STATE_UNORDERED_ACCESS; // FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ;
+
+        return resource;
+    }
+
+    FfxResource ffxTexture(TextureHandle handle) const noexcept {
+        auto texture = _textures.access(handle);
+
+        FfxResourceDescription resourceDescription{};
+
+        switch (texture->type) {
+            case GERIUM_TEXTURE_TYPE_1D:
+                resourceDescription.type = FFX_RESOURCE_TYPE_TEXTURE1D;
+                break;
+            case GERIUM_TEXTURE_TYPE_2D:
+                resourceDescription.type = FFX_RESOURCE_TYPE_TEXTURE2D;
+                break;
+            case GERIUM_TEXTURE_TYPE_3D:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE3D;
+                resourceDescription.depth = texture->depth;
+                break;
+            case GERIUM_TEXTURE_TYPE_1D_ARRAY:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE1D;
+                resourceDescription.depth = texture->depth;
+                break;
+            case GERIUM_TEXTURE_TYPE_2D_ARRAY:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE2D;
+                resourceDescription.depth = texture->depth;
+                break;
+            case GERIUM_TEXTURE_TYPE_CUBE_ARRAY:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE2D;
+                resourceDescription.depth = texture->depth;
+                break;
+        }
+
+        resourceDescription.usage = FFX_RESOURCE_USAGE_READ_ONLY;
+
+        if (hasDepth(texture->vkFormat)) {
+            resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_DEPTHTARGET);
+        }
+        if (hasStencil(texture->vkFormat)) {
+            resourceDescription.usage =
+                (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_STENCILTARGET);
+        }
+        if ((texture->flags & TextureFlags::Compute) == TextureFlags::Compute) {
+            resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_UAV);
+        }
+
+        resourceDescription.width    = texture->width;
+        resourceDescription.height   = texture->height;
+        resourceDescription.mipCount = texture->mipLevels;
+        resourceDescription.format   = ffxGetSurfaceFormatVK(texture->vkFormat);
+
+        FfxResource resource{};
+        resource.resource    = reinterpret_cast<void*>(texture->vkImage);
+        resource.description = resourceDescription;
+        resource.state       = FFX_RESOURCE_STATE_UNORDERED_ACCESS; // FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ;
+
+        return resource;
+    }
+
 protected:
     VkInstance instance() const noexcept {
         return _instance;
@@ -245,6 +333,7 @@ private:
     void createSynchronizations();
     void createSwapchain(Application* application);
     void createImGui(Application* application);
+    void createFidelityFX();
     void resizeSwapchain();
 
     void printValidationLayers();
@@ -275,7 +364,7 @@ private:
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
-    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device, bool meshShader);
+    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device, bool meshShader, bool memoryRequirements2);
     VkPhysicalDevice selectPhysicalDevice();
     VkSurfaceFormatKHR selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats);
     VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
@@ -390,12 +479,20 @@ private:
     bool _profilerEnabled{};
     bool _memoryBudgetSupported{};
     bool _bindlessSupported{};
+    bool _fidelityFXSupported{};
     bool _meshShaderSupported{};
     bool _8BitStorageSupported{};
     bool _16BitStorageSupported{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};
+
+#ifdef GERIUM_FIDELITY_FX
+    std::unique_ptr<uint8_t[]> _brixelizerScratchBuffer{};
+    FfxBrixelizerContextDescription _brixelizerParams{};
+    FfxBrixelizerContext _brixelizerContext{};
+    FfxBrixelizerGIContext _brixelizerGIContext{};
+#endif
 };
 
 } // namespace gerium::vulkan

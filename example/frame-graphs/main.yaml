@@ -91,6 +91,8 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: color
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: debug_bsdf
 
   - name: light_pass
     inputs:
@@ -210,3 +212,23 @@ frame graph:
         name: stub_dep_1
         size: 4
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
+
+  - name: bsdf_pass
+    compute: true
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: bsdf_atlas
+        external: true
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: brick_aabbs
+        size: 1048576
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: ffx_scratch_buffer
+        size: 1073741824
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: debug_bsdf
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        clear color attachment: [0.0, 0.0, 0.0, 1.0]
