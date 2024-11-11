@@ -95,7 +95,9 @@ private:
     void onRender(FrameGraph& frameGraph) override;
     void onPresent() override;
 
-    FfxBrixelizerContext* onGetFfxBrixelizerContext() noexcept override;
+    FfxInterface onCreateFfxInterface(gerium_uint32_t maxContexts) override;
+    void onWaitFfxJobs() const noexcept override;
+    void onDestroyFfxInterface(FfxInterface* ffxInterface) noexcept override;
     FfxResource onGetFfxBuffer(BufferHandle handle) const noexcept override;
     FfxResource onGetFfxTexture(TextureHandle handle) const noexcept override;
 

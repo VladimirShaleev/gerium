@@ -722,8 +722,16 @@ void VkRenderer::onPresent() {
     _frame     = (_frame + 1) % 2;
 }
 
-FfxBrixelizerContext* VkRenderer::onGetFfxBrixelizerContext() noexcept {
-    return _device->ffxBrixelizerContext();
+FfxInterface VkRenderer::onCreateFfxInterface(gerium_uint32_t maxContexts) {
+    return _device->createFfxInterface(maxContexts);
+}
+
+void VkRenderer::onWaitFfxJobs() const noexcept {
+    _device->waitFfxJobs();
+}
+
+void VkRenderer::onDestroyFfxInterface(FfxInterface* ffxInterface) noexcept {
+    _device->destroyFfxInterface(ffxInterface);
 }
 
 FfxResource VkRenderer::onGetFfxBuffer(BufferHandle handle) const noexcept {

@@ -70,6 +70,10 @@ public:
     SamplerHandle getTextureSampler(TextureHandle texture) const noexcept;
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
+    FfxInterface createFfxInterface(gerium_uint32_t maxContexts);
+    void destroyFfxInterface(FfxInterface* ffxInteface);
+    void waitFfxJobs() const noexcept;
+
     void clearInputResources();
     void addInputResource(const FrameGraphResource* resource, Handle handle, bool fromPreviousFrame);
     Handle findInputResource(gerium_utf8_t resource, bool fromPreviousFrame) const noexcept;
@@ -175,25 +179,14 @@ public:
         return !_queueFamilies.transferIsGraphic;
     }
 
-    FfxBrixelizerContext* ffxBrixelizerContext() noexcept {
-        if (!_fidelityFXSupported) {
-            return nullptr;
-        }
-#ifdef GERIUM_FIDELITY_FX
-        return &_brixelizerContext;
-#else
-        return nullptr;
-#endif
-    }
-
     FfxResource ffxBuffer(BufferHandle handle) const noexcept {
         auto buffer = _buffers.access(handle);
 
         FfxResourceDescription resourceDescription{};
-        resourceDescription.type   = FFX_RESOURCE_TYPE_BUFFER;
-        resourceDescription.size   = buffer->size;
-        resourceDescription.flags  = FFX_RESOURCE_FLAGS_NONE;
-        resourceDescription.usage  = FFX_RESOURCE_USAGE_READ_ONLY;
+        resourceDescription.type  = FFX_RESOURCE_TYPE_BUFFER;
+        resourceDescription.size  = buffer->size;
+        resourceDescription.flags = FFX_RESOURCE_FLAGS_NONE;
+        resourceDescription.usage = FFX_RESOURCE_USAGE_READ_ONLY;
         // resourceDescription.stride = 16;
         if (buffer->vkUsageFlags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
             resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_UAV);
@@ -364,7 +357,7 @@ private:
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
-    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device, bool meshShader, bool memoryRequirements2);
+    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device, bool meshShader);
     VkPhysicalDevice selectPhysicalDevice();
     VkSurfaceFormatKHR selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats);
     VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
@@ -488,10 +481,7 @@ private:
     std::vector<VmaBudget> _vmaBudget{};
 
 #ifdef GERIUM_FIDELITY_FX
-    std::unique_ptr<uint8_t[]> _brixelizerScratchBuffer{};
-    FfxBrixelizerContextDescription _brixelizerParams{};
-    FfxBrixelizerContext _brixelizerContext{};
-    FfxBrixelizerGIContext _brixelizerGIContext{};
+    VkDeviceContext _ffxDeviceContext{};
 #endif
 };
 

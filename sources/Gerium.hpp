@@ -129,14 +129,7 @@ CMRC_DECLARE(gerium::resources);
 #include <stb_image.h>
 
 // FidelityFX
-#ifdef GERIUM_FIDELITY_FX
-# include <FidelityFX/host/backends/vk/ffx_vk.h>
-# include <FidelityFX/host/ffx_brixelizer.h>
-# include <FidelityFX/host/ffx_brixelizergi.h>
-# include <FidelityFX/host/ffx_error.h>
-# include <FidelityFX/host/ffx_interface.h>
-# include <FidelityFX/host/ffx_types.h>
-#endif
+#include <FidelityFX/host/backends/vk/ffx_vk.h>
 
 #include "gerium/gerium.h"
 

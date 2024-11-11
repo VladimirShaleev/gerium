@@ -12,11 +12,23 @@
 
 #include <FidelityFX/host/ffx_brixelizer.h>
 #include <FidelityFX/host/ffx_brixelizergi.h>
+#include <FidelityFX/host/ffx_error.h>
+#include <FidelityFX/host/ffx_interface.h>
+#include <FidelityFX/host/ffx_types.h>
 
 GERIUM_BEGIN
 
-gerium_public FfxBrixelizerContext*
-gerium_renderer_get_ffx_brixelizer_context(gerium_renderer_t renderer);
+gerium_public gerium_result_t
+gerium_renderer_create_ffx_interface(gerium_renderer_t renderer,
+                                     gerium_uint32_t max_contexts,
+                                     FfxInterface* ffx_interface);
+
+gerium_public void
+gerium_renderer_destroy_ffx_interface(gerium_renderer_t renderer,
+                                      FfxInterface* ffx_interface);
+
+gerium_public void
+gerium_renderer_wait_ffx_jobs(gerium_renderer_t renderer);
 
 gerium_public FfxResource
 gerium_renderer_get_ffx_buffer(gerium_renderer_t renderer,

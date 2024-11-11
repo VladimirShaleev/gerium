@@ -9,13 +9,6 @@ Device::~Device() {
     if (_device) {
         _vkTable.vkDeviceWaitIdle(_device);
 
-#ifdef GERIUM_FIDELITY_FX
-        if (_fidelityFXSupported) {
-            ffxBrixelizerGIContextDestroy(&_brixelizerGIContext);
-            ffxBrixelizerContextDestroy(&_brixelizerContext);
-        }
-#endif
-
         ImGui_ImplVulkan_Shutdown();
         _application->shutdownImGui();
         ImGui::DestroyContext();
@@ -1435,6 +1428,32 @@ void Device::linkTextureSampler(TextureHandle texture, SamplerHandle sampler) no
     _textures.access(texture)->sampler = sampler;
 }
 
+FfxInterface Device::createFfxInterface(gerium_uint32_t maxContexts) {
+    if (!_fidelityFXSupported) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err: not supported FidelityFX
+    }
+
+#ifdef GERIUM_FIDELITY_FX
+    const size_t scratchBufferSize = ffxGetScratchMemorySizeVK(_physicalDevice, maxContexts);
+    auto scratchBuffer             = new uint8_t[scratchBufferSize];
+    memset(scratchBuffer, 0, scratchBufferSize);
+
+    FfxInterface ffxInterface{};
+    ffxGetInterfaceVK(&ffxInterface, &_ffxDeviceContext, scratchBuffer, scratchBufferSize, maxContexts);
+    return ffxInterface;
+#else
+    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err: not supported FidelityFX
+#endif
+}
+
+void Device::destroyFfxInterface(FfxInterface* ffxInteface) {
+    delete[] ffxInteface->scratchBuffer;
+}
+
+void Device::waitFfxJobs() const noexcept {
+    _vkTable.vkDeviceWaitIdle(_device);
+}
+
 void Device::clearInputResources() {
     _currentInputResources.clear();
 }
@@ -1581,20 +1600,13 @@ void Device::createPhysicalDevice() {
 }
 
 void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags) {
-    _fidelityFXSupported = featureFlags & GERIUM_FEATURE_FIDELITY_FX_BIT;
-#ifndef GERIUM_FIDELITY_FX
-    _fidelityFXSupported = false;
-#endif
-
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
-    const auto extensions =
-        selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT, _fidelityFXSupported);
+    const auto extensions    = selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT);
 
     _memoryBudgetSupported = contains(extensions, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
-    
-    _fidelityFXSupported =
-        _fidelityFXSupported && contains(extensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+
+    _fidelityFXSupported = contains(extensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
 
     _meshShaderSupported = (featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT) == GERIUM_FEATURE_MESH_SHADER_BIT &&
                            contains(extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME);
@@ -2062,51 +2074,9 @@ void Device::createImGui(Application* application) {
 
 void Device::createFidelityFX() {
 #ifdef GERIUM_FIDELITY_FX
-    if (!_fidelityFXSupported) {
-        return;
-    }
-
-    _brixelizerParams.sdfCenter[0] = 0.0f;
-    _brixelizerParams.sdfCenter[1] = 0.0f;
-    _brixelizerParams.sdfCenter[2] = 0.0f;
-    _brixelizerParams.numCascades  = kNumBrixelizerCascades;
-    _brixelizerParams.flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
-
-    auto voxelSize = 0.2f;
-    for (uint32_t i = 0; i < _brixelizerParams.numCascades; ++i) {
-        auto& cascade     = _brixelizerParams.cascadeDescs[i];
-        cascade.flags     = (FfxBrixelizerCascadeFlag) (FFX_BRIXELIZER_CASCADE_STATIC | FFX_BRIXELIZER_CASCADE_DYNAMIC);
-        cascade.voxelSize = voxelSize;
-        voxelSize *= 2.0f;
-    }
-
-    VkDeviceContext vkContext{};
-    vkContext.vkDevice         = _device;
-    vkContext.vkPhysicalDevice = _physicalDevice;
-    vkContext.vkDeviceProcAddr = _vkTable.vkGetDeviceProcAddr;
-
-    const size_t scratchBufferSize = ffxGetScratchMemorySizeVK(_physicalDevice, 2);
-    _brixelizerScratchBuffer       = std::unique_ptr<uint8_t[]>(new uint8_t[scratchBufferSize]);
-    memset(_brixelizerScratchBuffer.get(), 0, scratchBufferSize);
-
-    ffxGetInterfaceVK(
-        &_brixelizerParams.backendInterface, &vkContext, _brixelizerScratchBuffer.get(), scratchBufferSize, 2);
-
-    FfxErrorCode errorCode = ffxBrixelizerContextCreate(&_brixelizerParams, &_brixelizerContext);
-    if (errorCode != FFX_OK) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN);
-    }
-
-    FfxBrixelizerGIContextDescription desc{};
-    desc.flags              = FFX_BRIXELIZER_GI_FLAG_DEPTH_INVERTED;
-    desc.internalResolution = FFX_BRIXELIZER_GI_INTERNAL_RESOLUTION_50_PERCENT;
-    desc.displaySize        = { _swapchainExtent.width, _swapchainExtent.height };
-    desc.backendInterface   = _brixelizerParams.backendInterface;
-
-    errorCode = ffxBrixelizerGIContextCreate(&_brixelizerGIContext, &desc);
-    if (errorCode != FFX_OK) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN);
-    }
+    _ffxDeviceContext.vkDevice         = _device;
+    _ffxDeviceContext.vkPhysicalDevice = _physicalDevice;
+    _ffxDeviceContext.vkDeviceProcAddr = _vkTable.vkGetDeviceProcAddr;
 #endif
 }
 
@@ -2834,7 +2804,7 @@ int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
     }
 
     try {
-        selectDeviceExtensions(device, false, false);
+        selectDeviceExtensions(device, false);
     } catch (const Exception& exc) {
         if (exc.result() == GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED) {
             return 0;
@@ -2975,20 +2945,15 @@ std::vector<const char*> Device::selectExtensions() {
     return checkExtensions(extensions);
 }
 
-std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device,
-                                                        bool meshShader,
-                                                        bool memoryRequirements2) {
+std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device, bool meshShader) {
     std::vector<std::pair<const char*, bool>> extensions = {
-        { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
-        { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false }
+        { VK_KHR_SWAPCHAIN_EXTENSION_NAME,                 true  },
+        { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,             false },
+        { VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, false }  // need FidelityFX
     };
 
     if (meshShader) {
         extensions.emplace_back(VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
-    }
-
-    if (memoryRequirements2) {
-        extensions.emplace_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, false);
     }
 
     for (const auto& extension : onGetDeviceExtensions()) {

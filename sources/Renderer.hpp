@@ -79,7 +79,9 @@ public:
     void render(FrameGraph& frameGraph);
     void present();
 
-    FfxBrixelizerContext* getFfxBrixelizerContext() noexcept;
+    FfxInterface createFfxInterface(gerium_uint32_t maxContexts);
+    void destroyFfxInterface(FfxInterface* ffxInterface) noexcept;
+    void waitFfxJobs() const noexcept;
     FfxResource getFfxBuffer(BufferHandle handle) const noexcept;
     FfxResource getFfxTexture(TextureHandle handle) const noexcept;
 
@@ -154,7 +156,9 @@ private:
     virtual void onRender(FrameGraph& frameGraph) = 0;
     virtual void onPresent()                      = 0;
 
-    virtual FfxBrixelizerContext* onGetFfxBrixelizerContext() noexcept       = 0;
+    virtual FfxInterface onCreateFfxInterface(gerium_uint32_t maxContexts)   = 0;
+    virtual void onWaitFfxJobs() const noexcept                              = 0;
+    virtual void onDestroyFfxInterface(FfxInterface* ffxInterface) noexcept  = 0;
     virtual FfxResource onGetFfxBuffer(BufferHandle handle) const noexcept   = 0;
     virtual FfxResource onGetFfxTexture(TextureHandle handle) const noexcept = 0;
 

@@ -379,7 +379,7 @@ void BSDF::render(gerium_frame_graph_t frameGraph,
     }
 
     auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
-    auto brixelizerContext = gerium_renderer_get_ffx_brixelizer_context(renderer);
+    auto brixelizerContext = application()->brixelizerContext();
     auto commandList       = gerium_command_buffer_get_ffx_command_list(commandBuffer);
 
     gerium_buffer_h brickAabbs;
@@ -501,6 +501,34 @@ void Application::addPass(RenderPass& renderPass) {
     gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
 }
 
+void Application::createBrixelizerContext() {
+    _brixelizerParams          = std::make_unique<FfxBrixelizerContextDescription>();
+    _brixelizerContext         = std::make_unique<FfxBrixelizerContext>();
+    _brixelizerGIContext       = std::make_unique<FfxBrixelizerGIContext>();
+    _brixelizerBakedUpdateDesc = std::make_unique<FfxBrixelizerBakedUpdateDescription>();
+
+    check(gerium_renderer_create_ffx_interface(_renderer, 2, &_brixelizerParams->backendInterface));
+
+    _brixelizerParams->sdfCenter[0] = 0.0f;
+    _brixelizerParams->sdfCenter[1] = 0.0f;
+    _brixelizerParams->sdfCenter[2] = 0.0f;
+    _brixelizerParams->numCascades  = kNumBrixelizerCascades;
+    _brixelizerParams->flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
+
+    auto voxelSize = 0.2f;
+    for (uint32_t i = 0; i < _brixelizerParams->numCascades; ++i) {
+        auto& cascade     = _brixelizerParams->cascadeDescs[i];
+        cascade.flags     = (FfxBrixelizerCascadeFlag) (FFX_BRIXELIZER_CASCADE_STATIC | FFX_BRIXELIZER_CASCADE_DYNAMIC);
+        cascade.voxelSize = voxelSize;
+        voxelSize *= 2.0f;
+    }
+
+    FfxErrorCode errorCode = ffxBrixelizerContextCreate(_brixelizerParams.get(), _brixelizerContext.get());
+    if (errorCode != FFX_OK) {
+        throw std::runtime_error("Create FFX Brixelizer context failed");
+    }
+}
+
 void Application::createScene() {
     _cluster = loadCluster("bistro");
 
@@ -547,8 +575,6 @@ void Application::createScene() {
                                           nullptr,
                                           FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE);
     }
-
-    _brixelizerBakedUpdateDesc = std::make_unique<FfxBrixelizerBakedUpdateDescription>();
 }
 
 Cluster Application::loadCluster(std::string_view name) {
@@ -687,22 +713,18 @@ Cluster Application::loadCluster(std::string_view name) {
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 4, result.meshes);
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 5, result.instances);
 
-    auto brixelizerContext = gerium_renderer_get_ffx_brixelizer_context(_renderer);
-
-    uint32_t shadowIndex = 0;
-    uint32_t vertexIndex = 0;
+    uint32_t& shadowIndex = _brixelizerBuffers[0];
+    uint32_t& vertexIndex = _brixelizerBuffers[1];
     FfxBrixelizerBufferDescription shadowBufferDescs[2];
     shadowBufferDescs[0].buffer   = gerium_renderer_get_ffx_buffer(_renderer, result.shadowIndices);
     shadowBufferDescs[0].outIndex = &shadowIndex;
     shadowBufferDescs[1].buffer   = gerium_renderer_get_ffx_buffer(_renderer, result.shadowVertices);
     shadowBufferDescs[1].outIndex = &vertexIndex;
-    if (ffxBrixelizerRegisterBuffers(brixelizerContext, shadowBufferDescs, 2) != FFX_OK) {
+    if (ffxBrixelizerRegisterBuffers(brixelizerContext(), shadowBufferDescs, 2) != FFX_OK) {
         throw std::runtime_error("Register brixelizer buffers faield");
     }
 
     for (const auto& instance : instances) {
-        _brixelizerInstances.push_back(FFX_BRIXELIZER_INVALID_ID);
-
         const auto& transform  = instance.world;
         const auto& mesh       = meshes[instance.mesh];
         const auto& simpleMesh = simpleMeshes[instance.mesh];
@@ -747,19 +769,9 @@ Cluster Application::loadCluster(std::string_view name) {
             }
         }
 
-        // auto sv = _resourceManager.createBuffer(
-        //     GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "", ((const uint8_t*) shadowVertices.data()) + simpleMesh.vertexOffset * sizeof(f16vec4), simpleMesh.vertexCount * 8);
-        // result.shadowVertices.push_back(sv);
-        //     
-        // uint32_t vertexIndex = 0;
-        // FfxBrixelizerBufferDescription shadowBufferDescs[1];
-        // shadowBufferDescs[0].buffer   = gerium_renderer_get_ffx_buffer(_renderer, sv);
-        // shadowBufferDescs[0].outIndex = &vertexIndex;
-        // if (ffxBrixelizerRegisterBuffers(brixelizerContext, shadowBufferDescs, 1) != FFX_OK) {
-        //     throw std::runtime_error("Register brixelizer buffers faield");
-        // }
+        _brixelizerInstances.push_back({});
 
-        desc.maxCascade         = 0; // ?????
+        desc.maxCascade         = 0;
         desc.indexFormat        = FFX_INDEX_TYPE_UINT32;
         desc.indexBuffer        = shadowIndex;
         desc.indexBufferOffset  = simpleMesh.primitiveOffset * 4;
@@ -771,7 +783,7 @@ Cluster Application::loadCluster(std::string_view name) {
         desc.vertexFormat       = FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT;
         desc.flags              = FFX_BRIXELIZER_INSTANCE_FLAG_NONE;
         desc.outInstanceID      = &_brixelizerInstances.back();
-        if (ffxBrixelizerCreateInstances(brixelizerContext, &desc, 1) != FFX_OK) {
+        if (ffxBrixelizerCreateInstances(brixelizerContext(), &desc, 1) != FFX_OK) {
             throw std::runtime_error("Create brixelizer instance failed");
         }
     }
@@ -795,8 +807,7 @@ void Application::initialize() {
 
     check(gerium_renderer_create(_application,
                                  GERIUM_FEATURE_BINDLESS_BIT | GERIUM_FEATURE_MESH_SHADER_BIT |
-                                     GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
-                                     GERIUM_FEATURE_FIDELITY_FX_BIT,
+                                     GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT,
                                  GERIUM_VERSION_ENCODE(1, 0, 0),
                                  debug,
                                  &_renderer));
@@ -828,6 +839,7 @@ void Application::initialize() {
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
     _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
 
+    createBrixelizerContext();
     createScene();
 
     gerium_texture_info_t info{};
@@ -868,6 +880,14 @@ void Application::uninitialize() {
         for (auto it = _renderPasses.rbegin(); it != _renderPasses.rend(); ++it) {
             (*it)->uninitialize(_frameGraph, _renderer);
         }
+
+        gerium_renderer_wait_ffx_jobs(_renderer);
+        ffxBrixelizerDeleteInstances(
+            brixelizerContext(), _brixelizerInstances.data(), (uint32_t) _brixelizerInstances.size());
+        ffxBrixelizerUnregisterBuffers(
+            brixelizerContext(), _brixelizerBuffers.data(), (uint32_t) _brixelizerBuffers.size());
+        ffxBrixelizerContextDestroy(brixelizerContext());
+        gerium_renderer_destroy_ffx_interface(_renderer, &_brixelizerParams->backendInterface);
 
         _resourceManager.destroy();
 

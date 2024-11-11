@@ -151,8 +151,18 @@ void Renderer::present() {
     onPresent();
 }
 
-FfxBrixelizerContext* Renderer::getFfxBrixelizerContext() noexcept {
-    return onGetFfxBrixelizerContext();
+FfxInterface Renderer::createFfxInterface(gerium_uint32_t maxContexts) {
+    return onCreateFfxInterface(maxContexts);
+}
+
+void Renderer::destroyFfxInterface(FfxInterface* ffxInterface) noexcept {
+    if (ffxInterface) {
+        onDestroyFfxInterface(ffxInterface);
+    }
+}
+
+void Renderer::waitFfxJobs() const noexcept {
+    onWaitFfxJobs();
 }
 
 FfxResource Renderer::getFfxBuffer(BufferHandle handle) const noexcept {
@@ -449,11 +459,23 @@ gerium_result_t gerium_renderer_present(gerium_renderer_t renderer) {
     GERIUM_END_SAFE_BLOCK
 }
 
-#ifdef GERIUM_FIDELITY_FX
-
-FfxBrixelizerContext* gerium_renderer_get_ffx_brixelizer_context(gerium_renderer_t renderer) {
+gerium_result_t gerium_renderer_create_ffx_interface(gerium_renderer_t renderer,
+                                                     gerium_uint32_t max_contexts,
+                                                     FfxInterface* ffx_interface) {
     assert(renderer);
-    return alias_cast<Renderer*>(renderer)->getFfxBrixelizerContext();
+    GERIUM_BEGIN_SAFE_BLOCK
+        *ffx_interface = alias_cast<Renderer*>(renderer)->createFfxInterface(max_contexts);
+    GERIUM_END_SAFE_BLOCK
+}
+
+void gerium_renderer_destroy_ffx_interface(gerium_renderer_t renderer, FfxInterface* ffx_interface) {
+    assert(renderer);
+    alias_cast<Renderer*>(renderer)->destroyFfxInterface(ffx_interface);
+}
+
+void gerium_renderer_wait_ffx_jobs(gerium_renderer_t renderer) {
+    assert(renderer);
+    alias_cast<Renderer*>(renderer)->waitFfxJobs();
 }
 
 FfxResource gerium_renderer_get_ffx_buffer(gerium_renderer_t renderer, gerium_buffer_h handle) {
@@ -465,5 +487,3 @@ FfxResource gerium_renderer_get_ffx_texture(gerium_renderer_t renderer, gerium_t
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->getFfxTexture({ handle.index });
 }
-
-#endif

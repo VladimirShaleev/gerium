@@ -256,12 +256,20 @@ public:
         return _cascadeBrickMaps[index];
     }
 
+    FfxBrixelizerContext* brixelizerContext() noexcept {
+        return _brixelizerContext.get();
+    }
+
     FfxBrixelizerBakedUpdateDescription* brixelizerBakedUpdateDesc() noexcept {
         return _brixelizerBakedUpdateDesc.get();
     }
 
 private:
+    constexpr static uint32_t kFfxBrixelizerMaxCascades = FFX_BRIXELIZER_MAX_CASCADES;
+    constexpr static uint32_t kNumBrixelizerCascades    = kFfxBrixelizerMaxCascades / 3;
+
     void addPass(RenderPass& renderPass);
+    void createBrixelizerContext();
     void createScene();
     Cluster loadCluster(std::string_view name);
 
@@ -357,13 +365,15 @@ private:
     Cluster _cluster{};
     Buffer _drawData{};
 
+    std::unique_ptr<FfxBrixelizerContextDescription> _brixelizerParams{};
+    std::unique_ptr<FfxBrixelizerContext> _brixelizerContext{};
+    std::unique_ptr<FfxBrixelizerGIContext> _brixelizerGIContext{};
+    std::unique_ptr<FfxBrixelizerBakedUpdateDescription> _brixelizerBakedUpdateDesc{};
+    std::array<uint32_t, 2> _brixelizerBuffers{};
     std::vector<FfxBrixelizerInstanceID> _brixelizerInstances{};
-    std::vector<uint32_t> _brixelizerIndexBuffers{};
-    std::vector<uint32_t> _brixelizerVertexBuffers{};
     Texture _bsdfAtlas{};
     Buffer _cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES]{};
     Buffer _cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES]{};
-    std::unique_ptr<FfxBrixelizerBakedUpdateDescription> _brixelizerBakedUpdateDesc{};
 };
 
 #endif
