@@ -1,0 +1,30 @@
+diff --git a/sdk/src/backends/vk/ffx_vk.cpp b/sdk/src/backends/vk/ffx_vk.cpp
+index 604e777..fd1af48 100644
+--- a/sdk/src/backends/vk/ffx_vk.cpp
++++ b/sdk/src/backends/vk/ffx_vk.cpp
+@@ -4141,9 +4141,9 @@ FfxErrorCode ExecuteGpuJobsVK(FfxInterface* backendInterface, FfxCommandList com
+         FfxGpuJobDescription* gpuJob = &backendContext->pGpuJobs[i];
+ 
+         // If we have a label for the job, drop a marker for it
+-        if (gpuJob->jobLabel[0]) {
+-            beginMarkerVK(backendContext, vkCommandBuffer, gpuJob->jobLabel);
+-        }
++        // if (gpuJob->jobLabel[0]) {
++        //     beginMarkerVK(backendContext, vkCommandBuffer, gpuJob->jobLabel);
++        // }
+ 
+         
+         switch (gpuJob->jobType)
+@@ -4171,9 +4171,9 @@ FfxErrorCode ExecuteGpuJobsVK(FfxInterface* backendInterface, FfxCommandList com
+         default:;
+         }
+ 
+-        if (gpuJob->jobLabel[0]) {
+-            endMarkerVK(backendContext, vkCommandBuffer);
+-        }
++        // if (gpuJob->jobLabel[0]) {
++        //     endMarkerVK(backendContext, vkCommandBuffer);
++        // }
+     }
+ 
+     // check the execute function returned cleanly.

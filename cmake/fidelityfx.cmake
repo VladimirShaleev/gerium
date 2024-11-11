@@ -8,12 +8,13 @@ include(ExternalProject)
 
 ExternalProject_Add(
     FidelityFX
-    URL https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/archive/v1.1.2.zip
-    URL_HASH MD5=2041985f64b87b1c2e48340cd7c83ca5
-    GIT_PROGRESS TRUE
+    GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK
+    GIT_TAG tags/v1.1.2
     STEP_TARGETS build
     EXCLUDE_FROM_ALL TRUE
     SOURCE_SUBDIR sdk
+    UPDATE_DISCONNECTED TRUE
+    PATCH_COMMAND git apply "${CMAKE_CURRENT_LIST_DIR}/ffx_vk.patch"
     CMAKE_ARGS "-DFFX_API_BACKEND=VK_X64;-DFFX_FSR3=ON;-DFFX_SSSR=ON;-DFFX_ALL=ON;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>"
 )
 
