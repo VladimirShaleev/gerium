@@ -12,6 +12,7 @@ namespace gerium {
 
 constexpr uint32_t kMaxInputs  = 16;
 constexpr uint32_t kMaxOutputs = 16;
+constexpr uint32_t kMaxEdges   = 32;
 constexpr uint32_t kMaxNodes   = 256;
 
 struct FrameGraphRenderPassHandle : Handle {};
@@ -42,7 +43,7 @@ struct FrameGraphNode {
     gerium_uint8_t enabled;
     std::array<FrameGraphResourceHandle, kMaxInputs> inputs;
     std::array<FrameGraphResourceHandle, kMaxOutputs> outputs;
-    std::array<FrameGraphResourceHandle, kMaxOutputs> edges;
+    std::array<FrameGraphResourceHandle, kMaxEdges> edges;
 };
 
 struct FrameGraphResourceInfo {

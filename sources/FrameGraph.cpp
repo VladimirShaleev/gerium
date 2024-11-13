@@ -374,8 +374,15 @@ void FrameGraph::compile() {
             }
 
             gerium_uint32_t maxFramebuffers = 1;
+            for (auto i = 0; i < node->inputCount; ++i) {
+                if (_resources.access(node->inputs[i])->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT &&
+                    storedResources.contains(_resources.access(node->inputs[i])->name)) {
+                    maxFramebuffers = std::size(_resources.access(node->inputs[i])->info.texture.handles);
+                    break;
+                }
+            }
             for (auto o = 0; o < node->outputCount; ++o) {
-                if (_resources.access(node->outputs[o])->saveForNextFrame) {
+                if (storedResources.contains(_resources.access(node->outputs[o])->name)) {
                     maxFramebuffers = std::size(_resources.access(node->outputs[o])->info.texture.handles);
                     break;
                 }
@@ -624,6 +631,10 @@ void FrameGraph::computeEdges(FrameGraphNode* node) {
         inputResource->output    = outputResource->output;
         inputResource->info      = outputResource->info;
         inputResource->info.type = type;
+
+        if (inputResource->saveForNextFrame) {
+            continue;
+        }
 
         auto perentNode                            = _nodes.access(inputResource->producer);
         perentNode->edges[perentNode->edgeCount++] = _nodes.handle(node);

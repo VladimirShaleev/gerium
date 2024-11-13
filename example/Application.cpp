@@ -368,16 +368,11 @@ void DebugLinePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_rendere
     _vertices      = nullptr;
 }
 
-void BSDF::render(gerium_frame_graph_t frameGraph,
-                  gerium_renderer_t renderer,
-                  gerium_command_buffer_t commandBuffer,
-                  gerium_uint32_t worker,
-                  gerium_uint32_t totalWorkers) {
-    for (int i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
-        gerium_command_buffer_barrier_buffer_write(commandBuffer, application()->cascadeAABBTrees(i));
-        gerium_command_buffer_barrier_buffer_write(commandBuffer, application()->cascadeBrickMaps(i));
-    }
-
+void BSDFPass::render(gerium_frame_graph_t frameGraph,
+                      gerium_renderer_t renderer,
+                      gerium_command_buffer_t commandBuffer,
+                      gerium_uint32_t worker,
+                      gerium_uint32_t totalWorkers) {
     auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
     auto brixelizerContext = application()->brixelizerContext();
     auto commandList       = gerium_command_buffer_get_ffx_command_list(commandBuffer);
@@ -405,13 +400,15 @@ void BSDF::render(gerium_frame_graph_t frameGraph,
     desc.resources.sdfAtlas   = gerium_renderer_get_ffx_texture(renderer, application()->bsdfAtlas());
     desc.resources.brickAABBs = gerium_renderer_get_ffx_buffer(renderer, brickAabbs);
     for (uint32_t i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
+        gerium_command_buffer_barrier_buffer_write(commandBuffer, application()->cascadeAABBTrees(i));
+        gerium_command_buffer_barrier_buffer_write(commandBuffer, application()->cascadeBrickMaps(i));
         desc.resources.cascadeResources[i].aabbTree =
             gerium_renderer_get_ffx_buffer(renderer, application()->cascadeAABBTrees(i));
         desc.resources.cascadeResources[i].brickMap =
             gerium_renderer_get_ffx_buffer(renderer, application()->cascadeBrickMaps(i));
     }
 
-    auto cascadeIndexOffset = 2 * (FFX_BRIXELIZER_MAX_CASCADES / 3);
+    auto cascadeIndexOffset = 2 * Application::kNumBrixelizerCascades;
 
     gerium_texture_h debugBSDF;
     check(gerium_renderer_get_texture(renderer, "debug_bsdf", false, &debugBSDF));
@@ -422,7 +419,7 @@ void BSDF::render(gerium_frame_graph_t frameGraph,
     memcpy(&debugDesc.inverseProjectionMatrix, &inverseProjection[0][0], sizeof(debugDesc.inverseProjectionMatrix));
     debugDesc.debugState        = FFX_BRIXELIZER_TRACE_DEBUG_MODE_ITERATIONS;
     debugDesc.startCascadeIndex = cascadeIndexOffset;
-    debugDesc.endCascadeIndex   = cascadeIndexOffset + (FFX_BRIXELIZER_MAX_CASCADES / 3) - 1;
+    debugDesc.endCascadeIndex   = cascadeIndexOffset + Application::kNumBrixelizerCascades - 1;
     debugDesc.tMin              = 0.0f;
     debugDesc.tMax              = 100000.0f;
     debugDesc.sdfSolveEps       = 0.5f;
@@ -443,8 +440,8 @@ void BSDF::render(gerium_frame_graph_t frameGraph,
     //                                                                      FFX_BRIXELIZER_POPULATE_AABBS_CASCADE_AABBS);
     // }
 
-    desc.debugVisualizationDesc  = &debugDesc;
-    desc.populateDebugAABBsFlags = populateDebugAABBFlags;
+    // desc.debugVisualizationDesc  = &debugDesc;
+    // desc.populateDebugAABBsFlags = populateDebugAABBFlags;
 
     auto scratch = gerium_renderer_get_ffx_buffer(renderer, scratchBuffer);
     // scratch.description.stride = 16;
@@ -454,11 +451,101 @@ void BSDF::render(gerium_frame_graph_t frameGraph,
            L"Required Brixelizer scratch memory size larger than available GPU buffer.");
 
     ffxBrixelizerUpdate(brixelizerContext, application()->brixelizerBakedUpdateDesc(), scratch, commandList);
+}
 
-    for (int i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
+void BGIPass::render(gerium_frame_graph_t frameGraph,
+                     gerium_renderer_t renderer,
+                     gerium_command_buffer_t commandBuffer,
+                     gerium_uint32_t worker,
+                     gerium_uint32_t totalWorkers) {
+    auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
+    auto commandList  = gerium_command_buffer_get_ffx_command_list(commandBuffer);
+    auto dispatchDesc = application()->brixelizerGIDispatch();
+
+    gerium_texture_h depthTex;
+    gerium_texture_h prevDepthTex;
+    gerium_texture_h normalTex;
+    gerium_texture_h prevNormalTex;
+    gerium_texture_h roughnessTex;
+    gerium_texture_h motionTex;
+    gerium_texture_h prevLitTex;
+    gerium_texture_h diffuseGITex;
+    gerium_texture_h specularGITex;
+    gerium_texture_h noiseTex = _noiseTextures[_frameIndex++ % _noiseTextures.size()];
+    gerium_buffer_h brickAabbs;
+
+    check(gerium_renderer_get_texture(renderer, "depth", false, &depthTex));
+    check(gerium_renderer_get_texture(renderer, "depth", true, &prevDepthTex));
+    check(gerium_renderer_get_texture(renderer, "normal", false, &normalTex));
+    check(gerium_renderer_get_texture(renderer, "normal", true, &prevNormalTex));
+    check(gerium_renderer_get_texture(renderer, "ao_roughness_metallic", false, &roughnessTex));
+    check(gerium_renderer_get_texture(renderer, "motion", false, &motionTex));
+    check(gerium_renderer_get_texture(renderer, "color", true, &prevLitTex));
+    check(gerium_renderer_get_texture(renderer, "diffuse_gi", false, &diffuseGITex));
+    check(gerium_renderer_get_texture(renderer, "specular_gi", false, &specularGITex));
+    check(gerium_renderer_get_buffer(renderer, "brick_aabbs", &brickAabbs));
+
+    memcpy(&dispatchDesc->view, &camera->view()[0][0], sizeof(dispatchDesc->view));
+    memcpy(&dispatchDesc->projection, &camera->projection()[0][0], sizeof(dispatchDesc->projection));
+    memcpy(&dispatchDesc->prevView, &camera->prevView()[0][0], sizeof(dispatchDesc->prevView));
+    memcpy(&dispatchDesc->prevProjection, &camera->prevProjection()[0][0], sizeof(dispatchDesc->prevProjection));
+    memcpy(&dispatchDesc->cameraPosition, &camera->position()[0], sizeof(dispatchDesc->cameraPosition));
+
+    dispatchDesc->startCascade        = 2 * Application::kNumBrixelizerCascades;
+    dispatchDesc->endCascade          = dispatchDesc->startCascade + Application::kNumBrixelizerCascades - 1;
+    dispatchDesc->rayPushoff          = 0.25f;
+    dispatchDesc->sdfSolveEps         = 0.5f;
+    dispatchDesc->specularRayPushoff  = 0.25f;
+    dispatchDesc->specularSDFSolveEps = 0.5f;
+    dispatchDesc->tMin                = 0.0f;
+    dispatchDesc->tMax                = 100000.0f;
+
+    // dispatchDesc->environmentMap;
+    dispatchDesc->prevLitOutput = gerium_renderer_get_ffx_texture(renderer, prevLitTex);
+    dispatchDesc->depth         = gerium_renderer_get_ffx_texture(renderer, depthTex);
+    dispatchDesc->historyDepth  = gerium_renderer_get_ffx_texture(renderer, prevDepthTex);
+    dispatchDesc->normal        = gerium_renderer_get_ffx_texture(renderer, normalTex);
+    dispatchDesc->historyNormal = gerium_renderer_get_ffx_texture(renderer, prevNormalTex);
+    dispatchDesc->roughness     = gerium_renderer_get_ffx_texture(renderer, roughnessTex);
+    dispatchDesc->motionVectors = gerium_renderer_get_ffx_texture(renderer, motionTex);
+    dispatchDesc->noiseTexture  = gerium_renderer_get_ffx_texture(renderer, noiseTex);
+
+    dispatchDesc->normalsUnpackMul        = 1.0f;
+    dispatchDesc->normalsUnpackAdd        = 0.0f;
+    dispatchDesc->isRoughnessPerceptual   = false;
+    dispatchDesc->roughnessChannel        = 1;
+    dispatchDesc->roughnessThreshold      = 0.9f;
+    dispatchDesc->environmentMapIntensity = 0.1f;
+    dispatchDesc->motionVectorScale       = { 1.0f, 1.0f };
+
+    dispatchDesc->sdfAtlas    = gerium_renderer_get_ffx_texture(renderer, application()->bsdfAtlas());
+    dispatchDesc->bricksAABBs = gerium_renderer_get_ffx_buffer(renderer, brickAabbs);
+    for (uint32_t i = 0; i < FFX_BRIXELIZER_MAX_CASCADES; ++i) {
         gerium_command_buffer_barrier_buffer_read(commandBuffer, application()->cascadeAABBTrees(i));
         gerium_command_buffer_barrier_buffer_read(commandBuffer, application()->cascadeBrickMaps(i));
+        dispatchDesc->cascadeAABBTrees[i] =
+            gerium_renderer_get_ffx_buffer(renderer, application()->cascadeAABBTrees(i));
+        dispatchDesc->cascadeBrickMaps[i] =
+            gerium_renderer_get_ffx_buffer(renderer, application()->cascadeBrickMaps(i));
     }
+
+    dispatchDesc->outputDiffuseGI  = gerium_renderer_get_ffx_texture(renderer, diffuseGITex);
+    dispatchDesc->outputSpecularGI = gerium_renderer_get_ffx_texture(renderer, specularGITex);
+
+    ffxBrixelizerGetRawContext(application()->brixelizerContext(), &dispatchDesc->brixelizerContext);
+    ffxBrixelizerGIContextDispatch(application()->brixelizerGIContext(), dispatchDesc, commandList);
+}
+
+void BGIPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    auto appDir = std::filesystem::path(gerium_file_get_app_dir()) / "textures/noise";
+    for (size_t i = 0; i < _noiseTextures.size(); ++i) {
+        auto fullPath     = appDir / ("LDR_RG01_" + std::to_string(i) + ".png");
+        _noiseTextures[i] = application()->resourceManager().loadTexture(fullPath.string());
+    }
+}
+
+void BGIPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _noiseTextures = {};
 }
 
 Application::Application() {
@@ -506,6 +593,7 @@ void Application::createBrixelizerContext() {
     _brixelizerContext         = std::make_unique<FfxBrixelizerContext>();
     _brixelizerGIContext       = std::make_unique<FfxBrixelizerGIContext>();
     _brixelizerBakedUpdateDesc = std::make_unique<FfxBrixelizerBakedUpdateDescription>();
+    _brixelizerGIDispatch      = std::make_unique<FfxBrixelizerGIDispatchDescription>();
 
     check(gerium_renderer_create_ffx_interface(_renderer, 2, &_brixelizerParams->backendInterface));
 
@@ -513,7 +601,7 @@ void Application::createBrixelizerContext() {
     _brixelizerParams->sdfCenter[1] = 0.0f;
     _brixelizerParams->sdfCenter[2] = 0.0f;
     _brixelizerParams->numCascades  = kNumBrixelizerCascades;
-    _brixelizerParams->flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
+    // _brixelizerParams->flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
 
     auto voxelSize = 0.2f;
     for (uint32_t i = 0; i < _brixelizerParams->numCascades; ++i) {
@@ -526,6 +614,17 @@ void Application::createBrixelizerContext() {
     FfxErrorCode errorCode = ffxBrixelizerContextCreate(_brixelizerParams.get(), _brixelizerContext.get());
     if (errorCode != FFX_OK) {
         throw std::runtime_error("Create FFX Brixelizer context failed");
+    }
+
+    FfxBrixelizerGIContextDescription desc = {};
+    desc.flags                             = FFX_BRIXELIZER_GI_FLAG_DEPTH_INVERTED;
+    desc.internalResolution                = FFX_BRIXELIZER_GI_INTERNAL_RESOLUTION_50_PERCENT;
+    desc.displaySize                       = { width(), height() };
+    desc.backendInterface                  = _brixelizerParams->backendInterface;
+
+    errorCode = ffxBrixelizerGIContextCreate(_brixelizerGIContext.get(), &desc);
+    if (errorCode != FFX_OK) {
+        throw std::runtime_error("Create FFX Brixelizer GI context failed");
     }
 }
 
@@ -834,6 +933,7 @@ void Application::initialize() {
     addPass(_lightPass);
     addPass(_debugLinePass);
     addPass(_bsdfPass);
+    addPass(_bgiPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
@@ -886,6 +986,7 @@ void Application::uninitialize() {
             brixelizerContext(), _brixelizerInstances.data(), (uint32_t) _brixelizerInstances.size());
         ffxBrixelizerUnregisterBuffers(
             brixelizerContext(), _brixelizerBuffers.data(), (uint32_t) _brixelizerBuffers.size());
+        ffxBrixelizerGIContextDestroy(brixelizerGIContext());
         ffxBrixelizerContextDestroy(brixelizerContext());
         gerium_renderer_destroy_ffx_interface(_renderer, &_brixelizerParams->backendInterface);
 

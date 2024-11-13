@@ -251,7 +251,19 @@ public:
         FfxResource resource{};
         resource.resource    = reinterpret_cast<void*>(texture->vkImage);
         resource.description = resourceDescription;
-        resource.state       = FFX_RESOURCE_STATE_UNORDERED_ACCESS; // FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ;
+
+        constexpr int FFX_RESOURCE_STATE_DEPTH_STENCIL_READ_ONLY = (1 << 9);
+        switch (texture->states[0]) {
+            case ResourceState::ShaderResource:
+                resource.state = FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ;
+                break;
+            case ResourceState::DepthRead:
+                resource.state = (FfxResourceStates) FFX_RESOURCE_STATE_DEPTH_STENCIL_READ_ONLY;
+                break;
+            default:
+                resource.state = FFX_RESOURCE_STATE_UNORDERED_ACCESS;
+                break;
+        }
 
         return resource;
     }

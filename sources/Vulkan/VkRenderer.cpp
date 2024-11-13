@@ -572,18 +572,14 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
             }
         }
 
-        auto framebufferIndex = 0;
         for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
             frameGraph.fillExternalResource(node->outputs[i]);
             auto resource = frameGraph.getResource(node->outputs[i]);
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                 auto index = resource->saveForNextFrame ? _frame : 0;
-                if (index) {
-                    framebufferIndex = index;
-                }
-                width  = resource->info.texture.width;
-                height = resource->info.texture.height;
+                width      = resource->info.texture.width;
+                height     = resource->info.texture.height;
 
                 const auto format  = toVkFormat(resource->info.texture.format);
                 const auto texture = resource->info.texture.handles[index];
@@ -612,6 +608,8 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 _device->addInputResource(resource, buffer, false);
             }
         }
+
+        auto framebufferIndex = node->framebuffers[1] != Undefined ? _frame : 0;
 
         auto pass         = frameGraph.getPass(node->pass);
         auto totalWorkers = allTotalWorkers[totalWorkerIndex];

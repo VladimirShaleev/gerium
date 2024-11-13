@@ -67,7 +67,7 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
 
 void main() {
     vec3 albedo = pow(textureLod(texAlbedo, texCoord, 0).rgb, vec3(2.2));
-    /*vec3 normal = textureLod(texNormal, texCoord, 0).rgb;
+    vec3 normal = textureLod(texNormal, texCoord, 0).rgb;
     vec3 orm = textureLod(texMetallicRoughness, texCoord, 0).rgb;
     vec3 position = worldPositionFromDepth(texCoord, texture(texDepth, texCoord).r, scene.invViewProjection);
     float ao = orm.r * 0.2;
@@ -121,13 +121,11 @@ void main() {
     vec2 brdf  = vec2(1.0); // texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
     vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
-    vec3 ambient = (kD * diffuse /*+ specular*) * ao * ao;
+    vec3 ambient = (kD * diffuse /*+ specular*/) * ao * ao;
     vec3 color = ambient + Lo;
 
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0 / 2.2));
 
-    outColor = vec4(color, 1.0);*/
-
-    outColor = vec4(albedo, 1.0);
+    outColor = vec4(color, 1.0);
 }

@@ -105,6 +105,8 @@ void Camera::update(SettingsOutput output) {
     const auto aspect = float(width) / height;
 
     auto jitter         = glm::translate(glm::vec3(_jitter, 0.0f));
+    _prevView           = _view;
+    _prevProjection     = _projection;
     _prevViewProjection = _viewProjection;
     _projection         = jitter * infinitePerspectiveReverse(_fov, aspect, _nearPlane);
     _view               = glm::lookAt(_position, _position + _front, _up);
@@ -236,6 +238,18 @@ const glm::mat4& Camera::projection() const noexcept {
 
 const glm::mat4& Camera::viewProjection() const noexcept {
     return _viewProjection;
+}
+
+const glm::mat4& Camera::prevView() const noexcept {
+    return _prevView;
+}
+
+const glm::mat4& Camera::prevProjection() const noexcept {
+    return _prevProjection;
+}
+
+const glm::mat4& Camera::prevViewProjection() const noexcept {
+    return _prevViewProjection;
 }
 
 const glm::vec3& Camera::position() const noexcept {

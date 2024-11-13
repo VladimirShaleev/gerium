@@ -166,9 +166,9 @@ private:
     Buffer _vertices{};
 };
 
-class BSDF final : public RenderPass {
+class BSDFPass final : public RenderPass {
 public:
-    BSDF() : RenderPass("bsdf_pass") {
+    BSDFPass() : RenderPass("bsdf_pass") {
     }
 
     void render(gerium_frame_graph_t frameGraph,
@@ -181,8 +181,30 @@ private:
     gerium_uint32_t _frameIndex{};
 };
 
+class BGIPass final : public RenderPass {
+public:
+    BGIPass() : RenderPass("bgi_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    std::array<Texture, 16> _noiseTextures{};
+    gerium_uint32_t _frameIndex{};
+};
+
 class Application final {
 public:
+    static constexpr uint32_t kFfxBrixelizerMaxCascades = FFX_BRIXELIZER_MAX_CASCADES;
+    static constexpr uint32_t kNumBrixelizerCascades    = kFfxBrixelizerMaxCascades / 3;
+
     Application();
     ~Application();
 
@@ -260,14 +282,19 @@ public:
         return _brixelizerContext.get();
     }
 
+    FfxBrixelizerGIContext* brixelizerGIContext() noexcept {
+        return _brixelizerGIContext.get();
+    }
+
     FfxBrixelizerBakedUpdateDescription* brixelizerBakedUpdateDesc() noexcept {
         return _brixelizerBakedUpdateDesc.get();
     }
 
-private:
-    constexpr static uint32_t kFfxBrixelizerMaxCascades = FFX_BRIXELIZER_MAX_CASCADES;
-    constexpr static uint32_t kNumBrixelizerCascades    = kFfxBrixelizerMaxCascades / 3;
+    FfxBrixelizerGIDispatchDescription* brixelizerGIDispatch() noexcept {
+        return _brixelizerGIDispatch.get();
+    }
 
+private:
     void addPass(RenderPass& renderPass);
     void createBrixelizerContext();
     void createScene();
@@ -342,7 +369,8 @@ private:
     DebugOcclusionPass _debugOcclusionPass{};
     LightPass _lightPass{};
     DebugLinePass _debugLinePass{};
-    BSDF _bsdfPass{};
+    BSDFPass _bsdfPass{};
+    BGIPass _bgiPass{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};
@@ -369,6 +397,7 @@ private:
     std::unique_ptr<FfxBrixelizerContext> _brixelizerContext{};
     std::unique_ptr<FfxBrixelizerGIContext> _brixelizerGIContext{};
     std::unique_ptr<FfxBrixelizerBakedUpdateDescription> _brixelizerBakedUpdateDesc{};
+    std::unique_ptr<FfxBrixelizerGIDispatchDescription> _brixelizerGIDispatch{};
     std::array<uint32_t, 2> _brixelizerBuffers{};
     std::vector<FfxBrixelizerInstanceID> _brixelizerInstances{};
     Texture _bsdfAtlas{};

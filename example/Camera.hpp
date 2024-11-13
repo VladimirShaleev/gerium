@@ -57,6 +57,10 @@ public:
     const glm::mat4& projection() const noexcept;
     const glm::mat4& viewProjection() const noexcept;
 
+    const glm::mat4& prevView() const noexcept;
+    const glm::mat4& prevProjection() const noexcept;
+    const glm::mat4& prevViewProjection() const noexcept;
+
     const glm::vec3& position() const noexcept;
     const glm::vec3& front() const noexcept;
     const glm::vec3& up() const noexcept;
@@ -116,7 +120,9 @@ private:
     glm::vec2 _jitter{};
 
     glm::mat4 _view{};
+    glm::mat4 _prevView{};
     glm::mat4 _projection{};
+    glm::mat4 _prevProjection{};
     glm::mat4 _viewProjection{};
     glm::mat4 _prevViewProjection{};
 

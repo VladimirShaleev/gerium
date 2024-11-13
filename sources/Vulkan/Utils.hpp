@@ -561,13 +561,6 @@ gerium_inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags
                 0) {
                 flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
                 flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-                /*if ( pRenderer->pActiveGpuSettings->mGeometryShaderSupported ) {
-                    flags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
-                }
-                if ( pRenderer->pActiveGpuSettings->mTessellationSupported ) {
-                    flags |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
-                    flags |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
-                }*/
                 flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             }
 
@@ -608,7 +601,6 @@ gerium_inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags
             break;
     }
 
-    // Compatible with both compute and graphics queues
     if ((accessFlags & VK_ACCESS_INDIRECT_COMMAND_READ_BIT) != 0) {
         flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
     }
