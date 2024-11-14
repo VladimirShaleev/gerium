@@ -156,7 +156,7 @@ FfxInterface Renderer::createFfxInterface(gerium_uint32_t maxContexts) {
 }
 
 void Renderer::destroyFfxInterface(FfxInterface* ffxInterface) noexcept {
-    if (ffxInterface) {
+    if (ffxInterface && ffxInterface->scratchBuffer) {
         onDestroyFfxInterface(ffxInterface);
     }
 }

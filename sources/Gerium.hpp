@@ -181,6 +181,14 @@ gerium_inline gerium_uint8_t calcMipLevels(T width, T height) noexcept {
 
 gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
     switch (format) {
+        case GERIUM_FORMAT_R4G4_UNORM:
+            return 1;
+        case GERIUM_FORMAT_R4G4B4A4_UNORM:
+            return 2;
+        case GERIUM_FORMAT_R5G5B5A1_UNORM:
+            return 2;
+        case GERIUM_FORMAT_R5G6B5_UNORM:
+            return 2;
         case GERIUM_FORMAT_R8_UNORM:
             return 1;
         case GERIUM_FORMAT_R8_SNORM:
@@ -189,6 +197,12 @@ gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
             return 1;
         case GERIUM_FORMAT_R8_SINT:
             return 1;
+        case GERIUM_FORMAT_R8_SRGB:
+            return 1;
+        case GERIUM_FORMAT_R8_USCALED:
+            return 1;
+        case GERIUM_FORMAT_R8_SSCALED:
+            return 1;
         case GERIUM_FORMAT_R8G8_UNORM:
             return 2;
         case GERIUM_FORMAT_R8G8_SNORM:
@@ -196,6 +210,12 @@ gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
         case GERIUM_FORMAT_R8G8_UINT:
             return 2;
         case GERIUM_FORMAT_R8G8_SINT:
+            return 2;
+        case GERIUM_FORMAT_R8G8_SRGB:
+            return 2;
+        case GERIUM_FORMAT_R8G8_USCALED:
+            return 2;
+        case GERIUM_FORMAT_R8G8_SSCALED:
             return 2;
         case GERIUM_FORMAT_R8G8B8_UNORM:
             return 3;
@@ -207,10 +227,10 @@ gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
             return 3;
         case GERIUM_FORMAT_R8G8B8_SRGB:
             return 3;
-        case GERIUM_FORMAT_R4G4B4A4_UNORM:
-            return 2;
-        case GERIUM_FORMAT_R5G5B5A1_UNORM:
-            return 2;
+        case GERIUM_FORMAT_R8G8B8_USCALED:
+            return 3;
+        case GERIUM_FORMAT_R8G8B8_SSCALED:
+            return 3;
         case GERIUM_FORMAT_R8G8B8A8_UNORM:
             return 4;
         case GERIUM_FORMAT_R8G8B8A8_SNORM:
@@ -221,33 +241,65 @@ gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
             return 4;
         case GERIUM_FORMAT_R8G8B8A8_SRGB:
             return 4;
-        case GERIUM_FORMAT_A2R10G10B10_UNORM:
+        case GERIUM_FORMAT_R8G8B8A8_USCALED:
             return 4;
-        case GERIUM_FORMAT_A2R10G10B10_UINT:
+        case GERIUM_FORMAT_R8G8B8A8_SSCALED:
             return 4;
+        case GERIUM_FORMAT_R16_UNORM:
+            return 2;
+        case GERIUM_FORMAT_R16_SNORM:
+            return 2;
         case GERIUM_FORMAT_R16_UINT:
             return 2;
         case GERIUM_FORMAT_R16_SINT:
             return 2;
         case GERIUM_FORMAT_R16_SFLOAT:
             return 2;
+        case GERIUM_FORMAT_R16_USCALED:
+            return 2;
+        case GERIUM_FORMAT_R16_SSCALED:
+            return 2;
+        case GERIUM_FORMAT_R16G16_UNORM:
+            return 4;
+        case GERIUM_FORMAT_R16G16_SNORM:
+            return 4;
         case GERIUM_FORMAT_R16G16_UINT:
             return 4;
         case GERIUM_FORMAT_R16G16_SINT:
             return 4;
         case GERIUM_FORMAT_R16G16_SFLOAT:
             return 4;
+        case GERIUM_FORMAT_R16G16_USCALED:
+            return 4;
+        case GERIUM_FORMAT_R16G16_SSCALED:
+            return 4;
+        case GERIUM_FORMAT_R16G16B16_UNORM:
+            return 6;
+        case GERIUM_FORMAT_R16G16B16_SNORM:
+            return 6;
         case GERIUM_FORMAT_R16G16B16_UINT:
             return 6;
         case GERIUM_FORMAT_R16G16B16_SINT:
             return 6;
         case GERIUM_FORMAT_R16G16B16_SFLOAT:
             return 6;
+        case GERIUM_FORMAT_R16G16B16_USCALED:
+            return 6;
+        case GERIUM_FORMAT_R16G16B16_SSCALED:
+            return 6;
+        case GERIUM_FORMAT_R16G16B16A16_UNORM:
+            return 8;
+        case GERIUM_FORMAT_R16G16B16A16_SNORM:
+            return 8;
         case GERIUM_FORMAT_R16G16B16A16_UINT:
             return 8;
         case GERIUM_FORMAT_R16G16B16A16_SINT:
             return 8;
         case GERIUM_FORMAT_R16G16B16A16_SFLOAT:
+            return 8;
+        case GERIUM_FORMAT_R16G16B16A16_USCALED:
+            return 8;
+        case GERIUM_FORMAT_R16G16B16A16_SSCALED:
             return 8;
         case GERIUM_FORMAT_R32_UINT:
             return 4;
@@ -273,22 +325,280 @@ gerium_inline gerium_uint32_t formatBlockSize(gerium_format_t format) noexcept {
             return 16;
         case GERIUM_FORMAT_R32G32B32A32_SFLOAT:
             return 16;
+        case GERIUM_FORMAT_R64_UINT:
+            return 8;
+        case GERIUM_FORMAT_R64_SINT:
+            return 8;
+        case GERIUM_FORMAT_R64_SFLOAT:
+            return 8;
+        case GERIUM_FORMAT_R64G64_UINT:
+            return 16;
+        case GERIUM_FORMAT_R64G64_SINT:
+            return 16;
+        case GERIUM_FORMAT_R64G64_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_R64G64B64_UINT:
+            return 24;
+        case GERIUM_FORMAT_R64G64B64_SINT:
+            return 24;
+        case GERIUM_FORMAT_R64G64B64_SFLOAT:
+            return 24;
+        case GERIUM_FORMAT_R64G64B64A64_UINT:
+            return 32;
+        case GERIUM_FORMAT_R64G64B64A64_SINT:
+            return 32;
+        case GERIUM_FORMAT_R64G64B64A64_SFLOAT:
+            return 32;
+        case GERIUM_FORMAT_B4G4R4A4_UNORM:
+            return 2;
+        case GERIUM_FORMAT_B5G5R5A1_UNORM:
+            return 2;
+        case GERIUM_FORMAT_B5G6R5_UNORM:
+            return 2;
+        case GERIUM_FORMAT_B8G8R8_UNORM:
+            return 3;
+        case GERIUM_FORMAT_B8G8R8_SNORM:
+            return 3;
+        case GERIUM_FORMAT_B8G8R8_UINT:
+            return 3;
+        case GERIUM_FORMAT_B8G8R8_SINT:
+            return 3;
+        case GERIUM_FORMAT_B8G8R8_SRGB:
+            return 3;
+        case GERIUM_FORMAT_B8G8R8_USCALED:
+            return 3;
+        case GERIUM_FORMAT_B8G8R8_SSCALED:
+            return 3;
+        case GERIUM_FORMAT_B8G8R8A8_UNORM:
+            return 4;
+        case GERIUM_FORMAT_B8G8R8A8_SNORM:
+            return 4;
+        case GERIUM_FORMAT_B8G8R8A8_UINT:
+            return 4;
+        case GERIUM_FORMAT_B8G8R8A8_SINT:
+            return 4;
+        case GERIUM_FORMAT_B8G8R8A8_SRGB:
+            return 4;
+        case GERIUM_FORMAT_B8G8R8A8_USCALED:
+            return 4;
+        case GERIUM_FORMAT_B8G8R8A8_SSCALED:
+            return 4;
         case GERIUM_FORMAT_B10G11R11_UFLOAT:
             return 4;
-        case GERIUM_FORMAT_E5B9G9R9_UFLOAT:
-            return 4;
-        case GERIUM_FORMAT_D16_UNORM:
+        case GERIUM_FORMAT_A1B5G5R5_UNORM:
             return 2;
-        case GERIUM_FORMAT_X8_D24_UNORM:
+        case GERIUM_FORMAT_A1R5G5B5_UNORM:
+            return 2;
+        case GERIUM_FORMAT_A2B10G10R10_UNORM:
             return 4;
-        case GERIUM_FORMAT_D32_SFLOAT:
+        case GERIUM_FORMAT_A2B10G10R10_SNORM:
+            return 4;
+        case GERIUM_FORMAT_A2B10G10R10_UINT:
+            return 4;
+        case GERIUM_FORMAT_A2B10G10R10_SINT:
+            return 4;
+        case GERIUM_FORMAT_A2B10G10R10_USCALED:
+            return 4;
+        case GERIUM_FORMAT_A2B10G10R10_SSCALED:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_UNORM:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_SNORM:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_UINT:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_SINT:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_USCALED:
+            return 4;
+        case GERIUM_FORMAT_A2R10G10B10_SSCALED:
+            return 4;
+        case GERIUM_FORMAT_A4B4G4R4_UNORM:
+            return 2;
+        case GERIUM_FORMAT_A4R4G4B4_UNORM:
+            return 2;
+        case GERIUM_FORMAT_A8_UNORM:
+            return 1;
+        case GERIUM_FORMAT_A8B8G8R8_UNORM:
+            return 4;
+        case GERIUM_FORMAT_A8B8G8R8_SNORM:
+            return 4;
+        case GERIUM_FORMAT_A8B8G8R8_UINT:
+            return 4;
+        case GERIUM_FORMAT_A8B8G8R8_SINT:
+            return 4;
+        case GERIUM_FORMAT_A8B8G8R8_SRGB:
+            return 4;
+        case GERIUM_FORMAT_A8B8G8R8_USCALED:
+            return 4;
+        case GERIUM_FORMAT_A8B8G8R8_SSCALED:
             return 4;
         case GERIUM_FORMAT_S8_UINT:
             return 1;
+        case GERIUM_FORMAT_X8_D24_UNORM:
+            return 4;
+        case GERIUM_FORMAT_D16_UNORM:
+            return 2;
+        case GERIUM_FORMAT_D16_UNORM_S8_UINT:
+            return 3;
         case GERIUM_FORMAT_D24_UNORM_S8_UINT:
+            return 4;
+        case GERIUM_FORMAT_D32_SFLOAT:
             return 4;
         case GERIUM_FORMAT_D32_SFLOAT_S8_UINT:
             return 5;
+        case GERIUM_FORMAT_ASTC_4x4_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_4x4_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_4x4_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_5x4_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_5x4_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_5x4_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_5x5_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_5x5_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_5x5_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_6x5_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_6x5_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_6x5_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_6x6_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_6x6_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_6x6_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x5_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x5_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x5_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x6_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x6_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x6_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x8_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x8_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_8x8_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x5_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x5_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x5_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x6_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x6_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x6_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x8_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x8_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x8_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x10_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x10_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_10x10_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_12x10_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_12x10_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_12x10_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_ASTC_12x12_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ASTC_12x12_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ASTC_12x12_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_BC1_RGB_UNORM:
+            return 8;
+        case GERIUM_FORMAT_BC1_RGB_SRGB:
+            return 8;
+        case GERIUM_FORMAT_BC1_RGBA_UNORM:
+            return 8;
+        case GERIUM_FORMAT_BC1_RGBA_SRGB:
+            return 8;
+        case GERIUM_FORMAT_BC2_UNORM:
+            return 16;
+        case GERIUM_FORMAT_BC2_SRGB:
+            return 16;
+        case GERIUM_FORMAT_BC3_UNORM:
+            return 16;
+        case GERIUM_FORMAT_BC3_SRGB:
+            return 16;
+        case GERIUM_FORMAT_BC4_UNORM:
+            return 8;
+        case GERIUM_FORMAT_BC4_SNORM:
+            return 8;
+        case GERIUM_FORMAT_BC5_UNORM:
+            return 16;
+        case GERIUM_FORMAT_BC5_SNORM:
+            return 16;
+        case GERIUM_FORMAT_BC6H_UFLOAT:
+            return 16;
+        case GERIUM_FORMAT_BC6H_SFLOAT:
+            return 16;
+        case GERIUM_FORMAT_BC7_UNORM:
+            return 16;
+        case GERIUM_FORMAT_BC7_SRGB:
+            return 16;
+        case GERIUM_FORMAT_ETC2_R8G8B8_UNORM:
+            return 8;
+        case GERIUM_FORMAT_ETC2_R8G8B8_SRGB:
+            return 8;
+        case GERIUM_FORMAT_ETC2_R8G8B8A1_UNORM:
+            return 8;
+        case GERIUM_FORMAT_ETC2_R8G8B8A1_SRGB:
+            return 8;
+        case GERIUM_FORMAT_ETC2_R8G8B8A8_UNORM:
+            return 16;
+        case GERIUM_FORMAT_ETC2_R8G8B8A8_SRGB:
+            return 16;
+        case GERIUM_FORMAT_EAC_R11_UNORM:
+            return 8;
+        case GERIUM_FORMAT_EAC_R11_SNORM:
+            return 8;
+        case GERIUM_FORMAT_EAC_R11G11_UNORM:
+            return 16;
+        case GERIUM_FORMAT_EAC_R11G11_SNORM:
+            return 16;
+        case GERIUM_FORMAT_PVRTC1_2BPP_UNORM:
+            return 8;
+        case GERIUM_FORMAT_PVRTC1_2BPP_SRGB:
+            return 8;
+        case GERIUM_FORMAT_PVRTC1_4BPP_UNORM:
+            return 8;
+        case GERIUM_FORMAT_PVRTC1_4BPP_SRGB:
+            return 8;
+        case GERIUM_FORMAT_PVRTC2_2BPP_UNORM:
+            return 8;
+        case GERIUM_FORMAT_PVRTC2_2BPP_SRGB:
+            return 8;
+        case GERIUM_FORMAT_PVRTC2_4BPP_UNORM:
+            return 8;
+        case GERIUM_FORMAT_PVRTC2_4BPP_SRGB:
+            return 8;
         default:
             assert(!"unreachable code");
             return 0;

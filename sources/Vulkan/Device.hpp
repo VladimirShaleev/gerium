@@ -71,7 +71,7 @@ public:
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
     FfxInterface createFfxInterface(gerium_uint32_t maxContexts);
-    void destroyFfxInterface(FfxInterface* ffxInteface);
+    void destroyFfxInterface(FfxInterface* ffxInterface);
     void waitFfxJobs() const noexcept;
 
     void clearInputResources();

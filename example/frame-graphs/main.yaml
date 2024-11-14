@@ -90,7 +90,7 @@ frame graph:
   - name: present_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: color
+        name: light
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: diffuse_gi
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
@@ -108,21 +108,11 @@ frame graph:
         name: ao_roughness_metallic
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: motion
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: debug_depth
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: debug_albedo
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: debug_normal
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: debug_ao_roughness_metallic
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: debug_motion
       - type: GERIUM_RESOURCE_TYPE_REFERENCE
         name: stub_dep_1
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-        name: color
+        name: light
         format: GERIUM_FORMAT_R8G8B8A8_UNORM
         render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
 
@@ -252,7 +242,7 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: motion
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: color
+        name: light
         previous frame: true
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: brick_aabbs

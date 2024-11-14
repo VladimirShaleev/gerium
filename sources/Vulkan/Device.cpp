@@ -1446,8 +1446,8 @@ FfxInterface Device::createFfxInterface(gerium_uint32_t maxContexts) {
 #endif
 }
 
-void Device::destroyFfxInterface(FfxInterface* ffxInteface) {
-    delete[] ffxInteface->scratchBuffer;
+void Device::destroyFfxInterface(FfxInterface* ffxInterface) {
+    delete[] ffxInterface->scratchBuffer;
 }
 
 void Device::waitFfxJobs() const noexcept {

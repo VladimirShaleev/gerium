@@ -219,8 +219,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 
     auto& settings = application()->settings();
     auto ds        = application()->resourceManager().createDescriptorSet("");
-    gerium_renderer_bind_resource(
-        renderer, ds, 0, settings.Output == SettingsOutput::FinalResult ? "color" : "debug_bsdf", false);
+    gerium_renderer_bind_resource(renderer, ds, 0, "light", false);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
@@ -480,7 +479,7 @@ void BGIPass::render(gerium_frame_graph_t frameGraph,
     check(gerium_renderer_get_texture(renderer, "normal", true, &prevNormalTex));
     check(gerium_renderer_get_texture(renderer, "ao_roughness_metallic", false, &roughnessTex));
     check(gerium_renderer_get_texture(renderer, "motion", false, &motionTex));
-    check(gerium_renderer_get_texture(renderer, "color", true, &prevLitTex));
+    check(gerium_renderer_get_texture(renderer, "light", true, &prevLitTex));
     check(gerium_renderer_get_texture(renderer, "diffuse_gi", false, &diffuseGITex));
     check(gerium_renderer_get_texture(renderer, "specular_gi", false, &specularGITex));
     check(gerium_renderer_get_buffer(renderer, "brick_aabbs", &brickAabbs));
@@ -569,10 +568,11 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
         gerium_application_set_background_wait(_application, true);
         gerium_application_set_frame_func(_application, frame, (gerium_data_t) this);
         gerium_application_set_state_func(_application, state, (gerium_data_t) this);
-        check(gerium_application_run(_application));
+        auto result = gerium_application_run(_application);
         if (_error) {
             std::rethrow_exception(_error);
         }
+        check(result);
     } catch (const std::exception& exc) {
         gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_FATAL, exc.what());
     } catch (...) {
@@ -981,14 +981,26 @@ void Application::uninitialize() {
             (*it)->uninitialize(_frameGraph, _renderer);
         }
 
-        gerium_renderer_wait_ffx_jobs(_renderer);
-        ffxBrixelizerDeleteInstances(
-            brixelizerContext(), _brixelizerInstances.data(), (uint32_t) _brixelizerInstances.size());
-        ffxBrixelizerUnregisterBuffers(
-            brixelizerContext(), _brixelizerBuffers.data(), (uint32_t) _brixelizerBuffers.size());
-        ffxBrixelizerGIContextDestroy(brixelizerGIContext());
-        ffxBrixelizerContextDestroy(brixelizerContext());
-        gerium_renderer_destroy_ffx_interface(_renderer, &_brixelizerParams->backendInterface);
+        if (_brixelizerParams) {
+            gerium_renderer_wait_ffx_jobs(_renderer);
+            if (_brixelizerInstances.size()) {
+                ffxBrixelizerDeleteInstances(
+                    brixelizerContext(), _brixelizerInstances.data(), (uint32_t) _brixelizerInstances.size());
+            }
+            if (_brixelizerBuffers.size()) {
+                ffxBrixelizerUnregisterBuffers(
+                    brixelizerContext(), _brixelizerBuffers.data(), (uint32_t) _brixelizerBuffers.size());
+            }
+            if (brixelizerGIContext()) {
+                ffxBrixelizerGIContextDestroy(brixelizerGIContext());
+            }
+            if (brixelizerContext()) {
+                ffxBrixelizerContextDestroy(brixelizerContext());
+            }
+            if (_brixelizerParams) {
+                gerium_renderer_destroy_ffx_interface(_renderer, &_brixelizerParams->backendInterface);
+            }
+        }
 
         _resourceManager.destroy();
 
