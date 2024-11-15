@@ -12,6 +12,10 @@
 #define MESH_MAX_VERTICES   64
 #define MESH_MAX_PRIMITIVES 124
 
+#define LIGHT_TYPE_DIRECTIONAL 0
+#define LIGHT_TYPE_POINT       1
+#define LIGHT_TYPE_SPOT        2
+
 #define OUTPUT_FINAL_RESULT 0
 #define OUTPUT_MESHLETS     1
 #define OUTPUT_ALBEDO       2

@@ -183,7 +183,8 @@ static std::pair<uint32_t, bool> convertTextures(Cache& cache,
                 auto nlevel = float(m) / (diffuseRGBA8.levels() - 1);
 
                 const auto ndiff = diffuseSampler.texture_lod(uv, m);
-                const auto nnorm = normalSampler.texture_lod(uv, m);
+                auto nnorm = normalSampler.texture_lod(uv, m);
+                nnorm.y = 1.0 - nnorm.y;
                 const auto nspec = specularName.length == 0
                                        ? glm::vec4(0.0f, shininessExponent, specularFactor, 1.0f)
                                        : specularSampler.texture_lod(uv, nlevel * (specularRGBA8.levels() - 1));

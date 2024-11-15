@@ -27,6 +27,29 @@ struct SHADER_ALIGN SceneData {
     uint  settingsOutput;
 };
 
+struct Light {
+    vec4 directionRange;
+    vec4 colorIntensity;
+    uint type;
+};
+
+struct Angular {
+    float NdotL;
+    float NdotV;
+    float NdotH;
+    float LdotH;
+    float VdotH; 
+};
+
+struct PixelData {
+    vec3  baseColor;
+    vec3  F0;
+    vec3  F90;
+    float perceptualRoughness;
+    float alphaRoughness;
+    float metallic;
+};
+
 struct SHADER_ALIGN DrawData {
     float lodTarget;
     uint  drawCount;
