@@ -200,6 +200,31 @@ private:
     gerium_uint32_t _frameIndex{};
 };
 
+class SkyDomeGenPass final : public RenderPass {
+public:
+    static constexpr uint16_t kSkySize = 512;
+
+    SkyDomeGenPass() : RenderPass("skydome_gen_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    SkyData _data;
+
+    Technique _technique;
+    Texture _skyDome;
+    Buffer _skyData;
+    DescriptorSet _descriptorSet;
+};
+
 class Application final {
 public:
     static constexpr uint32_t kFfxBrixelizerMaxCascades = FFX_BRIXELIZER_MAX_CASCADES;
@@ -252,6 +277,10 @@ public:
 
     gerium_technique_h getBaseTechnique() const noexcept {
         return _baseTechnique;
+    }
+
+    gerium_texture_h brdfLut() const noexcept {
+        return _brdfLut;
     }
 
     gerium_descriptor_set_h texturesSet() const noexcept {
@@ -371,6 +400,7 @@ private:
     DebugLinePass _debugLinePass{};
     BSDFPass _bsdfPass{};
     BGIPass _bgiPass{};
+    SkyDomeGenPass _skyDomeGen{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};
@@ -387,6 +417,7 @@ private:
 
     Technique _baseTechnique{};
 
+    Texture _brdfLut{};
     Texture _emptyTexture{};
     std::vector<Texture> _textures{};
     DescriptorSet _texturesSet{};

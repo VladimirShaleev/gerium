@@ -279,7 +279,7 @@ void FrameGraph::compile() {
                     TextureCreation creation{};
                     creation.setFormat(info.format, GERIUM_TEXTURE_TYPE_2D)
                         .setSize(info.width, info.height, info.depth)
-                        .setFlags(1, true, node->compute);
+                        .setFlags(1, 1, true, node->compute);
 
                     if (!_freeList.empty()) {
                         const auto size =

@@ -71,8 +71,6 @@ void ResourceManager::loadFrameGraph(const std::string& path) {
                                           node.outputs.size(),
                                           node.outputs.data()));
     }
-
-    check(gerium_frame_graph_compile(_frameGraph));
 }
 
 Texture ResourceManager::loadTexture(const std::string& path, gerium_uint64_t retentionMs) {

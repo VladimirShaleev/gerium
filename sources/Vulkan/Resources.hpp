@@ -366,6 +366,7 @@ struct Texture {
     uint16_t              depth;
     uint8_t               mipBase;
     uint8_t               mipLevels;
+    uint8_t               layers;
     uint8_t               loaded;
     TextureFlags          flags;
     gerium_texture_type_t type;

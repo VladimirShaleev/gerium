@@ -996,14 +996,9 @@ gerium_inline VkImageType toVkImageType(gerium_texture_type_t type) noexcept {
         case GERIUM_TEXTURE_TYPE_1D:
             return VK_IMAGE_TYPE_1D;
         case GERIUM_TEXTURE_TYPE_2D:
+        case GERIUM_TEXTURE_TYPE_CUBE:
             return VK_IMAGE_TYPE_2D;
         case GERIUM_TEXTURE_TYPE_3D:
-            return VK_IMAGE_TYPE_3D;
-        case GERIUM_TEXTURE_TYPE_1D_ARRAY:
-            return VK_IMAGE_TYPE_1D;
-        case GERIUM_TEXTURE_TYPE_2D_ARRAY:
-            return VK_IMAGE_TYPE_2D;
-        case GERIUM_TEXTURE_TYPE_CUBE_ARRAY:
             return VK_IMAGE_TYPE_3D;
         default:
             assert(!"unreachable code");
@@ -1027,11 +1022,16 @@ gerium_inline VkSamplerReductionMode toVkSamplerReductionMode(gerium_reduction_m
     return (VkSamplerReductionMode) mode;
 }
 
-gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type) noexcept {
-    constexpr VkImageViewType types[] = { VK_IMAGE_VIEW_TYPE_1D,       VK_IMAGE_VIEW_TYPE_2D,
-                                          VK_IMAGE_VIEW_TYPE_3D,       VK_IMAGE_VIEW_TYPE_1D_ARRAY,
-                                          VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY };
-    return types[(int) type];
+gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type, bool arrayed) noexcept {
+    constexpr VkImageViewType types[] = {
+        VK_IMAGE_VIEW_TYPE_1D, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_VIEW_TYPE_3D, VK_IMAGE_VIEW_TYPE_CUBE
+    };
+
+    constexpr VkImageViewType arrayTypes[] = {
+        VK_IMAGE_VIEW_TYPE_1D_ARRAY, VK_IMAGE_VIEW_TYPE_2D_ARRAY, {}, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY
+    };
+
+    return !arrayed ? types[(int) type] : arrayTypes[(int) type];
 }
 
 gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) noexcept {

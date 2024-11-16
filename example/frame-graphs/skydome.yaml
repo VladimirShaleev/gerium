@@ -1,0 +1,7 @@
+frame graph:
+  - name: skydome_gen_pass
+    compute: true
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: skydome_env
+        external: true

@@ -33,6 +33,15 @@ struct Light {
     uint type;
 };
 
+struct SHADER_ALIGN SkyData {
+    vec4  sunDirection;
+    float rayleigh;
+    float turbidity;
+    float mieCoefficient;
+    float luminance;
+    float mieDirectionalG;
+};
+
 struct Angular {
     float NdotL;
     float NdotV;
@@ -45,6 +54,7 @@ struct PixelData {
     vec3  baseColor;
     vec3  F0;
     vec3  F90;
+    vec2  uv;
     float perceptualRoughness;
     float alphaRoughness;
     float metallic;

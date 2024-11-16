@@ -19,20 +19,20 @@ struct RenderPassHandle : Handle {};
 
 struct FramebufferHandle : Handle {};
 
-enum class ResourceUsageType {
+enum class ResourceUsageType : uint8_t {
     Immutable,
     Dynamic,
     Staging
 };
 
-enum class TextureFlags {
+enum class TextureFlags : uint8_t {
     None         = 0,
     RenderTarget = 1,
     Compute      = 2
 };
 GERIUM_FLAGS(TextureFlags)
 
-enum class RenderPassOp {
+enum class RenderPassOp : uint8_t {
     DontCare = 0,
     Load     = 1,
     Clear    = 2,
@@ -92,7 +92,8 @@ struct TextureCreation {
     uint16_t width             = 1;
     uint16_t height            = 1;
     uint16_t depth             = 1;
-    uint16_t mipmaps           = 1;
+    uint8_t  mipmaps           = 1;
+    uint8_t  layers            = 1;
     TextureFlags flags         = TextureFlags::None;
     gerium_format_t format     = GERIUM_FORMAT_R8G8B8A8_UNORM;
     gerium_texture_type_t type = GERIUM_TEXTURE_TYPE_2D;
@@ -107,10 +108,11 @@ struct TextureCreation {
         return *this;
     }
 
-    TextureCreation& setFlags(uint8_t mipmaps, bool renderTarget, bool compute) {
+    TextureCreation& setFlags(uint8_t mipmaps, uint8_t layers, bool renderTarget, bool compute) {
         this->mipmaps = mipmaps;
-        this->flags |= renderTarget ? TextureFlags::RenderTarget : TextureFlags::None;
-        this->flags |= compute ? TextureFlags::Compute : TextureFlags::None;
+        this->layers  = layers;
+        this->flags  |= renderTarget ? TextureFlags::RenderTarget : TextureFlags::None;
+        this->flags  |= compute ? TextureFlags::Compute : TextureFlags::None;
         return *this;
     }
 
@@ -132,6 +134,21 @@ struct TextureCreation {
 
     TextureCreation& setName(const char* name) {
         this->name = name;
+        return *this;
+    }
+
+    TextureCreation& build() {
+        const auto maxMipLevels = uint8_t(calcMipLevels(width, height));
+
+        width  = std::max(width, uint16_t(1));
+        height = std::max(height, uint16_t(1));
+        depth  = std::max(depth, uint16_t(1));
+        layers = std::max(layers, uint8_t(type == GERIUM_TEXTURE_TYPE_CUBE ? 6 : 1));
+        if (mipmaps == 0) {
+            mipmaps = maxMipLevels;
+        } else if (mipmaps != 1) {
+            mipmaps = std::clamp(mipmaps, uint8_t(1), maxMipLevels);
+        }
         return *this;
     }
 };

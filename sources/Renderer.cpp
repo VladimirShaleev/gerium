@@ -35,6 +35,11 @@ BufferHandle Renderer::createBuffer(const BufferCreation& creation) {
 }
 
 TextureHandle Renderer::createTexture(const TextureCreation& creation) {
+    if (creation.type == GERIUM_TEXTURE_TYPE_CUBE) {
+        if (creation.width != creation.height) {
+            error(GERIUM_RESULT_ERROR_INVALID_ARGUMENT); // TODO: err
+        }
+    }
     return onCreateTexture(creation);
 }
 
@@ -255,10 +260,11 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
 
     TextureCreation tc;
     tc.setSize(info->width, info->height, info->depth)
-        .setFlags(info->mipmaps, false, true)
+        .setFlags(info->mipmaps, info->layers, false, true)
         .setFormat(info->format, info->type)
         .setData((void*) data)
-        .setName(info->name);
+        .setName(info->name)
+        .build();
 
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createTexture(tc);

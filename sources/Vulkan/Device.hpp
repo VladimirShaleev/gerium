@@ -166,6 +166,7 @@ public:
         info.height  = texture->height;
         info.depth   = texture->depth;
         info.mipmaps = texture->mipLevels;
+        info.layers  = texture->layers;
         info.format  = toGeriumFormat(texture->vkFormat);
         info.type    = texture->type;
         info.name    = texture->name;
@@ -207,26 +208,20 @@ public:
 
         switch (texture->type) {
             case GERIUM_TEXTURE_TYPE_1D:
-                resourceDescription.type = FFX_RESOURCE_TYPE_TEXTURE1D;
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE1D;
+                resourceDescription.depth = texture->layers;
                 break;
             case GERIUM_TEXTURE_TYPE_2D:
-                resourceDescription.type = FFX_RESOURCE_TYPE_TEXTURE2D;
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE2D;
+                resourceDescription.depth = texture->layers;
                 break;
             case GERIUM_TEXTURE_TYPE_3D:
                 resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE3D;
                 resourceDescription.depth = texture->depth;
                 break;
-            case GERIUM_TEXTURE_TYPE_1D_ARRAY:
-                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE1D;
-                resourceDescription.depth = texture->depth;
-                break;
-            case GERIUM_TEXTURE_TYPE_2D_ARRAY:
+            case GERIUM_TEXTURE_TYPE_CUBE:
                 resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE2D;
-                resourceDescription.depth = texture->depth;
-                break;
-            case GERIUM_TEXTURE_TYPE_CUBE_ARRAY:
-                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE2D;
-                resourceDescription.depth = texture->depth;
+                resourceDescription.depth = texture->layers;
                 break;
         }
 

@@ -851,13 +851,11 @@ GERIUM_FLAGS(gerium_buffer_usage_flags_t)
 
 typedef enum
 {
-    GERIUM_TEXTURE_TYPE_1D         = 0,
-    GERIUM_TEXTURE_TYPE_2D         = 1,
-    GERIUM_TEXTURE_TYPE_3D         = 2,
-    GERIUM_TEXTURE_TYPE_1D_ARRAY   = 3,
-    GERIUM_TEXTURE_TYPE_2D_ARRAY   = 4,
-    GERIUM_TEXTURE_TYPE_CUBE_ARRAY = 5,
-    GERIUM_TEXTURE_TYPE_MAX_ENUM   = 0x7FFFFFFF
+    GERIUM_TEXTURE_TYPE_1D       = 0,
+    GERIUM_TEXTURE_TYPE_2D       = 1,
+    GERIUM_TEXTURE_TYPE_3D       = 2,
+    GERIUM_TEXTURE_TYPE_CUBE     = 3,
+    GERIUM_TEXTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_texture_type_t;
 
 typedef enum
@@ -1018,6 +1016,7 @@ typedef struct
     gerium_uint16_t       height;
     gerium_uint16_t       depth;
     gerium_uint16_t       mipmaps;
+    gerium_uint16_t       layers;
     gerium_format_t       format;
     gerium_texture_type_t type;
     gerium_utf8_t         name;

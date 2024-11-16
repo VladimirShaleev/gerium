@@ -8,6 +8,7 @@
 
 #define TASK_GROUP_SIZE 64
 #define MESH_GROUP_SIZE 64
+#define SKY_GROUP_SIZE  8
 
 #define MESH_MAX_VERTICES   64
 #define MESH_MAX_PRIMITIVES 124

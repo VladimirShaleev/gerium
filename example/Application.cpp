@@ -199,10 +199,11 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     const auto aoRoughnessMetallicTexure =
         application()->settings().DebugCamera ? "debug_ao_roughness_metallic" : "ao_roughness_metallic";
     const auto motionTexure = application()->settings().DebugCamera ? "debug_depth" : "depth";
-    gerium_renderer_bind_resource(renderer, ds, 0, albedoTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 1, normalTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 2, aoRoughnessMetallicTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 3, motionTexure, false);
+    gerium_renderer_bind_texture(renderer, ds, 0, 0, application()->brdfLut());
+    gerium_renderer_bind_resource(renderer, ds, 1, albedoTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 2, normalTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 3, aoRoughnessMetallicTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 4, motionTexure, false);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
@@ -545,6 +546,60 @@ void BGIPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t rend
 
 void BGIPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     _noiseTextures = {};
+}
+
+void SkyDomeGenPass::render(gerium_frame_graph_t frameGraph,
+                            gerium_renderer_t renderer,
+                            gerium_command_buffer_t commandBuffer,
+                            gerium_uint32_t worker,
+                            gerium_uint32_t totalWorkers) {
+    const auto dir = glm::normalize(glm::vec3(-1.0f, 1.0f, -1.0f));
+
+    _data.sunDirection    = glm::vec4(dir, 1.0f);
+    _data.rayleigh        = 0.09f;
+    _data.turbidity       = 1.5f;
+    _data.mieCoefficient  = 0.002f;
+    _data.luminance       = 15.0f;
+    _data.mieDirectionalG = 0.75f;
+
+    auto data = gerium_renderer_map_buffer(renderer, _skyData, 0, sizeof(SkyData));
+    memcpy(data, &_data, sizeof(SkyData));
+    gerium_renderer_unmap_buffer(renderer, _skyData);
+
+    const auto groupSize = getGroupCount(512, SKY_GROUP_SIZE);
+    gerium_command_buffer_bind_technique(commandBuffer, _technique);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
+    gerium_command_buffer_dispatch(commandBuffer, groupSize, groupSize, 6);
+}
+
+void SkyDomeGenPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+
+    gerium_texture_info_t info{};
+    info.width   = kSkySize;
+    info.height  = kSkySize;
+    info.depth   = 1;
+    info.mipmaps = calcMipLevels(kSkySize, kSkySize);
+    info.layers  = 6;
+    info.format  = GERIUM_FORMAT_R16G16B16A16_SFLOAT;
+    info.type    = GERIUM_TEXTURE_TYPE_CUBE;
+    info.name    = "skydome_env";
+
+    _skyDome       = application()->resourceManager().createTexture(info, nullptr);
+    _technique     = application()->resourceManager().loadTechnique((appDir / "techniques" / "skydome.yaml").string());
+    _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
+    _skyData       = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", nullptr, sizeof(SkyData));
+
+    gerium_frame_graph_add_texture(frameGraph, info.name, _skyDome);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, _skyData);
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 1, info.name, false);
+}
+
+void SkyDomeGenPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
+    _skyDome       = nullptr;
+    _technique     = nullptr;
 }
 
 Application::Application() {
@@ -934,10 +989,16 @@ void Application::initialize() {
     addPass(_debugLinePass);
     addPass(_bsdfPass);
     addPass(_bgiPass);
+    addPass(_skyDomeGen);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
+    _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "skydome.yaml").string());
+    check(gerium_frame_graph_compile(_frameGraph));
+
     _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
+
+    _brdfLut = _resourceManager.loadTexture((appDir / "textures" / "brdf" / "BRDFLut.png").string());
 
     createBrixelizerContext();
     createScene();

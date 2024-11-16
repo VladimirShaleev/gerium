@@ -406,11 +406,15 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     texture->depth         = creation.depth;
     texture->mipBase       = 0;
     texture->mipLevels     = creation.mipmaps;
+    texture->layers        = creation.layers;
     texture->flags         = creation.flags;
     texture->type          = creation.type;
     texture->name          = intern(creation.name);
     texture->parentTexture = Undefined;
     texture->sampler       = Undefined;
+
+    auto imageFlags =
+        creation.type == GERIUM_TEXTURE_TYPE_CUBE ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : VkImageCreateFlags{};
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -431,13 +435,14 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     }
 
     VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    imageInfo.flags                 = imageFlags;
     imageInfo.imageType             = toVkImageType(creation.type);
     imageInfo.format                = texture->vkFormat;
-    imageInfo.extent.width          = creation.width;
-    imageInfo.extent.height         = creation.height;
-    imageInfo.extent.depth          = creation.depth;
-    imageInfo.mipLevels             = creation.mipmaps;
-    imageInfo.arrayLayers           = 1;
+    imageInfo.extent.width          = texture->width;
+    imageInfo.extent.height         = texture->height;
+    imageInfo.extent.depth          = texture->depth;
+    imageInfo.mipLevels             = texture->mipLevels;
+    imageInfo.arrayLayers           = texture->layers;
     imageInfo.samples               = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling                = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.usage                 = usage;
@@ -465,7 +470,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     setObjectName(VK_OBJECT_TYPE_IMAGE, (uint64_t) texture->vkImage, texture->name);
 
     TextureViewCreation vc{};
-    vc.setType(texture->type).setMips(0, creation.mipmaps).setName(texture->name);
+    vc.setType(texture->type).setMips(0, texture->mipLevels).setArray(0, texture->layers).setName(texture->name);
     vkCreateImageView(vc, handle);
 
     if (creation.initialData) {
@@ -1710,6 +1715,7 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
 
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.pNext                              = &features12;
+    features.features.imageCubeArray            = deviceFeatures.features.imageCubeArray;
     features.features.geometryShader            = deviceFeatures.features.geometryShader;
     features.features.logicOp                   = deviceFeatures.features.logicOp;
     features.features.multiDrawIndirect         = deviceFeatures.features.multiDrawIndirect;
@@ -1866,10 +1872,11 @@ void Device::createDefaultTexture() {
     gerium_uint32_t black = 0;
     TextureCreation tc{};
     tc.setSize(1, 1, 1)
-        .setFlags(1, false, false)
+        .setFlags(1, 1, false, false)
         .setFormat(GERIUM_FORMAT_R8G8B8A8_UNORM, GERIUM_TEXTURE_TYPE_2D)
         .setData(&black)
-        .setName("default_texture");
+        .setName("default_texture")
+        .build();
     _defaultTexture = createTexture(tc);
 }
 
@@ -2637,7 +2644,7 @@ void Device::vkCreateImageView(const TextureViewCreation& creation, TextureHandl
 
     VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
     viewInfo.image      = texture->vkImage;
-    viewInfo.viewType   = toVkImageViewType(creation.type);
+    viewInfo.viewType   = toVkImageViewType(creation.type, creation.arrayLayerCount > 1);
     viewInfo.format     = texture->vkFormat;
     viewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
                             VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -2800,6 +2807,10 @@ int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
     }
 
     if (!getQueueFamilies(device).isComplete()) {
+        return 0;
+    }
+
+    if (!features.imageCubeArray) {
         return 0;
     }
 
