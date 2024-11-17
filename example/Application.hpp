@@ -250,6 +250,25 @@ private:
     std::array<DescriptorSet, kMips> _descriptorSets;
 };
 
+class SkydomePass final : public RenderPass {
+public:
+    SkydomePass() : RenderPass("skydome_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    Technique _technique;
+    DescriptorSet _descriptorSet;
+};
+
 class Application final {
 public:
     static constexpr uint32_t kFfxBrixelizerMaxCascades = FFX_BRIXELIZER_MAX_CASCADES;
@@ -427,6 +446,7 @@ private:
     BGIPass _bgiPass{};
     SkyDomeGenPass _skyDomeGen{};
     SkyDomePrefilteredPass _skyDomePrefilteredPass{};
+    SkydomePass _skydomePass{};
     std::vector<RenderPass*> _renderPasses{};
 
     AsyncLoader _asyncLoader{};

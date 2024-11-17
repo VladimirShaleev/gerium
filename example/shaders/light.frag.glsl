@@ -1,7 +1,5 @@
 #version 450
 
-#include "common/defines.h"
-
 #include "common/types.h"
 #include "common/utils.h"
 #include "common/lighting.h"

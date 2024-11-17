@@ -717,6 +717,33 @@ void SkyDomePrefilteredPass::uninitialize(gerium_frame_graph_t frameGraph, geriu
     _descriptorSets      = {};
 }
 
+void SkydomePass::render(gerium_frame_graph_t frameGraph,
+                         gerium_renderer_t renderer,
+                         gerium_command_buffer_t commandBuffer,
+                         gerium_uint32_t worker,
+                         gerium_uint32_t totalWorkers) {
+    auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
+                                                                         : application()->getCamera();
+    gerium_command_buffer_bind_technique(commandBuffer, _technique);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
+    gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+}
+
+void SkydomePass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+
+    _technique     = application()->resourceManager().loadTechnique((appDir / "techniques" / "skydome.yaml").string());
+    _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
+
+    gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "skydome_env", false);
+}
+
+void SkydomePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
+    _technique     = nullptr;
+}
+
 Application::Application() {
     check(gerium_logger_create("example", &_logger));
 }
@@ -1106,6 +1133,7 @@ void Application::initialize() {
     addPass(_bgiPass);
     addPass(_skyDomeGen);
     addPass(_skyDomePrefilteredPass);
+    addPass(_skydomePass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());

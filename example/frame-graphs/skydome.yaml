@@ -15,3 +15,17 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: skydome_prefiltered_env
         external: true
+
+  - name: skydome_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: skydome_env
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: color
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: depth
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: stub_dep_2
+        size: 4
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]

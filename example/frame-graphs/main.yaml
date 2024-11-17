@@ -91,6 +91,8 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: color
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
+        name: stub_dep_2
 
   - name: light_pass
     inputs:
