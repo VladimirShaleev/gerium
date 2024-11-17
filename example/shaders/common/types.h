@@ -42,6 +42,11 @@ struct SHADER_ALIGN SkyData {
     float mieDirectionalG;
 };
 
+struct SHADER_ALIGN SkyPrefilteredData {
+    vec4 invSize;
+    vec4 sampleDirections[32];
+};
+
 struct Angular {
     float NdotL;
     float NdotV;

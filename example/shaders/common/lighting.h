@@ -87,7 +87,7 @@ void calcLight(vec3 worldPosition, vec3 normal, vec3 view, Light light, PixelDat
 vec3 contributionIBL(vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI, vec3 specularGI, float diffuseGIFactor, float specularGIFactor) {
     float NdotV = clamp(dot(normal, view), 0.0, 1.0);
     vec2 brdfSamplePoint = clamp(vec2(NdotV, 1.0 - pixelData.perceptualRoughness), vec2(0.0), vec2(1.0));
-    vec2 brdf = textureLod(lutBRDF, pixelData.uv, 0).rg;
+    vec2 brdf = textureLod(lutBRDF, brdfSamplePoint, 0).rg;
 
     vec3 diffuse = diffuseGI * pixelData.baseColor * diffuseGIFactor;
     vec3 specular = specularGI * (pixelData.F0 * brdf.x + pixelData.F90 * brdf.y) * specularGIFactor;
@@ -95,10 +95,10 @@ vec3 contributionIBL(vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI
     return diffuse + specular;
 }
 
-void lighting(vec3 worldPosition, vec3 normal, vec3 view, PixelData pixelData, inout vec3 color, inout vec3 colorDifffuse) {
+void lighting(vec3 worldPosition, vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI, vec3 specularGI, inout vec3 color, inout vec3 colorDifffuse) {
     Light lights[1];
     lights[0].directionRange = vec4(-1.0, 1.0, -1.0, 1.0);
-    lights[0].colorIntensity = vec4(1.0, 1.0, 1.0, 10.0);
+    lights[0].colorIntensity = vec4(1.0, 1.0, 1.0, 40.0);
     lights[0].type           = LIGHT_TYPE_DIRECTIONAL;
 
     for (int i = 0; i < 1; ++i) {
@@ -111,7 +111,9 @@ void lighting(vec3 worldPosition, vec3 normal, vec3 view, PixelData pixelData, i
         colorDifffuse += diffuse;
     }
 
-    color += contributionIBL(normal, view, pixelData, vec3(0.0), vec3(0.0), 1.0, 1.0);
+    color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 1.5, 1.0);
+
+    colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 1.5, 0.0);
 }
 
 #endif

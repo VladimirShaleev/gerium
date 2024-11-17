@@ -352,6 +352,7 @@ void VkRenderer::onAsyncUploadTextureData(TextureHandle handle,
                                           gerium_texture_loaded_func_t callback,
                                           gerium_data_t data) {
     if (_isSupportedTransferQueue) {
+        _device->setLoadTexture(handle, false);
         marl::lock lock(_loadRequestsMutex);
         _loadRequests.push({ textureData, handle, callback, data });
         _loadEvent.signal();
@@ -709,7 +710,7 @@ void VkRenderer::onPresent() {
 
     while (!_finishedRequests.empty()) {
         const auto& request = _finishedRequests.front();
-        _device->finishLoadTexture(request.texture);
+        _device->setLoadTexture(request.texture, true);
         if (request.callback) {
             request.callback(this, request.texture, request.userData);
         }

@@ -49,7 +49,7 @@ public:
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
-    void finishLoadTexture(TextureHandle handle);
+    void setLoadTexture(TextureHandle handle, bool loaded);
 
     void bind(DescriptorSetHandle handle,
               gerium_uint16_t binding,
@@ -204,6 +204,10 @@ public:
     FfxResource ffxTexture(TextureHandle handle) const noexcept {
         auto texture = _textures.access(handle);
 
+        if (!texture->loaded) {
+            texture = _textures.access(_defaultTexture);
+        }
+
         FfxResourceDescription resourceDescription{};
 
         switch (texture->type) {
@@ -220,7 +224,7 @@ public:
                 resourceDescription.depth = texture->depth;
                 break;
             case GERIUM_TEXTURE_TYPE_CUBE:
-                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE2D;
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE_CUBE;
                 resourceDescription.depth = texture->layers;
                 break;
         }

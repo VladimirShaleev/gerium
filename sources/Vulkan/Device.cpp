@@ -407,6 +407,7 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     texture->mipBase       = 0;
     texture->mipLevels     = creation.mipmaps;
     texture->layers        = creation.layers;
+    texture->loaded        = true;
     texture->flags         = creation.flags;
     texture->type          = creation.type;
     texture->name          = intern(creation.name);
@@ -424,14 +425,10 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     if (hasDepthOrStencil(texture->vkFormat)) {
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        texture->loaded = true;
     } else {
         const auto renderTarget = (creation.flags & TextureFlags::RenderTarget) == TextureFlags::RenderTarget;
         usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         usage |= renderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0;
-        if (renderTarget) {
-            texture->loaded = true;
-        }
     }
 
     VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
@@ -493,6 +490,7 @@ TextureHandle Device::createTextureView(const TextureViewCreation& creation) {
     texture->depth         = parentTexture->depth;
     texture->mipBase       = creation.mipBaseLevel;
     texture->mipLevels     = creation.mipLevelCount;
+    texture->layers        = creation.arrayLayerCount;
     texture->loaded        = true;
     texture->flags         = parentTexture->flags;
     texture->type          = creation.type;
@@ -1278,9 +1276,9 @@ void Device::unmapBuffer(BufferHandle handle) {
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
-void Device::finishLoadTexture(TextureHandle handle) {
+void Device::setLoadTexture(TextureHandle handle, bool loaded) {
     auto texture    = _textures.access(handle);
-    texture->loaded = true;
+    texture->loaded = loaded;
 }
 
 void Device::bind(DescriptorSetHandle handle,
@@ -1959,6 +1957,7 @@ void Device::createSwapchain(Application* application) {
         _swapchainImages.insert(colorHandle);
 
         color->vkImage       = images[i];
+        color->layers        = 1;
         color->parentTexture = Undefined;
         color->sampler       = Undefined;
         color->loaded        = true;
@@ -2932,8 +2931,6 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
     _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
     _frameCommandBuffer->generateMipmaps(handle);
     destroyBuffer(stagingBuffer);
-
-    finishLoadTexture(handle);
 }
 
 std::vector<const char*> Device::selectValidationLayers() {

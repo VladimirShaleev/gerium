@@ -52,4 +52,29 @@ vec2 uvFromCoords(uvec2 coord, vec2 texelSize) {
     return (coord + 0.5) * texelSize;
 }
 
+vec3 getDirection(uint face, float x, float y) {
+    vec3 direction = vec3(0.0);
+    switch (face) {
+    case 0:
+        direction = vec3(1.0, y, -x);
+        break;
+    case 1:
+        direction = vec3(-1.0, y, x);
+        break;
+    case 2:
+        direction = vec3(x, 1.0, -y);
+        break;
+    case 3:
+        direction = vec3(x, -1.0, y);
+        break;
+    case 4:
+        direction = vec3(x, y, 1.0);
+        break;
+    case 5:
+        direction = vec3(-x, y, -1.0);
+        break;
+    }
+    return normalize(direction);
+}
+
 #endif

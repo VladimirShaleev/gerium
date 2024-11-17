@@ -90,11 +90,7 @@ frame graph:
   - name: present_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: light
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: diffuse_gi
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: debug_bsdf
+        name: color
 
   - name: light_pass
     inputs:
@@ -108,9 +104,17 @@ frame graph:
         name: ao_roughness_metallic
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: motion
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: diffuse_gi
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: specular_gi
       - type: GERIUM_RESOURCE_TYPE_REFERENCE
         name: stub_dep_1
     outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: color
+        format: GERIUM_FORMAT_B10G11R11_UFLOAT
+        render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: light
         format: GERIUM_FORMAT_B10G11R11_UFLOAT
@@ -244,6 +248,8 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: light
         previous frame: true
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: skydome_prefiltered_env
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: brick_aabbs
       - type: GERIUM_RESOURCE_TYPE_REFERENCE

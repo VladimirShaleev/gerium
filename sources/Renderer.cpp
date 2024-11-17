@@ -273,15 +273,22 @@ gerium_result_t gerium_renderer_create_texture(gerium_renderer_t renderer,
 
 gerium_result_t gerium_renderer_create_texture_view(gerium_renderer_t renderer,
                                                     gerium_texture_h texture,
+                                                    gerium_texture_type_t type,
                                                     gerium_uint16_t mip_base_level,
                                                     gerium_uint16_t mip_level_count,
+                                                    gerium_uint16_t layer_base,
+                                                    gerium_uint16_t layer_count,
                                                     gerium_utf8_t name,
                                                     gerium_texture_h* handle) {
     assert(renderer);
     GERIUM_ASSERT_ARG(handle);
 
     TextureViewCreation vc;
-    vc.setTexture({ texture.index }).setMips(mip_base_level, mip_level_count).setName(name);
+    vc.setTexture({ texture.index })
+        .setType(type)
+        .setMips(mip_base_level, mip_level_count)
+        .setArray(layer_base, layer_count)
+        .setName(name);
 
     GERIUM_BEGIN_SAFE_BLOCK
         *handle = alias_cast<Renderer*>(renderer)->createTextureView(vc);

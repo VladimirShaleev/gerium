@@ -1028,7 +1028,7 @@ gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type, bool
     };
 
     constexpr VkImageViewType arrayTypes[] = {
-        VK_IMAGE_VIEW_TYPE_1D_ARRAY, VK_IMAGE_VIEW_TYPE_2D_ARRAY, {}, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY
+        VK_IMAGE_VIEW_TYPE_1D_ARRAY, VK_IMAGE_VIEW_TYPE_2D_ARRAY, {}, VK_IMAGE_VIEW_TYPE_CUBE
     };
 
     return !arrayed ? types[(int) type] : arrayTypes[(int) type];

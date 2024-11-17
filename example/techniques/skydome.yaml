@@ -5,3 +5,9 @@ pipelines:
       - type: GERIUM_SHADER_TYPE_COMPUTE
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/skydome_gen.comp.glsl
+
+  - render pass: skydome_prefiltered_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/skydome_prefiltered.comp.glsl

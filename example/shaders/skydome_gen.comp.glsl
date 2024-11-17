@@ -22,32 +22,7 @@ layout(set = 0, binding = 0, std140) uniform SkyDataUBO {
     SkyData skyData;
 };
 
-layout(set = 0, binding = 1, rgba16f) uniform writeonly image2DArray envCube;
-
-vec3 getDirection(uint face, float x, float y) {
-    vec3 direction = vec3(0.0);
-    switch (face) {
-    case 0:
-        direction = vec3(1.0, y, -x);
-        break;
-    case 1:
-        direction = vec3(-1.0, y, x);
-        break;
-    case 2:
-        direction = vec3(x, 1.0, -y);
-        break;
-    case 3:
-        direction = vec3(x, -1.0, y);
-        break;
-    case 4:
-        direction = vec3(x, y, 1.0);
-        break;
-    case 5:
-        direction = vec3(-x, y, -1.0);
-        break;
-    }
-    return normalize(direction);
-}
+layout(set = 0, binding = 1, rgba16f) uniform writeonly imageCube envCube;
 
 float sunIntensity(float zenithAngleCos) {
     zenithAngleCos = clamp(zenithAngleCos, -1.0, 1.0);

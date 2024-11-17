@@ -149,11 +149,15 @@ Texture ResourceManager::createTexture(const gerium_texture_info_t& info,
 
 Texture ResourceManager::createTextureView(const std::string& name,
                                            const Texture& texture,
+                                           gerium_texture_type_t type,
                                            gerium_uint16_t mipBaseLevel,
                                            gerium_uint16_t mipLevelCount,
+                                           gerium_uint16_t layerBase,
+                                           gerium_uint16_t layerCount,
                                            gerium_uint64_t retentionMs) {
     gerium_texture_h textureView;
-    gerium_renderer_create_texture_view(_renderer, texture, mipBaseLevel, mipLevelCount, name.c_str(), &textureView);
+    gerium_renderer_create_texture_view(
+        _renderer, texture, type, mipBaseLevel, mipLevelCount, layerBase, layerCount, name.c_str(), &textureView);
 
     addResource("", name, textureView, retentionMs);
     return { this, textureView };

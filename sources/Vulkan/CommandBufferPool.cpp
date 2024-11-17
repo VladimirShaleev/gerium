@@ -41,7 +41,7 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
     barrier.subresourceRange.baseMipLevel   = mipLevel;
     barrier.subresourceRange.levelCount     = mipCount == 0 ? texture->mipLevels : mipCount;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount     = 1;
+    barrier.subresourceRange.layerCount     = texture->layers;
 
     if (hasStencil(texture->vkFormat)) {
         barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;

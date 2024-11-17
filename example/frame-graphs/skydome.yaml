@@ -5,3 +5,13 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: skydome_env
         external: true
+
+  - name: skydome_prefiltered_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: skydome_env
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: skydome_prefiltered_env
+        external: true

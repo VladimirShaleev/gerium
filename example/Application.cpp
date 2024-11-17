@@ -95,8 +95,9 @@ void DepthPyramidPass::createDepthPyramid(gerium_frame_graph_t frameGraph, geriu
 
         auto name = "depth_pyramid_mip_" + std::to_string(m);
 
-        _depthPyramidMips[m] = application()->resourceManager().createTextureView(name, _depthPyramid, m, 1, 0);
-        _descriptorSets[m]   = application()->resourceManager().createDescriptorSet("", true, 0);
+        _depthPyramidMips[m] =
+            application()->resourceManager().createTextureView(name, _depthPyramid, GERIUM_TEXTURE_TYPE_2D, m, 1, 0);
+        _descriptorSets[m] = application()->resourceManager().createDescriptorSet("", true, 0);
 
         if (m == 0) {
             gerium_renderer_bind_resource(renderer, _descriptorSets[m], 0, "depth", false);
@@ -204,6 +205,8 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_renderer_bind_resource(renderer, ds, 2, normalTexure, false);
     gerium_renderer_bind_resource(renderer, ds, 3, aoRoughnessMetallicTexure, false);
     gerium_renderer_bind_resource(renderer, ds, 4, motionTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 5, "diffuse_gi", false);
+    gerium_renderer_bind_resource(renderer, ds, 6, "specular_gi", false);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
@@ -220,7 +223,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 
     auto& settings = application()->settings();
     auto ds        = application()->resourceManager().createDescriptorSet("");
-    gerium_renderer_bind_resource(renderer, ds, 0, "light", false);
+    gerium_renderer_bind_resource(renderer, ds, 0, "color", false);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
@@ -469,6 +472,7 @@ void BGIPass::render(gerium_frame_graph_t frameGraph,
     gerium_texture_h roughnessTex;
     gerium_texture_h motionTex;
     gerium_texture_h prevLitTex;
+    gerium_texture_h skydomePrefilteredEnvTex;
     gerium_texture_h diffuseGITex;
     gerium_texture_h specularGITex;
     gerium_texture_h noiseTex = _noiseTextures[_frameIndex++ % _noiseTextures.size()];
@@ -481,6 +485,7 @@ void BGIPass::render(gerium_frame_graph_t frameGraph,
     check(gerium_renderer_get_texture(renderer, "ao_roughness_metallic", false, &roughnessTex));
     check(gerium_renderer_get_texture(renderer, "motion", false, &motionTex));
     check(gerium_renderer_get_texture(renderer, "light", true, &prevLitTex));
+    check(gerium_renderer_get_texture(renderer, "skydome_prefiltered_env", false, &skydomePrefilteredEnvTex));
     check(gerium_renderer_get_texture(renderer, "diffuse_gi", false, &diffuseGITex));
     check(gerium_renderer_get_texture(renderer, "specular_gi", false, &specularGITex));
     check(gerium_renderer_get_buffer(renderer, "brick_aabbs", &brickAabbs));
@@ -500,15 +505,15 @@ void BGIPass::render(gerium_frame_graph_t frameGraph,
     dispatchDesc->tMin                = 0.0f;
     dispatchDesc->tMax                = 100000.0f;
 
-    // dispatchDesc->environmentMap;
-    dispatchDesc->prevLitOutput = gerium_renderer_get_ffx_texture(renderer, prevLitTex);
-    dispatchDesc->depth         = gerium_renderer_get_ffx_texture(renderer, depthTex);
-    dispatchDesc->historyDepth  = gerium_renderer_get_ffx_texture(renderer, prevDepthTex);
-    dispatchDesc->normal        = gerium_renderer_get_ffx_texture(renderer, normalTex);
-    dispatchDesc->historyNormal = gerium_renderer_get_ffx_texture(renderer, prevNormalTex);
-    dispatchDesc->roughness     = gerium_renderer_get_ffx_texture(renderer, roughnessTex);
-    dispatchDesc->motionVectors = gerium_renderer_get_ffx_texture(renderer, motionTex);
-    dispatchDesc->noiseTexture  = gerium_renderer_get_ffx_texture(renderer, noiseTex);
+    dispatchDesc->environmentMap = gerium_renderer_get_ffx_texture(renderer, skydomePrefilteredEnvTex);
+    dispatchDesc->prevLitOutput  = gerium_renderer_get_ffx_texture(renderer, prevLitTex);
+    dispatchDesc->depth          = gerium_renderer_get_ffx_texture(renderer, depthTex);
+    dispatchDesc->historyDepth   = gerium_renderer_get_ffx_texture(renderer, prevDepthTex);
+    dispatchDesc->normal         = gerium_renderer_get_ffx_texture(renderer, normalTex);
+    dispatchDesc->historyNormal  = gerium_renderer_get_ffx_texture(renderer, prevNormalTex);
+    dispatchDesc->roughness      = gerium_renderer_get_ffx_texture(renderer, roughnessTex);
+    dispatchDesc->motionVectors  = gerium_renderer_get_ffx_texture(renderer, motionTex);
+    dispatchDesc->noiseTexture   = gerium_renderer_get_ffx_texture(renderer, noiseTex);
 
     dispatchDesc->normalsUnpackMul        = 1.0f;
     dispatchDesc->normalsUnpackAdd        = 0.0f;
@@ -579,7 +584,7 @@ void SkyDomeGenPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer
     info.width   = kSkySize;
     info.height  = kSkySize;
     info.depth   = 1;
-    info.mipmaps = calcMipLevels(kSkySize, kSkySize);
+    info.mipmaps = 1;
     info.layers  = 6;
     info.format  = GERIUM_FORMAT_R16G16B16A16_SFLOAT;
     info.type    = GERIUM_TEXTURE_TYPE_CUBE;
@@ -589,7 +594,17 @@ void SkyDomeGenPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer
     _technique     = application()->resourceManager().loadTechnique((appDir / "techniques" / "skydome.yaml").string());
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
     _skyData       = application()->resourceManager().createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", nullptr, sizeof(SkyData));
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "sky_data", nullptr, sizeof(SkyData));
+
+    gerium_renderer_texture_sampler(renderer,
+                                    _skyDome,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_ADDRESS_MODE_REPEAT,
+                                    GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
 
     gerium_frame_graph_add_texture(frameGraph, info.name, _skyDome);
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, _skyData);
@@ -600,6 +615,106 @@ void SkyDomeGenPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_render
     _descriptorSet = nullptr;
     _skyDome       = nullptr;
     _technique     = nullptr;
+}
+
+void SkyDomePrefilteredPass::render(gerium_frame_graph_t frameGraph,
+                                    gerium_renderer_t renderer,
+                                    gerium_command_buffer_t commandBuffer,
+                                    gerium_uint32_t worker,
+                                    gerium_uint32_t totalWorkers) {
+    gerium_command_buffer_bind_technique(commandBuffer, _technique);
+    for (gerium_uint32_t mip = 0; mip < kMips; ++mip) {
+        const auto mipSize   = static_cast<int32_t>(kSkySize * std::pow(0.5, mip));
+        const auto groupSize = getGroupCount(mipSize, SKY_GROUP_SIZE);
+        gerium_command_buffer_barrier_texture_write(commandBuffer, _skyDomeMips[mip]);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSets[mip], 0);
+        gerium_command_buffer_dispatch(commandBuffer, groupSize, groupSize, 6);
+        gerium_command_buffer_barrier_texture_read(commandBuffer, _skyDomeMips[mip]);
+    }
+}
+
+void SkyDomePrefilteredPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    assert(kMips == calcMipLevels(kSkySize, kSkySize));
+
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+
+    gerium_texture_info_t info{};
+    info.width   = kSkySize;
+    info.height  = kSkySize;
+    info.depth   = 1;
+    info.mipmaps = kMips;
+    info.layers  = 6;
+    info.format  = GERIUM_FORMAT_R16G16B16A16_SFLOAT;
+    info.type    = GERIUM_TEXTURE_TYPE_CUBE;
+    info.name    = "skydome_prefiltered_env";
+
+    _skyDomePrefiltered = application()->resourceManager().createTexture(info, nullptr);
+    _technique = application()->resourceManager().loadTechnique((appDir / "techniques" / "skydome.yaml").string());
+
+    gerium_renderer_texture_sampler(renderer,
+                                    _skyDomePrefiltered,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_FILTER_LINEAR,
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    GERIUM_ADDRESS_MODE_REPEAT,
+                                    GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE);
+
+    gerium_frame_graph_add_texture(frameGraph, info.name, _skyDomePrefiltered);
+
+    for (gerium_uint16_t mip = 0; mip < info.mipmaps; ++mip) {
+        uint32_t mipSize = static_cast<uint32_t>(kSkySize * std::pow(0.5, mip));
+        float roughness  = (float) mip / (float) (info.mipmaps - 1);
+
+        SkyPrefilteredData data{};
+        data.invSize.x = 1.0f / mipSize;
+
+        for (gerium_uint32_t i = 0; i < std::size(data.sampleDirections); ++i) {
+            auto& sample = data.sampleDirections[i];
+
+            const auto xi = hammersley(i, std::size(data.sampleDirections));
+            const float a = roughness * roughness;
+
+            const float phi      = 2.0f * M_PI * xi.x;
+            const float cosTheta = std::sqrt((1.0f - xi.y) / (1.0f + (a * a - 1.0f) * xi.y));
+            const float sinTheta = std::sqrt(1.0f - cosTheta * cosTheta);
+
+            sample.x = std::cos(phi) * sinTheta;
+            sample.y = std::sin(phi) * sinTheta;
+            sample.z = cosTheta;
+            sample.w = 0.0f;
+        }
+
+        _descriptorSets[mip] = application()->resourceManager().createDescriptorSet("", true);
+        _skyPrefilteredDatas[mip] =
+            application()->resourceManager().createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                                          false,
+                                                          "sky_prefiltered_data_" + std::to_string(mip),
+                                                          &data,
+                                                          sizeof(SkyPrefilteredData));
+
+        _skyDomeMips[mip] =
+            application()->resourceManager().createTextureView("skydome_prefiltered_env_mip_" + std::to_string(mip),
+                                                               _skyDomePrefiltered,
+                                                               GERIUM_TEXTURE_TYPE_CUBE,
+                                                               mip,
+                                                               1,
+                                                               0,
+                                                               6);
+
+        gerium_renderer_bind_buffer(renderer, _descriptorSets[mip], 0, _skyPrefilteredDatas[mip]);
+        gerium_renderer_bind_resource(renderer, _descriptorSets[mip], 1, "skydome_env", false);
+        gerium_renderer_bind_texture(renderer, _descriptorSets[mip], 2, 0, _skyDomeMips[mip]);
+    }
+}
+
+void SkyDomePrefilteredPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _technique           = {};
+    _skyDomePrefiltered  = {};
+    _skyPrefilteredDatas = {};
+    _skyDomeMips         = {};
+    _descriptorSets      = {};
 }
 
 Application::Application() {
@@ -658,7 +773,7 @@ void Application::createBrixelizerContext() {
     _brixelizerParams->numCascades  = kNumBrixelizerCascades;
     // _brixelizerParams->flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
 
-    auto voxelSize = 0.2f;
+    auto voxelSize = 0.4f;
     for (uint32_t i = 0; i < _brixelizerParams->numCascades; ++i) {
         auto& cascade     = _brixelizerParams->cascadeDescs[i];
         cascade.flags     = (FfxBrixelizerCascadeFlag) (FFX_BRIXELIZER_CASCADE_STATIC | FFX_BRIXELIZER_CASCADE_DYNAMIC);
@@ -990,6 +1105,7 @@ void Application::initialize() {
     addPass(_bsdfPass);
     addPass(_bgiPass);
     addPass(_skyDomeGen);
+    addPass(_skyDomePrefilteredPass);
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
     _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
