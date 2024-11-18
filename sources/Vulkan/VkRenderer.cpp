@@ -352,7 +352,6 @@ void VkRenderer::onAsyncUploadTextureData(TextureHandle handle,
                                           gerium_texture_loaded_func_t callback,
                                           gerium_data_t data) {
     if (_isSupportedTransferQueue) {
-        _device->setLoadTexture(handle, false);
         marl::lock lock(_loadRequestsMutex);
         _loadRequests.push({ textureData, handle, callback, data });
         _loadEvent.signal();
@@ -603,6 +602,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (node->compute) {
                     _device->addInputResource(resource, texture, false);
                 }
+                _device->setLoadTexture(texture, true);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
                 auto buffer = resource->info.buffer.handle;
                 cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess);

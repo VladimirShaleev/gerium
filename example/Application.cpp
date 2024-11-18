@@ -613,6 +613,7 @@ void SkyDomeGenPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer
 
 void SkyDomeGenPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     _descriptorSet = nullptr;
+    _skyData       = nullptr;
     _skyDome       = nullptr;
     _technique     = nullptr;
 }

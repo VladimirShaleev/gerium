@@ -122,7 +122,7 @@ void Device::create(Application* application,
     createSurface(application);
     createPhysicalDevice();
     createDevice(application->workerThreadCount(), features);
-    createProfiler(32);
+    createProfiler(64);
     createDescriptorPools();
     createVmaAllocator();
     createDynamicBuffers();
@@ -407,7 +407,6 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
     texture->mipBase       = 0;
     texture->mipLevels     = creation.mipmaps;
     texture->layers        = creation.layers;
-    texture->loaded        = true;
     texture->flags         = creation.flags;
     texture->type          = creation.type;
     texture->name          = intern(creation.name);
@@ -2931,6 +2930,8 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
     _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
     _frameCommandBuffer->generateMipmaps(handle);
     destroyBuffer(stagingBuffer);
+
+    setLoadTexture(handle, true);
 }
 
 std::vector<const char*> Device::selectValidationLayers() {
