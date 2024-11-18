@@ -18,7 +18,7 @@ vec3 ACESFilm(vec3 x) {
 void main() {
     vec3 color = textureLod(texColor, texCoord, 0).rgb;
 
-    float exposure = 0.2;
+    float exposure = 1.0;
 
     color = ACESFilm(color * exposure);
     color = pow(color, vec3(1.0 / 2.2)); 

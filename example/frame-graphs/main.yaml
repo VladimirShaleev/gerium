@@ -91,6 +91,8 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: color
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: debug_gi
       - type: GERIUM_RESOURCE_TYPE_REFERENCE
         name: stub_dep_2
 
@@ -263,5 +265,9 @@ frame graph:
         render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: specular_gi
+        format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
+        render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: debug_gi
         format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE

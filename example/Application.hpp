@@ -6,6 +6,9 @@
 #include "ResourceManager.hpp"
 #include "Settings.hpp"
 
+constexpr uint32_t kFfxBrixelizerMaxCascades = 18; // FFX_BRIXELIZER_MAX_CASCADES;
+constexpr uint32_t kNumBrixelizerCascades    = kFfxBrixelizerMaxCascades / 3;
+
 struct Cluster {
     gerium_uint32_t instanceCount;
     Buffer vertices;
@@ -271,9 +274,6 @@ private:
 
 class Application final {
 public:
-    static constexpr uint32_t kFfxBrixelizerMaxCascades = FFX_BRIXELIZER_MAX_CASCADES;
-    static constexpr uint32_t kNumBrixelizerCascades    = kFfxBrixelizerMaxCascades / 3;
-
     Application();
     ~Application();
 

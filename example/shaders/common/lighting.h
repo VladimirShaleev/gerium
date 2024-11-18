@@ -98,7 +98,7 @@ vec3 contributionIBL(vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI
 void lighting(vec3 worldPosition, vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI, vec3 specularGI, inout vec3 color, inout vec3 colorDifffuse) {
     Light lights[1];
     lights[0].directionRange = vec4(-1.0, 1.0, -1.0, 1.0);
-    lights[0].colorIntensity = vec4(1.0, 1.0, 1.0, 40.0);
+    lights[0].colorIntensity = vec4(1.0, 1.0, 1.0, 5.0);
     lights[0].type           = LIGHT_TYPE_DIRECTIONAL;
 
     for (int i = 0; i < 1; ++i) {
@@ -111,9 +111,9 @@ void lighting(vec3 worldPosition, vec3 normal, vec3 view, PixelData pixelData, v
         colorDifffuse += diffuse;
     }
 
-    color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 1.5, 1.0);
+    color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
 
-    colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 1.5, 0.0);
+    colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
 }
 
 #endif
