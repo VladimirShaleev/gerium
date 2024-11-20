@@ -20,6 +20,7 @@
 
 #define make_vec4 fix_make_vec4
 #include <gli/copy.hpp>
+#include <gli/generate_mipmaps.hpp>
 #include <gli/gli.hpp>
 #include <gli/sampler.hpp>
 
@@ -57,6 +58,91 @@ struct PBRProperties {
     float metallic;
     float roughness;
 };
+
+static void check(ktx_error_code_e code) {
+    switch (code) {
+        case KTX_FILE_DATA_ERROR:
+            throw std::runtime_error("The data in the file is inconsistent with the spec.");
+        case KTX_FILE_ISPIPE:
+            throw std::runtime_error("The file is a pipe or named pipe.");
+        case KTX_FILE_OPEN_FAILED:
+            throw std::runtime_error("The target file could not be opened.");
+        case KTX_FILE_OVERFLOW:
+            throw std::runtime_error("The operation would exceed the max file size.");
+        case KTX_FILE_READ_ERROR:
+            throw std::runtime_error("An error occurred while reading from the file.");
+        case KTX_FILE_SEEK_ERROR:
+            throw std::runtime_error("An error occurred while seeking in the file.");
+        case KTX_FILE_UNEXPECTED_EOF:
+            throw std::runtime_error("File does not have enough data to satisfy request.");
+        case KTX_FILE_WRITE_ERROR:
+            throw std::runtime_error("An error occurred while writing to the file.");
+        case KTX_GL_ERROR:
+            throw std::runtime_error("GL operations resulted in an error.");
+        case KTX_INVALID_OPERATION:
+            throw std::runtime_error("The operation is not allowed in the current state.");
+        case KTX_INVALID_VALUE:
+            throw std::runtime_error("A parameter value was not valid.");
+        case KTX_NOT_FOUND:
+            throw std::runtime_error(
+                "Requested metadata key or required dynamically loaded GPU function was not found.");
+        case KTX_OUT_OF_MEMORY:
+            throw std::runtime_error("Not enough memory to complete the operation.");
+        case KTX_TRANSCODE_FAILED:
+            throw std::runtime_error("Transcoding of block compressed texture failed.");
+        case KTX_UNKNOWN_FILE_FORMAT:
+            throw std::runtime_error("The file not a KTX file");
+        case KTX_UNSUPPORTED_TEXTURE_TYPE:
+            throw std::runtime_error("The KTX file specifies an unsupported texture type.");
+        case KTX_UNSUPPORTED_FEATURE:
+            throw std::runtime_error("Feature not included in in-use library or not yet implemented.");
+        case KTX_LIBRARY_NOT_LINKED:
+            throw std::runtime_error("Library dependency (OpenGL or Vulkan) not linked into application.");
+        case KTX_DECOMPRESS_LENGTH_ERROR:
+            throw std::runtime_error("Decompressed byte count does not match expected byte size");
+        case KTX_DECOMPRESS_CHECKSUM_ERROR:
+            throw std::runtime_error("Checksum mismatch when decompressing");
+    }
+}
+
+static void saveImage(gli::texture2d& tex, const char* file) {
+    auto mips = int(std::floor(std::log2(std::max(tex.extent(0).x, tex.extent(0).y)))) + 1;
+
+    gli::generate_mipmaps(tex, gli::filter::FILTER_LINEAR);
+
+    ktxTextureCreateInfo ci{};
+    ci.vkFormat      = 37; // VK_FORMAT_R8G8B8A8_UNORM
+    ci.baseWidth     = tex.extent(0).x;
+    ci.baseHeight    = tex.extent(0).y;
+    ci.baseDepth     = 1;
+    ci.numDimensions = 2;
+    ci.numLevels     = mips;
+    ci.numLayers     = 1;
+    ci.numFaces      = 1;
+
+    ktxTexture2* texture;
+    check(ktxTexture2_Create(&ci, KTX_TEXTURE_CREATE_ALLOC_STORAGE, &texture));
+
+    for (int mip = 0; mip < mips; ++mip) {
+        auto width  = tex.extent(mip).x;
+        auto height = tex.extent(mip).y;
+        auto data   = (uint8_t*) tex.data(0, 0, mip);
+
+        check(ktxTexture_SetImageFromMemory(ktxTexture(texture), mip, 0, 0, data, width * height * 4));
+    }
+
+    ktxBasisParams params{};
+    params.structSize       = sizeof(ktxBasisParams);
+    params.compressionLevel = 5;
+    params.uastc            = KTX_TRUE;
+
+    check(ktxTexture2_CompressBasisEx(texture, &params));
+
+    check(ktxTexture2_DeflateZLIB(texture, 9));
+
+    check(ktxTexture_WriteToNamedFile(ktxTexture(texture), file));
+    ktxTexture_Destroy(ktxTexture(texture));
+}
 
 static PBRProperties calcPBRPropertiesFromPhong(const glm::vec4& diffuse,
                                                 const glm::vec3& specularColor,
@@ -162,15 +248,22 @@ static std::pair<uint32_t, bool> convertTextures(Cache& cache,
     auto index = uint32_t(cache.materials.size());
     auto name  = config.outputFile.filename().replace_extension().string() + "_" + std::to_string(index);
 
-    auto baseNameOut      = (outDir / (name + "_base.png")).make_preferred().string();
-    auto normalNameOut    = (outDir / (name + "_normal.png")).make_preferred().string();
-    auto metalnessNameOut = (outDir / (name + "_metalness.png")).make_preferred().string();
+    auto baseNameOut      = (outDir / (name + "_base.ktx2")).make_preferred().string();
+    auto normalNameOut    = (outDir / (name + "_normal.ktx2")).make_preferred().string();
+    auto metalnessNameOut = (outDir / (name + "_metalness.ktx2")).make_preferred().string();
 
     gli::texture2d baseTexOut(gli::FORMAT_RGBA8_UNORM_PACK8, diffuseRGBA8.extent(), diffuseRGBA8.levels());
     gli::texture2d normalTexOut(gli::FORMAT_RGBA8_UNORM_PACK8, diffuseRGBA8.extent(), diffuseRGBA8.levels());
     gli::texture2d metalnessTexOut(gli::FORMAT_RGBA8_UNORM_PACK8, diffuseRGBA8.extent(), diffuseRGBA8.levels());
 
     bool transparency = false;
+
+    uint32_t lastBase      = 0;
+    uint32_t lastNormal    = 0;
+    uint32_t lastMetalness = 0;
+    bool simpleBase        = true;
+    bool simpleNormal      = true;
+    bool simpleMetalness   = true;
 
     for (auto m = diffuseRGBA8.base_level(); m < diffuseRGBA8.max_level() - 1; ++m) {
         auto width  = diffuseRGBA8.extent(m).x;
@@ -183,8 +276,8 @@ static std::pair<uint32_t, bool> convertTextures(Cache& cache,
                 auto nlevel = float(m) / (diffuseRGBA8.levels() - 1);
 
                 const auto ndiff = diffuseSampler.texture_lod(uv, m);
-                auto nnorm = normalSampler.texture_lod(uv, m);
-                nnorm.y = 1.0 - nnorm.y;
+                auto nnorm       = normalSampler.texture_lod(uv, m);
+                nnorm.y          = 1.0 - nnorm.y;
                 const auto nspec = specularName.length == 0
                                        ? glm::vec4(0.0f, shininessExponent, specularFactor, 1.0f)
                                        : specularSampler.texture_lod(uv, nlevel * (specularRGBA8.levels() - 1));
@@ -207,6 +300,23 @@ static std::pair<uint32_t, bool> convertTextures(Cache& cache,
                 uint32_t metalness = (uint32_t(result.metallic * 255.0f) << 0) |
                                      (uint32_t(result.roughness * 255.0f) << 8) | (uint32_t(1.0f * 255.0f) << 16) |
                                      (uint32_t(1.0f * 255.0f) << 24);
+
+                if (x == 0 && y == 0) {
+                    lastBase      = base;
+                    lastNormal    = normal;
+                    lastMetalness = metalness;
+                } else {
+                    if (lastBase != base) {
+                        simpleBase = false;
+                    }
+                    if (lastNormal != normal) {
+                        simpleNormal = false;
+                    }
+                    if (lastMetalness != metalness) {
+                        simpleMetalness = false;
+                    }
+                }
+
                 baseTexOut.store({ x, y }, m, base);
                 normalTexOut.store({ x, y }, m, normal);
                 metalnessTexOut.store({ x, y }, m, metalness);
@@ -216,27 +326,42 @@ static std::pair<uint32_t, bool> convertTextures(Cache& cache,
                 }
             }
         }
-        break; // png not supported mil levels
+        break;
     }
 
-    stbi_write_png(baseNameOut.c_str(),
-                   diffuseRGBA8.extent(0).x,
-                   diffuseRGBA8.extent(0).y,
-                   4,
-                   baseTexOut.data(0, 0, 0),
-                   diffuseRGBA8.extent(0).x * 4);
-    stbi_write_png(normalNameOut.c_str(),
-                   diffuseRGBA8.extent(0).x,
-                   diffuseRGBA8.extent(0).y,
-                   4,
-                   normalTexOut.data(0, 0, 0),
-                   diffuseRGBA8.extent(0).x * 4);
-    stbi_write_png(metalnessNameOut.c_str(),
-                   diffuseRGBA8.extent(0).x,
-                   diffuseRGBA8.extent(0).y,
-                   4,
-                   metalnessTexOut.data(0, 0, 0),
-                   diffuseRGBA8.extent(0).x * 4);
+    if (simpleBase) {
+        printf("  simplifaction base\n");
+        baseTexOut = gli::texture2d(gli::FORMAT_RGBA8_UNORM_PACK8, { 4, 4 }, 3);
+        for (int y = 0; y < 4; ++y) {
+            for (int x = 0; x < 4; ++x) {
+                baseTexOut.store({ x, y }, 0, lastBase);
+            }
+        }
+    }
+
+    if (simpleNormal) {
+        printf("  simplifaction normals\n");
+        normalTexOut = gli::texture2d(gli::FORMAT_RGBA8_UNORM_PACK8, { 4, 4 }, 3);
+        for (int y = 0; y < 4; ++y) {
+            for (int x = 0; x < 4; ++x) {
+                normalTexOut.store({ x, y }, 0, lastNormal);
+            }
+        }
+    }
+
+    if (simpleMetalness) {
+        printf("  simplifaction metalness\n");
+        metalnessTexOut = gli::texture2d(gli::FORMAT_RGBA8_UNORM_PACK8, { 4, 4 }, 3);
+        for (int y = 0; y < 4; ++y) {
+            for (int x = 0; x < 4; ++x) {
+                metalnessTexOut.store({ x, y }, 0, lastMetalness);
+            }
+        }
+    }
+
+    saveImage(diffuseRGBA8, baseNameOut.c_str());
+    saveImage(normalTexOut, normalNameOut.c_str());
+    saveImage(metalnessTexOut, metalnessNameOut.c_str());
 
     if (transparency) {
         std::cout << "  material has transparency" << std::endl;
@@ -628,9 +753,9 @@ int main(int argc, char* argv[]) {
     auto simpleMeshesSize    = uint32_t(cluster.simpleMeshes.size() * sizeof(SimpleMesh));
 
     if (compress) {
-        auto verticesSize     = uint32_t(cluster.vertices.size() * sizeof(VertexCompressed));
-        auto meshletsSize     = uint32_t(cluster.meshlets.size() * sizeof(MeshletCompressed));
-        auto meshesSize       = uint32_t(cluster.meshes.size() * sizeof(MeshCompressed));
+        auto verticesSize = uint32_t(cluster.vertices.size() * sizeof(VertexCompressed));
+        auto meshletsSize = uint32_t(cluster.meshlets.size() * sizeof(MeshletCompressed));
+        auto meshesSize   = uint32_t(cluster.meshes.size() * sizeof(MeshCompressed));
         stream.write((const char*) &verticesSize, sizeof(verticesSize));
         stream.write((const char*) &meshletsSize, sizeof(meshletsSize));
         stream.write((const char*) &meshesSize, sizeof(meshesSize));

@@ -49,7 +49,8 @@ public:
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
-    void setLoadTexture(TextureHandle handle, bool loaded);
+    void finishLoadTexture(TextureHandle handle, uint8_t mip);
+    void showViewMips(TextureHandle handle);
 
     void bind(DescriptorSetHandle handle,
               gerium_uint16_t binding,
@@ -141,6 +142,10 @@ public:
         return _meshShaderSupported;
     }
 
+    TextureCompressionFlags compressions() const noexcept {
+        return _compressions;
+    }
+
     bool isProfilerEnable() const noexcept {
         return _profilerEnabled;
     }
@@ -204,7 +209,7 @@ public:
     FfxResource ffxTexture(TextureHandle handle) const noexcept {
         auto texture = _textures.access(handle);
 
-        if (!texture->loaded) {
+        if (texture->loadedMips == 0) {
             texture = _textures.access(_defaultTexture);
         }
 
@@ -474,6 +479,7 @@ private:
     VkDescriptorSet _freeDescriptorSetQueue2[64]{};
     gerium_uint32_t _numFreeDescriptorSetQueue{};
     gerium_uint32_t _numFreeDescriptorSetQueue2{};
+    std::vector<std::pair<gerium_uint32_t, VkImageView>> _unusedImageViews{};
     std::map<gerium_uint64_t, Handle> _currentInputResources{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
@@ -487,6 +493,7 @@ private:
     bool _meshShaderSupported{};
     bool _8BitStorageSupported{};
     bool _16BitStorageSupported{};
+    TextureCompressionFlags _compressions{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};

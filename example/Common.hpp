@@ -29,6 +29,7 @@
 #include <glm/ext.hpp>
 #include <glm/gtc/type_precision.hpp>
 
+#include <ktx.h>
 #include <stb_image.h>
 
 #include <wyhash.h>
@@ -46,9 +47,50 @@
 
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 
+inline int typeIdSequence = 0;
+template <typename T>
+inline const int typeId = typeIdSequence++;
+
 inline void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
         throw std::runtime_error(gerium_result_to_string(result));
+    }
+}
+
+inline void ffxCheck(FfxErrorCode code) {
+    switch (code) {
+        case FFX_ERROR_INVALID_POINTER:
+            throw std::runtime_error("The operation failed due to an invalid pointer");
+        case FFX_ERROR_INVALID_ALIGNMENT:
+            throw std::runtime_error("The operation failed due to an invalid alignment");
+        case FFX_ERROR_INVALID_SIZE:
+            throw std::runtime_error("The operation failed due to an invalid size");
+        case FFX_EOF:
+            throw std::runtime_error("The end of the file was encountered");
+        case FFX_ERROR_INVALID_PATH:
+            throw std::runtime_error("The operation failed because the specified path was invalid");
+        case FFX_ERROR_EOF:
+            throw std::runtime_error("The operation failed because end of file was reached");
+        case FFX_ERROR_MALFORMED_DATA:
+            throw std::runtime_error("The operation failed because of some malformed data");
+        case FFX_ERROR_OUT_OF_MEMORY:
+            throw std::runtime_error("The operation failed because it ran out memory");
+        case FFX_ERROR_INCOMPLETE_INTERFACE:
+            throw std::runtime_error("The operation failed because the interface was not fully configured");
+        case FFX_ERROR_INVALID_ENUM:
+            throw std::runtime_error("The operation failed because of an invalid enumeration value");
+        case FFX_ERROR_INVALID_ARGUMENT:
+            throw std::runtime_error("The operation failed because an argument was invalid");
+        case FFX_ERROR_OUT_OF_RANGE:
+            throw std::runtime_error("The operation failed because a value was out of range");
+        case FFX_ERROR_NULL_DEVICE:
+            throw std::runtime_error("The operation failed because a device was null");
+        case FFX_ERROR_BACKEND_API_ERROR:
+            throw std::runtime_error("The operation failed because the backend API returned an error code");
+        case FFX_ERROR_INSUFFICIENT_MEMORY:
+            throw std::runtime_error("The operation failed because there was not enough memory");
+        case FFX_ERROR_INVALID_VERSION:
+            throw std::runtime_error("The operation failed because the wrong backend was linked");
     }
 }
 

@@ -1502,6 +1502,13 @@ gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
                                       gerium_descriptor_set_h* handle);
 
 gerium_public gerium_result_t
+gerium_renderer_async_load_texture(gerium_renderer_t renderer,
+                                   gerium_utf8_t filename,
+                                   gerium_texture_loaded_func_t callback,
+                                   gerium_data_t data,
+                                   gerium_texture_h* handle);
+
+gerium_public gerium_result_t
 gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
                                           gerium_texture_h handle,
                                           gerium_cdata_t texture_data,

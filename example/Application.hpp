@@ -6,7 +6,7 @@
 #include "ResourceManager.hpp"
 #include "Settings.hpp"
 
-constexpr uint32_t kFfxBrixelizerMaxCascades = 18; // FFX_BRIXELIZER_MAX_CASCADES;
+constexpr uint32_t kFfxBrixelizerMaxCascades = 12; // FFX_BRIXELIZER_MAX_CASCADES;
 constexpr uint32_t kNumBrixelizerCascades    = kFfxBrixelizerMaxCascades / 3;
 
 struct Cluster {
@@ -180,7 +180,47 @@ public:
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
 
+    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+    uint32_t registerBuffer(gerium_renderer_t renderer, const Buffer& handle);
+    FfxBrixelizerInstanceID createInstance(const FfxBrixelizerInstanceDescription& instance);
+    void recreateContext(gerium_renderer_t renderer);
+
+    FfxBrixelizerContextDescription* brixelizerParams() noexcept {
+        return &_brixelizerParams;
+    }
+
+    FfxBrixelizerContext* brixelizerContext() noexcept {
+        return &_brixelizerContext;
+    }
+
+    gerium_texture_h bsdfAtlas() const noexcept {
+        return _bsdfAtlas;
+    }
+
+    gerium_buffer_h cascadeAABBTrees(gerium_uint32_t index) const noexcept {
+        return _cascadeAABBTrees[index];
+    }
+
+    gerium_buffer_h cascadeBrickMaps(gerium_uint32_t index) const noexcept {
+        return _cascadeBrickMaps[index];
+    }
+
 private:
+    void createContext(gerium_renderer_t renderer);
+    void destroyContext(gerium_renderer_t renderer);
+
+    FfxBrixelizerContextDescription _brixelizerParams{};
+    FfxBrixelizerContext _brixelizerContext{};
+    FfxBrixelizerBakedUpdateDescription _brixelizerBakedUpdateDesc{};
+    Texture _bsdfAtlas{};
+    std::array<Buffer, kFfxBrixelizerMaxCascades> _cascadeAABBTrees{};
+    std::array<Buffer, kFfxBrixelizerMaxCascades> _cascadeBrickMaps{};
+    std::vector<Buffer> _brixelizerBuffers{};
+    std::vector<uint32_t> _brixelizerBufferIds{};
+    std::vector<FfxBrixelizerInstanceDescription> _brixelizerInstances{};
+    std::vector<FfxBrixelizerInstanceID> _brixelizerInstanceIds{};
     gerium_uint32_t _frameIndex{};
 };
 
@@ -195,11 +235,16 @@ public:
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
 
-    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
 private:
-    std::array<Texture, 16> _noiseTextures{};
+    void createContext();
+    void destroyContext(gerium_renderer_t renderer);
+
+    FfxBrixelizerGIContext _brixelizerGIContext{};
+    FfxBrixelizerGIDispatchDescription _dispatchDesc{};
     gerium_uint32_t _frameIndex{};
 };
 
@@ -231,7 +276,7 @@ private:
 class SkyDomePrefilteredPass final : public RenderPass {
 public:
     static constexpr uint16_t kSkySize = 512;
-    static constexpr uint16_t kMips = 10;
+    static constexpr uint16_t kMips    = 10;
 
     SkyDomePrefilteredPass() : RenderPass("skydome_prefiltered_pass") {
     }
@@ -339,37 +384,34 @@ public:
         return _drawData;
     }
 
-    gerium_texture_h bsdfAtlas() const noexcept {
-        return _bsdfAtlas;
+    gerium_texture_h noiseTexture(uint32_t index) const noexcept {
+        return _noiseTextures[index % std::size(_noiseTextures)];
     }
-
-    gerium_buffer_h cascadeAABBTrees(gerium_uint32_t index) const noexcept {
-        return _cascadeAABBTrees[index];
-    }
-
-    gerium_buffer_h cascadeBrickMaps(gerium_uint32_t index) const noexcept {
-        return _cascadeBrickMaps[index];
-    }
-
-    FfxBrixelizerContext* brixelizerContext() noexcept {
-        return _brixelizerContext.get();
-    }
-
-    FfxBrixelizerGIContext* brixelizerGIContext() noexcept {
-        return _brixelizerGIContext.get();
-    }
-
-    FfxBrixelizerBakedUpdateDescription* brixelizerBakedUpdateDesc() noexcept {
-        return _brixelizerBakedUpdateDesc.get();
-    }
-
-    FfxBrixelizerGIDispatchDescription* brixelizerGIDispatch() noexcept {
-        return _brixelizerGIDispatch.get();
+    
+    template <typename RP>
+    RP* getPass() noexcept {
+        static_assert(std::is_base_of_v<RenderPass, RP>);
+        if (auto it = _renderPassesCache.find(typeId<RP>); it != _renderPassesCache.end()) {
+            return (RP*) it->second;
+        }
+        return nullptr;
     }
 
 private:
-    void addPass(RenderPass& renderPass);
-    void createBrixelizerContext();
+    template <typename RP, typename... Args>
+    void addPass(Args&&... args) {
+        static_assert(std::is_base_of_v<RenderPass, RP>);
+
+        auto renderPass = std::make_unique<RP>(std::forward<Args>(args)...);
+        renderPass->setApplication(this);
+
+        gerium_render_pass_t pass{ prepare, resize, render };
+        gerium_frame_graph_add_pass(_frameGraph, renderPass->name().c_str(), &pass, renderPass.get());
+
+        _renderPassesCache[typeId<RP>] = renderPass.get();
+        _renderPasses.push_back(std::move(renderPass));
+    }
+
     void createScene();
     Cluster loadCluster(std::string_view name);
 
@@ -431,23 +473,8 @@ private:
     bool _meshShaderSupported{};
 
     Settings _settings{};
-    DepthPyramidPass _depthPyramidPass{};
-    CullingPass _cullingPass{ false };
-    CullingPass _cullingLatePass{ true };
-    GBufferPass _gbufferPass{ false };
-    GBufferPass _gbufferLatePass{ true };
-    PresentPass _presentPass{};
-    IndirectPass _indirectPass{ false };
-    IndirectPass _indirectLatePass{ true };
-    DebugOcclusionPass _debugOcclusionPass{};
-    LightPass _lightPass{};
-    DebugLinePass _debugLinePass{};
-    BSDFPass _bsdfPass{};
-    BGIPass _bgiPass{};
-    SkyDomeGenPass _skyDomeGen{};
-    SkyDomePrefilteredPass _skyDomePrefilteredPass{};
-    SkydomePass _skydomePass{};
-    std::vector<RenderPass*> _renderPasses{};
+    std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
+    std::map<int, RenderPass*> _renderPassesCache{};
 
     AsyncLoader _asyncLoader{};
     ResourceManager _resourceManager{};
@@ -463,23 +490,12 @@ private:
 
     Technique _baseTechnique{};
 
+    std::array<Texture, 16> _noiseTextures{};
     Texture _brdfLut{};
-    Texture _emptyTexture{};
     std::vector<Texture> _textures{};
     DescriptorSet _texturesSet{};
     Cluster _cluster{};
     Buffer _drawData{};
-
-    std::unique_ptr<FfxBrixelizerContextDescription> _brixelizerParams{};
-    std::unique_ptr<FfxBrixelizerContext> _brixelizerContext{};
-    std::unique_ptr<FfxBrixelizerGIContext> _brixelizerGIContext{};
-    std::unique_ptr<FfxBrixelizerBakedUpdateDescription> _brixelizerBakedUpdateDesc{};
-    std::unique_ptr<FfxBrixelizerGIDispatchDescription> _brixelizerGIDispatch{};
-    std::array<uint32_t, 2> _brixelizerBuffers{};
-    std::vector<FfxBrixelizerInstanceID> _brixelizerInstances{};
-    Texture _bsdfAtlas{};
-    Buffer _cascadeAABBTrees[FFX_BRIXELIZER_MAX_CASCADES]{};
-    Buffer _cascadeBrickMaps[FFX_BRIXELIZER_MAX_CASCADES]{};
 };
 
 #endif

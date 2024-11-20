@@ -78,33 +78,42 @@ Texture ResourceManager::loadTexture(const std::string& path, gerium_uint64_t re
         return texture;
     }
 
-    gerium_file_t file;
-    check(gerium_file_open(path.c_str(), true, &file));
-    auto size = gerium_file_get_size(file);
-    auto data = gerium_file_map(file);
-    auto name = std::filesystem::path(path).filename().string();
+    if (path.ends_with(".png")) {
+        gerium_file_t file;
+        check(gerium_file_open(path.c_str(), true, &file));
+        auto size = gerium_file_get_size(file);
+        auto data = gerium_file_map(file);
+        auto name = std::filesystem::path(path).filename().string();
 
-    int comp, width, height;
-    stbi_info_from_memory((const stbi_uc*) data, (int) size, &width, &height, &comp);
+        int comp, width, height;
+        stbi_info_from_memory((const stbi_uc*) data, (int) size, &width, &height, &comp);
 
-    auto mipLevels = calcMipLevels(width, height);
+        auto mipLevels = calcMipLevels(width, height);
 
-    gerium_texture_info_t info{};
-    info.width   = (gerium_uint16_t) width;
-    info.height  = (gerium_uint16_t) height;
-    info.depth   = 1;
-    info.mipmaps = (gerium_uint16_t) mipLevels;
-    info.format  = GERIUM_FORMAT_R8G8B8A8_UNORM;
-    info.type    = GERIUM_TEXTURE_TYPE_2D;
-    info.name    = name.c_str();
+        gerium_texture_info_t info{};
+        info.width   = (gerium_uint16_t) width;
+        info.height  = (gerium_uint16_t) height;
+        info.depth   = 1;
+        info.mipmaps = (gerium_uint16_t) mipLevels;
+        info.format  = GERIUM_FORMAT_R8G8B8A8_UNORM;
+        info.type    = GERIUM_TEXTURE_TYPE_2D;
+        info.name    = name.c_str();
 
-    gerium_texture_h texture;
-    check(gerium_renderer_create_texture(_renderer, &info, nullptr, &texture));
+        gerium_texture_h texture;
+        check(gerium_renderer_create_texture(_renderer, &info, nullptr, &texture));
 
-    _loader->loadTexture(texture, file, data);
+        _loader->loadTexture(texture, file, data);
 
-    addResource(path, name, texture, retentionMs);
-    return { this, texture };
+        addResource(path, name, texture, retentionMs);
+        return { this, texture };
+    } else {
+        gerium_texture_h texture;
+        check(gerium_renderer_async_load_texture(_renderer, path.c_str(), nullptr, nullptr, &texture));
+
+        auto name = std::filesystem::path(path).filename().string();
+        addResource(path, name, texture, retentionMs);
+        return { this, texture };
+    }
 }
 
 Technique ResourceManager::loadTechnique(const std::string& path, gerium_uint64_t retentionMs) {

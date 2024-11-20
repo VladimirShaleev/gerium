@@ -23,7 +23,10 @@ protected:
 
 private:
     struct LoadRequest {
+        gerium_uint32_t dataSize{};
         gerium_cdata_t data{};
+        gerium_uint8_t mip{};
+        bool generateMips{};
         TextureHandle texture{ Undefined };
         gerium_texture_loaded_func_t callback{};
         gerium_data_t userData{};
@@ -34,6 +37,7 @@ private:
     bool isResourceEnabled(FrameGraph& frameGraph, const FrameGraphResource* resource) const noexcept;
 
     gerium_feature_flags_t onGetEnabledFeatures() const noexcept override;
+    TextureCompressionFlags onGetTextureComperssion() const noexcept override;
 
     bool onGetProfilerEnable() const noexcept override;
     void onSetProfilerEnable(bool enable) noexcept override;
@@ -55,6 +59,9 @@ private:
                                           gerium_uint32_t textureIndex) override;
 
     void onAsyncUploadTextureData(TextureHandle handle,
+                                  gerium_uint8_t mip,
+                                  bool generateMips,
+                                  gerium_uint32_t textureDataSize,
                                   gerium_cdata_t textureData,
                                   gerium_texture_loaded_func_t callback,
                                   gerium_data_t data) override;

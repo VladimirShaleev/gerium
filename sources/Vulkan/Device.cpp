@@ -14,6 +14,10 @@ Device::~Device() {
         ImGui::DestroyContext();
         deleteResources(true);
 
+        for (auto [_, view] : _unusedImageViews) {
+            _vkTable.vkDestroyImageView(_device, view, getAllocCalls());
+        }
+
         for (auto framebuffer : _framebuffers) {
             destroyFramebuffer(_framebuffers.handle(framebuffer));
         }
@@ -193,6 +197,14 @@ bool Device::newFrame() {
         memcpy(_freeDescriptorSetQueue2, _freeDescriptorSetQueue, sizeof(_freeDescriptorSetQueue2));
         _numFreeDescriptorSetQueue2 = _numFreeDescriptorSetQueue;
         _numFreeDescriptorSetQueue  = 0;
+    }
+    auto unusedImageViews = std::move(_unusedImageViews);
+    for (auto [frame, view] : unusedImageViews) {
+        if (_absoluteFrame - frame >= 2) {
+            _vkTable.vkDestroyImageView(_device, view, getAllocCalls());
+        } else {
+            _unusedImageViews.emplace_back(frame, view);
+        }
     }
     return true;
 }
@@ -490,7 +502,7 @@ TextureHandle Device::createTextureView(const TextureViewCreation& creation) {
     texture->mipBase       = creation.mipBaseLevel;
     texture->mipLevels     = creation.mipLevelCount;
     texture->layers        = creation.arrayLayerCount;
-    texture->loaded        = true;
+    texture->loadedMips    = creation.mipLevelCount;
     texture->flags         = parentTexture->flags;
     texture->type          = creation.type;
     texture->name          = intern(creation.name);
@@ -498,7 +510,7 @@ TextureHandle Device::createTextureView(const TextureViewCreation& creation) {
     texture->sampler       = parentTexture->sampler;
 
     _textures.addReference(creation.texture);
-    parentTexture->loaded = true;
+    parentTexture->loadedMips = parentTexture->mipLevels;
 
     if (parentTexture->sampler != Undefined) {
         _samplers.addReference(parentTexture->sampler);
@@ -1275,9 +1287,20 @@ void Device::unmapBuffer(BufferHandle handle) {
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
-void Device::setLoadTexture(TextureHandle handle, bool loaded) {
-    auto texture    = _textures.access(handle);
-    texture->loaded = loaded;
+void Device::finishLoadTexture(TextureHandle handle, uint8_t mip) {
+    auto texture        = _textures.access(handle);
+    texture->loadedMips = texture->mipLevels - mip;
+}
+
+void Device::showViewMips(TextureHandle handle) {
+    auto texture = _textures.access(handle);
+    TextureViewCreation vc{};
+    vc.setType(texture->type)
+        .setMips(texture->mipLevels - texture->loadedMips, texture->loadedMips)
+        .setArray(0, texture->layers)
+        .setName(texture->name);
+    _unusedImageViews.emplace_back(_absoluteFrame, texture->vkImageView);
+    vkCreateImageView(vc, handle);
 }
 
 void Device::bind(DescriptorSetHandle handle,
@@ -1711,23 +1734,35 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     }
 
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-    features.pNext                              = &features12;
-    features.features.imageCubeArray            = deviceFeatures.features.imageCubeArray;
-    features.features.geometryShader            = deviceFeatures.features.geometryShader;
-    features.features.logicOp                   = deviceFeatures.features.logicOp;
-    features.features.multiDrawIndirect         = deviceFeatures.features.multiDrawIndirect;
-    features.features.drawIndirectFirstInstance = deviceFeatures.features.drawIndirectFirstInstance;
-    features.features.depthClamp                = deviceFeatures.features.depthClamp;
-    features.features.depthBiasClamp            = deviceFeatures.features.depthBiasClamp;
-    features.features.fillModeNonSolid          = deviceFeatures.features.fillModeNonSolid;
-    features.features.depthBounds               = deviceFeatures.features.depthBounds;
-    features.features.wideLines                 = deviceFeatures.features.wideLines;
-    features.features.largePoints               = deviceFeatures.features.largePoints;
-    features.features.alphaToOne                = deviceFeatures.features.alphaToOne;
-    features.features.multiViewport             = deviceFeatures.features.multiViewport;
-    features.features.samplerAnisotropy         = deviceFeatures.features.samplerAnisotropy;
-    features.features.textureCompressionETC2    = deviceFeatures.features.textureCompressionETC2;
-    features.features.shaderInt16               = deviceFeatures.features.shaderInt16;
+    features.pNext                               = &features12;
+    features.features.imageCubeArray             = deviceFeatures.features.imageCubeArray;
+    features.features.geometryShader             = deviceFeatures.features.geometryShader;
+    features.features.logicOp                    = deviceFeatures.features.logicOp;
+    features.features.multiDrawIndirect          = deviceFeatures.features.multiDrawIndirect;
+    features.features.drawIndirectFirstInstance  = deviceFeatures.features.drawIndirectFirstInstance;
+    features.features.depthClamp                 = deviceFeatures.features.depthClamp;
+    features.features.depthBiasClamp             = deviceFeatures.features.depthBiasClamp;
+    features.features.fillModeNonSolid           = deviceFeatures.features.fillModeNonSolid;
+    features.features.depthBounds                = deviceFeatures.features.depthBounds;
+    features.features.wideLines                  = deviceFeatures.features.wideLines;
+    features.features.largePoints                = deviceFeatures.features.largePoints;
+    features.features.alphaToOne                 = deviceFeatures.features.alphaToOne;
+    features.features.multiViewport              = deviceFeatures.features.multiViewport;
+    features.features.samplerAnisotropy          = deviceFeatures.features.samplerAnisotropy;
+    features.features.textureCompressionETC2     = deviceFeatures.features.textureCompressionETC2;
+    features.features.textureCompressionASTC_LDR = deviceFeatures.features.textureCompressionASTC_LDR;
+    features.features.textureCompressionBC       = deviceFeatures.features.textureCompressionBC;
+    features.features.shaderInt16                = deviceFeatures.features.shaderInt16;
+
+    if (features.features.textureCompressionETC2) {
+        _compressions |= TextureCompressionFlags::ETC2;
+    }
+    if (features.features.textureCompressionASTC_LDR) {
+        _compressions |= TextureCompressionFlags::ASTC_LDR;
+    }
+    if (features.features.textureCompressionBC) {
+        _compressions |= TextureCompressionFlags::BC;
+    }
 
     if (_meshShaderSupported) {
         meshShaderFeatures.pNext                                  = features11.pNext;
@@ -1959,7 +1994,7 @@ void Device::createSwapchain(Application* application) {
         color->layers        = 1;
         color->parentTexture = Undefined;
         color->sampler       = Undefined;
-        color->loaded        = true;
+        color->loadedMips    = 1;
 
         VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         viewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
@@ -2240,7 +2275,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 imageInfo[i].sampler =
                     texture->sampler != Undefined ? _samplers.access(texture->sampler)->vkSampler : defaultSampler;
 
-                if (!texture->loaded) {
+                if (texture->loadedMips == 0) {
                     texture        = _textures.access(_defaultTexture);
                     updateRequired = true;
                 }
@@ -2927,11 +2962,11 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
     memcpy((void*) mapped, (void*) data, texture->size);
     unmapBuffer(stagingBuffer);
 
-    _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
+    _frameCommandBuffer->copyBuffer(stagingBuffer, handle, 0);
     _frameCommandBuffer->generateMipmaps(handle);
     destroyBuffer(stagingBuffer);
 
-    setLoadTexture(handle, true);
+    finishLoadTexture(handle, 0);
 }
 
 std::vector<const char*> Device::selectValidationLayers() {

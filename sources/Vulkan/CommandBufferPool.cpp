@@ -185,7 +185,7 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
         _commandBuffer, srcStageMask2, dstStageMask2, 0, 0, nullptr, 1, &barrier2, 0, nullptr);
 }
 
-void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset) {
+void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint8_t mip, gerium_uint32_t offset) {
     auto srcBuffer  = _device->_buffers.access(src);
     auto dstTexture = _device->_textures.access(dst);
     auto srcOffset  = srcBuffer->globalOffset + offset;
@@ -199,22 +199,24 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
         srcBuffer = _device->_buffers.access(srcBuffer->parent);
     }
 
+    const auto width  = std::max(static_cast<uint32_t>(dstTexture->width * std::pow(0.5, mip)), 1U);
+    const auto height = std::max(static_cast<uint32_t>(dstTexture->height * std::pow(0.5, mip)), 1U);
+    const auto depth  = std::max(static_cast<uint32_t>(dstTexture->depth * std::pow(0.5, mip)), 1U);
+
     VkBufferImageCopy region{};
     region.bufferOffset                    = (VkDeviceSize) srcOffset;
     region.bufferRowLength                 = 0;
     region.bufferImageHeight               = 0;
     region.imageSubresource.aspectMask     = toVkImageAspect(dstTexture->vkFormat);
-    region.imageSubresource.mipLevel       = 0;
+    region.imageSubresource.mipLevel       = mip;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount     = 1;
     region.imageOffset                     = { 0, 0, 0 };
-    region.imageExtent                     = { dstTexture->width, dstTexture->height, dstTexture->depth };
+    region.imageExtent                     = { width, height, depth };
 
-    addImageBarrier(dst, ResourceState::CopyDest, 0, 1, queue, queue);
+    addImageBarrier(dst, ResourceState::CopyDest, mip, 1, queue, queue);
     _device->vkTable().vkCmdCopyBufferToImage(
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    getTextureStates(dst)[0] = ResourceState::CopyDest;
-    addImageBarrier(dst, ResourceState::CopySource, 0, 1, queue, queue);
 }
 
 void CommandBuffer::generateMipmaps(TextureHandle handle) {
@@ -223,6 +225,7 @@ void CommandBuffer::generateMipmaps(TextureHandle handle) {
     int32_t w = texture->width;
     int32_t h = texture->height;
 
+    addImageBarrier(handle, ResourceState::CopySource, 0, 1);
     for (int mipIndex = 1; mipIndex < texture->mipLevels; ++mipIndex) {
         addImageBarrier(handle, ResourceState::CopyDest, mipIndex, 1);
 
@@ -502,7 +505,8 @@ void CommandBuffer::onBarrierBufferWrite(BufferHandle handle) noexcept {
 }
 
 void CommandBuffer::onBarrierBufferRead(BufferHandle handle) noexcept {
-    addBufferBarrier(handle, ResourceState::UnorderedAccess | ResourceState::IndirectArgument | ResourceState::ShaderResource);
+    addBufferBarrier(handle,
+                     ResourceState::UnorderedAccess | ResourceState::IndirectArgument | ResourceState::ShaderResource);
 }
 
 void CommandBuffer::onBarrierTextureWrite(TextureHandle handle) noexcept {

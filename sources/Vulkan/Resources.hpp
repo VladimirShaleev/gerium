@@ -367,7 +367,7 @@ struct Texture {
     uint8_t               mipBase;
     uint8_t               mipLevels;
     uint8_t               layers;
-    uint8_t               loaded;
+    uint8_t               loadedMips;
     TextureFlags          flags;
     gerium_texture_type_t type;
     gerium_utf8_t         name;

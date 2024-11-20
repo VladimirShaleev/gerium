@@ -351,8 +351,13 @@ void FrameGraph::compile() {
             continue;
         }
 
+        bool hasOutput = false;
         for (gerium_uint32_t j = 0; j < node->inputCount; ++j) {
             auto resource = _resources.access(node->inputs[j]);
+
+            if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                hasOutput = true;
+            }
 
             if (resource->info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
                 continue;
@@ -368,7 +373,7 @@ void FrameGraph::compile() {
             }
         }
 
-        if (node->outputCount && !node->compute) {
+        if ((node->outputCount || hasOutput) && !node->compute) {
             if (node->renderPass == Undefined) {
                 node->renderPass = _renderer->createRenderPass(*this, node);
             }

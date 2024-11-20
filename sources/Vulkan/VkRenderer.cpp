@@ -89,7 +89,7 @@ void VkRenderer::sendTextureToGraphic() {
             onUnmapBuffer(_transferBuffer);
 
             auto commandBuffer = _transferCommandPool.getPrimary(0, false);
-            commandBuffer->copyBuffer(_transferBuffer, request.texture);
+            commandBuffer->copyBuffer(_transferBuffer, request.texture, request.mip);
             commandBuffer->submit(QueueType::CopyTransfer);
 
             _transferToGraphic.push(request);
@@ -104,7 +104,14 @@ void VkRenderer::sendTextureToGraphic() {
         auto commandBuffer = _device->getPrimaryCommandBuffer(false);
         while (!_transferToGraphic.empty()) {
             const auto& request = _transferToGraphic.front();
-            commandBuffer->generateMipmaps(request.texture);
+            if (request.generateMips) {
+                commandBuffer->generateMipmaps(request.texture);
+                _device->finishLoadTexture(request.texture, 0);
+            } else {
+                commandBuffer->addImageBarrier(request.texture, ResourceState::ShaderResource, request.mip, 1);
+                _device->finishLoadTexture(request.texture, request.mip);
+                _device->showViewMips(request.texture);
+            }
             _finishedRequests.push(request);
             _transferToGraphic.pop();
         }
@@ -141,6 +148,10 @@ gerium_feature_flags_t VkRenderer::onGetEnabledFeatures() const noexcept {
         result |= GERIUM_FEATURE_MESH_SHADER_BIT;
     }
     return result;
+}
+
+TextureCompressionFlags VkRenderer::onGetTextureComperssion() const noexcept {
+    return _device->compressions();
 }
 
 bool VkRenderer::onGetProfilerEnable() const noexcept {
@@ -348,15 +359,19 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
 }
 
 void VkRenderer::onAsyncUploadTextureData(TextureHandle handle,
+                                          gerium_uint8_t mip,
+                                          bool generateMips,
+                                          gerium_uint32_t textureDataSize,
                                           gerium_cdata_t textureData,
                                           gerium_texture_loaded_func_t callback,
                                           gerium_data_t data) {
+    const auto request = LoadRequest{ textureDataSize, textureData, mip, generateMips, handle, callback, data };
     if (_isSupportedTransferQueue) {
         marl::lock lock(_loadRequestsMutex);
-        _loadRequests.push({ textureData, handle, callback, data });
+        _loadRequests.push(request);
         _loadEvent.signal();
     } else {
-        _loadRequests.push({ textureData, handle, callback, data });
+        _loadRequests.push(request);
     }
 }
 
@@ -501,6 +516,8 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
     CommandBuffer* secondaryCommandBuffers[100];
     gerium_uint32_t numSecondaryCommandBuffers = 0;
 
+    std::set<TextureHandle> depths;
+
     auto cb = _device->getPrimaryCommandBuffer();
     cb->bindRenderer(this);
     cb->pushMarker("total");
@@ -538,6 +555,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
                 if (hasDepthOrStencil(format)) {
                     cb->addImageBarrier(texture, ResourceState::DepthRead, 0, 1);
+                    depths.insert(texture);
                 } else {
                     cb->addImageBarrier(texture, ResourceState::ShaderResource, 0, 1);
                 }
@@ -556,6 +574,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (hasDepthOrStencil(format)) {
                     cb->addImageBarrier(
                         texture, !node->compute ? ResourceState::DepthWrite : ResourceState::UnorderedAccess, 0, 1);
+                    depths.insert(texture);
                 } else {
                     cb->addImageBarrier(
                         texture, !node->compute ? ResourceState::RenderTarget : ResourceState::UnorderedAccess, 0, 1);
@@ -587,6 +606,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (hasDepthOrStencil(format)) {
                     cb->addImageBarrier(
                         texture, !node->compute ? ResourceState::DepthWrite : ResourceState::UnorderedAccess, 0, 1);
+                    depths.insert(texture);
                     if (!node->compute) {
                         cb->clearDepthStencil(resource->info.texture.clearDepthStencil.depth,
                                               resource->info.texture.clearDepthStencil.value);
@@ -602,7 +622,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (node->compute) {
                     _device->addInputResource(resource, texture, false);
                 }
-                _device->setLoadTexture(texture, true);
+                _device->finishLoadTexture(texture, 0);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
                 auto buffer = resource->info.buffer.handle;
                 cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess);
@@ -701,6 +721,10 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
     }
     cb->popMarker();
 
+    for (auto depth : depths) {
+        cb->addImageBarrier(depth, ResourceState::DepthRead, 0, 1);
+    }
+
     cb->popMarker();
     _device->submit(cb);
 }
@@ -710,7 +734,6 @@ void VkRenderer::onPresent() {
 
     while (!_finishedRequests.empty()) {
         const auto& request = _finishedRequests.front();
-        _device->setLoadTexture(request.texture, true);
         if (request.callback) {
             request.callback(this, request.texture, request.userData);
         }
@@ -783,9 +806,10 @@ void VkRenderer::loadThread() noexcept {
         gerium_texture_info_t info;
         onGetTextureInfo(request.texture, info);
 
-        const auto blockSize        = vk::blockSize((vk::Format) toVkFormat(info.format));
-        const auto alignedImageSize = align(info.width * info.height * blockSize, 4);
-        const auto currentOffset    = _transferBufferOffset;
+        const auto blockSize = vk::blockSize((vk::Format) toVkFormat(info.format));
+        const auto alignedImageSize =
+            request.dataSize ? request.dataSize : align(info.width * info.height * blockSize, 4);
+        const auto currentOffset = _transferBufferOffset;
         _transferBufferOffset += alignedImageSize;
 
         auto data = onMapBuffer(_transferBuffer, (gerium_uint32_t) currentOffset, alignedImageSize);
@@ -793,7 +817,7 @@ void VkRenderer::loadThread() noexcept {
         onUnmapBuffer(_transferBuffer);
 
         auto commandBuffer = _transferCommandPool.getPrimary(0, false);
-        commandBuffer->copyBuffer(_transferBuffer, request.texture, (gerium_uint32_t) currentOffset);
+        commandBuffer->copyBuffer(_transferBuffer, request.texture, request.mip, (gerium_uint32_t) currentOffset);
         commandBuffer->submit(QueueType::CopyTransfer, false);
 
         if (tasks.size() >= _transferMaxTasks) {

@@ -32,6 +32,14 @@ enum class TextureFlags : uint8_t {
 };
 GERIUM_FLAGS(TextureFlags)
 
+enum class TextureCompressionFlags : uint8_t {
+    None     = 0,
+    ETC2     = 1,
+    ASTC_LDR = 2,
+    BC       = 4
+};
+GERIUM_FLAGS(TextureCompressionFlags)
+
 enum class RenderPassOp : uint8_t {
     DontCare = 0,
     Load     = 1,
@@ -92,8 +100,8 @@ struct TextureCreation {
     uint16_t width             = 1;
     uint16_t height            = 1;
     uint16_t depth             = 1;
-    uint8_t  mipmaps           = 1;
-    uint8_t  layers            = 1;
+    uint8_t mipmaps            = 1;
+    uint8_t layers             = 1;
     TextureFlags flags         = TextureFlags::None;
     gerium_format_t format     = GERIUM_FORMAT_R8G8B8A8_UNORM;
     gerium_texture_type_t type = GERIUM_TEXTURE_TYPE_2D;
@@ -111,8 +119,8 @@ struct TextureCreation {
     TextureCreation& setFlags(uint8_t mipmaps, uint8_t layers, bool renderTarget, bool compute) {
         this->mipmaps = mipmaps;
         this->layers  = layers;
-        this->flags  |= renderTarget ? TextureFlags::RenderTarget : TextureFlags::None;
-        this->flags  |= compute ? TextureFlags::Compute : TextureFlags::None;
+        this->flags |= renderTarget ? TextureFlags::RenderTarget : TextureFlags::None;
+        this->flags |= compute ? TextureFlags::Compute : TextureFlags::None;
         return *this;
     }
 

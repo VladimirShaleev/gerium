@@ -4,6 +4,9 @@
 RenderPass::RenderPass(const std::string& name) : _name(name) {
 }
 
+void RenderPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+}
+
 void RenderPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
 }
 

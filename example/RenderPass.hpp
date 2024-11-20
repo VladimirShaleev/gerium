@@ -12,6 +12,7 @@ public:
 
     virtual ~RenderPass() = default;
 
+    virtual void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
     virtual void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
     virtual void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer);
 

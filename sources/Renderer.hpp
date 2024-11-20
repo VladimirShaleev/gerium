@@ -2,7 +2,7 @@
 #define GERIUM_RENDERER_HPP
 
 #include "Handles.hpp"
-#include "ObjectPtr.hpp"
+#include "Logger.hpp"
 #include "Profiler.hpp"
 
 struct _gerium_renderer : public gerium::Object {};
@@ -15,10 +15,12 @@ class FrameGraphNode;
 class Renderer : public _gerium_renderer {
 public:
     Renderer() noexcept;
+    ~Renderer() override;
 
     void initialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug);
 
     gerium_feature_flags_t getEnabledFeatures() const noexcept;
+    TextureCompressionFlags getTextureComperssion() const noexcept;
 
     bool getProfilerEnable() const noexcept;
     void setProfilerEnable(bool enable) noexcept;
@@ -39,7 +41,12 @@ public:
                                         const FrameGraphNode* node,
                                         gerium_uint32_t textureIndex);
 
+    TextureHandle asyncLoadTexture(gerium_utf8_t filename, gerium_texture_loaded_func_t callback, gerium_data_t data);
+
     void asyncUploadTextureData(TextureHandle handle,
+                                gerium_uint8_t mip,
+                                bool generateMips,
+                                gerium_uint32_t textureDataSize,
                                 gerium_cdata_t textureData,
                                 gerium_texture_loaded_func_t callback,
                                 gerium_data_t data);
@@ -92,7 +99,8 @@ protected:
     virtual void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) = 0;
 
 private:
-    virtual gerium_feature_flags_t onGetEnabledFeatures() const noexcept = 0;
+    virtual gerium_feature_flags_t onGetEnabledFeatures() const noexcept     = 0;
+    virtual TextureCompressionFlags onGetTextureComperssion() const noexcept = 0;
 
     virtual bool onGetProfilerEnable() const noexcept      = 0;
     virtual void onSetProfilerEnable(bool enable) noexcept = 0;
@@ -114,6 +122,9 @@ private:
                                                   gerium_uint32_t textureIndex)                           = 0;
 
     virtual void onAsyncUploadTextureData(TextureHandle handle,
+                                          gerium_uint8_t mip,
+                                          bool generateMips,
+                                          gerium_uint32_t textureDataSize,
                                           gerium_cdata_t textureData,
                                           gerium_texture_loaded_func_t callback,
                                           gerium_data_t data) = 0;
@@ -164,6 +175,40 @@ private:
 
     virtual Profiler* onGetProfiler() noexcept                                                      = 0;
     virtual void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept = 0;
+
+    void loadThread() noexcept;
+
+    static KTX_error_code loadMips(int miplevel,
+                                   int face,
+                                   int width,
+                                   int height,
+                                   int depth,
+                                   ktx_uint64_t faceLodSize,
+                                   void* pixels,
+                                   void* userdata);
+
+    struct TaskMip {
+        gerium_cdata_t imageData;
+        gerium_uint32_t imageSize;
+        gerium_uint8_t imageMip;
+    };
+
+    struct Task {
+        Renderer* renderer;
+        TextureHandle texture;
+        ObjectPtr<File> file;
+        gerium_cdata_t data;
+        ktxTexture2* ktxTexture;
+        gerium_uint8_t imageGenerateMips;
+        std::queue<TaskMip> mips;
+    };
+
+    ObjectPtr<Logger> _logger;
+    std::thread _loadTread;
+    marl::Event _shutdownSignal;
+    marl::Event _waitTaskSignal;
+    marl::mutex _loadRequestsMutex;
+    std::queue<Task*> _tasks;
 };
 
 } // namespace gerium

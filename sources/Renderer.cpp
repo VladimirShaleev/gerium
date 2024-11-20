@@ -3,15 +3,32 @@
 
 namespace gerium {
 
-Renderer::Renderer() noexcept {
+Renderer::Renderer() noexcept : _shutdownSignal(marl::Event::Mode::Manual), _waitTaskSignal(marl::Event::Mode::Manual) {
+}
+
+Renderer::~Renderer() {
+    _shutdownSignal.signal();
+    _waitTaskSignal.signal();
+    _loadTread.join();
 }
 
 void Renderer::initialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) {
+    _logger    = Logger::create("gerium:renderer");
+    _loadTread = std::thread([this, scheduler = marl::Scheduler::get()]() {
+        scheduler->bind();
+        defer(scheduler->unbind());
+        loadThread();
+    });
+
     onInitialize(features, version, debug);
 }
 
 gerium_feature_flags_t Renderer::getEnabledFeatures() const noexcept {
     return onGetEnabledFeatures();
+}
+
+TextureCompressionFlags Renderer::getTextureComperssion() const noexcept {
+    return onGetTextureComperssion();
 }
 
 bool Renderer::getProfilerEnable() const noexcept {
@@ -68,11 +85,114 @@ FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph,
     return onCreateFramebuffer(frameGraph, node, textureIndex);
 }
 
+TextureHandle Renderer::asyncLoadTexture(gerium_utf8_t filename,
+                                         gerium_texture_loaded_func_t callback,
+                                         gerium_data_t data) {
+    if (!File::existsFile(filename)) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    auto file = File::open(filename, true);
+    auto size = file->getSize();
+
+    if (size < KTX_HEADER_SIZE) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    auto fileData = file->map();
+
+    constexpr char ktx2Identifier[] = { '«', 'K', 'T', 'X', ' ', '2', '0', '»', '\r', '\n', '\x1A', '\n' };
+    if (memcmp(ktx2Identifier, fileData, std::size(ktx2Identifier)) != 0) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    ktxTexture2* texture;
+    auto result =
+        ktxTexture2_CreateFromMemory((const ktx_uint8_t*) fileData, size, KTX_TEXTURE_CREATE_NO_FLAGS, &texture);
+    if (result != KTX_SUCCESS) {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, ktxErrorString(result));
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    auto compressions  = getTextureComperssion();
+    auto supportedASTC = (compressions & TextureCompressionFlags::ASTC_LDR) == TextureCompressionFlags::ASTC_LDR;
+    auto supportedETC2 = (compressions & TextureCompressionFlags::ETC2) == TextureCompressionFlags::ETC2;
+    auto supportedBC   = (compressions & TextureCompressionFlags::BC) == TextureCompressionFlags::BC;
+
+    gerium_format_t format;
+
+    if (ktxTexture2_NeedsTranscoding(texture)) {
+        auto colorModel = ktxTexture2_GetColorModel_e(texture);
+        if (colorModel == KHR_DF_MODEL_UASTC && supportedASTC) {
+            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
+        } else if (colorModel == KHR_DF_MODEL_ETC1S && supportedETC2) {
+            format = GERIUM_FORMAT_ETC2_R8G8B8_UNORM;
+        } else if (supportedASTC) {
+            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
+        } else if (supportedETC2) {
+            format = GERIUM_FORMAT_ETC2_R8G8B8A8_UNORM;
+        } else if (supportedBC) {
+            format = GERIUM_FORMAT_BC3_UNORM;
+        } else {
+            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "not support transcode target format");
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    } else {
+        format = toGeriumFormat(ktxTexture2_GetVkFormat(texture));
+        if (!isSupportedFormat(format)) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    }
+
+    gerium_texture_type_t type;
+    if (texture->isCubemap) {
+        type = GERIUM_TEXTURE_TYPE_CUBE;
+    } else {
+        switch (texture->numDimensions) {
+            case 1:
+                type = GERIUM_TEXTURE_TYPE_1D;
+                break;
+            case 2:
+                type = GERIUM_TEXTURE_TYPE_2D;
+                break;
+            case 3:
+                type = GERIUM_TEXTURE_TYPE_3D;
+                break;
+            default:
+                error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    }
+
+    auto name = std::filesystem::path(filename).filename().string();
+    auto mips = texture->generateMipmaps ? calcMipLevels(texture->baseWidth, texture->baseHeight) : texture->numLevels;
+
+    TextureCreation tc{};
+    tc.setSize((gerium_uint16_t) texture->baseWidth,
+               (gerium_uint16_t) texture->baseHeight,
+               (gerium_uint16_t) texture->baseDepth)
+        .setFlags(mips, 1, false, false)
+        .setFormat(format, type)
+        .setName(name.c_str());
+
+    auto handle = createTexture(tc);
+
+    auto task = new Task{ this, handle, file, fileData, texture, texture->generateMipmaps };
+
+    marl::lock lock(_loadRequestsMutex);
+    _tasks.push(task);
+    _waitTaskSignal.signal();
+
+    return handle;
+}
+
 void Renderer::asyncUploadTextureData(TextureHandle handle,
+                                      gerium_uint8_t mip,
+                                      bool generateMips,
+                                      gerium_uint32_t textureDataSize,
                                       gerium_cdata_t textureData,
                                       gerium_texture_loaded_func_t callback,
                                       gerium_data_t data) {
-    onAsyncUploadTextureData(handle, textureData, callback, data);
+    onAsyncUploadTextureData(handle, mip, generateMips, textureDataSize, textureData, callback, data);
 }
 
 void Renderer::textureSampler(TextureHandle handle,
@@ -184,6 +304,81 @@ Profiler* Renderer::getProfiler() noexcept {
 
 void Renderer::getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept {
     onGetSwapchainSize(width, height);
+}
+
+void Renderer::loadThread() noexcept {
+    while (!_shutdownSignal.test()) {
+        _waitTaskSignal.wait();
+
+        std::vector<Task*> tasks;
+        {
+            marl::lock lock(_loadRequestsMutex);
+            tasks.reserve(_tasks.size());
+            while (!_tasks.empty()) {
+                tasks.push_back(_tasks.front());
+                _tasks.pop();
+            }
+            _waitTaskSignal.clear();
+        }
+
+        for (auto task : tasks) {
+            if (task->mips.empty()) {
+                auto compressions = getTextureComperssion();
+                auto supportedASTC =
+                    (compressions & TextureCompressionFlags::ASTC_LDR) == TextureCompressionFlags::ASTC_LDR;
+                auto supportedETC2 = (compressions & TextureCompressionFlags::ETC2) == TextureCompressionFlags::ETC2;
+                auto supportedBC   = (compressions & TextureCompressionFlags::BC) == TextureCompressionFlags::BC;
+
+                if (ktxTexture2_NeedsTranscoding(task->ktxTexture)) {
+                    ktx_texture_transcode_fmt_e tf;
+                    auto colorModel = ktxTexture2_GetColorModel_e(task->ktxTexture);
+                    if (colorModel == KHR_DF_MODEL_UASTC && supportedASTC) {
+                        tf = KTX_TTF_ASTC_4x4_RGBA;
+                    } else if (colorModel == KHR_DF_MODEL_ETC1S && supportedETC2) {
+                        tf = KTX_TTF_ETC;
+                    } else if (supportedASTC) {
+                        tf = KTX_TTF_ASTC_4x4_RGBA;
+                    } else if (supportedETC2) {
+                        tf = KTX_TTF_ETC2_RGBA;
+                    } else if (supportedBC) {
+                        tf = KTX_TTF_BC3_RGBA;
+                    }
+                    ktxTexture2_TranscodeBasis(task->ktxTexture, tf, 0);
+                }
+
+                ktxTexture_IterateLevels(ktxTexture(task->ktxTexture), loadMips, &task->mips);
+            }
+
+            const auto& taskMip = task->mips.front();
+
+            asyncUploadTextureData(task->texture,
+                                   taskMip.imageMip,
+                                   task->imageGenerateMips,
+                                   taskMip.imageSize,
+                                   taskMip.imageData,
+                                   [](auto _, auto texture, auto data) {
+                auto task = (Task*) data;
+                task->mips.pop();
+                if (task->mips.empty()) {
+                    ktxTexture_Destroy(ktxTexture(task->ktxTexture));
+                    task->file = nullptr;
+                    delete task;
+                } else {
+                    marl::lock lock(task->renderer->_loadRequestsMutex);
+                    task->renderer->_tasks.push(task);
+                    task->renderer->_waitTaskSignal.signal();
+                }
+            },
+                                   task);
+        }
+    }
+}
+
+KTX_error_code Renderer::loadMips(
+    int miplevel, int face, int width, int height, int depth, ktx_uint64_t faceLodSize, void* pixels, void* userdata) {
+    auto mips = static_cast<std::queue<TaskMip>*>(userdata);
+    mips->push({ pixels, (gerium_uint32_t) faceLodSize, (gerium_uint8_t) miplevel });
+    return KTX_SUCCESS;
 }
 
 } // namespace gerium
@@ -330,6 +525,19 @@ gerium_result_t gerium_renderer_create_descriptor_set(gerium_renderer_t renderer
     GERIUM_END_SAFE_BLOCK
 }
 
+gerium_result_t gerium_renderer_async_load_texture(gerium_renderer_t renderer,
+                                                   gerium_utf8_t filename,
+                                                   gerium_texture_loaded_func_t callback,
+                                                   gerium_data_t data,
+                                                   gerium_texture_h* handle) {
+    assert(renderer);
+    GERIUM_ASSERT_ARG(filename);
+
+    GERIUM_BEGIN_SAFE_BLOCK
+        *handle = alias_cast<Renderer*>(renderer)->asyncLoadTexture(filename, callback, data);
+    GERIUM_END_SAFE_BLOCK
+}
+
 gerium_result_t gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
                                                           gerium_texture_h handle,
                                                           gerium_cdata_t texture_data,
@@ -339,7 +547,8 @@ gerium_result_t gerium_renderer_async_upload_texture_data(gerium_renderer_t rend
     GERIUM_ASSERT_ARG(texture_data);
 
     GERIUM_BEGIN_SAFE_BLOCK
-        alias_cast<Renderer*>(renderer)->asyncUploadTextureData({ handle.index }, texture_data, callback, data);
+        alias_cast<Renderer*>(renderer)->asyncUploadTextureData(
+            { handle.index }, 0, true, 0, texture_data, callback, data);
     GERIUM_END_SAFE_BLOCK
 }
 

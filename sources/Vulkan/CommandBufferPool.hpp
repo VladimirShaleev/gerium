@@ -32,7 +32,7 @@ public:
     void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer, bool useSecondaryCommandBuffers);
     void copyBuffer(BufferHandle src, BufferHandle dst);
-    void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset = 0);
+    void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint8_t mip, gerium_uint32_t offset = 0);
     void generateMipmaps(TextureHandle handle);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
