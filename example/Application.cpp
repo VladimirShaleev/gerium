@@ -491,11 +491,42 @@ void BSDFPass::registerResources(gerium_frame_graph_t frameGraph, gerium_rendere
                                                                              FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE);
     }
 
-    createContext(renderer);
+    check(gerium_renderer_create_ffx_interface(renderer, 2, &_brixelizerParams.backendInterface));
+
+    _brixelizerParams.sdfCenter[0] = 0.0f;
+    _brixelizerParams.sdfCenter[1] = 0.0f;
+    _brixelizerParams.sdfCenter[2] = 0.0f;
+    _brixelizerParams.numCascades  = kNumBrixelizerCascades;
+    // _brixelizerParams.flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
+
+    auto voxelSize = 1.0f;
+    for (uint32_t i = 0; i < _brixelizerParams.numCascades; ++i) {
+        auto& cascade     = _brixelizerParams.cascadeDescs[i];
+        cascade.flags     = (FfxBrixelizerCascadeFlag) (FFX_BRIXELIZER_CASCADE_STATIC | FFX_BRIXELIZER_CASCADE_DYNAMIC);
+        cascade.voxelSize = voxelSize;
+        voxelSize *= 2.0f;
+    }
+
+    ffxCheck(ffxBrixelizerContextCreate(&_brixelizerParams, &_brixelizerContext));
 }
 
 void BSDFPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    destroyContext(renderer);
+    if (_brixelizerInstanceIds.size()) {
+        ffxBrixelizerDeleteInstances(
+            brixelizerContext(), _brixelizerInstanceIds.data(), (uint32_t) _brixelizerInstanceIds.size());
+        _brixelizerInstanceIds.clear();
+        _brixelizerInstances.clear();
+    }
+
+    if (_brixelizerBufferIds.size()) {
+        ffxBrixelizerUnregisterBuffers(
+            brixelizerContext(), _brixelizerBufferIds.data(), (uint32_t) _brixelizerBufferIds.size());
+        _brixelizerBufferIds.clear();
+        _brixelizerBuffers.clear();
+    }
+    ffxBrixelizerContextDestroy(&_brixelizerContext);
+    gerium_renderer_destroy_ffx_interface(renderer, &_brixelizerParams.backendInterface);
+
     _cascadeBrickMaps = {};
     _cascadeAABBTrees = {};
     _bsdfAtlas        = {};
@@ -521,60 +552,6 @@ FfxBrixelizerInstanceID BSDFPass::createInstance(const FfxBrixelizerInstanceDesc
 
     ffxCheck(ffxBrixelizerCreateInstances(brixelizerContext(), &desc, 1));
     return *desc.outInstanceID;
-}
-
-void BSDFPass::recreateContext(gerium_renderer_t renderer) {
-    auto instances = std::move(_brixelizerInstances);
-    auto buffers   = std::move(_brixelizerBuffers);
-
-    destroyContext(renderer);
-    createContext(renderer);
-
-    for (auto& buffer : buffers) {
-        registerBuffer(renderer, buffer);
-    }
-
-    for (auto& instance : instances) {
-        createInstance(instance);
-    }
-}
-
-void BSDFPass::createContext(gerium_renderer_t renderer) {
-    check(gerium_renderer_create_ffx_interface(renderer, 2, &_brixelizerParams.backendInterface));
-
-    _brixelizerParams.sdfCenter[0] = 0.0f;
-    _brixelizerParams.sdfCenter[1] = 0.0f;
-    _brixelizerParams.sdfCenter[2] = 0.0f;
-    _brixelizerParams.numCascades  = kNumBrixelizerCascades;
-    // _brixelizerParams.flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
-
-    auto voxelSize = 1.0f;
-    for (uint32_t i = 0; i < _brixelizerParams.numCascades; ++i) {
-        auto& cascade     = _brixelizerParams.cascadeDescs[i];
-        cascade.flags     = (FfxBrixelizerCascadeFlag) (FFX_BRIXELIZER_CASCADE_STATIC | FFX_BRIXELIZER_CASCADE_DYNAMIC);
-        cascade.voxelSize = voxelSize;
-        voxelSize *= 2.0f;
-    }
-
-    ffxCheck(ffxBrixelizerContextCreate(&_brixelizerParams, &_brixelizerContext));
-}
-
-void BSDFPass::destroyContext(gerium_renderer_t renderer) {
-    if (_brixelizerInstanceIds.size()) {
-        ffxBrixelizerDeleteInstances(
-            brixelizerContext(), _brixelizerInstanceIds.data(), (uint32_t) _brixelizerInstanceIds.size());
-        _brixelizerInstanceIds.clear();
-        _brixelizerInstances.clear();
-    }
-
-    if (_brixelizerBufferIds.size()) {
-        ffxBrixelizerUnregisterBuffers(
-            brixelizerContext(), _brixelizerBufferIds.data(), (uint32_t) _brixelizerBufferIds.size());
-        _brixelizerBufferIds.clear();
-        _brixelizerBuffers.clear();
-    }
-    ffxBrixelizerContextDestroy(&_brixelizerContext);
-    gerium_renderer_destroy_ffx_interface(renderer, &_brixelizerParams.backendInterface);
 }
 
 void BGIPass::render(gerium_frame_graph_t frameGraph,
@@ -671,9 +648,8 @@ void BGIPass::render(gerium_frame_graph_t frameGraph,
 
     // desc.outputSize[0]    = application()->width();
     // desc.outputSize[1]    = application()->height();
-    // desc.debugMode        = FFX_BRIXELIZER_GI_DEBUG_MODE_RADIANCE_CACHE; // FFX_BRIXELIZER_GI_DEBUG_MODE_IRRADIANCE_CACHE;
-    // desc.normalsUnpackMul = 1.0f;
-    // desc.normalsUnpackAdd = 0.0f;
+    // desc.debugMode        = FFX_BRIXELIZER_GI_DEBUG_MODE_RADIANCE_CACHE; //
+    // FFX_BRIXELIZER_GI_DEBUG_MODE_IRRADIANCE_CACHE; desc.normalsUnpackMul = 1.0f; desc.normalsUnpackAdd = 0.0f;
     // desc.depth            = gerium_renderer_get_ffx_texture(renderer, depthTex);
     // desc.normal           = gerium_renderer_get_ffx_texture(renderer, normalTex);
     // desc.sdfAtlas         = gerium_renderer_get_ffx_texture(renderer, bsdfPass->bsdfAtlas());
@@ -700,9 +676,7 @@ void BGIPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t re
 }
 
 void BGIPass::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    auto bsdfPass = application()->getPass<BSDFPass>();
     destroyContext(renderer);
-    // bsdfPass->recreateContext(renderer);
     createContext();
 }
 

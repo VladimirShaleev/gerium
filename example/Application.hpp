@@ -185,7 +185,6 @@ public:
 
     uint32_t registerBuffer(gerium_renderer_t renderer, const Buffer& handle);
     FfxBrixelizerInstanceID createInstance(const FfxBrixelizerInstanceDescription& instance);
-    void recreateContext(gerium_renderer_t renderer);
 
     FfxBrixelizerContextDescription* brixelizerParams() noexcept {
         return &_brixelizerParams;
@@ -208,9 +207,6 @@ public:
     }
 
 private:
-    void createContext(gerium_renderer_t renderer);
-    void destroyContext(gerium_renderer_t renderer);
-
     FfxBrixelizerContextDescription _brixelizerParams{};
     FfxBrixelizerContext _brixelizerContext{};
     FfxBrixelizerBakedUpdateDescription _brixelizerBakedUpdateDesc{};
