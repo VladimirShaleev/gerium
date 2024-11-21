@@ -17,6 +17,8 @@ struct Settings {
     bool DebugCamera;
     bool MoveDebugCamera;
     SettingsOutput Output;
+    int Hour = 7;
+    float CurrentHour = 7;
 };
 
 #endif

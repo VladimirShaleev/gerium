@@ -191,7 +191,23 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_uint32_t totalWorkers) {
     static bool drawProfiler = false;
 
-    auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
+    auto camera  = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
+    auto skyDome = application()->getPass<SkyDomeGenPass>();
+
+    auto lightCountBuffer = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_count", nullptr, sizeof(glm::uint), 0);
+    auto lightBuffer = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "lights", nullptr, sizeof(Light) * 1, 0);
+
+    auto lightCount = (glm::uint*) gerium_renderer_map_buffer(renderer, lightCountBuffer, 0, sizeof(glm::uint));
+    *lightCount = 1;
+    gerium_renderer_unmap_buffer(renderer, lightCountBuffer);
+
+    auto lights = (Light*) gerium_renderer_map_buffer(renderer, lightBuffer, 0, sizeof(Light) * 1);
+    lights[0].directionRange = skyDome->skyData().sunDirection;
+    lights[0].colorIntensity = vec4(1.0, 1.0, 1.0, 5.0);
+    lights[0].type           = LIGHT_TYPE_DIRECTIONAL;
+    gerium_renderer_unmap_buffer(renderer, lightBuffer);
 
     auto ds                 = application()->resourceManager().createDescriptorSet("");
     auto& settings          = application()->settings();
@@ -201,12 +217,14 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
         application()->settings().DebugCamera ? "debug_ao_roughness_metallic" : "ao_roughness_metallic";
     const auto motionTexure = application()->settings().DebugCamera ? "debug_depth" : "depth";
     gerium_renderer_bind_texture(renderer, ds, 0, 0, application()->brdfLut());
-    gerium_renderer_bind_resource(renderer, ds, 1, albedoTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 2, normalTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 3, aoRoughnessMetallicTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 4, motionTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 5, "diffuse_gi", false);
-    gerium_renderer_bind_resource(renderer, ds, 6, "specular_gi", false);
+    gerium_renderer_bind_buffer(renderer, ds, 1, lightCountBuffer);
+    gerium_renderer_bind_buffer(renderer, ds, 2, lightBuffer);
+    gerium_renderer_bind_resource(renderer, ds, 3, albedoTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 4, normalTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 5, aoRoughnessMetallicTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 6, motionTexure, false);
+    gerium_renderer_bind_resource(renderer, ds, 7, "diffuse_gi", false);
+    gerium_renderer_bind_resource(renderer, ds, 8, "specular_gi", false);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
@@ -238,22 +256,8 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     if (ImGui::Begin("Settings")) {
         ImGui::Text("Meshlets: %s", application()->meshShaderSupported() ? "hardware" : "software");
         ImGui::Separator();
-        constexpr auto outputNames = magic_enum::enum_names<SettingsOutput>();
-        if (ImGui::BeginCombo("Output", outputNames[(int) settings.Output].data())) {
-            for (auto i = 0; i < std::size(outputNames); ++i) {
-                auto isSelected = i == (int) settings.Output;
-                if (ImGui::Selectable(outputNames[i].data(), isSelected)) {
-                    settings.Output = (SettingsOutput) i;
-                }
-                if (isSelected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::Checkbox("Show profiler", &drawProfiler);
-        ImGui::Checkbox("Debug camera", &settings.DebugCamera);
-        ImGui::Checkbox("Move debug camera", &settings.MoveDebugCamera);
+        static int hour = 7;
+        ImGui::SliderInt("Hour", &settings.Hour, 5, 20, "%d", ImGuiSliderFlags_AlwaysClamp);
     }
 
     ImGui::End();
@@ -702,7 +706,20 @@ void SkyDomeGenPass::render(gerium_frame_graph_t frameGraph,
                             gerium_command_buffer_t commandBuffer,
                             gerium_uint32_t worker,
                             gerium_uint32_t totalWorkers) {
-    const auto dir = glm::normalize(glm::vec3(-1.0f, 1.0f, -1.0f));
+    const auto lat  = glm::radians(35.0f);
+    const auto decl = glm::radians(23.0f + (17.0f / 60.0f));
+    const auto hour = glm::radians((settings().CurrentHour - 12.0f) * 15.0f);
+
+    const auto sinH = glm::sin(lat) * glm::sin(decl) + glm::cos(lat) * glm::cos(decl) * glm::cos(hour);
+    const auto cosH = glm::sqrt(1.0f - sinH * sinH);
+    const auto sinA = glm::cos(decl) * glm::sin(hour) / cosH;
+    const auto cosA = (sinH * glm::sin(lat) - glm::sin(decl)) / (cosH * glm::cos(decl));
+
+    const auto x = cosA * cosH;
+    const auto y = sinH;
+    const auto z = sinA * cosH;
+
+    const auto dir = glm::normalize(glm::vec3(x, y, z));
 
     _data.sunDirection    = glm::vec4(dir, 1.0f);
     _data.rayleigh        = 0.09f;
@@ -1346,6 +1363,19 @@ void Application::frame(gerium_uint64_t elapsedMs) {
     }
 
     _resourceManager.update(elapsedMs);
+
+    auto sunSpeed = 0.0025f;
+    if (settings().CurrentHour < settings().Hour) {
+        settings().CurrentHour += elapsedMs * sunSpeed;
+        if (settings().CurrentHour > settings().Hour) {
+            settings().CurrentHour = settings().Hour;
+        }
+    } else if (settings().CurrentHour > settings().Hour) {
+        settings().CurrentHour -= elapsedMs * sunSpeed;
+        if (settings().CurrentHour < settings().Hour) {
+            settings().CurrentHour = settings().Hour;
+        }
+    }
 
     getDebugCamera()->update(settings().Output);
     getCamera()->update(settings().Output);

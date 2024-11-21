@@ -260,6 +260,10 @@ public:
     void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
+    const SkyData& skyData() const noexcept {
+        return _data;
+    }
+
 private:
     SkyData _data;
 

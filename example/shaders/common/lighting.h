@@ -5,6 +5,14 @@
 
 layout(binding = 0, set = 1) uniform sampler2D lutBRDF;
 
+layout(std140, binding = 1, set = 1) uniform LightCountUBO {
+    uint lightCount;
+};
+
+layout(std430, binding = 2, set = 1) readonly buffer LightSSBO {
+    Light lights[];
+};
+
 Angular calcAngular(vec3 pointToLight, vec3 n, vec3 v) {
     vec3 l = normalize(pointToLight);
     vec3 h = normalize(l + v);
@@ -96,12 +104,7 @@ vec3 contributionIBL(vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI
 }
 
 void lighting(vec3 worldPosition, vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI, vec3 specularGI, inout vec3 color, inout vec3 colorDifffuse) {
-    Light lights[1];
-    lights[0].directionRange = vec4(-1.0, 1.0, -1.0, 1.0);
-    lights[0].colorIntensity = vec4(1.0, 1.0, 1.0, 5.0);
-    lights[0].type           = LIGHT_TYPE_DIRECTIONAL;
-
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < lightCount; ++i) {
         vec3 diffuse = vec3(0.0);
         vec3 specular = vec3(0.0);
 
