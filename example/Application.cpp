@@ -1189,8 +1189,7 @@ void Application::initialize() {
     check(gerium_profiler_create(_renderer, &_profiler));
     check(gerium_frame_graph_create(_renderer, &_frameGraph));
 
-    _asyncLoader.create(_application, _renderer);
-    _resourceManager.create(_asyncLoader, _frameGraph);
+    _resourceManager.create(_renderer, _frameGraph);
 
     addPass<PresentPass>();
     addPass<GBufferPass>(false);
@@ -1246,8 +1245,6 @@ void Application::uninitialize() {
         _cluster     = {};
         _texturesSet = nullptr;
         _textures.clear();
-
-        _asyncLoader.destroy();
 
         _baseTechnique = nullptr;
 

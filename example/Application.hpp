@@ -476,7 +476,6 @@ private:
     std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
     std::map<int, RenderPass*> _renderPassesCache{};
 
-    AsyncLoader _asyncLoader{};
     ResourceManager _resourceManager{};
     Camera _camera{};
     Camera _debugCamera{};

@@ -19,7 +19,6 @@ target_link_libraries(cpp-example PRIVATE yaml-cpp::yaml-cpp)
 target_link_libraries(cpp-example PRIVATE glm::glm-header-only)
 target_link_libraries(cpp-example PRIVATE magic_enum::magic_enum)
 target_link_libraries(cpp-example PRIVATE meshoptimizer::meshoptimizer)
-target_include_directories(cpp-example PRIVATE ${Stb_INCLUDE_DIR})
 target_include_directories(cpp-example PRIVATE ${WYHASH_INCLUDE_DIRS})
 
 target_compile_features(cpp-example PRIVATE cxx_std_20)

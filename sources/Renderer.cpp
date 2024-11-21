@@ -92,97 +92,29 @@ TextureHandle Renderer::asyncLoadTexture(gerium_utf8_t filename,
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 
-    auto file = File::open(filename, true);
-    auto size = file->getSize();
-
-    if (size < KTX_HEADER_SIZE) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-    }
-
+    auto file     = File::open(filename, true);
+    auto fileSize = file->getSize();
     auto fileData = file->map();
 
+    auto name  = std::filesystem::path(filename).filename().string();
+    Task* task = nullptr;
+
     constexpr char ktx2Identifier[] = { '«', 'K', 'T', 'X', ' ', '2', '0', '»', '\r', '\n', '\x1A', '\n' };
-    if (memcmp(ktx2Identifier, fileData, std::size(ktx2Identifier)) != 0) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-    }
 
-    ktxTexture2* texture;
-    auto result =
-        ktxTexture2_CreateFromMemory((const ktx_uint8_t*) fileData, size, KTX_TEXTURE_CREATE_NO_FLAGS, &texture);
-    if (result != KTX_SUCCESS) {
-        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, ktxErrorString(result));
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-    }
-
-    auto compressions  = getTextureComperssion();
-    auto supportedASTC = (compressions & TextureCompressionFlags::ASTC_LDR) == TextureCompressionFlags::ASTC_LDR;
-    auto supportedETC2 = (compressions & TextureCompressionFlags::ETC2) == TextureCompressionFlags::ETC2;
-    auto supportedBC   = (compressions & TextureCompressionFlags::BC) == TextureCompressionFlags::BC;
-
-    gerium_format_t format;
-
-    if (ktxTexture2_NeedsTranscoding(texture)) {
-        auto colorModel = ktxTexture2_GetColorModel_e(texture);
-        if (colorModel == KHR_DF_MODEL_UASTC && supportedASTC) {
-            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
-        } else if (colorModel == KHR_DF_MODEL_ETC1S && supportedETC2) {
-            format = GERIUM_FORMAT_ETC2_R8G8B8_UNORM;
-        } else if (supportedASTC) {
-            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
-        } else if (supportedETC2) {
-            format = GERIUM_FORMAT_ETC2_R8G8B8A8_UNORM;
-        } else if (supportedBC) {
-            format = GERIUM_FORMAT_BC3_UNORM;
-        } else {
-            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "not support transcode target format");
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-        }
+    if (memcmp(ktx2Identifier, fileData, std::size(ktx2Identifier)) == 0 && fileSize >= KTX_HEADER_SIZE) {
+        task = createLoadTaskKtx2(file, name);
     } else {
-        format = toGeriumFormat(ktxTexture2_GetVkFormat(texture));
-        if (!isSupportedFormat(format)) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-        }
+        task = createLoadTask(file, name);
     }
 
-    gerium_texture_type_t type;
-    if (texture->isCubemap) {
-        type = GERIUM_TEXTURE_TYPE_CUBE;
-    } else {
-        switch (texture->numDimensions) {
-            case 1:
-                type = GERIUM_TEXTURE_TYPE_1D;
-                break;
-            case 2:
-                type = GERIUM_TEXTURE_TYPE_2D;
-                break;
-            case 3:
-                type = GERIUM_TEXTURE_TYPE_3D;
-                break;
-            default:
-                error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-        }
-    }
-
-    auto name = std::filesystem::path(filename).filename().string();
-    auto mips = texture->generateMipmaps ? calcMipLevels(texture->baseWidth, texture->baseHeight) : texture->numLevels;
-
-    TextureCreation tc{};
-    tc.setSize((gerium_uint16_t) texture->baseWidth,
-               (gerium_uint16_t) texture->baseHeight,
-               (gerium_uint16_t) texture->baseDepth)
-        .setFlags(mips, 1, false, false)
-        .setFormat(format, type)
-        .setName(name.c_str());
-
-    auto handle = createTexture(tc);
-
-    auto task = new Task{ this, handle, file, fileData, texture, texture->generateMipmaps };
+    task->callback = callback;
+    task->userData = data;
 
     marl::lock lock(_loadRequestsMutex);
     _tasks.push(task);
     _waitTaskSignal.signal();
 
-    return handle;
+    return task->texture;
 }
 
 void Renderer::asyncUploadTextureData(TextureHandle handle,
@@ -306,6 +238,102 @@ void Renderer::getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height)
     onGetSwapchainSize(width, height);
 }
 
+Renderer::Task* Renderer::createLoadTask(ObjectPtr<File> file, const std::string& name) {
+    auto fileSize = file->getSize();
+    auto fileData = file->map();
+
+    int comp, width, height;
+    stbi_info_from_memory((const stbi_uc*) fileData, (int) fileSize, &width, &height, &comp);
+
+    auto mipLevels = calcMipLevels(width, height);
+
+    TextureCreation tc{};
+    tc.setSize((gerium_uint16_t) width, (gerium_uint16_t) height, (gerium_uint16_t) 1)
+        .setFlags((gerium_uint16_t) mipLevels, 1, false, false)
+        .setFormat(GERIUM_FORMAT_R8G8B8A8_UNORM, GERIUM_TEXTURE_TYPE_2D)
+        .setName(name.c_str());
+
+    auto handle = createTexture(tc);
+
+    return new Task{ this, handle, file, fileData, nullptr, true };
+}
+
+Renderer::Task* Renderer::createLoadTaskKtx2(ObjectPtr<File> file, const std::string& name) {
+    auto fileSize = file->getSize();
+    auto fileData = file->map();
+
+    ktxTexture2* texture;
+    auto result =
+        ktxTexture2_CreateFromMemory((const ktx_uint8_t*) fileData, fileSize, KTX_TEXTURE_CREATE_NO_FLAGS, &texture);
+    if (result != KTX_SUCCESS) {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, ktxErrorString(result));
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    auto compressions  = getTextureComperssion();
+    auto supportedASTC = (compressions & TextureCompressionFlags::ASTC_LDR) == TextureCompressionFlags::ASTC_LDR;
+    auto supportedETC2 = (compressions & TextureCompressionFlags::ETC2) == TextureCompressionFlags::ETC2;
+    auto supportedBC   = (compressions & TextureCompressionFlags::BC) == TextureCompressionFlags::BC;
+
+    gerium_format_t format;
+
+    if (ktxTexture2_NeedsTranscoding(texture)) {
+        auto colorModel = ktxTexture2_GetColorModel_e(texture);
+        if (colorModel == KHR_DF_MODEL_UASTC && supportedASTC) {
+            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
+        } else if (colorModel == KHR_DF_MODEL_ETC1S && supportedETC2) {
+            format = GERIUM_FORMAT_ETC2_R8G8B8_UNORM;
+        } else if (supportedASTC) {
+            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
+        } else if (supportedETC2) {
+            format = GERIUM_FORMAT_ETC2_R8G8B8A8_UNORM;
+        } else if (supportedBC) {
+            format = GERIUM_FORMAT_BC7_UNORM;
+        } else {
+            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "not support transcode target format");
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    } else {
+        format = toGeriumFormat(ktxTexture2_GetVkFormat(texture));
+        if (!isSupportedFormat(format)) {
+            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    }
+
+    gerium_texture_type_t type;
+    if (texture->isCubemap) {
+        type = GERIUM_TEXTURE_TYPE_CUBE;
+    } else {
+        switch (texture->numDimensions) {
+            case 1:
+                type = GERIUM_TEXTURE_TYPE_1D;
+                break;
+            case 2:
+                type = GERIUM_TEXTURE_TYPE_2D;
+                break;
+            case 3:
+                type = GERIUM_TEXTURE_TYPE_3D;
+                break;
+            default:
+                error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        }
+    }
+
+    auto mips = texture->generateMipmaps ? calcMipLevels(texture->baseWidth, texture->baseHeight) : texture->numLevels;
+
+    TextureCreation tc{};
+    tc.setSize((gerium_uint16_t) texture->baseWidth,
+               (gerium_uint16_t) texture->baseHeight,
+               (gerium_uint16_t) texture->baseDepth)
+        .setFlags(mips, 1, false, false)
+        .setFormat(format, type)
+        .setName(name.c_str());
+
+    auto handle = createTexture(tc);
+
+    return new Task{ this, handle, file, fileData, texture, texture->generateMipmaps };
+}
+
 void Renderer::loadThread() noexcept {
     while (!_shutdownSignal.test()) {
         _waitTaskSignal.wait();
@@ -322,7 +350,7 @@ void Renderer::loadThread() noexcept {
         }
 
         for (auto task : tasks) {
-            if (task->mips.empty()) {
+            if (task->ktxTexture && task->mips.empty()) {
                 auto compressions = getTextureComperssion();
                 auto supportedASTC =
                     (compressions & TextureCompressionFlags::ASTC_LDR) == TextureCompressionFlags::ASTC_LDR;
@@ -341,12 +369,17 @@ void Renderer::loadThread() noexcept {
                     } else if (supportedETC2) {
                         tf = KTX_TTF_ETC2_RGBA;
                     } else if (supportedBC) {
-                        tf = KTX_TTF_BC3_RGBA;
+                        tf = KTX_TTF_BC7_RGBA;
                     }
                     ktxTexture2_TranscodeBasis(task->ktxTexture, tf, 0);
                 }
 
                 ktxTexture_IterateLevels(ktxTexture(task->ktxTexture), loadMips, &task->mips);
+            } else if (task->mips.empty()) {
+                int widht, height, comp;
+                auto imageData = (gerium_cdata_t) stbi_load_from_memory(
+                    (const stbi_uc*) task->data, (int) task->file->getSize(), &widht, &height, &comp, 4);
+                task->mips.push({ imageData, 0, 0 });
             }
 
             const auto& taskMip = task->mips.front();
@@ -358,10 +391,18 @@ void Renderer::loadThread() noexcept {
                                    taskMip.imageData,
                                    [](auto _, auto texture, auto data) {
                 auto task = (Task*) data;
+                auto mip0 = task->mips.back();
                 task->mips.pop();
                 if (task->mips.empty()) {
-                    ktxTexture_Destroy(ktxTexture(task->ktxTexture));
+                    if (task->ktxTexture) {
+                        ktxTexture_Destroy(ktxTexture(task->ktxTexture));
+                    } else {
+                        stbi_image_free((void*) mip0.imageData);
+                    }
                     task->file = nullptr;
+                    if (task->callback) {
+                        task->callback(task->renderer, task->texture, task->userData);
+                    }
                     delete task;
                 } else {
                     marl::lock lock(task->renderer->_loadRequestsMutex);

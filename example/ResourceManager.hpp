@@ -1,7 +1,7 @@
 #ifndef RESOURCE_MANAGER_HPP
 #define RESOURCE_MANAGER_HPP
 
-#include "AsyncLoader.hpp"
+#include "Common.hpp"
 
 class ResourceManager;
 
@@ -43,7 +43,7 @@ public:
     static constexpr gerium_uint64_t NoRetention      = 0;
     static constexpr gerium_uint64_t DefaultRetention = 240'000;
 
-    void create(AsyncLoader& loader, gerium_frame_graph_t frameGraph);
+    void create(gerium_renderer_t renderer, gerium_frame_graph_t frameGraph);
     void destroy();
     void update(gerium_uint64_t elapsedMs);
 
@@ -205,7 +205,6 @@ private:
 
     gerium_renderer_t _renderer{};
     gerium_frame_graph_t _frameGraph{};
-    AsyncLoader* _loader{};
     gerium_uint64_t _ticks{};
     std::map<gerium_uint32_t, Resource> _resources;
     std::map<gerium_uint64_t, Resource*> _pathes;

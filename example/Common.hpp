@@ -29,9 +29,6 @@
 #include <glm/ext.hpp>
 #include <glm/gtc/type_precision.hpp>
 
-#include <ktx.h>
-#include <stb_image.h>
-
 #include <wyhash.h>
 
 #define MAGIC_ENUM_RANGE_MAX 255

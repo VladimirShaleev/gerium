@@ -99,6 +99,24 @@ protected:
     virtual void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) = 0;
 
 private:
+    struct TaskMip {
+        gerium_cdata_t imageData;
+        gerium_uint32_t imageSize;
+        gerium_uint8_t imageMip;
+    };
+
+    struct Task {
+        Renderer* renderer;
+        TextureHandle texture;
+        ObjectPtr<File> file;
+        gerium_cdata_t data;
+        ktxTexture2* ktxTexture;
+        gerium_uint8_t imageGenerateMips;
+        std::queue<TaskMip> mips;
+        gerium_texture_loaded_func_t callback;
+        gerium_data_t userData;
+    };
+
     virtual gerium_feature_flags_t onGetEnabledFeatures() const noexcept     = 0;
     virtual TextureCompressionFlags onGetTextureComperssion() const noexcept = 0;
 
@@ -176,6 +194,9 @@ private:
     virtual Profiler* onGetProfiler() noexcept                                                      = 0;
     virtual void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept = 0;
 
+    Task* createLoadTask(ObjectPtr<File> file, const std::string& name);
+    Task* createLoadTaskKtx2(ObjectPtr<File> file, const std::string& name);
+
     void loadThread() noexcept;
 
     static KTX_error_code loadMips(int miplevel,
@@ -186,22 +207,6 @@ private:
                                    ktx_uint64_t faceLodSize,
                                    void* pixels,
                                    void* userdata);
-
-    struct TaskMip {
-        gerium_cdata_t imageData;
-        gerium_uint32_t imageSize;
-        gerium_uint8_t imageMip;
-    };
-
-    struct Task {
-        Renderer* renderer;
-        TextureHandle texture;
-        ObjectPtr<File> file;
-        gerium_cdata_t data;
-        ktxTexture2* ktxTexture;
-        gerium_uint8_t imageGenerateMips;
-        std::queue<TaskMip> mips;
-    };
 
     ObjectPtr<Logger> _logger;
     std::thread _loadTread;
