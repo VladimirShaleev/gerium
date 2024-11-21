@@ -98,6 +98,8 @@ public:
 protected:
     virtual void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) = 0;
 
+    void closeLoadThread();
+
 private:
     struct TaskMip {
         gerium_cdata_t imageData;
@@ -209,7 +211,7 @@ private:
                                    void* userdata);
 
     ObjectPtr<Logger> _logger;
-    std::thread _loadTread;
+    std::thread _loadThread;
     marl::Event _shutdownSignal;
     marl::Event _waitTaskSignal;
     marl::mutex _loadRequestsMutex;

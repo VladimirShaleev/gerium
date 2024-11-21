@@ -23,6 +23,7 @@ VkRenderer::VkRenderer(Application* application, ObjectPtr<Device>&& device) noe
 }
 
 VkRenderer::~VkRenderer() {
+    closeLoadThread();
     _loadEvent.signal();
     _loadThreadEnd.signal();
     if (_isSupportedTransferQueue) {

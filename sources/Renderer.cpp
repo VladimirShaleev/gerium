@@ -7,14 +7,11 @@ Renderer::Renderer() noexcept : _shutdownSignal(marl::Event::Mode::Manual), _wai
 }
 
 Renderer::~Renderer() {
-    _shutdownSignal.signal();
-    _waitTaskSignal.signal();
-    _loadTread.join();
 }
 
 void Renderer::initialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) {
-    _logger    = Logger::create("gerium:renderer");
-    _loadTread = std::thread([this, scheduler = marl::Scheduler::get()]() {
+    _logger     = Logger::create("gerium:renderer");
+    _loadThread = std::thread([this, scheduler = marl::Scheduler::get()]() {
         scheduler->bind();
         defer(scheduler->unbind());
         loadThread();
@@ -238,6 +235,24 @@ void Renderer::getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height)
     onGetSwapchainSize(width, height);
 }
 
+void Renderer::closeLoadThread() {
+    _shutdownSignal.signal();
+    _waitTaskSignal.signal();
+    _loadThread.join();
+
+    while (!_tasks.empty()) {
+        auto task = _tasks.front();
+        if (task->ktxTexture) {
+            ktxTexture_Destroy(ktxTexture(task->ktxTexture));
+        } else if (task->mips.size() && task->mips.back().imageMip == 0) {
+            stbi_image_free((void*) task->mips.back().imageData);
+        }
+        task->file = nullptr;
+        delete task;
+        _tasks.pop();
+    }
+}
+
 Renderer::Task* Renderer::createLoadTask(ObjectPtr<File> file, const std::string& name) {
     auto fileSize = file->getSize();
     auto fileData = file->map();
@@ -380,6 +395,10 @@ void Renderer::loadThread() noexcept {
                 auto imageData = (gerium_cdata_t) stbi_load_from_memory(
                     (const stbi_uc*) task->data, (int) task->file->getSize(), &widht, &height, &comp, 4);
                 task->mips.push({ imageData, 0, 0 });
+            }
+
+            if (_shutdownSignal.test()) {
+                break;
             }
 
             const auto& taskMip = task->mips.front();
