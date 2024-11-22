@@ -317,6 +317,25 @@ private:
     DescriptorSet _descriptorSet;
 };
 
+class CsmPass final : public RenderPass {
+public:
+    CsmPass(gerium_application_t app, ResourceManager& resourceManager) :
+        RenderPass("csm_pass"),
+        _camera(app, resourceManager) {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+    // private:
+    Camera _camera{};
+};
+
 class Application final {
 public:
     Application();
@@ -387,7 +406,7 @@ public:
     gerium_texture_h noiseTexture(uint32_t index) const noexcept {
         return _noiseTextures[index % std::size(_noiseTextures)];
     }
-    
+
     template <typename RP>
     RP* getPass() noexcept {
         static_assert(std::is_base_of_v<RenderPass, RP>);

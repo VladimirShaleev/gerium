@@ -40,6 +40,12 @@ public:
     void setPosition(const glm::vec3& position);
     void setRotation(gerium_float32_t yaw, gerium_float32_t pitch);
     void setPerpective(gerium_float32_t nearPlane, gerium_float32_t farPlane, gerium_float32_t fov);
+    void setOrtho(gerium_float32_t left,
+                  gerium_float32_t right,
+                  gerium_float32_t bottom,
+                  gerium_float32_t top,
+                  gerium_float32_t nearPlane,
+                  gerium_float32_t farPlane);
     void rotate(gerium_float32_t deltaPitch, gerium_float32_t deltaYaw, gerium_float32_t delta);
     void move(Movement direction, gerium_float32_t value, gerium_float32_t delta);
     void zoom(gerium_float32_t value, gerium_float32_t delta);
@@ -115,6 +121,11 @@ private:
     gerium_float32_t _nearPlane{};
     gerium_float32_t _farPlane{};
     gerium_float32_t _fov{};
+    gerium_float32_t _orthoLeft{};
+    gerium_float32_t _orthoRight{};
+    gerium_float32_t _orthoBottom{};
+    gerium_float32_t _orthoTop{};
+    bool _isOrtho{};
 
     glm::vec2 _prevJitter{};
     glm::vec2 _jitter{};

@@ -599,6 +599,7 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
     framebuffer->renderPass             = creation.renderPass;
     framebuffer->width                  = creation.width;
     framebuffer->height                 = creation.height;
+    framebuffer->layers                 = creation.layers;
     framebuffer->scaleX                 = creation.scaleX;
     framebuffer->scaleY                 = creation.scaleY;
     framebuffer->depthStencilAttachment = creation.depthStencilTexture;
@@ -635,7 +636,7 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
     createInfo.pAttachments    = framebufferAttachments;
     createInfo.width           = framebuffer->width;
     createInfo.height          = framebuffer->height;
-    createInfo.layers          = 1;
+    createInfo.layers          = framebuffer->layers;
     check(_vkTable.vkCreateFramebuffer(_device, &createInfo, getAllocCalls(), &framebuffer->vkFramebuffer));
 
     setObjectName(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t) framebuffer->vkFramebuffer, framebuffer->name);

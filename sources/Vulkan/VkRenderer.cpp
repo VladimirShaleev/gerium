@@ -292,6 +292,7 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
 
     gerium_uint16_t width  = 0;
     gerium_uint16_t height = 0;
+    gerium_uint16_t layers = 1;
 
     for (gerium_uint32_t i = 0; i < node->outputCount; ++i) {
         auto resource = frameGraph.getResource(node->outputs[i]);
@@ -313,6 +314,8 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
         } else {
             assert(height == info.texture.height);
         }
+
+        layers = std::max(layers, info.texture.layers);
 
         if (hasDepthOrStencil(toVkFormat(info.texture.format))) {
             // TODO: check 1 depth/stencil target
@@ -345,6 +348,8 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
             assert(height == info.texture.height);
         }
 
+        layers = std::max(layers, info.texture.layers);
+
         if (hasDepthOrStencil(toVkFormat(info.texture.format))) {
             // TODO: check 1 depth/stencil target
             creation.setDepthStencilTexture(info.texture.handles[index]);
@@ -355,6 +360,7 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
 
     creation.width  = width;
     creation.height = height;
+    creation.layers = layers;
 
     return _device->createFramebuffer(creation);
 }

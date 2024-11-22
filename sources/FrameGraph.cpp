@@ -279,7 +279,7 @@ void FrameGraph::compile() {
                     TextureCreation creation{};
                     creation.setFormat(info.format, GERIUM_TEXTURE_TYPE_2D)
                         .setSize(info.width, info.height, info.depth)
-                        .setFlags(1, 1, true, node->compute);
+                        .setFlags(1, info.layers, true, node->compute);
 
                     if (!_freeList.empty()) {
                         const auto size =
@@ -518,6 +518,7 @@ void FrameGraph::fillExternalResource(FrameGraphResourceHandle handle) noexcept 
                     resource->info.texture.format     = info.format;
                     resource->info.texture.width      = info.width;
                     resource->info.texture.height     = info.height;
+                    resource->info.texture.layers     = info.layers;
                     resource->info.texture.depth      = info.depth;
                     resource->info.texture.handles[0] = externaHandle;
                 } else {
@@ -576,6 +577,7 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
         resource->info.texture.format            = output.format;
         resource->info.texture.width             = output.width;
         resource->info.texture.height            = output.height;
+        resource->info.texture.layers            = output.layers;
         resource->info.texture.depth             = 1;
         resource->info.texture.autoScale         = output.auto_scale;
         resource->info.texture.operation         = renderPassOp;

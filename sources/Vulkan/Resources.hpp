@@ -285,6 +285,7 @@ struct FramebufferCreation {
 
     uint16_t width  = 0;
     uint16_t height = 0;
+    uint16_t layers = 1;
     float    scaleX = 1.0f;
     float    scaleY = 1.0f;
     uint8_t  resize = 1;
@@ -457,6 +458,7 @@ struct Framebuffer {
     RenderPassHandle renderPass;
     uint16_t         width;
     uint16_t         height;
+    uint16_t         layers;
     float            scaleX;
     float            scaleY;
 

@@ -112,6 +112,8 @@ frame graph:
         name: diffuse_gi
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: specular_gi
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: csm_depths
       # - type: GERIUM_RESOURCE_TYPE_REFERENCE
       #   name: stub_dep_1
       - type: GERIUM_RESOURCE_TYPE_REFERENCE
@@ -273,3 +275,14 @@ frame graph:
         name: debug_gi
         format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
+
+  - name: csm_pass
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: csm_depths
+        format: GERIUM_FORMAT_D32_SFLOAT
+        width: 512
+        height: 512
+        layers: 3
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        clear depth stencil attachment: [0.0, 0]

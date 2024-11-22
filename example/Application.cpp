@@ -200,10 +200,10 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
         GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "lights", nullptr, sizeof(Light) * 1, 0);
 
     auto lightCount = (glm::uint*) gerium_renderer_map_buffer(renderer, lightCountBuffer, 0, sizeof(glm::uint));
-    *lightCount = 1;
+    *lightCount     = 1;
     gerium_renderer_unmap_buffer(renderer, lightCountBuffer);
 
-    auto lights = (Light*) gerium_renderer_map_buffer(renderer, lightBuffer, 0, sizeof(Light) * 1);
+    auto lights              = (Light*) gerium_renderer_map_buffer(renderer, lightBuffer, 0, sizeof(Light) * 1);
     lights[0].directionRange = skyDome->skyData().sunDirection;
     lights[0].colorIntensity = vec4(1.0, 1.0, 1.0, 5.0);
     lights[0].type           = LIGHT_TYPE_DIRECTIONAL;
@@ -256,6 +256,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     if (ImGui::Begin("Settings")) {
         ImGui::Text("Meshlets: %s", application()->meshShaderSupported() ? "hardware" : "software");
         ImGui::Separator();
+        ImGui::Checkbox("Show profiler", &drawProfiler);
         static int hour = 7;
         ImGui::SliderInt("Hour", &settings.Hour, 5, 20, "%d", ImGuiSliderFlags_AlwaysClamp);
     }
@@ -906,6 +907,83 @@ void SkydomePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
     _technique     = nullptr;
 }
 
+void CsmPass::render(gerium_frame_graph_t frameGraph,
+                     gerium_renderer_t renderer,
+                     gerium_command_buffer_t commandBuffer,
+                     gerium_uint32_t worker,
+                     gerium_uint32_t totalWorkers) {
+    auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
+                                                                         : application()->getCamera();
+
+    const auto nearPlane = camera->nearPlane();
+    const auto farPlane  = camera->farPlane();
+
+    const auto aspect = float(application()->width()) / application()->height();
+    const auto proj   = glm::perspective(camera->fov(), aspect, farPlane, nearPlane);
+
+    const auto invViewProjection = glm::inverse(proj * camera->view());
+    glm::vec4 frustumCorners[8]{};
+    for (int x = 0; x < 2; ++x) {
+        for (int y = 0; y < 2; ++y) {
+            for (int z = 0; z < 2; ++z) {
+                const auto point =
+                    invViewProjection * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                frustumCorners[x * 4 + y * 2 + z] = point / point.w;
+            }
+        }
+    }
+
+    auto center = glm::vec3(0.0f);
+    for (const auto& point : frustumCorners) {
+        center += point.xyz();
+    }
+    center /= std::size(frustumCorners);
+
+    const auto skydome   = application()->getPass<SkyDomeGenPass>();
+    const auto lightDir  = skydome->skyData().sunDirection.xyz();
+    const auto lightView = glm::lookAt(center + lightDir, center, glm::vec3(0.0f, 1.0f, 0.0f));
+    const auto lightQuat = glm::quat_cast(lightView);
+    const auto yaw       = glm::yaw(lightQuat);
+    const auto pitch     = glm::pitch(lightQuat);
+
+    auto minX = std::numeric_limits<float>::max();
+    auto maxX = std::numeric_limits<float>::lowest();
+    auto minY = std::numeric_limits<float>::max();
+    auto maxY = std::numeric_limits<float>::lowest();
+    auto minZ = std::numeric_limits<float>::max();
+    auto maxZ = std::numeric_limits<float>::lowest();
+    for (const auto& v : frustumCorners) {
+        const auto trf = lightView * v;
+        minX           = std::min(minX, trf.x);
+        maxX           = std::max(maxX, trf.x);
+        minY           = std::min(minY, trf.y);
+        maxY           = std::max(maxY, trf.y);
+        minZ           = std::min(minZ, trf.z);
+        maxZ           = std::max(maxZ, trf.z);
+    }
+
+    constexpr float zMult = 10.0f;
+    if (minZ < 0) {
+        minZ *= zMult;
+    } else {
+        minZ /= zMult;
+    }
+    if (maxZ < 0) {
+        maxZ /= zMult;
+    } else {
+        maxZ *= zMult;
+    }
+
+    _camera.setPosition(center);
+    _camera.setRotation(yaw, pitch);
+    _camera.setOrtho(minX, maxX, minY, maxY, minZ, maxZ);
+    _camera.update({});
+}
+
+void CsmPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _camera = {};
+}
+
 Application::Application() {
     check(gerium_logger_create("example", &_logger));
 }
@@ -1198,6 +1276,7 @@ void Application::initialize() {
     addPass<SkyDomeGenPass>();
     addPass<SkyDomePrefilteredPass>();
     addPass<SkydomePass>();
+    addPass<CsmPass>(_application, _resourceManager);
     for (auto& renderPass : _renderPasses) {
         renderPass->registerResources(_frameGraph, _renderer);
     }

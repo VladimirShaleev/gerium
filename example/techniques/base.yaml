@@ -148,3 +148,17 @@ pipelines:
   #     - type: GERIUM_SHADER_TYPE_FRAGMENT
   #       lang: GERIUM_SHADER_LANGUAGE_GLSL
   #       name: shaders/lines.glsl
+
+  - render pass: csm_pass
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_FILL
+      cull mode: GERIUM_CULL_MODE_BACK
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+    depth stencil:
+      depth test enable: true
+      depth write enable: true
+      depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/csm.vert.glsl

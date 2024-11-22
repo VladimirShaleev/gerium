@@ -490,6 +490,7 @@ struct convert<gerium_resource_output_t> {
         rhs.format           = node["format"].as<gerium_format_t>(GERIUM_FORMAT_R8_UNORM);
         rhs.width            = node["width"].as<gerium_uint16_t>(0);
         rhs.height           = node["height"].as<gerium_uint16_t>(0);
+        rhs.layers           = node["layers"].as<gerium_uint16_t>(1);
         rhs.auto_scale       = node["auto scale"].as<float>(1.0f);
         rhs.render_pass_op   = node["render pass op"].as<gerium_render_pass_op_t>(GERIUM_RENDER_PASS_OP_DONT_CARE);
         rhs.color_write_mask = {};

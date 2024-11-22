@@ -39,6 +39,22 @@ void Camera::setPerpective(gerium_float32_t nearPlane, gerium_float32_t farPlane
     _nearPlane = nearPlane;
     _farPlane  = farPlane;
     _fov       = fov;
+    _isOrtho   = false;
+}
+
+void Camera::setOrtho(gerium_float32_t left,
+                      gerium_float32_t right,
+                      gerium_float32_t bottom,
+                      gerium_float32_t top,
+                      gerium_float32_t nearPlane,
+                      gerium_float32_t farPlane) {
+    _nearPlane   = nearPlane;
+    _farPlane    = farPlane;
+    _orthoLeft   = left;
+    _orthoRight  = right;
+    _orthoBottom = bottom;
+    _orthoTop    = top;
+    _isOrtho     = true;
 }
 
 void Camera::rotate(gerium_float32_t deltaPitch, gerium_float32_t deltaYaw, gerium_float32_t delta) {
@@ -104,11 +120,15 @@ void Camera::update(SettingsOutput output) {
 
     const auto aspect = float(width) / height;
 
+    const auto projection = _isOrtho
+                                ? glm::ortho(_orthoLeft, _orthoRight, _orthoBottom, _orthoTop, _nearPlane, _farPlane)
+                                : infinitePerspectiveReverse(_fov, aspect, _nearPlane);
+
     auto jitter         = glm::translate(glm::vec3(_jitter, 0.0f));
     _prevView           = _view;
     _prevProjection     = _projection;
     _prevViewProjection = _viewProjection;
-    _projection         = jitter * infinitePerspectiveReverse(_fov, aspect, _nearPlane);
+    _projection         = jitter * projection;
     _view               = glm::lookAt(_position, _position + _front, _up);
     _viewProjection     = _projection * _view;
 

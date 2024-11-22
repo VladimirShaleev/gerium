@@ -61,6 +61,7 @@ struct FrameGraphResourceInfo {
             gerium_format_t format;
             gerium_uint16_t width;
             gerium_uint16_t height;
+            gerium_uint16_t layers;
             gerium_uint16_t depth;
             gerium_float32_t autoScale;
             RenderPassOp operation;
