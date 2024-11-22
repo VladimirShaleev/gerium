@@ -475,6 +475,24 @@ void CommandBuffer::onDrawIndexed(gerium_uint32_t firstIndex,
         _commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
+void CommandBuffer::onDrawIndexedIndirect(BufferHandle handle,
+                                          gerium_uint32_t offset,
+                                          BufferHandle drawCountHandle,
+                                          gerium_uint32_t drawCountOffset,
+                                          gerium_uint32_t drawCount,
+                                          gerium_uint32_t stride) noexcept {
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
+
+    bindDescriptorSets();
+    if (drawCountHandle == Undefined) {
+        _device->vkTable().vkCmdDrawIndexedIndirect(_commandBuffer, vkBuffer, vkOffset, drawCount, stride);
+    } else {
+        auto [vkBufferCount, vkOffsetCount] = getVkBuffer(drawCountHandle, drawCountOffset);
+        _device->vkTable().vkCmdDrawIndexedIndirectCount(
+            _commandBuffer, vkBuffer, vkOffset, vkBufferCount, vkOffsetCount, drawCount, stride);
+    }
+}
+
 void CommandBuffer::onDrawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept {
     bindDescriptorSets();
     _device->vkTable().vkCmdDrawMeshTasksEXT(_commandBuffer, groupX, groupY, groupZ);

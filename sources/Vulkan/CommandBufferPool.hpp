@@ -77,6 +77,12 @@ private:
                        gerium_uint32_t vertexOffset,
                        gerium_uint32_t firstInstance,
                        gerium_uint32_t instanceCount) noexcept override;
+    void onDrawIndexedIndirect(BufferHandle handle,
+                             gerium_uint32_t offset,
+                             BufferHandle drawCountHandle,
+                             gerium_uint32_t drawCountOffset,
+                             gerium_uint32_t drawCount,
+                             gerium_uint32_t stride) noexcept override;
     void onDrawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept override;
     void onDrawMeshTasksIndirect(BufferHandle handle,
                                  gerium_uint32_t offset,

@@ -907,6 +907,30 @@ void SkydomePass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
     _technique     = nullptr;
 }
 
+void CsmCullingPass::render(gerium_frame_graph_t frameGraph,
+                            gerium_renderer_t renderer,
+                            gerium_command_buffer_t commandBuffer,
+                            gerium_uint32_t worker,
+                            gerium_uint32_t totalWorkers) {
+    auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
+                                                                         : application()->getCamera();
+
+    gerium_buffer_h commandCount;
+    check(gerium_renderer_get_buffer(renderer, "csm_draw_count", &commandCount));
+
+    auto ds1 = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_buffer(renderer, ds1, 0, application()->drawData());
+    gerium_renderer_bind_resource(renderer, ds1, 1, "csm_draw_count", false);
+    gerium_renderer_bind_resource(renderer, ds1, 2, "csm_commands", false);
+
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds1, GLOBAL_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->cluster().descriptorSet, CLUSTER_DATA_SET);
+    gerium_command_buffer_fill_buffer(commandBuffer, commandCount, 0, 4, 0);
+    gerium_command_buffer_dispatch(commandBuffer, getGroupCount(application()->cluster().instanceCount, 64U), 1, 1);
+}
+
 void CsmPass::render(gerium_frame_graph_t frameGraph,
                      gerium_renderer_t renderer,
                      gerium_command_buffer_t commandBuffer,
@@ -978,6 +1002,20 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
     _camera.setRotation(yaw, pitch);
     _camera.setOrtho(minX, maxX, minY, maxY, minZ, maxZ);
     _camera.update({});
+
+    const auto& cluster = application()->cluster();
+
+    gerium_buffer_h commandCount;
+    gerium_buffer_h drawCommands;
+    check(gerium_renderer_get_buffer(renderer, "csm_draw_count", &commandCount));
+    check(gerium_renderer_get_buffer(renderer, "csm_commands", &drawCommands));
+
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _camera.getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_vertex_buffer(commandBuffer, cluster.shadowVertices, 0, 0);
+    gerium_command_buffer_bind_index_buffer(commandBuffer, cluster.shadowIndices, 0, GERIUM_INDEX_TYPE_UINT32);
+    gerium_command_buffer_draw_indexed_indirect(
+        commandBuffer, drawCommands, 0, commandCount, 0, cluster.instanceCount, sizeof(IndexedIndirectDraw));
 }
 
 void CsmPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1067,8 +1105,12 @@ Cluster Application::loadCluster(std::string_view name) {
         shadowVertices[i].z = vertices[i].pz;
         shadowVertices[i].w = halfOne;
     }
-    result.shadowVertices = _resourceManager.createBuffer(
-        GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "shadow_vertices" + id, shadowVertices.data(), vertexCount * 8);
+    result.shadowVertices =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_VERTEX_BIT,
+                                      false,
+                                      "shadow_vertices" + id,
+                                      shadowVertices.data(),
+                                      vertexCount * 8);
     cluster += verticesSize;
 
     result.meshlets =
@@ -1086,6 +1128,9 @@ Cluster Application::loadCluster(std::string_view name) {
     memcpy(simpleMeshes.data(), cluster, simpleMeshesSize);
     cluster += simpleMeshesSize;
 
+    result.simpleMeshesBuf = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "simple_meshes" + id, simpleMeshes.data(), simpleMeshesSize);
+
     result.vertexIndices = _resourceManager.createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "vertex_indices" + id, cluster, vertexIndecesSize);
     cluster += vertexIndecesSize;
@@ -1094,8 +1139,12 @@ Cluster Application::loadCluster(std::string_view name) {
         GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "primitive_indices" + id, cluster, primitiveIndicesSize);
     cluster += primitiveIndicesSize;
 
-    result.shadowIndices = _resourceManager.createBuffer(
-        GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "shadow_indices" + id, cluster, shadowIndicesSize);
+    result.shadowIndices =
+        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT,
+                                      false,
+                                      "shadow_indices" + id,
+                                      cluster,
+                                      shadowIndicesSize);
     cluster += shadowIndicesSize;
 
     std::vector<Instance> instances(result.instanceCount);
@@ -1162,6 +1211,7 @@ Cluster Application::loadCluster(std::string_view name) {
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 3, result.primitiveIndices);
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 4, result.meshes);
     gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 5, result.instances);
+    gerium_renderer_bind_buffer(_renderer, result.descriptorSet, 6, result.simpleMeshesBuf);
 
     auto bsdfPass = getPass<BSDFPass>();
 
@@ -1227,6 +1277,7 @@ Cluster Application::loadCluster(std::string_view name) {
         bsdfPass->createInstance(desc);
     }
 
+    result.simpleMeshes = std::move(simpleMeshes);
     return result;
 }
 
@@ -1277,6 +1328,7 @@ void Application::initialize() {
     addPass<SkyDomePrefilteredPass>();
     addPass<SkydomePass>();
     addPass<CsmPass>(_application, _resourceManager);
+    addPass<CsmCullingPass>();
     for (auto& renderPass : _renderPasses) {
         renderPass->registerResources(_frameGraph, _renderer);
     }

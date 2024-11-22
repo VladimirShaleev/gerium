@@ -1653,6 +1653,15 @@ gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
                                    gerium_uint32_t instance_count);
 
 gerium_public void
+gerium_command_buffer_draw_indexed_indirect(gerium_command_buffer_t command_buffer,
+                                            gerium_buffer_h handle,
+                                            gerium_uint32_t offset,
+                                            gerium_buffer_h draw_count_handle,
+                                            gerium_uint32_t draw_count_offset,
+                                            gerium_uint32_t draw_count,
+                                            gerium_uint32_t stride);
+
+gerium_public void
 gerium_command_buffer_draw_mesh_tasks(gerium_command_buffer_t command_buffer,
                                       gerium_uint32_t group_x,
                                       gerium_uint32_t group_y,

@@ -149,6 +149,12 @@ pipelines:
   #       lang: GERIUM_SHADER_LANGUAGE_GLSL
   #       name: shaders/lines.glsl
 
+  - render pass: csm_culling_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/csm_culling.comp.glsl
+
   - render pass: csm_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_FILL
@@ -158,6 +164,15 @@ pipelines:
       depth test enable: true
       depth write enable: true
       depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+    vertex attributes:
+      - location: 0
+        binding: 0
+        offset: 0
+        format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
+    vertex bindings:
+      - binding: 0
+        stride: 8
+        input rate: GERIUM_VERTEX_RATE_PER_VERTEX
     shaders:
       - type: GERIUM_SHADER_TYPE_VERTEX
         lang: GERIUM_SHADER_LANGUAGE_GLSL

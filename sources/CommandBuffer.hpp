@@ -35,6 +35,12 @@ public:
                      gerium_uint32_t vertexOffset,
                      gerium_uint32_t firstInstance,
                      gerium_uint32_t instanceCount) noexcept;
+    void drawIndexedIndirect(BufferHandle handle,
+                             gerium_uint32_t offset,
+                             BufferHandle drawCountHandle,
+                             gerium_uint32_t drawCountOffset,
+                             gerium_uint32_t drawCount,
+                             gerium_uint32_t stride) noexcept;
     void drawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept;
     void drawMeshTasksIndirect(BufferHandle handle,
                                gerium_uint32_t offset,
@@ -80,6 +86,13 @@ private:
                                gerium_uint32_t vertexOffset,
                                gerium_uint32_t firstInstance,
                                gerium_uint32_t instanceCount) noexcept = 0;
+
+    virtual void onDrawIndexedIndirect(BufferHandle handle,
+                                       gerium_uint32_t offset,
+                                       BufferHandle drawCountHandle,
+                                       gerium_uint32_t drawCountOffset,
+                                       gerium_uint32_t drawCount,
+                                       gerium_uint32_t stride) noexcept = 0;
 
     virtual void onDrawMeshTasksIndirect(BufferHandle handle,
                                          gerium_uint32_t offset,

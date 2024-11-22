@@ -276,7 +276,24 @@ frame graph:
         format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
 
+  - name: csm_culling_pass
+    compute: true
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: csm_draw_count
+        size: 4
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: csm_commands
+        size: 134217728
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
+
   - name: csm_pass
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: csm_draw_count
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: csm_commands
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: csm_depths

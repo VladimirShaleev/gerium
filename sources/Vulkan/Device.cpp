@@ -1716,6 +1716,7 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     features12.pNext = &features11;
     features12.samplerFilterMinmax =
         testFeatures12.samplerFilterMinmax; // TODO: add flag for reduction GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT
+    features12.drawIndirectCount = testFeatures12.drawIndirectCount;
     if (_bindlessSupported) {
         features12.shaderSampledImageArrayNonUniformIndexing = testFeatures12.shaderSampledImageArrayNonUniformIndexing;
         features12.descriptorBindingPartiallyBound           = testFeatures12.descriptorBindingPartiallyBound;

@@ -18,8 +18,10 @@ struct Cluster {
     Buffer shadowVertices;
     Buffer shadowIndices;
     Buffer meshes;
+    Buffer simpleMeshesBuf;
     Buffer instances;
     DescriptorSet descriptorSet;
+    std::vector<SimpleMesh> simpleMeshes;
 };
 
 class IndirectPass final : public RenderPass {
@@ -315,6 +317,18 @@ public:
 private:
     Technique _technique;
     DescriptorSet _descriptorSet;
+};
+
+class CsmCullingPass final : public RenderPass {
+public:
+    CsmCullingPass() : RenderPass("csm_culling_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
 };
 
 class CsmPass final : public RenderPass {

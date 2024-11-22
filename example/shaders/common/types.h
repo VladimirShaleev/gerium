@@ -172,4 +172,12 @@ struct MeshNonCompressed {
 #endif
 #endif
 
+struct IndexedIndirectDraw {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int  vertexOffset;
+    uint firstInstance;
+};
+
 #endif
