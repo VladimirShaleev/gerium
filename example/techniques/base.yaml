@@ -158,12 +158,12 @@ pipelines:
   - render pass: csm_pass
     rasterization:
       polygon mode: GERIUM_POLYGON_MODE_FILL
-      cull mode: GERIUM_CULL_MODE_BACK
+      cull mode: GERIUM_CULL_MODE_FRONT
       front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
     depth stencil:
       depth test enable: true
       depth write enable: true
-      depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+      depth compare op: GERIUM_COMPARE_OP_LESS_OR_EQUAL
     vertex attributes:
       - location: 0
         binding: 0

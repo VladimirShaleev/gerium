@@ -302,4 +302,4 @@ frame graph:
         height: 512
         layers: 3
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
-        clear depth stencil attachment: [0.0, 0]
+        clear depth stencil attachment: [1.0, 0]

@@ -936,11 +936,43 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
                      gerium_command_buffer_t commandBuffer,
                      gerium_uint32_t worker,
                      gerium_uint32_t totalWorkers) {
+    const auto lightSpaceMatrices = calcLightSpaceMatrices();
+
+    const auto& cluster = application()->cluster();
+
+    gerium_buffer_h commandCount;
+    gerium_buffer_h drawCommands;
+    check(gerium_renderer_get_buffer(renderer, "csm_draw_count", &commandCount));
+    check(gerium_renderer_get_buffer(renderer, "csm_commands", &drawCommands));
+
+    auto lighSpacesHandle =
+        application()->resourceManager().createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT,
+                                                      true,
+                                                      "light_space_matrices",
+                                                      nullptr,
+                                                      lightSpaceMatrices.size() * sizeof(lightSpaceMatrices[0]));
+    auto* matrices = (glm::mat4*) gerium_renderer_map_buffer(
+        renderer, lighSpacesHandle, 0, lightSpaceMatrices.size() * sizeof(lightSpaceMatrices[0]));
+    for (int i = 0; i < lightSpaceMatrices.size(); ++i) {
+        matrices[i] = lightSpaceMatrices[i];
+    }
+    gerium_renderer_unmap_buffer(renderer, lighSpacesHandle);
+
+    auto ds = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_buffer(renderer, ds, 0, lighSpacesHandle);
+
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, cluster.descriptorSet, 0);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 1);
+    gerium_command_buffer_bind_vertex_buffer(commandBuffer, cluster.shadowVertices, 0, 0);
+    gerium_command_buffer_bind_index_buffer(commandBuffer, cluster.shadowIndices, 0, GERIUM_INDEX_TYPE_UINT32);
+    gerium_command_buffer_draw_indexed_indirect(
+        commandBuffer, drawCommands, 0, commandCount, 0, cluster.instanceCount, sizeof(IndexedIndirectDraw));
+}
+
+glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
     auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
                                                                          : application()->getCamera();
-
-    const auto nearPlane = camera->nearPlane();
-    const auto farPlane  = 400.0f; // camera->farPlane();
 
     const auto aspect = float(application()->width()) / application()->height();
     const auto proj   = glm::perspective(camera->fov(), aspect, nearPlane, farPlane);
@@ -966,9 +998,6 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
     const auto skydome   = application()->getPass<SkyDomeGenPass>();
     const auto lightDir  = skydome->skyData().sunDirection.xyz();
     const auto lightView = glm::lookAt(center + lightDir, center, glm::vec3(0.0f, 1.0f, 0.0f));
-    const auto lightQuat = glm::quat_cast(lightView);
-    const auto yaw       = glm::yaw(lightQuat);
-    const auto pitch     = glm::pitch(lightQuat);
 
     auto minX = std::numeric_limits<float>::max();
     auto maxX = std::numeric_limits<float>::lowest();
@@ -986,7 +1015,7 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
         maxZ           = std::max(maxZ, trf.z);
     }
 
-    constexpr float zMult = 10.0f;
+    constexpr float zMult = 5.0f;
     if (minZ < 0) {
         minZ *= zMult;
     } else {
@@ -997,30 +1026,31 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
     } else {
         maxZ *= zMult;
     }
-
-    _camera.setPosition(center);
-    _camera.setRotation(yaw, pitch);
-    _camera.setOrtho(minX, maxX, minY, maxY, minZ, maxZ);
-    _camera.update({});
-
-    const auto& cluster = application()->cluster();
-
-    gerium_buffer_h commandCount;
-    gerium_buffer_h drawCommands;
-    check(gerium_renderer_get_buffer(renderer, "csm_draw_count", &commandCount));
-    check(gerium_renderer_get_buffer(renderer, "csm_commands", &drawCommands));
-
-    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _camera.getDecriptorSet(), SCENE_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, cluster.descriptorSet, GLOBAL_DATA_SET);
-    gerium_command_buffer_bind_vertex_buffer(commandBuffer, cluster.shadowVertices, 0, 0);
-    gerium_command_buffer_bind_index_buffer(commandBuffer, cluster.shadowIndices, 0, GERIUM_INDEX_TYPE_UINT32);
-    gerium_command_buffer_draw_indexed_indirect(
-        commandBuffer, drawCommands, 0, commandCount, 0, cluster.instanceCount, sizeof(IndexedIndirectDraw));
+    
+    auto lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
+    return lightProjection * lightView;
 }
 
-void CsmPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _camera = {};
+std::vector<glm::mat4> CsmPass::calcLightSpaceMatrices() {
+    auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
+                                                                         : application()->getCamera();
+
+    const auto nearPlane = camera->nearPlane();
+    const auto farPlane  = 200.0f; // camera->farPlane();
+
+    std::vector<float> shadowCascadeLevels{ farPlane / 10.0f, farPlane / 2.0f };
+
+    std::vector<glm::mat4> ret;
+    for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i) {
+        if (i == 0) {
+            ret.push_back(calcLightSpaceMatrix(nearPlane, shadowCascadeLevels[i]));
+        } else if (i < shadowCascadeLevels.size()) {
+            ret.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], shadowCascadeLevels[i]));
+        } else {
+            ret.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], farPlane));
+        }
+    }
+    return ret;
 }
 
 Application::Application() {
