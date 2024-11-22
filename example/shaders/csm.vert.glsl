@@ -13,5 +13,5 @@ layout(std430, binding = 5, set = GLOBAL_DATA_SET) readonly buffer Instances {
 };
 
 void main() {
-    gl_Position = scene.viewProjection * position;
+    gl_Position = scene.viewProjection * instances[gl_InstanceIndex].world * position;
 }

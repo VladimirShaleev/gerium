@@ -13,6 +13,8 @@
 #define MESH_MAX_VERTICES   64
 #define MESH_MAX_PRIMITIVES 124
 
+#define CSM_MAX_CASCADES 3
+
 #define LIGHT_TYPE_DIRECTIONAL 0
 #define LIGHT_TYPE_POINT       1
 #define LIGHT_TYPE_SPOT        2

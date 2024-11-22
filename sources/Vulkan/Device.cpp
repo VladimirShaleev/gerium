@@ -2390,6 +2390,10 @@ std::vector<uint32_t> Device::compile(const char* code,
             options.AddMacroDefinition("FRAGMENT_SHADER"s, "1"s);
             kind = shaderc_glsl_fragment_shader;
             break;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            options.AddMacroDefinition("GEOMETRY_SHADER"s, "1"s);
+            kind = shaderc_glsl_geometry_shader;
+            break;
         case VK_SHADER_STAGE_COMPUTE_BIT:
             options.AddMacroDefinition("COMPUTE_SHADER"s, "1"s);
             kind = shaderc_glsl_compute_shader;

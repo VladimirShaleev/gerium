@@ -36,6 +36,8 @@ void main() {
         return;
     }
 
+    // TODO: add culling
+
     uint count = atomicAdd(commandCount, 1);
 
     Instance instance = instances[index];

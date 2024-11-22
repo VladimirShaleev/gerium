@@ -940,10 +940,10 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
                                                                          : application()->getCamera();
 
     const auto nearPlane = camera->nearPlane();
-    const auto farPlane  = camera->farPlane();
+    const auto farPlane  = 400.0f; // camera->farPlane();
 
     const auto aspect = float(application()->width()) / application()->height();
-    const auto proj   = glm::perspective(camera->fov(), aspect, farPlane, nearPlane);
+    const auto proj   = glm::perspective(camera->fov(), aspect, nearPlane, farPlane);
 
     const auto invViewProjection = glm::inverse(proj * camera->view());
     glm::vec4 frustumCorners[8]{};
@@ -1012,6 +1012,7 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _camera.getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, cluster.descriptorSet, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_vertex_buffer(commandBuffer, cluster.shadowVertices, 0, 0);
     gerium_command_buffer_bind_index_buffer(commandBuffer, cluster.shadowIndices, 0, GERIUM_INDEX_TYPE_UINT32);
     gerium_command_buffer_draw_indexed_indirect(
