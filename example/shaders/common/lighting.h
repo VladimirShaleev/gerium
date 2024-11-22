@@ -3,13 +3,15 @@
 
 #include "types.h"
 
-layout(binding = 0, set = 1) uniform sampler2D lutBRDF;
+layout(binding = 0, set = 2) uniform sampler2D lutBRDF;
 
-layout(std140, binding = 1, set = 1) uniform LightCountUBO {
+layout(binding = 1, set = 2) uniform sampler2DArrayShadow csm;
+
+layout(std140, binding = 2, set = 2) uniform LightCountUBO {
     uint lightCount;
 };
 
-layout(std430, binding = 2, set = 1) readonly buffer LightSSBO {
+layout(std430, binding = 3, set = 2) readonly buffer LightSSBO {
     Light lights[];
 };
 
@@ -114,9 +116,9 @@ void lighting(vec3 worldPosition, vec3 normal, vec3 view, PixelData pixelData, v
         colorDifffuse += diffuse;
     }
 
-    color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
+    // color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
 
-    colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
+    // colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
 }
 
 #endif

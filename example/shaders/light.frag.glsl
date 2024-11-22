@@ -10,12 +10,12 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneDataUBO {
     SceneData scene;
 };
 
-layout(binding = 3, set = 1) uniform sampler2D texAlbedo;
-layout(binding = 4, set = 1) uniform sampler2D texNormal;
-layout(binding = 5, set = 1) uniform sampler2D texMetallicRoughness;
-layout(binding = 6, set = 1) uniform sampler2D texDepth;
-layout(binding = 7, set = 1) uniform sampler2D texDiffuseGI;
-layout(binding = 8, set = 1) uniform sampler2D texSpecularGI;
+layout(binding = 0, set = 1) uniform sampler2D texAlbedo;
+layout(binding = 1, set = 1) uniform sampler2D texNormal;
+layout(binding = 2, set = 1) uniform sampler2D texMetallicRoughness;
+layout(binding = 3, set = 1) uniform sampler2D texDepth;
+layout(binding = 4, set = 1) uniform sampler2D texDiffuseGI;
+layout(binding = 5, set = 1) uniform sampler2D texSpecularGI;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outDiffuse;

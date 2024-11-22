@@ -209,26 +209,24 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     lights[0].type           = LIGHT_TYPE_DIRECTIONAL;
     gerium_renderer_unmap_buffer(renderer, lightBuffer);
 
-    auto ds                 = application()->resourceManager().createDescriptorSet("");
-    auto& settings          = application()->settings();
-    const auto albedoTexure = application()->settings().DebugCamera ? "debug_albedo" : "albedo";
-    const auto normalTexure = application()->settings().DebugCamera ? "debug_normal" : "normal";
-    const auto aoRoughnessMetallicTexure =
-        application()->settings().DebugCamera ? "debug_ao_roughness_metallic" : "ao_roughness_metallic";
-    const auto motionTexure = application()->settings().DebugCamera ? "debug_depth" : "depth";
-    gerium_renderer_bind_texture(renderer, ds, 0, 0, application()->brdfLut());
-    gerium_renderer_bind_buffer(renderer, ds, 1, lightCountBuffer);
-    gerium_renderer_bind_buffer(renderer, ds, 2, lightBuffer);
-    gerium_renderer_bind_resource(renderer, ds, 3, albedoTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 4, normalTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 5, aoRoughnessMetallicTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 6, motionTexure, false);
-    gerium_renderer_bind_resource(renderer, ds, 7, "diffuse_gi", false);
-    gerium_renderer_bind_resource(renderer, ds, 8, "specular_gi", false);
+    auto ds1 = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_resource(renderer, ds1, 0, "albedo", false);
+    gerium_renderer_bind_resource(renderer, ds1, 1, "normal", false);
+    gerium_renderer_bind_resource(renderer, ds1, 2, "ao_roughness_metallic", false);
+    gerium_renderer_bind_resource(renderer, ds1, 3, "depth", false);
+    gerium_renderer_bind_resource(renderer, ds1, 4, "diffuse_gi", false);
+    gerium_renderer_bind_resource(renderer, ds1, 5, "specular_gi", false);
+
+    auto ds2 = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_texture(renderer, ds2, 0, 0, application()->brdfLut());
+    gerium_renderer_bind_resource(renderer, ds2, 1, "csm_depths", false);
+    gerium_renderer_bind_buffer(renderer, ds2, 2, lightCountBuffer);
+    gerium_renderer_bind_buffer(renderer, ds2, 3, lightBuffer);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, GLOBAL_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds1, GLOBAL_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds2, 2);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 }
 
@@ -1026,7 +1024,7 @@ glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
     } else {
         maxZ *= zMult;
     }
-    
+
     auto lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
     return lightProjection * lightView;
 }
