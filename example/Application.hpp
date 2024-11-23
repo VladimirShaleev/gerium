@@ -333,7 +333,7 @@ public:
 
 class CsmPass final : public RenderPass {
 public:
-    CsmPass(gerium_application_t app, ResourceManager& resourceManager) : RenderPass("csm_pass") {
+    CsmPass() : RenderPass("csm_pass") {
     }
 
     void render(gerium_frame_graph_t frameGraph,
@@ -342,9 +342,17 @@ public:
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
 
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+    gerium_descriptor_set_h descriptorSet() const noexcept {
+        return _descriptorSet;
+    }
+
 private:
     glm::mat4 calcLightSpaceMatrix(float nearPlane, float farPlane);
-    std::vector<glm::mat4> calcLightSpaceMatrices();
+    void updateLightSpaceMatrices(gerium_renderer_t renderer);
+
+    DescriptorSet _descriptorSet;
 };
 
 class Application final {

@@ -193,6 +193,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
 
     auto camera  = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
     auto skyDome = application()->getPass<SkyDomeGenPass>();
+    auto csm     = application()->getPass<CsmPass>();
 
     auto lightCountBuffer = application()->resourceManager().createBuffer(
         GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_count", nullptr, sizeof(glm::uint), 0);
@@ -227,6 +228,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds1, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds2, 2);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, csm->descriptorSet(), 3);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 }
 
@@ -934,7 +936,7 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
                      gerium_command_buffer_t commandBuffer,
                      gerium_uint32_t worker,
                      gerium_uint32_t totalWorkers) {
-    const auto lightSpaceMatrices = calcLightSpaceMatrices();
+    updateLightSpaceMatrices(renderer);
 
     const auto& cluster = application()->cluster();
 
@@ -943,29 +945,17 @@ void CsmPass::render(gerium_frame_graph_t frameGraph,
     check(gerium_renderer_get_buffer(renderer, "csm_draw_count", &commandCount));
     check(gerium_renderer_get_buffer(renderer, "csm_commands", &drawCommands));
 
-    auto lighSpacesHandle =
-        application()->resourceManager().createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT,
-                                                      true,
-                                                      "light_space_matrices",
-                                                      nullptr,
-                                                      lightSpaceMatrices.size() * sizeof(lightSpaceMatrices[0]));
-    auto* matrices = (glm::mat4*) gerium_renderer_map_buffer(
-        renderer, lighSpacesHandle, 0, lightSpaceMatrices.size() * sizeof(lightSpaceMatrices[0]));
-    for (int i = 0; i < lightSpaceMatrices.size(); ++i) {
-        matrices[i] = lightSpaceMatrices[i];
-    }
-    gerium_renderer_unmap_buffer(renderer, lighSpacesHandle);
-
-    auto ds = application()->resourceManager().createDescriptorSet("");
-    gerium_renderer_bind_buffer(renderer, ds, 0, lighSpacesHandle);
-
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, cluster.descriptorSet, 0);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 1);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 1);
     gerium_command_buffer_bind_vertex_buffer(commandBuffer, cluster.shadowVertices, 0, 0);
     gerium_command_buffer_bind_index_buffer(commandBuffer, cluster.shadowIndices, 0, GERIUM_INDEX_TYPE_UINT32);
     gerium_command_buffer_draw_indexed_indirect(
         commandBuffer, drawCommands, 0, commandCount, 0, cluster.instanceCount, sizeof(IndexedIndirectDraw));
+}
+
+void CsmPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _descriptorSet = nullptr;
 }
 
 glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
@@ -976,22 +966,23 @@ glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
     const auto proj   = glm::perspective(camera->fov(), aspect, nearPlane, farPlane);
 
     const auto invViewProjection = glm::inverse(proj * camera->view());
-    glm::vec4 frustumCorners[8]{};
+    glm::vec3 corners[8]{};
     for (int x = 0; x < 2; ++x) {
         for (int y = 0; y < 2; ++y) {
             for (int z = 0; z < 2; ++z) {
-                const auto point =
-                    invViewProjection * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
-                frustumCorners[x * 4 + y * 2 + z] = point / point.w;
+                const auto ndc   = glm::vec4(x * 2.0f - 1.0f, y * -2.0 + 1.0, z, 1.0f);
+                const auto point = invViewProjection * ndc;
+
+                corners[x * 4 + y * 2 + z] = point.xyz() / point.w;
             }
         }
     }
 
     auto center = glm::vec3(0.0f);
-    for (const auto& point : frustumCorners) {
-        center += point.xyz();
+    for (const auto& point : corners) {
+        center += point;
     }
-    center /= std::size(frustumCorners);
+    center /= std::size(corners);
 
     const auto skydome   = application()->getPass<SkyDomeGenPass>();
     const auto lightDir  = skydome->skyData().sunDirection.xyz();
@@ -1003,14 +994,15 @@ glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
     auto maxY = std::numeric_limits<float>::lowest();
     auto minZ = std::numeric_limits<float>::max();
     auto maxZ = std::numeric_limits<float>::lowest();
-    for (const auto& v : frustumCorners) {
-        const auto trf = lightView * v;
-        minX           = std::min(minX, trf.x);
-        maxX           = std::max(maxX, trf.x);
-        minY           = std::min(minY, trf.y);
-        maxY           = std::max(maxY, trf.y);
-        minZ           = std::min(minZ, trf.z);
-        maxZ           = std::max(maxZ, trf.z);
+    for (const auto& v : corners) {
+        const auto trf = lightView * glm::vec4(v, 1.0f);
+
+        minX = std::min(minX, trf.x);
+        maxX = std::max(maxX, trf.x);
+        minY = std::min(minY, trf.y);
+        maxY = std::max(maxY, trf.y);
+        minZ = std::min(minZ, trf.z);
+        maxZ = std::max(maxZ, trf.z);
     }
 
     constexpr float zMult = 5.0f;
@@ -1029,26 +1021,168 @@ glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
     return lightProjection * lightView;
 }
 
-std::vector<glm::mat4> CsmPass::calcLightSpaceMatrices() {
+void CsmPass::updateLightSpaceMatrices(gerium_renderer_t renderer) {
     auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
                                                                          : application()->getCamera();
+
+    // std::vector<float> shadowCascadeLevels(CSM_MAX_CASCADES);
+    // std::vector<mat4> result(CSM_MAX_CASCADES);
 
     const auto nearPlane = camera->nearPlane();
     const auto farPlane  = 200.0f; // camera->farPlane();
 
+    /*float cascadeSplits[CSM_MAX_CASCADES]{};
+
+    float nearClip  = camera->nearPlane();
+    float farClip   = 200.0f; // camera->farPlane();
+    float clipRange = farClip - nearClip;
+
+    float minZ = nearClip;
+    float maxZ = nearClip + clipRange;
+
+    float range = maxZ - minZ;
+    float ratio = maxZ / minZ;
+
+    float cascadeSplitLambda = 0.95f;
+
+    const auto skydome  = application()->getPass<SkyDomeGenPass>();
+    const auto lightDir = glm::normalize(skydome->skyData().sunDirection.xyz());
+
+    // Calculate split depths based on view camera frustum
+    // Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+    for (uint32_t i = 0; i < CSM_MAX_CASCADES; i++) {
+        float p          = (i + 1) / static_cast<float>(CSM_MAX_CASCADES);
+        float log        = minZ * std::pow(ratio, p);
+        float uniform    = minZ + range * p;
+        float d          = cascadeSplitLambda * (log - uniform) + uniform;
+        cascadeSplits[i] = (d - nearClip) / clipRange;
+    }
+
+    // Calculate orthographic projection matrix for each cascade
+    float lastSplitDist = 0.0;
+    for (uint32_t i = 0; i < CSM_MAX_CASCADES; i++) {
+        float splitDist = cascadeSplits[i];
+
+        glm::vec3 frustumCorners[8] = {
+            glm::vec3(-1.0f, 1.0f, 0.0f),  glm::vec3(1.0f, 1.0f, 0.0f),   glm::vec3(1.0f, -1.0f, 0.0f),
+            glm::vec3(-1.0f, -1.0f, 0.0f), glm::vec3(-1.0f, 1.0f, 1.0f),  glm::vec3(1.0f, 1.0f, 1.0f),
+            glm::vec3(1.0f, -1.0f, 1.0f),  glm::vec3(-1.0f, -1.0f, 1.0f),
+        };
+
+        // Project frustum corners into world space
+        const auto aspect = float(application()->width()) / application()->height();
+        const auto proj   = glm::perspective(camera->fov(), aspect, nearClip, farClip);
+
+        glm::mat4 invCam = glm::inverse(proj * camera->view());
+        for (uint32_t j = 0; j < 8; j++) {
+            glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[j], 1.0f);
+            frustumCorners[j]   = invCorner / invCorner.w;
+        }
+
+        for (uint32_t j = 0; j < 4; j++) {
+            glm::vec3 dist        = frustumCorners[j + 4] - frustumCorners[j];
+            frustumCorners[j + 4] = frustumCorners[j] + (dist * splitDist);
+            frustumCorners[j]     = frustumCorners[j] + (dist * lastSplitDist);
+        }
+
+        // Get frustum center
+        glm::vec3 frustumCenter = glm::vec3(0.0f);
+        for (uint32_t j = 0; j < 8; j++) {
+            frustumCenter += frustumCorners[j];
+        }
+        frustumCenter /= 8.0f;
+
+        float radius = 0.0f;
+        for (uint32_t j = 0; j < 8; j++) {
+            float distance = glm::length(frustumCorners[j] - frustumCenter);
+            radius         = glm::max(radius, distance);
+        }
+        radius = std::ceil(radius * 16.0f) / 16.0f * 1.2f;
+
+        glm::vec3 maxExtents = glm::vec3(radius);
+        glm::vec3 minExtents = -maxExtents;
+
+        // glm::vec3 lightDir = normalize(-lightPos);
+        glm::mat4 lightViewMatrix =
+            glm::lookAt(frustumCenter + lightDir * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightOrthoMatrix =
+            glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+
+        // Store split distance and matrix in cascade
+        shadowCascadeLevels[i] = nearClip + splitDist * clipRange;
+        result[i]              = lightOrthoMatrix * lightViewMatrix;
+
+        lastSplitDist = cascadeSplits[i];
+    }
+
+    auto lighSpacesHandle = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_space_matrices", nullptr, result.size() * sizeof(result[0]));
+    auto cascadeDistBuffer = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "cascade_distances", nullptr, 16 * CSM_MAX_CASCADES, 0);
+
+    auto* matrices =
+        (glm::mat4*) gerium_renderer_map_buffer(renderer, lighSpacesHandle, 0, result.size() * sizeof(result[0]));
+    for (int i = 0; i < result.size(); ++i) {
+        matrices[i] = result[i];
+    }
+    gerium_renderer_unmap_buffer(renderer, lighSpacesHandle);
+
+    auto cascadeDist =
+        (glm::vec4*) gerium_renderer_map_buffer(renderer, cascadeDistBuffer, 0, 16 * CSM_MAX_CASCADES);
+    for (int i = 0; i < shadowCascadeLevels.size(); ++i) {
+        cascadeDist[i]   = {};
+        cascadeDist[i].x = shadowCascadeLevels[i];
+    }
+    gerium_renderer_unmap_buffer(renderer, cascadeDistBuffer);
+
+    _descriptorSet = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, lighSpacesHandle);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 1, cascadeDistBuffer);*/
+
+
+
+
+
+
+
+
+    
     std::vector<float> shadowCascadeLevels{ farPlane / 10.0f, farPlane / 2.0f };
 
-    std::vector<glm::mat4> ret;
+    std::vector<glm::mat4> result;
     for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i) {
         if (i == 0) {
-            ret.push_back(calcLightSpaceMatrix(nearPlane, shadowCascadeLevels[i]));
+            result.push_back(calcLightSpaceMatrix(nearPlane, shadowCascadeLevels[i]));
         } else if (i < shadowCascadeLevels.size()) {
-            ret.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], shadowCascadeLevels[i]));
+            result.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], shadowCascadeLevels[i]));
         } else {
-            ret.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], farPlane));
+            result.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], farPlane));
         }
     }
-    return ret;
+
+    auto lighSpacesHandle = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_space_matrices", nullptr, result.size() * sizeof(result[0]));
+    auto cascadeDistBuffer = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "cascade_distances", nullptr, 16 * (CSM_MAX_CASCADES - 1), 0);
+
+    auto* matrices =
+        (glm::mat4*) gerium_renderer_map_buffer(renderer, lighSpacesHandle, 0, result.size() * sizeof(result[0]));
+    for (int i = 0; i < result.size(); ++i) {
+        matrices[i] = result[i];
+    }
+    gerium_renderer_unmap_buffer(renderer, lighSpacesHandle);
+
+    auto cascadeDist =
+        (glm::vec4*) gerium_renderer_map_buffer(renderer, cascadeDistBuffer, 0, 16 * (CSM_MAX_CASCADES - 1));
+    for (int i = 0; i < shadowCascadeLevels.size(); ++i) {
+        cascadeDist[i]   = {};
+        cascadeDist[i].x = shadowCascadeLevels[i];
+    }
+    gerium_renderer_unmap_buffer(renderer, cascadeDistBuffer);
+
+    _descriptorSet = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, lighSpacesHandle);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 1, cascadeDistBuffer);
 }
 
 Application::Application() {
@@ -1356,7 +1490,7 @@ void Application::initialize() {
     addPass<SkyDomeGenPass>();
     addPass<SkyDomePrefilteredPass>();
     addPass<SkydomePass>();
-    addPass<CsmPass>(_application, _resourceManager);
+    addPass<CsmPass>();
     addPass<CsmCullingPass>();
     for (auto& renderPass : _renderPasses) {
         renderPass->registerResources(_frameGraph, _renderer);

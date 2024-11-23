@@ -25,6 +25,7 @@ void main() {
     vec3  normal     = textureLod(texNormal, texCoord, 0).rgb;
     vec3  orm        = textureLod(texMetallicRoughness, texCoord, 0).rgb;
     vec3  position   = worldPositionFromDepth(texCoord, texture(texDepth, texCoord).r, scene.invViewProjection);
+    vec4  viewPos    = scene.view * vec4(position, 1.0);
     float roughness  = orm.g;
     float metallic   = orm.b;
     vec3  diffuseGI  = textureLod(texDiffuseGI, texCoord, 0).rgb;
@@ -45,7 +46,7 @@ void main() {
     vec3 color = vec3(0.0);
     vec3 colorDiffuse = vec3(0.0);
 
-    lighting(position, N, V, pexelData, diffuseGI, specularGI, color, colorDiffuse);
+    lighting(position, viewPos.z, N, V, pexelData, diffuseGI, specularGI, color, colorDiffuse);
 
     outColor = vec4(color, 1.0);
     outDiffuse = vec4(colorDiffuse, 1.0);
