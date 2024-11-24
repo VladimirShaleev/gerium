@@ -191,6 +191,18 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_uint32_t totalWorkers) {
     static bool drawProfiler = false;
 
+    gerium_texture_h csmTex;
+    check(gerium_renderer_get_texture(renderer, "csm_depths", false, &csmTex));
+    check(gerium_renderer_texture_sampler(renderer,
+                                          csmTex,
+                                          GERIUM_FILTER_LINEAR,
+                                          GERIUM_FILTER_LINEAR,
+                                          GERIUM_FILTER_LINEAR,
+                                          GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                          GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                          GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                          GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE));
+
     auto camera  = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
     auto skyDome = application()->getPass<SkyDomeGenPass>();
     auto csm     = application()->getPass<CsmPass>();
@@ -258,7 +270,7 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
         ImGui::Separator();
         ImGui::Checkbox("Show profiler", &drawProfiler);
         static int hour = 7;
-        ImGui::SliderInt("Hour", &settings.Hour, 5, 20, "%d", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderInt("Hour", &settings.Hour, 5, 19, "%d", ImGuiSliderFlags_AlwaysClamp);
     }
 
     ImGui::End();
@@ -1005,7 +1017,7 @@ glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
         maxZ = std::max(maxZ, trf.z);
     }
 
-    constexpr float zMult = 5.0f;
+    constexpr float zMult = 15.0f;
     if (minZ < 0) {
         minZ *= zMult;
     } else {
@@ -1097,14 +1109,14 @@ void CsmPass::updateLightSpaceMatrices(gerium_renderer_t renderer) {
             float distance = glm::length(frustumCorners[j] - frustumCenter);
             radius         = glm::max(radius, distance);
         }
-        radius = std::ceil(radius * 16.0f) / 16.0f * 1.2f;
+        radius = std::ceil(radius * 16.0f) / 16.0f;
 
         glm::vec3 maxExtents = glm::vec3(radius);
         glm::vec3 minExtents = -maxExtents;
 
         // glm::vec3 lightDir = normalize(-lightPos);
         glm::mat4 lightViewMatrix =
-            glm::lookAt(frustumCenter + lightDir * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::lookAt(frustumCenter - lightDir * minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 lightOrthoMatrix =
             glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
@@ -1139,31 +1151,21 @@ void CsmPass::updateLightSpaceMatrices(gerium_renderer_t renderer) {
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, lighSpacesHandle);
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 1, cascadeDistBuffer);*/
 
-
-
-
-
-
-
-
-    
-    std::vector<float> shadowCascadeLevels{ farPlane / 10.0f, farPlane / 2.0f };
+    std::vector<float> shadowCascadeLevels{ farPlane / 10.0f, farPlane / 2.0f, farPlane };
 
     std::vector<glm::mat4> result;
-    for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i) {
+    for (size_t i = 0; i < shadowCascadeLevels.size(); ++i) {
         if (i == 0) {
             result.push_back(calcLightSpaceMatrix(nearPlane, shadowCascadeLevels[i]));
         } else if (i < shadowCascadeLevels.size()) {
             result.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], shadowCascadeLevels[i]));
-        } else {
-            result.push_back(calcLightSpaceMatrix(shadowCascadeLevels[i - 1], farPlane));
         }
     }
 
     auto lighSpacesHandle = application()->resourceManager().createBuffer(
         GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_space_matrices", nullptr, result.size() * sizeof(result[0]));
     auto cascadeDistBuffer = application()->resourceManager().createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "cascade_distances", nullptr, 16 * (CSM_MAX_CASCADES - 1), 0);
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "cascade_distances", nullptr, 16 * shadowCascadeLevels.size(), 0);
 
     auto* matrices =
         (glm::mat4*) gerium_renderer_map_buffer(renderer, lighSpacesHandle, 0, result.size() * sizeof(result[0]));
@@ -1173,7 +1175,7 @@ void CsmPass::updateLightSpaceMatrices(gerium_renderer_t renderer) {
     gerium_renderer_unmap_buffer(renderer, lighSpacesHandle);
 
     auto cascadeDist =
-        (glm::vec4*) gerium_renderer_map_buffer(renderer, cascadeDistBuffer, 0, 16 * (CSM_MAX_CASCADES - 1));
+        (glm::vec4*) gerium_renderer_map_buffer(renderer, cascadeDistBuffer, 0, 16 * shadowCascadeLevels.size());
     for (int i = 0; i < shadowCascadeLevels.size(); ++i) {
         cascadeDist[i]   = {};
         cascadeDist[i].x = shadowCascadeLevels[i];

@@ -20,7 +20,7 @@ layout (std140, binding = 0, set = 3) uniform LightSpaceMatricesUBO {
 };
 
 layout(std140, binding = 1, set = 3) uniform CascadeDistancesUBO {
-    float cascadeDistances[CSM_MAX_CASCADES- 1];
+    float cascadeDistances[CSM_MAX_CASCADES];
 };
 
 Angular calcAngular(vec3 pointToLight, vec3 n, vec3 v) {
@@ -112,67 +112,59 @@ vec3 contributionIBL(vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI
 
     return diffuse + specular;
 }
-const mat4 biasMat = mat4( 
-	0.5, 0.0, 0.0, 0.0,
-	0.0, 0.5, 0.0, 0.0,
-	0.0, 0.0, 1.0, 0.0,
-	0.5, 0.5, 0.0, 1.0 
-);
+
+float shadow(vec3 worldPosition, float depth, vec3 normal) {
+    int layer = 0;
+    for (int i = 0; i < CSM_MAX_CASCADES - 1; ++i) {
+        if (depth < cascadeDistances[i]) {
+            break;
+        }
+        layer = i + 1;
+    }
+
+    vec4 fragPosLight = lightSpaceMatrices[layer] * vec4(worldPosition, 1.0);
+    vec4 projCoords = fragPosLight / fragPosLight.w;
+    projCoords.x = projCoords.x * 0.5 + 0.5;
+    projCoords.y = 1.0 - (projCoords.y * 0.5 + 0.5);
+
+    float scale = 0.75;
+    vec2 texelSize = scale * 1.0 / vec2(textureSize(csm, 0));
+    float bias = max(0.005 * (1.0 - dot(normal, lights[0].directionRange.xyz)), 0.0005);
+    bias *= 1.0 / (cascadeDistances[layer] * 0.5);
+
+    if (projCoords.z > 0.0 && projCoords.z < 1.0) {
+        float shadow = 0.0;
+        for(int x = -1; x <= 1; ++x) {
+            for(int y = -1; y <= 1; ++y) {
+                float pcfDepth = texture(csm, vec3(projCoords.xy + vec2(x, y) * texelSize, layer)).r; 
+
+                shadow += projCoords.w > 0.0 && pcfDepth < projCoords.z - bias ? 0.0 : 1.0;   
+            }    
+        }
+        shadow /= 9.0;
+        return shadow;
+    }
+    return 1.0;
+}
+
 void lighting(vec3 worldPosition, float depth, vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI, vec3 specularGI, inout vec3 color, inout vec3 colorDifffuse) {
+    float shadowFactor = shadow(worldPosition, depth, normal);
+
     for (int i = 0; i < lightCount; ++i) {
         vec3 diffuse = vec3(0.0);
         vec3 specular = vec3(0.0);
 
         calcLight(worldPosition, normal, view, lights[i], pixelData, diffuse, specular);
+        diffuse *= shadowFactor;
+        specular *= shadowFactor;
 
         color += diffuse + specular;
         colorDifffuse += diffuse;
     }
 
-    int layer = -1;
-    for (int i = 0; i < CSM_MAX_CASCADES - 1; ++i) {
-        if (depth < cascadeDistances[i]) {
-            layer = i;
-            break;
-        }
-    }
-    if (layer == -1) {
-        layer = CSM_MAX_CASCADES - 1;
-    }
+    color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
 
-    vec4 fragPosLight = lightSpaceMatrices[layer] * vec4(worldPosition, 1.0);
-    vec3 projCoords = fragPosLight.xyz / fragPosLight.w;
-    // projCoords.y = 1.0 - projCoords.y;
-    projCoords = projCoords * 0.5 + 0.5;
-    projCoords.y = 1.0 - projCoords.y;
-
-    // float currentDepth = projCoords.z;
-
-    // float shadow = 0.0;
-    // vec2 texelSize = vec2(1.0 / 512.0);
-    // for(int x = -1; x <= 1; ++x) {
-    //     for(int y = -1; y <= 1; ++y) {
-    //         float pcfDepth = texture(csm, vec3(projCoords.xy + vec2(x, y) * texelSize, layer)).r; 
-    //         shadow += pcfDepth;//(currentDepth - 0.0) > pcfDepth ? 1.0 : 0.0;        
-    //     }    
-    // }
-    // shadow /= 9.0;
-    //     
-    // // if(projCoords.z > 1.0) {
-    // //     shadow = 0.0;
-    // // }
-    // 
-    // color *= 1.0 - shadow;
-
-    float pcfDepth = texture(csm, vec3(projCoords.xy, layer)).r; 
-
-    if (projCoords.z <= 0.0 || projCoords.z - 0.005 >= pcfDepth) {
-        color *= vec3(0.4);
-    }
-
-    // color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
-
-    // colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
+    colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
 }
 
 #endif

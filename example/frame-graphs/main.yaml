@@ -298,8 +298,8 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: csm_depths
         format: GERIUM_FORMAT_D32_SFLOAT
-        width: 512
-        height: 512
+        width: 2048
+        height: 2048
         layers: 3
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         clear depth stencil attachment: [1.0, 0]
