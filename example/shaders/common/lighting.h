@@ -129,7 +129,7 @@ float shadow(vec3 worldPosition, float depth, vec3 normal) {
 
     float scale = 0.75;
     vec2 texelSize = scale * 1.0 / vec2(textureSize(csm, 0));
-    float bias = max(0.005 * (1.0 - dot(normal, lights[0].directionRange.xyz)), 0.0005);
+    float bias = max(0.005 * (1.0 - dot(normal, lights[0].directionRange.xyz)), 0.0015);
     bias *= 1.0 / (cascadeDistances[layer] * 0.5);
 
     if (projCoords.z > 0.0 && projCoords.z < 1.0) {

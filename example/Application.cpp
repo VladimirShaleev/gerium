@@ -1055,7 +1055,7 @@ glm::mat4 CsmPass::calcLightSpaceMatrix(float nearPlane, float farPlane) {
         maxZ *= zMult;
     }
 
-    auto lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
+    auto lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ - 40.f, maxZ);
     return lightProjection * lightView;
 }
 
