@@ -153,7 +153,9 @@ private:
     ExternalHashMap _externalCache;
 
     gerium_uint32_t _nodeGraphCount;
+    gerium_uint32_t _sortedNodeGraphCount;
     std::array<FrameGraphNodeHandle, kMaxNodes> _nodeGraph;
+    std::array<FrameGraphNodeHandle, kMaxNodes> _sortedNodeGraph;
 
     std::array<FrameGraphNodeHandle, kMaxNodes> _sortedNodes;
     std::array<FrameGraphNodeHandle, kMaxNodes> _stack;

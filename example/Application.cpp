@@ -249,14 +249,23 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
+
     static bool drawProfiler = false;
 
     auto& settings = application()->settings();
     auto ds        = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_resource(renderer, ds, 0, "color", false);
 
+    if (settings.isDebugGI()) {
+        gerium_renderer_bind_resource(renderer, ds, 0, "debug_gi", false);
+    } else if (settings.Output == SettingsOutput::Meshlets) {
+        gerium_renderer_bind_resource(renderer, ds, 0, "albedo", false);
+    }
+
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 1);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
     if (drawProfiler) {
@@ -268,6 +277,19 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     if (ImGui::Begin("Settings")) {
         ImGui::Text("Meshlets: %s", application()->meshShaderSupported() ? "hardware" : "software");
         ImGui::Separator();
+        constexpr auto outputNames = magic_enum::enum_names<SettingsOutput>();
+        if (ImGui::BeginCombo("Output", outputNames[(int) settings.Output].data())) {
+            for (auto i = 0; i < std::size(outputNames); ++i) {
+                auto isSelected = i == (int) settings.Output;
+                if (ImGui::Selectable(outputNames[i].data(), isSelected)) {
+                    settings.Output = (SettingsOutput) i;
+                }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
         ImGui::Checkbox("Show profiler", &drawProfiler);
         static int hour = 7;
         ImGui::SliderInt("Hour", &settings.Hour, 5, 19, "%d", ImGuiSliderFlags_AlwaysClamp);
@@ -655,33 +677,37 @@ void BGIPass::render(gerium_frame_graph_t frameGraph,
     ffxBrixelizerGetRawContext(bsdfPass->brixelizerContext(), &_dispatchDesc.brixelizerContext);
     ffxBrixelizerGIContextDispatch(&_brixelizerGIContext, &_dispatchDesc, commandList);
 
-    // FfxBrixelizerGIDebugDescription desc{};
-    // memcpy(&desc.view, &camera->view()[0][0], sizeof(desc.view));
-    // memcpy(&desc.projection, &camera->projection()[0][0], sizeof(desc.projection));
+    if (settings().isDebugGI()) {
+        const auto debugMode = settings().Output == SettingsOutput::RadianceCache
+                                   ? FFX_BRIXELIZER_GI_DEBUG_MODE_RADIANCE_CACHE
+                                   : FFX_BRIXELIZER_GI_DEBUG_MODE_IRRADIANCE_CACHE;
 
-    // auto cascadeIndexOffset = 2 * kNumBrixelizerCascades;
-    // desc.startCascade       = cascadeIndexOffset;
-    // desc.endCascade         = cascadeIndexOffset + kNumBrixelizerCascades - 1;
+        FfxBrixelizerGIDebugDescription desc{};
+        memcpy(&desc.view, &camera->view()[0][0], sizeof(desc.view));
+        memcpy(&desc.projection, &camera->projection()[0][0], sizeof(desc.projection));
 
-    // desc.outputSize[0]    = application()->width();
-    // desc.outputSize[1]    = application()->height();
-    // desc.debugMode        = FFX_BRIXELIZER_GI_DEBUG_MODE_RADIANCE_CACHE; //
-    // FFX_BRIXELIZER_GI_DEBUG_MODE_IRRADIANCE_CACHE; desc.normalsUnpackMul = 1.0f; desc.normalsUnpackAdd = 0.0f;
-    // desc.depth            = gerium_renderer_get_ffx_texture(renderer, depthTex);
-    // desc.normal           = gerium_renderer_get_ffx_texture(renderer, normalTex);
-    // desc.sdfAtlas         = gerium_renderer_get_ffx_texture(renderer, bsdfPass->bsdfAtlas());
-    // desc.bricksAABBs      = gerium_renderer_get_ffx_buffer(renderer, brickAabbs);
+        auto cascadeIndexOffset = 2 * kNumBrixelizerCascades;
+        desc.startCascade       = cascadeIndexOffset;
+        desc.endCascade         = cascadeIndexOffset + kNumBrixelizerCascades - 1;
+        desc.outputSize[0]      = application()->width();
+        desc.outputSize[1]      = application()->height();
+        desc.debugMode          = debugMode;
+        desc.normalsUnpackMul   = 1.0f;
+        desc.normalsUnpackAdd   = 0.0f;
+        desc.depth              = gerium_renderer_get_ffx_texture(renderer, depthTex);
+        desc.normal             = gerium_renderer_get_ffx_texture(renderer, normalTex);
+        desc.sdfAtlas           = gerium_renderer_get_ffx_texture(renderer, bsdfPass->bsdfAtlas());
+        desc.bricksAABBs        = gerium_renderer_get_ffx_buffer(renderer, brickAabbs);
+        desc.outputDebug        = gerium_renderer_get_ffx_texture(renderer, debugGITex);
+        desc.brixelizerContext  = _dispatchDesc.brixelizerContext;
 
-    // for (uint32_t i = 0; i < kFfxBrixelizerMaxCascades; ++i) {
-    //     desc.cascadeAABBTrees[i] = gerium_renderer_get_ffx_buffer(renderer, bsdfPass->cascadeAABBTrees(i));
-    //     desc.cascadeBrickMaps[i] = gerium_renderer_get_ffx_buffer(renderer, bsdfPass->cascadeBrickMaps(i));
-    // }
+        for (uint32_t i = 0; i < kFfxBrixelizerMaxCascades; ++i) {
+            desc.cascadeAABBTrees[i] = gerium_renderer_get_ffx_buffer(renderer, bsdfPass->cascadeAABBTrees(i));
+            desc.cascadeBrickMaps[i] = gerium_renderer_get_ffx_buffer(renderer, bsdfPass->cascadeBrickMaps(i));
+        }
 
-    // desc.outputDebug = gerium_renderer_get_ffx_texture(renderer, debugGITex);
-
-    // desc.brixelizerContext = _dispatchDesc.brixelizerContext;
-
-    // ffxCheck(ffxBrixelizerGIContextDebugVisualization(&_brixelizerGIContext, &desc, commandList));
+        ffxCheck(ffxBrixelizerGIContextDebugVisualization(&_brixelizerGIContext, &desc, commandList));
+    }
 }
 
 void BGIPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1151,7 +1177,7 @@ void CsmPass::updateLightSpaceMatrices(gerium_renderer_t renderer) {
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, lighSpacesHandle);
     gerium_renderer_bind_buffer(renderer, _descriptorSet, 1, cascadeDistBuffer);*/
 
-    std::vector<float> shadowCascadeLevels{ farPlane / 10.0f, farPlane / 2.0f, farPlane };
+    std::vector<float> shadowCascadeLevels{ farPlane / 50.0f, farPlane / 10.0f, farPlane / 2.0f, farPlane };
 
     std::vector<glm::mat4> result;
     for (size_t i = 0; i < shadowCascadeLevels.size(); ++i) {
@@ -1640,6 +1666,16 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
 
 void Application::frame(gerium_uint64_t elapsedMs) {
     pollInput(elapsedMs);
+
+    const auto debugMeshlets = settings().Output == SettingsOutput::Meshlets;
+    gerium_frame_graph_enable_node(_frameGraph, "csm_culling_pass", !debugMeshlets);
+    gerium_frame_graph_enable_node(_frameGraph, "csm_pass", !debugMeshlets);
+    gerium_frame_graph_enable_node(_frameGraph, "bsdf_pass", !debugMeshlets);
+    gerium_frame_graph_enable_node(_frameGraph, "bgi_pass", !debugMeshlets);
+    gerium_frame_graph_enable_node(_frameGraph, "light_pass", !debugMeshlets);
+    gerium_frame_graph_enable_node(_frameGraph, "skydome_gen_pass", !debugMeshlets);
+    gerium_frame_graph_enable_node(_frameGraph, "skydome_prefiltered_pass", !debugMeshlets);
+    gerium_frame_graph_enable_node(_frameGraph, "skydome_pass", !debugMeshlets);
 
     // disable debug passes from frame graph if debug camera is disabled
     // gerium_frame_graph_enable_node(_frameGraph, "debug_occlusion_pass", _settings.DebugCamera);

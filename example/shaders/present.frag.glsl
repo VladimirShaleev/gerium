@@ -1,10 +1,16 @@
 #version 450
 
+#include "common/types.h"
+
 layout(location = 0) in vec2 texCoord;
 
 layout(location = 0) out vec4 outColor;
 
-layout(binding = 0, set = 0) uniform sampler2D texColor;
+layout(binding = 0, set = 1) uniform sampler2D texColor;
+
+layout(std140, binding = 0, set = SCENE_DATA_SET) uniform Scene {
+    SceneData scene;
+};
 
 vec3 ACESFilm(vec3 x) {
     float a = 2.51;
@@ -18,10 +24,12 @@ vec3 ACESFilm(vec3 x) {
 void main() {
     vec3 color = textureLod(texColor, texCoord, 0).rgb;
 
-    float exposure = 1.0;
+    if (scene.settingsOutput != OUTPUT_MESHLETS) {
+        float exposure = 1.0;
 
-    color = ACESFilm(color * exposure);
-    color = pow(color, vec3(1.0 / 2.2)); 
+        color = ACESFilm(color * exposure);
+        color = pow(color, vec3(1.0 / 2.2)); 
+    }
 
     outColor = vec4(color, 1.0);
 }

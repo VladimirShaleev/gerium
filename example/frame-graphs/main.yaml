@@ -92,6 +92,8 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: color
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: albedo
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: debug_gi
       - type: GERIUM_RESOURCE_TYPE_REFERENCE
         name: stub_dep_2
@@ -300,6 +302,6 @@ frame graph:
         format: GERIUM_FORMAT_D32_SFLOAT
         width: 2048
         height: 2048
-        layers: 3
+        layers: 4
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         clear depth stencil attachment: [1.0, 0]

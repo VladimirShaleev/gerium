@@ -5,20 +5,26 @@
 
 enum SettingsOutput {
     FinalResult = OUTPUT_FINAL_RESULT,
-    Meshlets    = OUTPUT_MESHLETS,
-    Albedo      = OUTPUT_ALBEDO,
-    Normal      = OUTPUT_NORMAL,
-    Metalness   = OUTPUT_METALNESS,
-    Roughness   = OUTPUT_ROUGHNESS,
-    Motion      = OUTPUT_MOTION
+    // Albedo      = OUTPUT_ALBEDO,
+    // Normal      = OUTPUT_NORMAL,
+    // Metalness   = OUTPUT_METALNESS,
+    // Roughness   = OUTPUT_ROUGHNESS,
+    // Motion      = OUTPUT_MOTION,
+    RadianceCache   = OUTPUT_RADIANCE_CACHE,
+    IrradianceCache = OUTPUT_IRRADIANCE_CACHE,
+    Meshlets        = OUTPUT_MESHLETS
 };
 
 struct Settings {
-    bool DebugCamera;
-    bool MoveDebugCamera;
-    SettingsOutput Output;
-    int Hour = 7;
-    float CurrentHour = 7;
+    bool DebugCamera      = false;
+    bool MoveDebugCamera  = false;
+    SettingsOutput Output = SettingsOutput::FinalResult;
+    int Hour              = 7;
+    float CurrentHour     = 7;
+
+    bool isDebugGI() const noexcept {
+        return Output == SettingsOutput::RadianceCache || Output == SettingsOutput::IrradianceCache;
+    }
 };
 
 #endif

@@ -18,6 +18,10 @@ layout(location = 1) out vec4 outNormal;
 layout(location = 2) out vec4 outAoRoughnessMetallic;
 layout(location = 3) out vec4 outMotion;
 
+layout(std140, binding = 0, set = SCENE_DATA_SET) uniform Scene {
+    SceneData scene;
+};
+
 layout(std430, binding = 5, set = CLUSTER_DATA_SET) readonly buffer Instances {
     Instance instances[];
 };
@@ -47,4 +51,8 @@ void main() {
     outNormal = vec4(normalTBN, 1.0);
     outAoRoughnessMetallic = vec4(1.0, mr.g, mr.r, 1.0);
     outMotion = vec4(newPos - oldPos, 1.0, 1.0);
+
+    if (scene.settingsOutput == OUTPUT_MESHLETS) {
+        outAlbedo = meshletColor;
+    }
 }

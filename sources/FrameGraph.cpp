@@ -11,7 +11,8 @@ FrameGraph::FrameGraph(Renderer* renderer) :
     _logger(Logger::create("gerium:frame-graph")),
     _renderer(renderer),
     _hasChanges(false),
-    _nodeGraphCount(0) {
+    _nodeGraphCount(0),
+    _sortedNodeGraphCount(0) {
 }
 
 void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t data) {
@@ -161,7 +162,8 @@ void FrameGraph::clear() {
             }
         }
     }
-    _nodeGraphCount = 0;
+    _nodeGraphCount       = 0;
+    _sortedNodeGraphCount = 0;
 
     _renderPassCache.clear();
     _resourceCache.clear();
@@ -178,7 +180,11 @@ void FrameGraph::compile() {
     }
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        _nodes.access(_nodeGraph[i])->edgeCount = 0;
+        auto node       = _nodes.access(_nodeGraph[i]);
+        node->edgeCount = 0;
+        for (gerium_uint32_t j = 0; j < node->outputCount; ++j) {
+            _resources.access(node->outputs[j])->saveForNextFrame = false;
+        }
     }
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
@@ -230,7 +236,8 @@ void FrameGraph::compile() {
         }
     }
 
-    std::copy_n(_sortedNodes.crbegin() + (kMaxNodes - sortedNodeCount), sortedNodeCount, _nodeGraph.begin());
+    std::copy_n(_sortedNodes.crbegin() + (kMaxNodes - sortedNodeCount), sortedNodeCount, _sortedNodeGraph.begin());
+    _sortedNodeGraphCount = sortedNodeCount;
 
     for (auto& item : _allocations) {
         item = Undefined;
@@ -240,8 +247,8 @@ void FrameGraph::compile() {
 
     std::set<std::string> storedResources;
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
@@ -259,8 +266,8 @@ void FrameGraph::compile() {
         }
     }
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
@@ -271,7 +278,7 @@ void FrameGraph::compile() {
             auto resource      = _resources.access(node->outputs[j]);
 
             if (!resource->external && _allocations[resourceIndex] == Undefined) {
-                _allocations[resourceIndex] = _nodeGraph[i];
+                _allocations[resourceIndex] = _sortedNodeGraph[i];
 
                 if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                     const auto& info = resource->info.texture;
@@ -344,8 +351,8 @@ void FrameGraph::compile() {
         }
     }
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
@@ -400,8 +407,8 @@ void FrameGraph::compile() {
         }
     }
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
@@ -427,8 +434,8 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
     auto scaleX = gerium_float64_t(newWidth) / oldWidth;
     auto scaleY = gerium_float64_t(newHeight) / oldHeight;
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         for (auto& framebuffer : node->framebuffers) {
             if (framebuffer != Undefined) {
@@ -538,11 +545,11 @@ void FrameGraph::fillExternalResource(FrameGraphResourceHandle handle) noexcept 
 }
 
 gerium_uint32_t FrameGraph::nodeCount() const noexcept {
-    return _nodeGraphCount;
+    return _sortedNodeGraphCount;
 }
 
 const FrameGraphNode* FrameGraph::getNode(gerium_uint32_t index) const noexcept {
-    return _nodes.access(_nodeGraph[index]);
+    return _nodes.access(_sortedNodeGraph[index]);
 }
 
 const FrameGraphNode* FrameGraph::getNode(FrameGraphNodeHandle handle) const noexcept {
