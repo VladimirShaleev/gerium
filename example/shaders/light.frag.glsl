@@ -46,7 +46,9 @@ void main() {
     vec3 color = vec3(0.0);
     vec3 colorDiffuse = vec3(0.0);
 
-    lighting(position, viewPos.z, N, V, pexelData, diffuseGI, specularGI, color, colorDiffuse);
+    bool directLightOnly = scene.settingsOutput == OUTPUT_DIRECT_LIGHT_ONLY;
+
+    lighting(position, viewPos.z, N, V, pexelData, diffuseGI, specularGI, directLightOnly, color, colorDiffuse);
 
     outColor = vec4(color, 1.0);
     outDiffuse = vec4(colorDiffuse, 1.0);

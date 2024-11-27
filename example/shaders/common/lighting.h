@@ -147,7 +147,7 @@ float shadow(vec3 worldPosition, float depth, vec3 normal) {
     return 1.0;
 }
 
-void lighting(vec3 worldPosition, float depth, vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI, vec3 specularGI, inout vec3 color, inout vec3 colorDifffuse) {
+void lighting(vec3 worldPosition, float depth, vec3 normal, vec3 view, PixelData pixelData, vec3 diffuseGI, vec3 specularGI, bool directLightOnly, inout vec3 color, inout vec3 colorDifffuse) {
     float shadowFactor = shadow(worldPosition, depth, normal);
 
     for (int i = 0; i < lightCount; ++i) {
@@ -162,9 +162,10 @@ void lighting(vec3 worldPosition, float depth, vec3 normal, vec3 view, PixelData
         colorDifffuse += diffuse;
     }
 
-    color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
-
-    colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
+    if (!directLightOnly) {
+        color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
+        colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
+    }
 }
 
 #endif

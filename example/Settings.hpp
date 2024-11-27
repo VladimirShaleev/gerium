@@ -4,7 +4,8 @@
 #include "Common.hpp"
 
 enum SettingsOutput {
-    FinalResult = OUTPUT_FINAL_RESULT,
+    FinalResult     = OUTPUT_FINAL_RESULT,
+    DirectLightOnly = OUTPUT_DIRECT_LIGHT_ONLY,
     // Albedo      = OUTPUT_ALBEDO,
     // Normal      = OUTPUT_NORMAL,
     // Metalness   = OUTPUT_METALNESS,

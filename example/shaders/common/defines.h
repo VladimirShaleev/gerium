@@ -19,15 +19,16 @@
 #define LIGHT_TYPE_POINT       1
 #define LIGHT_TYPE_SPOT        2
 
-#define OUTPUT_FINAL_RESULT     0
-#define OUTPUT_RADIANCE_CACHE   1
-#define OUTPUT_IRRADIANCE_CACHE 2
-#define OUTPUT_MESHLETS         3
-#define OUTPUT_ALBEDO           4
-#define OUTPUT_NORMAL           5
-#define OUTPUT_METALNESS        6
-#define OUTPUT_ROUGHNESS        7
-#define OUTPUT_MOTION           8
+#define OUTPUT_FINAL_RESULT      0
+#define OUTPUT_DIRECT_LIGHT_ONLY 1
+#define OUTPUT_RADIANCE_CACHE    2
+#define OUTPUT_IRRADIANCE_CACHE  3
+#define OUTPUT_MESHLETS          4
+#define OUTPUT_ALBEDO            5
+#define OUTPUT_NORMAL            6
+#define OUTPUT_METALNESS         7
+#define OUTPUT_ROUGHNESS         8
+#define OUTPUT_MOTION            9
 
 #define PI 3.1415926538
 
