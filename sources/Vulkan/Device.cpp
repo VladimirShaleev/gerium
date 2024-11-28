@@ -1695,7 +1695,7 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
                          testFeatures12.descriptorBindingPartiallyBound && testFeatures12.runtimeDescriptorArray &&
                          testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
     _fidelityFXSupported = _fidelityFXSupported && testFeatures12.shaderStorageBufferArrayNonUniformIndexing &&
-                           testFeatures12.shaderFloat16;
+                           testFeatures12.shaderFloat16 && deviceFeatures.features.shaderImageGatherExtended;
     _meshShaderSupported  = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
     _8BitStorageSupported = _8BitStorageSupported && testFeatures12.storageBuffer8BitAccess &&
                             testFeatures12.uniformAndStorageBuffer8BitAccess && testFeatures12.shaderInt8;
@@ -1714,6 +1714,10 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
 
     VkPhysicalDeviceVulkan12Features features12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
     features12.pNext = &features11;
+
+    VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+    features.pNext = &features12;
+
     features12.samplerFilterMinmax =
         testFeatures12.samplerFilterMinmax; // TODO: add flag for reduction GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT
     features12.drawIndirectCount = testFeatures12.drawIndirectCount;
@@ -1725,7 +1729,8 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
             testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
     }
     if (_fidelityFXSupported) {
-        features12.shaderFloat16 = testFeatures12.shaderFloat16;
+        features.features.shaderImageGatherExtended = deviceFeatures.features.shaderImageGatherExtended;
+        features12.shaderFloat16                    = testFeatures12.shaderFloat16;
         features12.shaderStorageBufferArrayNonUniformIndexing =
             testFeatures12.shaderStorageBufferArrayNonUniformIndexing;
     }
@@ -1735,8 +1740,6 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
         features12.shaderInt8                        = testFeatures12.shaderInt8;
     }
 
-    VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-    features.pNext                               = &features12;
     features.features.imageCubeArray             = deviceFeatures.features.imageCubeArray;
     features.features.geometryShader             = deviceFeatures.features.geometryShader;
     features.features.logicOp                    = deviceFeatures.features.logicOp;

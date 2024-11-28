@@ -191,6 +191,8 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_uint32_t totalWorkers) {
     static bool drawProfiler = false;
 
+    ffxCheck(ffxCacaoUpdateSettings(&_cacaoContext, &_cacaoSettings, false));
+
     gerium_texture_h csmTex;
     check(gerium_renderer_get_texture(renderer, "csm_depths", false, &csmTex));
     check(gerium_renderer_texture_sampler(renderer,
@@ -242,6 +244,37 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds2, 2);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, csm->descriptorSet(), 3);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+}
+
+void LightPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _cacaoSettings.radius                            = 1.2f;
+    _cacaoSettings.shadowMultiplier                  = 0.53f;
+    _cacaoSettings.shadowPower                       = 2.85f;
+    _cacaoSettings.shadowClamp                       = 0.98f;
+    _cacaoSettings.horizonAngleThreshold             = 0.06f;
+    _cacaoSettings.fadeOutFrom                       = 20.0f;
+    _cacaoSettings.fadeOutTo                         = 40.0f;
+    _cacaoSettings.qualityLevel                      = FFX_CACAO_QUALITY_HIGH;
+    _cacaoSettings.adaptiveQualityLimit              = 0.75f;
+    _cacaoSettings.blurPassCount                     = 6;
+    _cacaoSettings.sharpness                         = 0.98f;
+    _cacaoSettings.temporalSupersamplingAngleOffset  = 0.0f;
+    _cacaoSettings.temporalSupersamplingRadiusOffset = 0.0f;
+    _cacaoSettings.detailShadowStrength              = 0.5f;
+    _cacaoSettings.generateNormals                   = false;
+    _cacaoSettings.bilateralSigmaSquared             = 5.0f;
+    _cacaoSettings.bilateralSimilarityDistanceSigma  = 0.1f;
+
+    FfxCacaoContextDescription desc{};
+    desc.backendInterface   = application()->ffxInterface();
+    desc.width              = application()->width();
+    desc.height             = application()->height();
+    desc.useDownsampledSsao = false;
+    ffxCheck(ffxCacaoContextCreate(&_cacaoContext, &desc));
+}
+
+void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    ffxCacaoContextDestroy(&_cacaoContext);
 }
 
 void PresentPass::render(gerium_frame_graph_t frameGraph,
@@ -530,12 +563,11 @@ void BSDFPass::registerResources(gerium_frame_graph_t frameGraph, gerium_rendere
                                                                              FFX_BRIXELIZER_CASCADE_BRICK_MAP_SIZE);
     }
 
-    check(gerium_renderer_create_ffx_interface(renderer, 2, &_brixelizerParams.backendInterface));
-
-    _brixelizerParams.sdfCenter[0] = 0.0f;
-    _brixelizerParams.sdfCenter[1] = 0.0f;
-    _brixelizerParams.sdfCenter[2] = 0.0f;
-    _brixelizerParams.numCascades  = kNumBrixelizerCascades;
+    _brixelizerParams.backendInterface = application()->ffxInterface();
+    _brixelizerParams.sdfCenter[0]     = 0.0f;
+    _brixelizerParams.sdfCenter[1]     = 0.0f;
+    _brixelizerParams.sdfCenter[2]     = 0.0f;
+    _brixelizerParams.numCascades      = kNumBrixelizerCascades;
     // _brixelizerParams.flags        = FFX_BRIXELIZER_CONTEXT_FLAG_ALL_DEBUG;
 
     auto voxelSize = 1.0f;
@@ -564,7 +596,6 @@ void BSDFPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t r
         _brixelizerBuffers.clear();
     }
     ffxBrixelizerContextDestroy(&_brixelizerContext);
-    gerium_renderer_destroy_ffx_interface(renderer, &_brixelizerParams.backendInterface);
 
     _cascadeBrickMaps = {};
     _cascadeAABBTrees = {};
@@ -1391,6 +1422,8 @@ void Application::initialize() {
 
     _resourceManager.create(_renderer, _frameGraph);
 
+    check(gerium_renderer_create_ffx_interface(_renderer, 3, &_ffxInterface));
+
     addPass<PresentPass>();
     addPass<GBufferPass>(false);
     addPass<CullingPass>(false);
@@ -1453,6 +1486,8 @@ void Application::uninitialize() {
         for (auto it = _renderPasses.rbegin(); it != _renderPasses.rend(); ++it) {
             (*it)->uninitialize(_frameGraph, _renderer);
         }
+
+        gerium_renderer_destroy_ffx_interface(_renderer, &_ffxInterface);
 
         _resourceManager.destroy();
 

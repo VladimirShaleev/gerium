@@ -38,6 +38,7 @@
 
 #include <FidelityFX/host/ffx_brixelizer.h>
 #include <FidelityFX/host/ffx_brixelizergi.h>
+#include <FidelityFX/host/ffx_cacao.h>
 
 #include "Finally.hpp"
 #include "shaders/common/types.h"

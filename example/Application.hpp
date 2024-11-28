@@ -119,6 +119,13 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
+
+    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    FfxCacaoSettings _cacaoSettings{};
+    FfxCacaoContext _cacaoContext{};
 };
 
 class PresentPass final : public RenderPass {
@@ -378,6 +385,10 @@ public:
         return _meshShaderSupported;
     }
 
+    FfxInterface& ffxInterface() noexcept {
+        return _ffxInterface;
+    }
+
     Camera* getCamera() noexcept {
         return &_camera;
     }
@@ -509,6 +520,7 @@ private:
     gerium_frame_graph_t _frameGraph{};
     bool _bindlessSupported{};
     bool _meshShaderSupported{};
+    FfxInterface _ffxInterface{};
 
     Settings _settings{};
     std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
