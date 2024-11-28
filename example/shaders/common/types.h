@@ -63,6 +63,7 @@ struct PixelData {
     float perceptualRoughness;
     float alphaRoughness;
     float metallic;
+    float ambientOcclusion;
 };
 
 struct SHADER_ALIGN DrawData {

@@ -119,13 +119,6 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
-
-    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-
-private:
-    FfxCacaoSettings _cacaoSettings{};
-    FfxCacaoContext _cacaoContext{};
 };
 
 class PresentPass final : public RenderPass {
@@ -251,6 +244,28 @@ private:
     FfxBrixelizerGIContext _brixelizerGIContext{};
     FfxBrixelizerGIDispatchDescription _dispatchDesc{};
     gerium_uint32_t _frameIndex{};
+};
+
+class SSAOPass final : public RenderPass {
+public:
+    SSAOPass() : RenderPass("ssao_pass") {
+    }
+
+    void render(gerium_frame_graph_t frameGraph,
+                gerium_renderer_t renderer,
+                gerium_command_buffer_t commandBuffer,
+                gerium_uint32_t worker,
+                gerium_uint32_t totalWorkers) override;
+
+    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+
+private:
+    void createContext();
+    
+    FfxCacaoSettings _cacaoSettings{};
+    FfxCacaoContext _cacaoContext{};
 };
 
 class SkyDomeGenPass final : public RenderPass {

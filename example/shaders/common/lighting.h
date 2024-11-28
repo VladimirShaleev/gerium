@@ -163,8 +163,8 @@ void lighting(vec3 worldPosition, float depth, vec3 normal, vec3 view, PixelData
     }
 
     if (!directLightOnly) {
-        color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0);
-        colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0);
+        color += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 1.0) * pixelData.ambientOcclusion;
+        colorDifffuse += contributionIBL(normal, view, pixelData, diffuseGI, specularGI, 3.0, 0.0) * pixelData.ambientOcclusion;
     }
 }
 

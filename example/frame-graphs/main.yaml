@@ -109,6 +109,8 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: ao_roughness_metallic
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: ao
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: motion
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: diffuse_gi
@@ -277,6 +279,22 @@ frame graph:
         name: debug_gi
         format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_DONT_CARE
+
+  - name: ssao_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: depth
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: normal
+      - type: GERIUM_RESOURCE_TYPE_REFERENCE
+        name: stub_dep_0
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: ao
+        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        render pass op: GERIUM_RENDER_PASS_OP_CLEAR
+        clear color attachment: [1.0, 1.0, 1.0, 1.0]
 
   - name: csm_culling_pass
     compute: true

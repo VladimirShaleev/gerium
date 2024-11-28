@@ -191,8 +191,6 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
                        gerium_uint32_t totalWorkers) {
     static bool drawProfiler = false;
 
-    ffxCheck(ffxCacaoUpdateSettings(&_cacaoContext, &_cacaoSettings, false));
-
     gerium_texture_h csmTex;
     check(gerium_renderer_get_texture(renderer, "csm_depths", false, &csmTex));
     check(gerium_renderer_texture_sampler(renderer,
@@ -228,9 +226,10 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_renderer_bind_resource(renderer, ds1, 0, "albedo", false);
     gerium_renderer_bind_resource(renderer, ds1, 1, "normal", false);
     gerium_renderer_bind_resource(renderer, ds1, 2, "ao_roughness_metallic", false);
-    gerium_renderer_bind_resource(renderer, ds1, 3, "depth", false);
-    gerium_renderer_bind_resource(renderer, ds1, 4, "diffuse_gi", false);
-    gerium_renderer_bind_resource(renderer, ds1, 5, "specular_gi", false);
+    gerium_renderer_bind_resource(renderer, ds1, 3, "ao", false);
+    gerium_renderer_bind_resource(renderer, ds1, 4, "depth", false);
+    gerium_renderer_bind_resource(renderer, ds1, 5, "diffuse_gi", false);
+    gerium_renderer_bind_resource(renderer, ds1, 6, "specular_gi", false);
 
     auto ds2 = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_texture(renderer, ds2, 0, 0, application()->brdfLut());
@@ -244,37 +243,6 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds2, 2);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, csm->descriptorSet(), 3);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
-}
-
-void LightPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _cacaoSettings.radius                            = 1.2f;
-    _cacaoSettings.shadowMultiplier                  = 0.53f;
-    _cacaoSettings.shadowPower                       = 2.85f;
-    _cacaoSettings.shadowClamp                       = 0.98f;
-    _cacaoSettings.horizonAngleThreshold             = 0.06f;
-    _cacaoSettings.fadeOutFrom                       = 20.0f;
-    _cacaoSettings.fadeOutTo                         = 40.0f;
-    _cacaoSettings.qualityLevel                      = FFX_CACAO_QUALITY_HIGH;
-    _cacaoSettings.adaptiveQualityLimit              = 0.75f;
-    _cacaoSettings.blurPassCount                     = 6;
-    _cacaoSettings.sharpness                         = 0.98f;
-    _cacaoSettings.temporalSupersamplingAngleOffset  = 0.0f;
-    _cacaoSettings.temporalSupersamplingRadiusOffset = 0.0f;
-    _cacaoSettings.detailShadowStrength              = 0.5f;
-    _cacaoSettings.generateNormals                   = false;
-    _cacaoSettings.bilateralSigmaSquared             = 5.0f;
-    _cacaoSettings.bilateralSimilarityDistanceSigma  = 0.1f;
-
-    FfxCacaoContextDescription desc{};
-    desc.backendInterface   = application()->ffxInterface();
-    desc.width              = application()->width();
-    desc.height             = application()->height();
-    desc.useDownsampledSsao = false;
-    ffxCheck(ffxCacaoContextCreate(&_cacaoContext, &desc));
-}
-
-void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    ffxCacaoContextDestroy(&_cacaoContext);
 }
 
 void PresentPass::render(gerium_frame_graph_t frameGraph,
@@ -769,6 +737,80 @@ void BGIPass::createContext() {
 void BGIPass::destroyContext(gerium_renderer_t renderer) {
     gerium_renderer_wait_ffx_jobs(renderer);
     ffxBrixelizerGIContextDestroy(&_brixelizerGIContext);
+}
+
+void SSAOPass::render(gerium_frame_graph_t frameGraph,
+                      gerium_renderer_t renderer,
+                      gerium_command_buffer_t commandBuffer,
+                      gerium_uint32_t worker,
+                      gerium_uint32_t totalWorkers) {
+    ffxCheck(ffxCacaoUpdateSettings(&_cacaoContext, &_cacaoSettings, false));
+
+    gerium_texture_h depthTex;
+    gerium_texture_h normalTex;
+    gerium_texture_h aoTex;
+    check(gerium_renderer_get_texture(renderer, "depth", false, &depthTex));
+    check(gerium_renderer_get_texture(renderer, "normal", false, &normalTex));
+    check(gerium_renderer_get_texture(renderer, "ao", false, &aoTex));
+
+    FfxFloat32x4x4 proj;
+    FfxFloat32x4x4 normalsWorldToView;
+
+    auto camera = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
+    const auto normalsToView = glm::inverse(camera->view());
+
+    memcpy(proj, &camera->projection()[0][0], sizeof(proj));
+    memcpy(normalsWorldToView, &normalsToView[0][0], sizeof(normalsWorldToView));
+
+    FfxCacaoDispatchDescription dispatchDescription{};
+    dispatchDescription.commandList     = gerium_command_buffer_get_ffx_command_list(commandBuffer);
+    dispatchDescription.depthBuffer     = gerium_renderer_get_ffx_texture(renderer, depthTex);
+    dispatchDescription.normalBuffer    = gerium_renderer_get_ffx_texture(renderer, normalTex);
+    dispatchDescription.outputBuffer    = gerium_renderer_get_ffx_texture(renderer, aoTex);
+    dispatchDescription.proj            = &proj;
+    dispatchDescription.normalsToView   = &normalsWorldToView;
+    dispatchDescription.normalUnpackMul = 1.0f;
+    dispatchDescription.normalUnpackAdd = 0.0f;
+    ffxCheck(ffxCacaoContextDispatch(&_cacaoContext, &dispatchDescription));
+}
+
+void SSAOPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    _cacaoSettings.radius                            = 1.2f;
+    _cacaoSettings.shadowMultiplier                  = 0.35f;
+    _cacaoSettings.shadowPower                       = 1.5f;
+    _cacaoSettings.shadowClamp                       = 0.98f;
+    _cacaoSettings.horizonAngleThreshold             = 0.06f;
+    _cacaoSettings.fadeOutFrom                       = 20.0f;
+    _cacaoSettings.fadeOutTo                         = 40.0f;
+    _cacaoSettings.qualityLevel                      = FFX_CACAO_QUALITY_HIGH;
+    _cacaoSettings.adaptiveQualityLimit              = 0.75f;
+    _cacaoSettings.blurPassCount                     = 6;
+    _cacaoSettings.sharpness                         = 0.98f;
+    _cacaoSettings.temporalSupersamplingAngleOffset  = 0.0f;
+    _cacaoSettings.temporalSupersamplingRadiusOffset = 0.0f;
+    _cacaoSettings.detailShadowStrength              = 0.5f;
+    _cacaoSettings.generateNormals                   = false;
+    _cacaoSettings.bilateralSigmaSquared             = 5.0f;
+    _cacaoSettings.bilateralSimilarityDistanceSigma  = 0.1f;
+    createContext();
+}
+
+void SSAOPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    ffxCacaoContextDestroy(&_cacaoContext);
+}
+
+void SSAOPass::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    ffxCacaoContextDestroy(&_cacaoContext);
+    createContext();
+}
+
+void SSAOPass::createContext() {
+    FfxCacaoContextDescription desc{};
+    desc.backendInterface   = application()->ffxInterface();
+    desc.width              = application()->width();
+    desc.height             = application()->height();
+    desc.useDownsampledSsao = false;
+    ffxCheck(ffxCacaoContextCreate(&_cacaoContext, &desc));
 }
 
 void SkyDomeGenPass::render(gerium_frame_graph_t frameGraph,
@@ -1437,6 +1479,7 @@ void Application::initialize() {
     addPass<DebugLinePass>();
     addPass<BSDFPass>();
     addPass<BGIPass>();
+    addPass<SSAOPass>();
     addPass<SkyDomeGenPass>();
     addPass<SkyDomePrefilteredPass>();
     addPass<SkydomePass>();
