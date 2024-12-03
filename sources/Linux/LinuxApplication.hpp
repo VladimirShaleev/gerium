@@ -54,11 +54,6 @@ private:
     void onShutdownImGui() override;
     void onNewFrameImGui() override;
 
-    void decorate(gerium_application_style_flags_t styles);
-
-    xcb_atom_t getAtom(std::string_view name, bool onlyIfExists = false) const;
-    std::vector<xcb_atom_t> getValueAtoms(xcb_atom_t atom) const;
-
     bool isVisible() const;
 
     template <typename T>
@@ -95,6 +90,10 @@ private:
     void focusWindow();
 
     void sendWMEvent(Atom type, long a1, long a2, long a3, long a4, long a5);
+    void setNormalHints(gerium_uint16_t minWidth,
+                        gerium_uint16_t minHeight,
+                        gerium_uint16_t maxWidth,
+                        gerium_uint16_t maxHeight);
 
     void handleEvent(const XEvent& event);
     void pollEvents();
@@ -127,6 +126,8 @@ private:
         LinuxApplication* _app;
     };
 
+    static constexpr auto kNoValue = std::numeric_limits<gerium_uint16_t>::max();
+
     static int _errorCode;
     static Display* _display;
     XErrorHandler _errorHandler{};
@@ -135,12 +136,18 @@ private:
     Colormap _colormap{};
     XContext _context{};
     Window _window{};
+    gerium_application_style_flags_t _styles{};
     gerium_uint16_t _width{};
     gerium_uint16_t _height{};
+    gerium_uint16_t _minWidth{ kNoValue };
+    gerium_uint16_t _minHeight{ kNoValue };
+    gerium_uint16_t _maxWidth{ kNoValue };
+    gerium_uint16_t _maxHeight{ kNoValue };
     std::string _title{};
     bool _running{};
     bool _active{};
     bool _resizing{};
+    bool _fullscreen{};
     std::chrono::steady_clock::time_point _lastResizeTime{};
     ObjectPtr<Logger> _logger{};
 
