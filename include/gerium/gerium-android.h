@@ -1,6 +1,6 @@
 /**
  * \file      gerium-android.h
- * \brief     gerium API Core
+ * \brief     gerium API Android
  * \author    Vladimir Shaleev
  * \copyright MIT License
  */

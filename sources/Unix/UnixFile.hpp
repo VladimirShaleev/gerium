@@ -3,7 +3,7 @@
 
 #include "../File.hpp"
 
-namespace gerium::unix {
+namespace gerium::nix {
 
 class UnixFile : public File {
 public:
@@ -29,6 +29,6 @@ private:
     size_t _dataSize;
 };
 
-} // namespace gerium::unix
+} // namespace gerium::nix
 
 #endif

@@ -1,12 +1,12 @@
 /**
- * \file      gerium-web.h
- * \brief     gerium API WebAssembly
+ * \file      gerium-linux.h
+ * \brief     gerium API Linux
  * \author    Vladimir Shaleev
  * \copyright MIT License
  */
 
-#ifndef GERIUM_WEB_H
-#define GERIUM_WEB_H
+#ifndef GERIUM_LINUX_H
+#define GERIUM_LINUX_H
 
 #include "gerium-core.h"
 

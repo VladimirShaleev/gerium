@@ -1463,7 +1463,7 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     appInfo.pNext              = nullptr;
     appInfo.pApplicationName   = appName;
     appInfo.applicationVersion = appVersion;
-    appInfo.pEngineName        = "vision-flow";
+    appInfo.pEngineName        = "gerium";
     appInfo.engineVersion      = VK_MAKE_API_VERSION(0, 1, 0, 0);
     appInfo.apiVersion         = VK_API_VERSION_1_2;
 
@@ -1751,7 +1751,10 @@ void Device::createSwapchain(Application* application) {
     const auto presentMode = selectSwapchainPresentMode(swapchain.presentModes);
     const auto extent      = selectSwapchainExtent(swapchain.capabilities, application);
 
-    const auto imageCount = std::clamp(3U, swapchain.capabilities.minImageCount, swapchain.capabilities.maxImageCount);
+    const auto imageCount =
+        std::clamp(3U,
+                   swapchain.capabilities.minImageCount,
+                   std::max(swapchain.capabilities.maxImageCount, swapchain.capabilities.minImageCount));
 
     std::set<uint32_t> families = { _queueFamilies.graphic.value().index, _queueFamilies.present.value().index };
     if (families.size() == 1) {
@@ -2721,7 +2724,7 @@ std::vector<const char*> Device::selectExtensions() {
     std::vector<std::pair<const char*, bool>> extensions = {
         { VK_KHR_SURFACE_EXTENSION_NAME, true }
     };
-    
+
     for (const auto& extension : onGetInstanceExtensions()) {
         extensions.emplace_back(extension, true);
     }
@@ -2738,7 +2741,7 @@ std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device)
         { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
         { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false }
     };
-    
+
     for (const auto& extension : onGetDeviceExtensions()) {
         extensions.emplace_back(extension, true);
     }

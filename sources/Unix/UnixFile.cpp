@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace gerium::unix {
+namespace gerium::nix {
 
 UnixFile::UnixFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _file(-1), _data(nullptr), _dataSize(0) {
     createDirs(path);
@@ -23,7 +23,7 @@ UnixFile::UnixFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1
     if (!readOnly) {
         createDirs(path);
     }
-    
+
     _file = ::open(path, readOnly ? O_RDONLY : (O_RDWR | O_CREAT), S_IRUSR | (readOnly ? 0 : S_IWUSR));
 
     if (_file < 0) {
@@ -43,7 +43,7 @@ UnixFile::~UnixFile() {
 
 void UnixFile::createDirs(gerium_utf8_t path) {
     if (!std::filesystem::exists(path)) {
-        const auto dir = std::filesystem::path(path).parent_path();
+        const auto dir   = std::filesystem::path(path).parent_path();
         auto currentPath = *dir.begin();
         for (auto it = ++dir.begin(); it != dir.end(); ++it) {
             currentPath /= *it;
@@ -137,4 +137,4 @@ gerium_data_t UnixFile::onMap() noexcept {
     return _data;
 }
 
-} // namespace gerium::unix
+} // namespace gerium::nix

@@ -8,7 +8,7 @@
 #include "gerium/gerium-platform.h"
 #include <locale>
 #include <streambuf>
-#ifndef GERIUM_PLATFORM_ANDROID
+#if !defined(GERIUM_PLATFORM_ANDROID) && !defined(GERIUM_PLATFORM_LINUX)
 # include <mimalloc-override.h>
 
 namespace std { // add mi_* functions to std for vulkan headers
@@ -60,6 +60,9 @@ CMRC_DECLARE(gerium::resources);
 # define VK_USE_PLATFORM_METAL_EXT
 #elif defined(GERIUM_PLATFORM_ANDROID)
 # define VK_USE_PLATFORM_ANDROID_KHR
+#elif defined(GERIUM_PLATFORM_LINUX)
+# define VK_USE_PLATFORM_XCB_KHR
+# define VK_USE_PLATFORM_WAYLAND_KHR
 #else
 # error unsupported platform
 #endif

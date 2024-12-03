@@ -59,6 +59,9 @@ find_package(marl CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
+if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    find_package(X11 REQUIRED)
+endif()
 
 include(CMakeDependentOption)
 
@@ -121,6 +124,13 @@ elseif(APPLE)
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_MACOS_SOURCES})
     list(APPEND GERIUM_SOURCES ${GERIUM_MACOS_SOURCES})
     list(APPEND IMGUI_SOURCES "${imgui_SOURCE_DIR}/backends/imgui_impl_osx.mm")
+elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    file(GLOB GERIUM_LINUX_SOURCES 
+        "sources/Unix/*.hpp" "sources/Unix/*.cpp"
+        "sources/Linux/*.hpp" "sources/Linux/*.cpp" 
+        "sources/Vulkan/Linux/*.hpp" "sources/Vulkan/Linux/*.cpp")
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_LINUX_SOURCES})
+    list(APPEND GERIUM_SOURCES ${GERIUM_LINUX_SOURCES})
 endif()
 
 add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
@@ -135,6 +145,9 @@ target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE marl::marl)
+target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::X11>)  # libx11-dev 
+target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::X11_xcb>)
+target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::Xinerama>)  # libxinerama-dev
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${IMGUI_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${Stb_INCLUDE_DIR})

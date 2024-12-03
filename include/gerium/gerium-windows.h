@@ -1,6 +1,6 @@
 /**
  * \file      gerium-windows.h
- * \brief     gerium API Core
+ * \brief     gerium API Windows
  * \author    Vladimir Shaleev
  * \copyright MIT License
  */

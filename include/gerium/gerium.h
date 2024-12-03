@@ -1,3 +1,10 @@
+/**
+ * \file      gerium.h
+ * \brief     gerium API
+ * \author    Vladimir Shaleev
+ * \copyright MIT License
+ */
+
 #ifndef GERIUM_H
 #define GERIUM_H
 
@@ -17,6 +24,10 @@
 
 #ifdef GERIUM_PLATFORM_WINDOWS
 # include "gerium-windows.h"
+#endif
+
+#ifdef GERIUM_PLATFORM_LINUX
+# include "gerium-linux.h"
 #endif
 
 #endif
