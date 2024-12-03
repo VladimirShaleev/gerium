@@ -19,6 +19,6 @@ private:
     FILE* _file{};
 };
 
-} // namespace gerium::macos
+} // namespace gerium::linux
 
 #endif

@@ -14,6 +14,6 @@ protected:
     void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) override;
 };
 
-} // namespace gerium::vulkan::windows
+} // namespace gerium::vulkan::linux
 
 #endif

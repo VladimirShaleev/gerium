@@ -135,9 +135,13 @@ private:
     Colormap _colormap{};
     XContext _context{};
     Window _window{};
+    gerium_uint16_t _width{};
+    gerium_uint16_t _height{};
     std::string _title{};
     bool _running{};
     bool _active{};
+    bool _resizing{};
+    std::chrono::steady_clock::time_point _lastResizeTime{};
     ObjectPtr<Logger> _logger{};
 
     Atom UTF8_STRING{};

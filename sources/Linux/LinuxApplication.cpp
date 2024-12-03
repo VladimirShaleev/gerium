@@ -11,6 +11,9 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
         error(GERIUM_RESULT_ERROR_NO_DISPLAY);
     }
 
+    _width  = width;
+    _height = height;
+
     auto visual = DefaultVisual(_display, _screen);
     auto depth  = DefaultDepth(_display, _screen);
 
@@ -224,10 +227,10 @@ void LinuxApplication::onGetMaxSize(gerium_uint16_t* width, gerium_uint16_t* hei
 
 void LinuxApplication::onGetSize(gerium_uint16_t* width, gerium_uint16_t* height) const noexcept {
     if (width) {
-        *width = 1000; // _width;
+        *width = _width;
     }
     if (height) {
-        *height = 800; // _height;
+        *height = _height;
     }
 }
 
@@ -299,15 +302,24 @@ void LinuxApplication::onRun() {
 
     changeState(GERIUM_APPLICATION_STATE_CREATE);
     changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
-    
+
     showWindow();
     focusWindow();
+
+    auto prevTime = std::chrono::high_resolution_clock::now();
 
     while (_running) {
         waitEvents();
         pollEvents();
 
-        if (_running && !callFrameFunc(16)) {
+        auto currentTime   = std::chrono::high_resolution_clock::now();
+        const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - prevTime).count();
+        if (elapsed == 0) {
+            continue;
+        }
+        prevTime = currentTime;
+
+        if (_running && !callFrameFunc(elapsed)) {
             frameError = true;
             _running   = false;
         }
@@ -628,6 +640,8 @@ void LinuxApplication::handleEvent(const XEvent& event) {
         return;
     }
 
+    static bool stateChanged = false;
+
     switch (event.type) {
         case VisibilityNotify:
             changeState(GERIUM_APPLICATION_STATE_VISIBLE);
@@ -664,19 +678,47 @@ void LinuxApplication::handleEvent(const XEvent& event) {
             break;
 
         case PropertyNotify:
-            if (event.xproperty.atom == NET_WM_STATE) {
+            if (event.xproperty.atom == WM_STATE) {
+                int result = WithdrawnState;
+                if (auto states = getProperties<int>(WM_STATE, WM_STATE); states.size() >= 2) {
+                    result = states[0];
+                }
+                if (result == IconicState) {
+                    changeState(GERIUM_APPLICATION_STATE_MINIMIZE);
+                    stateChanged = true;
+                }
+            } else if (event.xproperty.atom == NET_WM_STATE) {
                 auto states = getProperties<Atom>(NET_WM_STATE, XA_ATOM);
                 if (states.size() == 1 && states[0] == NET_WM_STATE_FULLSCREEN) {
                     changeState(GERIUM_APPLICATION_STATE_FULLSCREEN);
+                    stateChanged = true;
                 } else if (states.size() == 2) {
                     std::vector maximizeStates{ NET_WM_STATE_MAXIMIZED_HORZ, NET_WM_STATE_MAXIMIZED_VERT };
                     std::sort(maximizeStates.begin(), maximizeStates.end());
                     std::sort(states.begin(), states.end());
                     if (states[0] == maximizeStates[0] && states[1] == maximizeStates[1]) {
                         changeState(GERIUM_APPLICATION_STATE_MAXIMIZE);
+                        stateChanged = true;
                     }
                 } else if (states.empty()) {
                     changeState(GERIUM_APPLICATION_STATE_NORMAL);
+                    stateChanged = true;
+                }
+            }
+            break;
+
+        case ConfigureNotify:
+            if (int newWidth = event.xconfigure.width, newHeight = event.xconfigure.height;
+                newWidth != _width || newHeight != _height) {
+                if (newWidth > 0 && newHeight > 0) {
+                    _width  = newWidth;
+                    _height = newHeight;
+                    if (!stateChanged) {
+                        _resizing       = true;
+                        _lastResizeTime = std::chrono::steady_clock::now();
+                        changeState(GERIUM_APPLICATION_STATE_RESIZE);
+                    }
+                    stateChanged = false;
                 }
             }
             break;
@@ -693,6 +735,14 @@ void LinuxApplication::pollEvents() {
     }
 
     XFlush(_display);
+
+    if (_resizing) {
+        const auto elapsed = std::chrono::steady_clock::now() - _lastResizeTime;
+        if (elapsed > std::chrono::milliseconds(500)) {
+            _resizing = false;
+            changeState(GERIUM_APPLICATION_STATE_RESIZED);
+        }
+    }
 }
 
 void LinuxApplication::waitEvents() {

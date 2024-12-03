@@ -11,6 +11,6 @@ private:
     VkSurfaceKHR onCreateSurface(Application* application) const override;
 };
 
-} // namespace gerium::vulkan::windows
+} // namespace gerium::vulkan::linux
 
 #endif

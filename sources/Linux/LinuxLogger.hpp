@@ -16,6 +16,6 @@ private:
     static int getLogLevel(gerium_logger_level_t level) noexcept;
 };
 
-} // namespace gerium::windows
+} // namespace gerium::linux
 
 #endif
