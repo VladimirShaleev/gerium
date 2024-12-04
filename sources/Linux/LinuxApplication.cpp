@@ -109,9 +109,93 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
     XFree(classHint);
 
     onSetTitle(title);
+
+    _im = XOpenIM(_display, nullptr, nullptr, nullptr);
+    if (_im) {
+        bool found        = false;
+        XIMStyles* styles = NULL;
+
+        if (!XGetIMValues(_im, XNQueryInputStyle, &styles, NULL)) {
+            for (unsigned int i = 0; i < styles->count_styles; i++) {
+                if (styles->supported_styles[i] == (XIMPreeditNothing | XIMStatusNothing)) {
+                    found = true;
+                    break;
+                }
+            }
+            XFree(styles);
+        }
+
+        if (!found) {
+            XCloseIM(_im);
+            _im = nullptr;
+        }
+    }
+
+    if (_im) {
+        XIMCallback callbackIm;
+        callbackIm.callback    = destroyIm;
+        callbackIm.client_data = (XPointer) this;
+        XSetIMValues(_im, XNDestroyCallback, &callbackIm, nullptr);
+
+        XIMCallback callbackIc;
+        callbackIc.callback    = destroyIc;
+        callbackIc.client_data = (XPointer) this;
+
+        _ic = XCreateIC(_im,
+                        XNInputStyle,
+                        XIMPreeditNothing | XIMStatusNothing,
+                        XNClientWindow,
+                        _window,
+                        XNFocusWindow,
+                        _window,
+                        XNDestroyCallback,
+                        &callbackIc,
+                        nullptr);
+
+        if (_ic) {
+            XWindowAttributes attribs;
+            XGetWindowAttributes(_display, _window, &attribs);
+
+            unsigned long filter = 0;
+            if (XGetICValues(_ic, XNFilterEvents, &filter, NULL) == NULL) {
+                XSelectInput(_display, _window, attribs.your_event_mask | filter);
+            }
+        }
+    }
+
+    // XCreateIC()
+
+    int queryEvent;
+    int queryError;
+    if (!XQueryExtension(_display, "XInputExtension", &_xinput.extension, &queryEvent, &queryError)) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    int major = 2, minor = 0;
+    if (_xinput.XIQueryVersion(_display, &major, &minor) == BadRequest) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    unsigned char masks[XIMaskLen(XI_LASTEVENT)]{};
+    auto xiMask      = new XIEventMask{};
+    xiMask->deviceid = XIAllMasterDevices;
+    xiMask->mask_len = XIMaskLen(XI_LASTEVENT);
+    xiMask->mask     = masks;
+    XISetMask(xiMask->mask, XI_KeyPress);
+    XISetMask(xiMask->mask, XI_KeyRelease);
+
+    _xinput.XISelectEvents(_display, _window, xiMask, 1);
+    XSync(_display, False);
 }
 
 LinuxApplication::~LinuxApplication() {
+    if (_ic) {
+        XDestroyIC(_ic);
+    }
+    if (_im) {
+        XCloseIM(_im);
+    }
+
     if (_display) {
         if (_window) {
             XDeleteContext(_display, _window, _context);
@@ -450,7 +534,7 @@ void LinuxApplication::setNormalHints(gerium_uint16_t minWidth,
     _maxHeight = maxHeight;
 }
 
-void LinuxApplication::handleEvent(const XEvent& event) {
+void LinuxApplication::handleEvent(XEvent& event) {
     LinuxApplication* app = nullptr;
     if (XFindContext(_display, _window, _context, (XPointer*) &app) != 0) {
         return;
@@ -467,12 +551,14 @@ void LinuxApplication::handleEvent(const XEvent& event) {
             if (event.xfocus.mode != NotifyGrab && event.xfocus.mode != NotifyUngrab) {
                 _active = true;
                 changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
+                clearStates(_lastInputTimestamp);
             }
             break;
 
         case FocusOut:
             if (event.xfocus.mode != NotifyGrab && event.xfocus.mode != NotifyUngrab) {
                 _active = false;
+                clearStates(_lastInputTimestamp);
                 changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS);
             }
             break;
@@ -541,6 +627,142 @@ void LinuxApplication::handleEvent(const XEvent& event) {
                 }
             }
             break;
+
+            // case KeyPress:
+            // case KeyRelease: {
+            //     auto scancode = toScanCode((ScanCode) event.xkey.keycode);
+            //     auto press    = event.type == KeyPress;
+
+            //     gerium_event_t e{};
+            //     e.type              = GERIUM_EVENT_TYPE_KEYBOARD;
+            //     e.timestamp         = event.xkey.time;
+            //     e.keyboard.scancode = scancode;
+            //     e.keyboard.code     = {};
+            //     e.keyboard.state    = press ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
+
+            //     if (event.xkey.state & LockMask) {
+            //         e.keyboard.modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
+            //     }
+            //     if (event.xkey.state & Mod2Mask) {
+            //         e.keyboard.modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
+            //     }
+            //     if (event.xkey.state & Mod4Mask) {
+            //         e.keyboard.modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK;
+            //     }
+            //     break;
+            // }
+
+        case GenericEvent:
+            if (event.xcookie.extension == _xinput.extension) {
+                switch (event.xcookie.evtype) {
+                    case XI_KeyPress:
+                    case XI_KeyRelease: {
+                        if (XGetEventData(_display, &event.xcookie)) {
+                            auto keyEvent       = (XIDeviceEvent*) event.xcookie.data;
+                            auto scancode       = toScanCode((ScanCode) keyEvent->detail);
+                            auto press          = event.xcookie.evtype == XI_KeyPress;
+                            _lastInputTimestamp = keyEvent->time;
+
+                            if (press != isPressScancode(scancode)) {
+                                XKeyEvent lookupEvent{};
+                                lookupEvent.type        = press ? KeyPress : KeyRelease;
+                                lookupEvent.serial      = keyEvent->serial;
+                                lookupEvent.send_event  = keyEvent->send_event;
+                                lookupEvent.display     = keyEvent->display;
+                                lookupEvent.window      = keyEvent->event;
+                                lookupEvent.root        = keyEvent->root;
+                                lookupEvent.subwindow   = keyEvent->child;
+                                lookupEvent.time        = keyEvent->time;
+                                lookupEvent.x           = keyEvent->event_x;
+                                lookupEvent.y           = keyEvent->event_y;
+                                lookupEvent.x_root      = keyEvent->root_x;
+                                lookupEvent.y_root      = keyEvent->root_y;
+                                lookupEvent.state       = keyEvent->mods.locked | keyEvent->mods.base;
+                                lookupEvent.keycode     = keyEvent->detail;
+                                lookupEvent.same_screen = False;
+
+                                gerium_event_t e{};
+                                e.type              = GERIUM_EVENT_TYPE_KEYBOARD;
+                                e.timestamp         = keyEvent->time;
+                                e.keyboard.scancode = scancode;
+                                e.keyboard.code     = {};
+                                e.keyboard.state    = press ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
+
+                                if (isPressScancode(GERIUM_SCANCODE_SHIFT_LEFT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LSHIFT;
+                                }
+                                if (isPressScancode(GERIUM_SCANCODE_SHIFT_RIGHT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RSHIFT;
+                                }
+                                if (isPressScancode(GERIUM_SCANCODE_CONTROL_LEFT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LCTRL;
+                                }
+                                if (isPressScancode(GERIUM_SCANCODE_CONTROL_RIGHT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RCTRL;
+                                }
+                                if (isPressScancode(GERIUM_SCANCODE_ALT_LEFT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LALT;
+                                }
+                                if (isPressScancode(GERIUM_SCANCODE_ALT_RIGHT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RALT;
+                                }
+                                if (isPressScancode(GERIUM_SCANCODE_META_LEFT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LMETA;
+                                }
+                                if (isPressScancode(GERIUM_SCANCODE_META_RIGHT)) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RMETA;
+                                }
+                                if (keyEvent->mods.locked & LockMask) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
+                                }
+                                if (keyEvent->mods.locked & Mod2Mask) {
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
+                                }
+
+                                if (_ic) {
+                                    Status status;
+                                    char buffer[100];
+                                    auto count = Xutf8LookupString(
+                                        _ic, &lookupEvent, buffer, sizeof(buffer) - 1, nullptr, &status);
+
+                                    if ((status == XLookupChars || status == XLookupBoth) && count <= 5) {
+                                        buffer[count]        = '\0';
+                                        e.keyboard.symbol[0] = buffer[0];
+                                        e.keyboard.symbol[1] = buffer[1];
+                                        e.keyboard.symbol[2] = buffer[2];
+                                        e.keyboard.symbol[3] = buffer[3];
+                                        e.keyboard.symbol[4] = buffer[4];
+                                    }
+                                } else {
+                                    KeySym keysym{};
+                                    XLookupString(&lookupEvent, nullptr, 0, &keysym, nullptr);
+                                    if ((keysym >= 0x20 && keysym <= 0x7E) || (keysym >= 0xA0 && keysym <= 0xFF)) {
+                                        e.keyboard.symbol[0] = (char) keysym;
+                                    } else if (keysym == 65288) {
+                                        e.keyboard.symbol[0] = '\b';
+                                    } else if (keysym == 65289) {
+                                        e.keyboard.symbol[0] = '\t';
+                                    } else if (keysym == 65293 || keysym == 65421) {
+                                        e.keyboard.symbol[0] = '\n';
+                                    } else if (keysym == 65307) {
+                                        e.keyboard.symbol[0] = char(0x1B);
+                                    } else if (keysym == 65439 || keysym == 65535) {
+                                        e.keyboard.symbol[0] = char(0x7F);
+                                    } else if (keysym >= 65450 && keysym <= 65465) {
+                                        e.keyboard.symbol[0] = char(keysym - 65408);
+                                    }
+                                }
+
+                                setKeyState(scancode, press);
+                                addEvent(e);
+                            }
+                            XFreeEventData(_display, &event.xcookie);
+                        }
+                        break;
+                    }
+                }
+            }
+            break;
     }
 }
 
@@ -585,6 +807,7 @@ void LinuxApplication::waitActive() {
     }
     _active = true;
     changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
+    clearStates(_lastInputTimestamp);
 }
 
 void LinuxApplication::error(gerium_result_t error, const std::string_view message, bool throwError) {
@@ -617,6 +840,35 @@ int LinuxApplication::errorHandler(Display* display, XErrorEvent* event) {
         _errorCode = event->error_code;
     }
     return 0;
+}
+
+void LinuxApplication::destroyIm(XIM im, XPointer clientData, XPointer callData) {
+    auto app = (LinuxApplication*) clientData;
+    app->_im = nullptr;
+}
+
+void LinuxApplication::destroyIc(XIM im, XPointer clientData, XPointer callData) {
+    auto app = (LinuxApplication*) clientData;
+    app->_ic = nullptr;
+}
+
+LinuxApplication::XInput2Table::XInput2Table() {
+    dll = dlopen("libXi.so.6", RTLD_GLOBAL | RTLD_LAZY);
+    if (!dll) {
+        dll = dlopen("libXi.so", RTLD_GLOBAL | RTLD_LAZY);
+    }
+    if (!dll) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    XIQueryVersion = (PFN_XIQueryVersion) dlsym(dll, "XIQueryVersion");
+    XISelectEvents = (PFN_XISelectEvents) dlsym(dll, "XISelectEvents");
+}
+
+LinuxApplication::XInput2Table::~XInput2Table() {
+    if (dll) {
+        dlclose(dll);
+    }
 }
 
 int LinuxApplication::_errorCode{};

@@ -145,7 +145,7 @@ target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE marl::marl)
-target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::X11>)  # libx11-dev 
+target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::X11>)  # libx11-dev, libxi-dev
 target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::X11_xcb>)
 target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::Xinerama>)  # libxinerama-dev
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})

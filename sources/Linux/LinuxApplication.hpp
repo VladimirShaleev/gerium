@@ -9,6 +9,7 @@
 #include <X11/Xresource.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
+#include <X11/extensions/XInput2.h>
 
 namespace gerium::linux {
 
@@ -95,7 +96,7 @@ private:
                         gerium_uint16_t maxWidth,
                         gerium_uint16_t maxHeight);
 
-    void handleEvent(const XEvent& event);
+    void handleEvent(XEvent& event);
     void pollEvents();
     void waitEvents();
     void waitVisible();
@@ -107,6 +108,8 @@ private:
     void releaseErrorHandler();
 
     static int errorHandler(Display* display, XErrorEvent* event);
+    static void destroyIm(XIM im, XPointer clientData, XPointer callData);
+    static void destroyIc(XIM im, XPointer clientData, XPointer callData);
 
     struct ErrorGuard {
         ErrorGuard(const ErrorGuard&) = delete;
@@ -126,16 +129,33 @@ private:
         LinuxApplication* _app;
     };
 
+    struct XInput2Table {
+        typedef decltype(&::XIQueryVersion) PFN_XIQueryVersion;
+        typedef decltype(&::XISelectEvents) PFN_XISelectEvents;
+
+        XInput2Table();
+        ~XInput2Table();
+
+        PFN_XIQueryVersion XIQueryVersion;
+        PFN_XISelectEvents XISelectEvents;
+
+        void* dll;
+        int extension;
+    };
+
     static constexpr auto kNoValue = std::numeric_limits<gerium_uint16_t>::max();
 
     static int _errorCode;
     static Display* _display;
+    XInput2Table _xinput{};
     XErrorHandler _errorHandler{};
     int _screen{};
     Window _root{};
     Colormap _colormap{};
     XContext _context{};
     Window _window{};
+    XIM _im{};
+    XIC _ic{};
     gerium_application_style_flags_t _styles{};
     gerium_uint16_t _width{};
     gerium_uint16_t _height{};
@@ -148,6 +168,7 @@ private:
     bool _active{};
     bool _resizing{};
     bool _fullscreen{};
+    gerium_uint64_t _lastInputTimestamp{};
     std::chrono::steady_clock::time_point _lastResizeTime{};
     ObjectPtr<Logger> _logger{};
 
