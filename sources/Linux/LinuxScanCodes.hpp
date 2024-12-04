@@ -474,6 +474,313 @@ gerium_inline gerium_scancode_t toScanCode(ScanCode scanCode) noexcept {
     }
 }
 
+gerium_inline gerium_key_code_t toKeyCode(gerium_scancode_t scanCode, bool shift, bool numlock) noexcept {
+    switch (scanCode) {
+        case GERIUM_SCANCODE_UNKNOWN:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_0:
+            return shift ? GERIUM_KEY_CODE_PAREN_RIGHT : GERIUM_KEY_CODE_0;
+        case GERIUM_SCANCODE_1:
+            return shift ? GERIUM_KEY_CODE_EXCLAIM : GERIUM_KEY_CODE_1;
+        case GERIUM_SCANCODE_2:
+            return shift ? GERIUM_KEY_CODE_AT : GERIUM_KEY_CODE_2;
+        case GERIUM_SCANCODE_3:
+            return shift ? GERIUM_KEY_CODE_HASH : GERIUM_KEY_CODE_3;
+        case GERIUM_SCANCODE_4:
+            return shift ? GERIUM_KEY_CODE_DOLLAR : GERIUM_KEY_CODE_4;
+        case GERIUM_SCANCODE_5:
+            return shift ? GERIUM_KEY_CODE_PERCENT : GERIUM_KEY_CODE_5;
+        case GERIUM_SCANCODE_6:
+            return shift ? GERIUM_KEY_CODE_CARET : GERIUM_KEY_CODE_6;
+        case GERIUM_SCANCODE_7:
+            return shift ? GERIUM_KEY_CODE_AMPERSAND : GERIUM_KEY_CODE_7;
+        case GERIUM_SCANCODE_8:
+            return shift ? GERIUM_KEY_CODE_ASTERISK : GERIUM_KEY_CODE_8;
+        case GERIUM_SCANCODE_9:
+            return shift ? GERIUM_KEY_CODE_PAREN_LEFT : GERIUM_KEY_CODE_9;
+        case GERIUM_SCANCODE_A:
+            return GERIUM_KEY_CODE_A;
+        case GERIUM_SCANCODE_B:
+            return GERIUM_KEY_CODE_B;
+        case GERIUM_SCANCODE_C:
+            return GERIUM_KEY_CODE_C;
+        case GERIUM_SCANCODE_D:
+            return GERIUM_KEY_CODE_D;
+        case GERIUM_SCANCODE_E:
+            return GERIUM_KEY_CODE_E;
+        case GERIUM_SCANCODE_F:
+            return GERIUM_KEY_CODE_F;
+        case GERIUM_SCANCODE_G:
+            return GERIUM_KEY_CODE_G;
+        case GERIUM_SCANCODE_H:
+            return GERIUM_KEY_CODE_H;
+        case GERIUM_SCANCODE_I:
+            return GERIUM_KEY_CODE_I;
+        case GERIUM_SCANCODE_J:
+            return GERIUM_KEY_CODE_J;
+        case GERIUM_SCANCODE_K:
+            return GERIUM_KEY_CODE_K;
+        case GERIUM_SCANCODE_L:
+            return GERIUM_KEY_CODE_L;
+        case GERIUM_SCANCODE_M:
+            return GERIUM_KEY_CODE_M;
+        case GERIUM_SCANCODE_N:
+            return GERIUM_KEY_CODE_N;
+        case GERIUM_SCANCODE_O:
+            return GERIUM_KEY_CODE_O;
+        case GERIUM_SCANCODE_P:
+            return GERIUM_KEY_CODE_P;
+        case GERIUM_SCANCODE_Q:
+            return GERIUM_KEY_CODE_Q;
+        case GERIUM_SCANCODE_R:
+            return GERIUM_KEY_CODE_R;
+        case GERIUM_SCANCODE_S:
+            return GERIUM_KEY_CODE_S;
+        case GERIUM_SCANCODE_T:
+            return GERIUM_KEY_CODE_T;
+        case GERIUM_SCANCODE_U:
+            return GERIUM_KEY_CODE_U;
+        case GERIUM_SCANCODE_V:
+            return GERIUM_KEY_CODE_V;
+        case GERIUM_SCANCODE_W:
+            return GERIUM_KEY_CODE_W;
+        case GERIUM_SCANCODE_X:
+            return GERIUM_KEY_CODE_X;
+        case GERIUM_SCANCODE_Y:
+            return GERIUM_KEY_CODE_Y;
+        case GERIUM_SCANCODE_Z:
+            return GERIUM_KEY_CODE_Z;
+        case GERIUM_SCANCODE_F1:
+            return GERIUM_KEY_CODE_F1;
+        case GERIUM_SCANCODE_F2:
+            return GERIUM_KEY_CODE_F2;
+        case GERIUM_SCANCODE_F3:
+            return GERIUM_KEY_CODE_F3;
+        case GERIUM_SCANCODE_F4:
+            return GERIUM_KEY_CODE_F4;
+        case GERIUM_SCANCODE_F5:
+            return GERIUM_KEY_CODE_F5;
+        case GERIUM_SCANCODE_F6:
+            return GERIUM_KEY_CODE_F6;
+        case GERIUM_SCANCODE_F7:
+            return GERIUM_KEY_CODE_F7;
+        case GERIUM_SCANCODE_F8:
+            return GERIUM_KEY_CODE_F8;
+        case GERIUM_SCANCODE_F9:
+            return GERIUM_KEY_CODE_F9;
+        case GERIUM_SCANCODE_F10:
+            return GERIUM_KEY_CODE_F10;
+        case GERIUM_SCANCODE_F11:
+            return GERIUM_KEY_CODE_F11;
+        case GERIUM_SCANCODE_F12:
+            return GERIUM_KEY_CODE_F12;
+        case GERIUM_SCANCODE_F13:
+            return GERIUM_KEY_CODE_F13;
+        case GERIUM_SCANCODE_F14:
+            return GERIUM_KEY_CODE_F14;
+        case GERIUM_SCANCODE_F15:
+            return GERIUM_KEY_CODE_F15;
+        case GERIUM_SCANCODE_F16:
+            return GERIUM_KEY_CODE_F16;
+        case GERIUM_SCANCODE_F17:
+            return GERIUM_KEY_CODE_F17;
+        case GERIUM_SCANCODE_F18:
+            return GERIUM_KEY_CODE_F18;
+        case GERIUM_SCANCODE_F19:
+            return GERIUM_KEY_CODE_F19;
+        case GERIUM_SCANCODE_F20:
+            return GERIUM_KEY_CODE_F20;
+        case GERIUM_SCANCODE_F21:
+            return GERIUM_KEY_CODE_F21;
+        case GERIUM_SCANCODE_F22:
+            return GERIUM_KEY_CODE_F22;
+        case GERIUM_SCANCODE_F23:
+            return GERIUM_KEY_CODE_F23;
+        case GERIUM_SCANCODE_F24:
+            return GERIUM_KEY_CODE_F24;
+        case GERIUM_SCANCODE_NUMPAD_0:
+            return numlock ? GERIUM_KEY_CODE_0 : GERIUM_KEY_CODE_INSERT;
+        case GERIUM_SCANCODE_NUMPAD_1:
+            return numlock ? GERIUM_KEY_CODE_1 : GERIUM_KEY_CODE_END;
+        case GERIUM_SCANCODE_NUMPAD_2:
+            return numlock ? GERIUM_KEY_CODE_2 : GERIUM_KEY_CODE_ARROW_DOWN;
+        case GERIUM_SCANCODE_NUMPAD_3:
+            return numlock ? GERIUM_KEY_CODE_3 : GERIUM_KEY_CODE_PAGE_DOWN;
+        case GERIUM_SCANCODE_NUMPAD_4:
+            return numlock ? GERIUM_KEY_CODE_4 : GERIUM_KEY_CODE_ARROW_LEFT;
+        case GERIUM_SCANCODE_NUMPAD_5:
+            return numlock ? GERIUM_KEY_CODE_5 : GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_NUMPAD_6:
+            return numlock ? GERIUM_KEY_CODE_6 : GERIUM_KEY_CODE_ARROW_RIGHT;
+        case GERIUM_SCANCODE_NUMPAD_7:
+            return numlock ? GERIUM_KEY_CODE_7 : GERIUM_KEY_CODE_HOME;
+        case GERIUM_SCANCODE_NUMPAD_8:
+            return numlock ? GERIUM_KEY_CODE_8 : GERIUM_KEY_CODE_ARROW_UP;
+        case GERIUM_SCANCODE_NUMPAD_9:
+            return numlock ? GERIUM_KEY_CODE_9 : GERIUM_KEY_CODE_PAGE_UP;
+        case GERIUM_SCANCODE_NUMPAD_COMMA:
+            return GERIUM_KEY_CODE_COMMA;
+        case GERIUM_SCANCODE_NUMPAD_ENTER:
+            return GERIUM_KEY_CODE_ENTER;
+        case GERIUM_SCANCODE_NUMPAD_EQUAL:
+            return GERIUM_KEY_CODE_EQUAL;
+        case GERIUM_SCANCODE_NUMPAD_SUBTRACT:
+            return GERIUM_KEY_CODE_SUBTRACT;
+        case GERIUM_SCANCODE_NUMPAD_DECIMAL:
+            return numlock ? GERIUM_KEY_CODE_PERIOD : GERIUM_KEY_CODE_DELETE;
+        case GERIUM_SCANCODE_NUMPAD_ADD:
+            return GERIUM_KEY_CODE_ADD;
+        case GERIUM_SCANCODE_NUMPAD_DIVIDE:
+            return GERIUM_KEY_CODE_DIVIDE;
+        case GERIUM_SCANCODE_NUMPAD_MULTIPLY:
+            return GERIUM_KEY_CODE_MULTIPLY;
+        case GERIUM_SCANCODE_NUM_LOCK:
+            return GERIUM_KEY_CODE_NUM_LOCK;
+        case GERIUM_SCANCODE_MEDIA_PLAY_PAUSE:
+            return GERIUM_KEY_CODE_MEDIA_PLAY_PAUSE;
+        case GERIUM_SCANCODE_MEDIA_TRACK_PREVIOUS:
+            return GERIUM_KEY_CODE_MEDIA_TRACK_PREVIOUS;
+        case GERIUM_SCANCODE_MEDIA_TRACK_NEXT:
+            return GERIUM_KEY_CODE_MEDIA_TRACK_NEXT;
+        case GERIUM_SCANCODE_MEDIA_STOP:
+            return GERIUM_KEY_CODE_MEDIA_STOP;
+        case GERIUM_SCANCODE_LAUNCH_MEDIA_PLAYER:
+            return GERIUM_KEY_CODE_LAUNCH_MEDIA_PLAYER;
+        case GERIUM_SCANCODE_AUDIO_VOLUME_MUTE:
+            return GERIUM_KEY_CODE_AUDIO_VOLUME_MUTE;
+        case GERIUM_SCANCODE_AUDIO_VOLUME_DOWN:
+            return GERIUM_KEY_CODE_AUDIO_VOLUME_DOWN;
+        case GERIUM_SCANCODE_AUDIO_VOLUME_UP:
+            return GERIUM_KEY_CODE_AUDIO_VOLUME_UP;
+        case GERIUM_SCANCODE_ESCAPE:
+            return GERIUM_KEY_CODE_ESCAPE;
+        case GERIUM_SCANCODE_TAB:
+            return GERIUM_KEY_CODE_TAB;
+        case GERIUM_SCANCODE_CAPS_LOCK:
+            return GERIUM_KEY_CODE_CAPS_LOCK;
+        case GERIUM_SCANCODE_ENTER:
+            return GERIUM_KEY_CODE_ENTER;
+        case GERIUM_SCANCODE_BACKSLASH:
+            return shift ? GERIUM_KEY_CODE_PIPE : GERIUM_KEY_CODE_BACKSLASH;
+        case GERIUM_SCANCODE_BACKSPACE:
+            return GERIUM_KEY_CODE_BACKSPACE;
+        case GERIUM_SCANCODE_INTL_BACKSLASH:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_INTL_RO:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_INTL_YEN:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_MINUS:
+            return shift ? GERIUM_KEY_CODE_UNDERSCORE : GERIUM_KEY_CODE_SUBTRACT;
+        case GERIUM_SCANCODE_COLON:
+            return GERIUM_KEY_CODE_COLON;
+        case GERIUM_SCANCODE_COMMA:
+            return shift ? GERIUM_KEY_CODE_LESS : GERIUM_KEY_CODE_COMMA;
+        case GERIUM_SCANCODE_CONVERT:
+            return GERIUM_KEY_CODE_CONVERT;
+        case GERIUM_SCANCODE_NONCONVERT:
+            return GERIUM_KEY_CODE_NONCONVERT;
+        case GERIUM_SCANCODE_EQUAL:
+            return shift ? GERIUM_KEY_CODE_EQUAL : GERIUM_KEY_CODE_EQUAL;
+        case GERIUM_SCANCODE_PERIOD:
+            return shift ? GERIUM_KEY_CODE_GREATER : GERIUM_KEY_CODE_PERIOD;
+        case GERIUM_SCANCODE_POWER:
+            return GERIUM_KEY_CODE_POWER;
+        case GERIUM_SCANCODE_SEMICOLON:
+            return shift ? GERIUM_KEY_CODE_COLON : GERIUM_KEY_CODE_SEMICOLON;
+        case GERIUM_SCANCODE_SLASH:
+            return shift ? GERIUM_KEY_CODE_QUESTION : GERIUM_KEY_CODE_SLASH;
+        case GERIUM_SCANCODE_SLEEP:
+            return GERIUM_KEY_CODE_SLEEP;
+        case GERIUM_SCANCODE_WAKE:
+            return GERIUM_KEY_CODE_WAKE;
+        case GERIUM_SCANCODE_SPACE:
+            return GERIUM_KEY_CODE_SPACE;
+        case GERIUM_SCANCODE_QUOTE:
+            return shift ? GERIUM_KEY_CODE_DOUBLE_QUOTE : GERIUM_KEY_CODE_QUOTE;
+        case GERIUM_SCANCODE_BACKQUOTE:
+            return shift ? GERIUM_KEY_CODE_TILDE : GERIUM_KEY_CODE_BACKQUOTE;
+        case GERIUM_SCANCODE_ALT_LEFT:
+            return GERIUM_KEY_CODE_ALT_LEFT;
+        case GERIUM_SCANCODE_ALT_RIGHT:
+            return GERIUM_KEY_CODE_ALT_RIGHT;
+        case GERIUM_SCANCODE_BRACKET_LEFT:
+            return shift ? GERIUM_KEY_CODE_BRACE_LEFT : GERIUM_KEY_CODE_BRACKET_LEFT;
+        case GERIUM_SCANCODE_BRACKET_RIGHT:
+            return shift ? GERIUM_KEY_CODE_BRACE_RIGHT : GERIUM_KEY_CODE_BRACKET_RIGHT;
+        case GERIUM_SCANCODE_CONTROL_LEFT:
+            return GERIUM_KEY_CODE_CONTROL_LEFT;
+        case GERIUM_SCANCODE_CONTROL_RIGHT:
+            return GERIUM_KEY_CODE_CONTROL_RIGHT;
+        case GERIUM_SCANCODE_SHIFT_LEFT:
+            return GERIUM_KEY_CODE_SHIFT_LEFT;
+        case GERIUM_SCANCODE_SHIFT_RIGHT:
+            return GERIUM_KEY_CODE_SHIFT_RIGHT;
+        case GERIUM_SCANCODE_META_LEFT:
+            return GERIUM_KEY_CODE_META_LEFT;
+        case GERIUM_SCANCODE_META_RIGHT:
+            return GERIUM_KEY_CODE_META_RIGHT;
+        case GERIUM_SCANCODE_ARROW_UP:
+            return GERIUM_KEY_CODE_ARROW_UP;
+        case GERIUM_SCANCODE_ARROW_LEFT:
+            return GERIUM_KEY_CODE_ARROW_LEFT;
+        case GERIUM_SCANCODE_ARROW_RIGHT:
+            return GERIUM_KEY_CODE_ARROW_RIGHT;
+        case GERIUM_SCANCODE_ARROW_DOWN:
+            return GERIUM_KEY_CODE_ARROW_DOWN;
+        case GERIUM_SCANCODE_SCROLL_LOCK:
+            return GERIUM_KEY_CODE_SCROLL_LOCK;
+        case GERIUM_SCANCODE_PAUSE:
+            return GERIUM_KEY_CODE_PAUSE;
+        case GERIUM_SCANCODE_CTRL_PAUSE:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_INSERT:
+            return GERIUM_KEY_CODE_INSERT;
+        case GERIUM_SCANCODE_DELETE:
+            return GERIUM_KEY_CODE_DELETE;
+        case GERIUM_SCANCODE_HOME:
+            return GERIUM_KEY_CODE_HOME;
+        case GERIUM_SCANCODE_END:
+            return GERIUM_KEY_CODE_END;
+        case GERIUM_SCANCODE_PAGE_UP:
+            return GERIUM_KEY_CODE_PAGE_UP;
+        case GERIUM_SCANCODE_PAGE_DOWN:
+            return GERIUM_KEY_CODE_PAGE_DOWN;
+        case GERIUM_SCANCODE_LAUNCH_MAIL:
+            return GERIUM_KEY_CODE_LAUNCH_MAIL;
+        case GERIUM_SCANCODE_MYCOMPUTER:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_CONTEXT_MENU:
+            return GERIUM_KEY_CODE_CONTEXT_MENU;
+        case GERIUM_SCANCODE_PRINT_SCREEN:
+            return GERIUM_KEY_CODE_PRINT_SCREEN;
+        case GERIUM_SCANCODE_ALT_PRINT_SCREEN:
+            return GERIUM_KEY_CODE_UNKNOWN;
+        case GERIUM_SCANCODE_LAUNCH_APPLICATION_1:
+            return GERIUM_KEY_CODE_LAUNCH_APPLICATION_1;
+        case GERIUM_SCANCODE_LAUNCH_APPLICATION_2:
+            return GERIUM_KEY_CODE_LAUNCH_APPLICATION_2;
+        case GERIUM_SCANCODE_KANA_MODE:
+            return GERIUM_KEY_CODE_KANA_MODE;
+        case GERIUM_SCANCODE_BROWSER_BACK:
+            return GERIUM_KEY_CODE_BROWSER_BACK;
+        case GERIUM_SCANCODE_BROWSER_FAVORITES:
+            return GERIUM_KEY_CODE_BROWSER_FAVORITES;
+        case GERIUM_SCANCODE_BROWSER_FORWARD:
+            return GERIUM_KEY_CODE_BROWSER_FORWARD;
+        case GERIUM_SCANCODE_BROWSER_HOME:
+            return GERIUM_KEY_CODE_BROWSER_HOME;
+        case GERIUM_SCANCODE_BROWSER_REFRESH:
+            return GERIUM_KEY_CODE_BROWSER_REFRESH;
+        case GERIUM_SCANCODE_BROWSER_SEARCH:
+            return GERIUM_KEY_CODE_BROWSER_SEARCH;
+        case GERIUM_SCANCODE_BROWSER_STOP:
+            return GERIUM_KEY_CODE_BROWSER_STOP;
+        default:
+            return GERIUM_KEY_CODE_UNKNOWN;
+    }
+}
+
 } // namespace gerium::linux
 
 #endif

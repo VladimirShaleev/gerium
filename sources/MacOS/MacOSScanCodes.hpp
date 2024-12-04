@@ -138,7 +138,7 @@ gerium_inline std::pair<gerium_scancode_t, gerium_key_code_t> toScanCode(gerium_
         case kVK_ANSI_Keypad4:
             return { GERIUM_SCANCODE_NUMPAD_4, numlock ? GERIUM_KEY_CODE_4 : GERIUM_KEY_CODE_ARROW_LEFT };
         case kVK_ANSI_Keypad5:
-            return { GERIUM_SCANCODE_NUMPAD_5, GERIUM_KEY_CODE_5 };
+            return { GERIUM_SCANCODE_NUMPAD_5, numlock ? GERIUM_KEY_CODE_5 : GERIUM_KEY_CODE_UNKNOWN };
         case kVK_ANSI_Keypad6:
             return { GERIUM_SCANCODE_NUMPAD_6, numlock ? GERIUM_KEY_CODE_6 : GERIUM_KEY_CODE_ARROW_RIGHT };
         case kVK_ANSI_Keypad7:

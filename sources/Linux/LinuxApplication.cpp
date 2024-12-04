@@ -628,30 +628,6 @@ void LinuxApplication::handleEvent(XEvent& event) {
             }
             break;
 
-            // case KeyPress:
-            // case KeyRelease: {
-            //     auto scancode = toScanCode((ScanCode) event.xkey.keycode);
-            //     auto press    = event.type == KeyPress;
-
-            //     gerium_event_t e{};
-            //     e.type              = GERIUM_EVENT_TYPE_KEYBOARD;
-            //     e.timestamp         = event.xkey.time;
-            //     e.keyboard.scancode = scancode;
-            //     e.keyboard.code     = {};
-            //     e.keyboard.state    = press ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
-
-            //     if (event.xkey.state & LockMask) {
-            //         e.keyboard.modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
-            //     }
-            //     if (event.xkey.state & Mod2Mask) {
-            //         e.keyboard.modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
-            //     }
-            //     if (event.xkey.state & Mod4Mask) {
-            //         e.keyboard.modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK;
-            //     }
-            //     break;
-            // }
-
         case GenericEvent:
             if (event.xcookie.extension == _xinput.extension) {
                 switch (event.xcookie.evtype) {
@@ -681,11 +657,14 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                 lookupEvent.keycode     = keyEvent->detail;
                                 lookupEvent.same_screen = False;
 
+                                auto keycode = toKeyCode(
+                                    scancode, keyEvent->mods.base & ShiftMask, keyEvent->mods.locked & Mod2Mask);
+
                                 gerium_event_t e{};
                                 e.type              = GERIUM_EVENT_TYPE_KEYBOARD;
                                 e.timestamp         = keyEvent->time;
                                 e.keyboard.scancode = scancode;
-                                e.keyboard.code     = {};
+                                e.keyboard.code     = keycode;
                                 e.keyboard.state    = press ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
 
                                 if (isPressScancode(GERIUM_SCANCODE_SHIFT_LEFT)) {
