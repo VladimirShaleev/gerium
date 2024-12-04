@@ -163,6 +163,8 @@ private:
     gerium_uint16_t _minHeight{ kNoValue };
     gerium_uint16_t _maxWidth{ kNoValue };
     gerium_uint16_t _maxHeight{ kNoValue };
+    gerium_uint16_t _originWidth{};
+    gerium_uint16_t _originHeight{};
     std::string _title{};
     bool _running{};
     bool _active{};

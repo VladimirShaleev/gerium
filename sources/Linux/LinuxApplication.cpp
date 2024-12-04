@@ -46,9 +46,8 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
 
     XSetWindowAttributes wa{};
     wa.colormap   = _colormap;
-    wa.event_mask = StructureNotifyMask | KeyPressMask | KeyReleaseMask | PointerMotionMask | ButtonPressMask |
-                    ButtonReleaseMask | ExposureMask | FocusChangeMask | VisibilityChangeMask | EnterWindowMask |
-                    LeaveWindowMask | PropertyChangeMask;
+    wa.event_mask = StructureNotifyMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask | ExposureMask |
+                    FocusChangeMask | VisibilityChangeMask | EnterWindowMask | LeaveWindowMask | PropertyChangeMask;
 
     {
         ErrorGuard error(this);
@@ -163,8 +162,6 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
         }
     }
 
-    // XCreateIC()
-
     int queryEvent;
     int queryError;
     if (!XQueryExtension(_display, "XInputExtension", &_xinput.extension, &queryEvent, &queryError)) {
@@ -172,19 +169,19 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
     }
 
     int major = 2, minor = 0;
-    if (_xinput.XIQueryVersion(_display, &major, &minor) == BadRequest) {
+    if (_xinput.XIQueryVersion(_display, &major, &minor) != Success) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 
     unsigned char masks[XIMaskLen(XI_LASTEVENT)]{};
-    auto xiMask      = new XIEventMask{};
-    xiMask->deviceid = XIAllMasterDevices;
-    xiMask->mask_len = XIMaskLen(XI_LASTEVENT);
-    xiMask->mask     = masks;
-    XISetMask(xiMask->mask, XI_KeyPress);
-    XISetMask(xiMask->mask, XI_KeyRelease);
+    XIEventMask xiMask{};
+    xiMask.deviceid = XIAllMasterDevices;
+    xiMask.mask_len = sizeof(masks);
+    xiMask.mask     = masks;
+    XISetMask(xiMask.mask, XI_KeyPress);
+    XISetMask(xiMask.mask, XI_KeyRelease);
 
-    _xinput.XISelectEvents(_display, _window, xiMask, 1);
+    _xinput.XISelectEvents(_display, _window, &xiMask, 1);
     XSync(_display, False);
 }
 
@@ -237,12 +234,22 @@ void LinuxApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
     }
 
     if (NET_WM_STATE && NET_WM_STATE_FULLSCREEN) {
+        if (!_fullscreen && fullscreen) {
+            _originWidth  = _width;
+            _originHeight = _height;
+        } else {
+            _width  = _originWidth;
+            _height = _originHeight;
+        }
+        _fullscreen = fullscreen;
+        onSetStyle(_styles);
         sendWMEvent(NET_WM_STATE, fullscreen ? 1 : 0, NET_WM_STATE_FULLSCREEN, 0, 1, 0);
+
+        XFlush(_display);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        onSetStyle(_styles);
+        XFlush(_display);
     }
-
-    onSetStyle(_styles);
-
-    XFlush(_display);
 }
 
 gerium_application_style_flags_t LinuxApplication::onGetStyle() const noexcept {
@@ -280,7 +287,7 @@ void LinuxApplication::onSetStyle(gerium_application_style_flags_t style) noexce
 
     hints.flags = MWM_HINTS_DECORATIONS | MWM_HINTS_FUNCTIONS;
 
-    if (_styles != style && !_fullscreen) {
+    if (!_fullscreen) {
         hints.decorations |= MWM_DECOR_BORDER | MWM_DECOR_TITLE;
         hints.functions |= MWM_FUNC_MOVE | MWM_FUNC_CLOSE;
 
@@ -305,7 +312,7 @@ void LinuxApplication::onSetStyle(gerium_application_style_flags_t style) noexce
                         PropModeReplace,
                         (unsigned char*) &hints,
                         sizeof(hints) / sizeof(long));
-    } else if (_fullscreen) {
+    } else {
         XChangeProperty(_display,
                         _window,
                         MOTIF_WM_HINTS,
@@ -359,9 +366,12 @@ void LinuxApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) 
     if (!_fullscreen) {
         setNormalHints(_minWidth, _minHeight, _maxWidth, _maxHeight);
         XResizeWindow(_display, _window, width, height);
+        _width  = width;
+        _height = height;
+    } else {
+        _originWidth  = width;
+        _originHeight = height;
     }
-    _width  = width;
-    _height = height;
 }
 
 gerium_utf8_t LinuxApplication::onGetTitle() const noexcept {
@@ -526,6 +536,7 @@ void LinuxApplication::setNormalHints(gerium_uint16_t minWidth,
 
         XSetWMNormalHints(_display, _window, hints);
         XFree(hints);
+        XFlush(_display);
     }
 
     _minWidth  = minWidth;
@@ -641,7 +652,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
 
                             if (press != isPressScancode(scancode)) {
                                 XKeyEvent lookupEvent{};
-                                lookupEvent.type        = press ? KeyPress : KeyRelease;
+                                lookupEvent.type        = KeyPress;
                                 lookupEvent.serial      = keyEvent->serial;
                                 lookupEvent.send_event  = keyEvent->send_event;
                                 lookupEvent.display     = keyEvent->display;
@@ -835,6 +846,8 @@ LinuxApplication::XInput2Table::XInput2Table() {
     dll = dlopen("libXi.so.6", RTLD_GLOBAL | RTLD_LAZY);
     if (!dll) {
         dll = dlopen("libXi.so", RTLD_GLOBAL | RTLD_LAZY);
+    } else if (!dll) {
+        dll = dlopen("libXi.so.6", RTLD_GLOBAL | RTLD_LAZY);
     }
     if (!dll) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
