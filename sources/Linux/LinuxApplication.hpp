@@ -105,6 +105,8 @@ private:
     void waitVisible();
     void waitActive();
 
+    bool imguiHandleEvent(const gerium_event_t& event) const;
+
     void error(gerium_result_t error, const std::string_view message, bool throwError = false);
 
     void acquirereErrorHandler();
@@ -159,6 +161,7 @@ private:
         typedef decltype(&::XGetWindowAttributes) PFN_XGetWindowAttributes;
         typedef decltype(&::XGetWindowProperty) PFN_XGetWindowProperty;
         typedef decltype(&::XGetWMNormalHints) PFN_XGetWMNormalHints;
+        typedef decltype(&::XGrabPointer) PFN_XGrabPointer;
         typedef decltype(&::XInternAtom) PFN_XInternAtom;
         typedef decltype(&::XLookupString) PFN_XLookupString;
         typedef decltype(&::XMapRaised) PFN_XMapRaised;
@@ -182,6 +185,7 @@ private:
         typedef decltype(&::XSetWMNormalHints) PFN_XSetWMNormalHints;
         typedef decltype(&::XSetWMProtocols) PFN_XSetWMProtocols;
         typedef decltype(&::XSync) PFN_XSync;
+        typedef decltype(&::XUngrabPointer) PFN_XUngrabPointer;
         typedef decltype(&::XUnmapWindow) PFN_XUnmapWindow;
         typedef decltype(&::Xutf8LookupString) PFN_Xutf8LookupString;
 
@@ -214,6 +218,7 @@ private:
         PFN_XGetWindowAttributes XGetWindowAttributes;
         PFN_XGetWindowProperty XGetWindowProperty;
         PFN_XGetWMNormalHints XGetWMNormalHints;
+        PFN_XGrabPointer XGrabPointer;
         PFN_XInternAtom XInternAtom;
         PFN_XLookupString XLookupString;
         PFN_XMapRaised XMapRaised;
@@ -237,6 +242,7 @@ private:
         PFN_XSetWMNormalHints XSetWMNormalHints;
         PFN_XSetWMProtocols XSetWMProtocols;
         PFN_XSync XSync;
+        PFN_XUngrabPointer XUngrabPointer;
         PFN_XUnmapWindow XUnmapWindow;
         PFN_Xutf8LookupString Xutf8LookupString;
 
@@ -399,6 +405,7 @@ private:
     std::chrono::steady_clock::time_point _lastResizeTime{};
     mutable std::vector<GeriumDisplay> _displays{};
     std::unordered_map<gerium_sint32_t, GeriumPointer> _pointers{};
+    double _imguiTime{};
     ObjectPtr<Logger> _logger{};
 
     Atom UTF8_STRING{};

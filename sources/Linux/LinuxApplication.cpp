@@ -508,6 +508,19 @@ void LinuxApplication::onSetTitle(gerium_utf8_t title) noexcept {
 }
 
 void LinuxApplication::onShowCursor(bool show) noexcept {
+    if (show) {
+        _x11.XUngrabPointer(_display, CurrentTime);
+    } else {
+        _x11.XGrabPointer(_display,
+                          _window,
+                          True,
+                          ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+                          GrabModeAsync,
+                          GrabModeAsync,
+                          _window,
+                          None,
+                          CurrentTime);
+    }
 }
 
 void LinuxApplication::onRun() {
@@ -567,12 +580,33 @@ bool LinuxApplication::onIsRunning() const noexcept {
 }
 
 void LinuxApplication::onInitImGui() {
+    ImGuiIO& io            = ImGui::GetIO();
+    io.BackendPlatformName = "imgui_impl_x11";
 }
 
 void LinuxApplication::onShutdownImGui() {
+    ImGuiIO& io            = ImGui::GetIO();
+    io.BackendPlatformName = nullptr;
 }
 
 void LinuxApplication::onNewFrameImGui() {
+    ImGuiIO& io = ImGui::GetIO();
+
+    int32_t windowWidth  = _width;
+    int32_t windowHeight = _height;
+    int displayWidth     = windowWidth;
+    int displayHeight    = windowHeight;
+
+    io.DisplaySize = ImVec2((float) windowWidth, (float) windowHeight);
+    if (windowWidth > 0 && windowHeight > 0) {
+        io.DisplayFramebufferScale = ImVec2((float) displayWidth / windowWidth, (float) displayHeight / windowHeight);
+    }
+
+    timespec currentTimespec;
+    clock_gettime(CLOCK_MONOTONIC, &currentTimespec);
+    double currentTime = (double) (currentTimespec.tv_sec) + (currentTimespec.tv_nsec / 1000000000.0);
+    io.DeltaTime       = _imguiTime > 0.0 ? (float) (currentTime - _imguiTime) : (float) (1.0f / 60.0f);
+    _imguiTime         = currentTime;
 }
 
 bool LinuxApplication::isVisible() const {
@@ -811,6 +845,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
 
         case GenericEvent:
             if (event.xcookie.extension == _xinput.extension) {
+                auto& io = ImGui::GetIO();
                 switch (event.xcookie.evtype) {
                     case XI_KeyPress:
                     case XI_KeyRelease:
@@ -914,7 +949,9 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                 }
 
                                 setKeyState(scancode, press);
-                                addEvent(e);
+                                if (!imguiHandleEvent(e) && !io.WantCaptureKeyboard) {
+                                    addEvent(e);
+                                }
                             }
                             _x11.XFreeEventData(_display, &event.xcookie);
                         }
@@ -978,7 +1015,9 @@ void LinuxApplication::handleEvent(XEvent& event) {
 
                             if (e.mouse.buttons != prevPointer.buttions || e.mouse.wheel_vertical != 0.0f ||
                                 e.mouse.wheel_horizontal != 0.0f) {
-                                addEvent(e);
+                                if (!imguiHandleEvent(e) && !io.WantCaptureMouse) {
+                                    addEvent(e);
+                                }
                             }
                         }
                         break;
@@ -1012,7 +1051,9 @@ void LinuxApplication::handleEvent(XEvent& event) {
                             _x11.XFreeEventData(_display, &event.xcookie);
 
                             if (e.mouse.delta_x != 0 || e.mouse.delta_y != 0) {
-                                addEvent(e);
+                                if (!imguiHandleEvent(e) && !io.WantCaptureMouse) {
+                                    addEvent(e);
+                                }
                             }
                         }
                         break;
@@ -1064,6 +1105,66 @@ void LinuxApplication::waitActive() {
     _active = true;
     changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
     clearStates(_lastInputTimestamp);
+}
+
+bool LinuxApplication::imguiHandleEvent(const gerium_event_t& event) const {
+    auto& io = ImGui::GetIO();
+
+    if (ImGui::GetCurrentContext() && !isShowCursor() && !io.WantCaptureMouse) {
+        ImGui::GetIO().AddFocusEvent(false);
+    }
+
+    switch (event.type) {
+        case GERIUM_EVENT_TYPE_KEYBOARD: {
+            io.AddKeyEvent(ImGuiMod_Ctrl, (event.keyboard.modifiers & GERIUM_KEY_MOD_CTRL) != 0);
+            io.AddKeyEvent(ImGuiMod_Shift, (event.keyboard.modifiers & GERIUM_KEY_MOD_SHIFT) != 0);
+            io.AddKeyEvent(ImGuiMod_Alt, (event.keyboard.modifiers & GERIUM_KEY_MOD_ALT) != 0);
+            io.AddKeyEvent(ImGuiMod_Super, (event.keyboard.modifiers & GERIUM_KEY_MOD_META) != 0);
+
+            auto key = toImguiKey(event.keyboard.scancode);
+            if (key != ImGuiKey_None) {
+                io.AddKeyEvent(key, event.keyboard.state == GERIUM_KEY_STATE_PRESSED);
+                io.SetKeyEventNativeData(key, event.keyboard.code, event.keyboard.scancode);
+            }
+
+            break;
+        }
+        case GERIUM_EVENT_TYPE_MOUSE: {
+            io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+            if (event.mouse.delta_x != 0 || event.mouse.delta_y != 0) {
+                io.AddMousePosEvent(event.mouse.absolute_x, event.mouse.absolute_y);
+            }
+            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_DOWN) {
+                io.AddMouseButtonEvent(0, true);
+            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_UP) {
+                io.AddMouseButtonEvent(0, false);
+            }
+            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_RIGHT_DOWN) {
+                io.AddMouseButtonEvent(1, true);
+            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_RIGHT_UP) {
+                io.AddMouseButtonEvent(1, false);
+            }
+            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_MIDDLE_DOWN) {
+                io.AddMouseButtonEvent(2, true);
+            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_MIDDLE_UP) {
+                io.AddMouseButtonEvent(2, false);
+            }
+            if (event.mouse.wheel_vertical != 0.0f || event.mouse.wheel_horizontal != 0.0f) {
+                io.AddMouseWheelEvent(event.mouse.wheel_horizontal, event.mouse.wheel_vertical);
+            }
+            break;
+        }
+    }
+
+    if (io.WantTextInput && event.type == GERIUM_EVENT_TYPE_KEYBOARD &&
+        event.keyboard.state == GERIUM_KEY_STATE_RELEASED) {
+        if (event.keyboard.symbol[0] != '\0') {
+            io.AddInputCharactersUTF8(event.keyboard.symbol);
+        }
+        return true;
+    }
+
+    return false;
 }
 
 void LinuxApplication::error(gerium_result_t error, const std::string_view message, bool throwError) {
@@ -1145,6 +1246,7 @@ LinuxApplication::X11Table::X11Table() {
     XGetWindowAttributes   = (PFN_XGetWindowAttributes) dlsym(dll, "XGetWindowAttributes");
     XGetWindowProperty     = (PFN_XGetWindowProperty) dlsym(dll, "XGetWindowProperty");
     XGetWMNormalHints      = (PFN_XGetWMNormalHints) dlsym(dll, "XGetWMNormalHints");
+    XGrabPointer           = (PFN_XGrabPointer) dlsym(dll, "XGrabPointer");
     XInternAtom            = (PFN_XInternAtom) dlsym(dll, "XInternAtom");
     XLookupString          = (PFN_XLookupString) dlsym(dll, "XLookupString");
     XMapRaised             = (PFN_XMapRaised) dlsym(dll, "XMapRaised");
@@ -1168,6 +1270,7 @@ LinuxApplication::X11Table::X11Table() {
     XSetWMNormalHints      = (PFN_XSetWMNormalHints) dlsym(dll, "XSetWMNormalHints");
     XSetWMProtocols        = (PFN_XSetWMProtocols) dlsym(dll, "XSetWMProtocols");
     XSync                  = (PFN_XSync) dlsym(dll, "XSync");
+    XUngrabPointer         = (PFN_XUngrabPointer) dlsym(dll, "XUngrabPointer");
     XUnmapWindow           = (PFN_XUnmapWindow) dlsym(dll, "XUnmapWindow");
     Xutf8LookupString      = (PFN_Xutf8LookupString) dlsym(dll, "Xutf8LookupString");
 }
