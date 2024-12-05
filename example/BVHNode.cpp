@@ -56,7 +56,7 @@ BVHNode* BVHNode::build(const std::vector<Object>& objects, unsigned depth) {
 
     auto bbox = bboxFromObjects(objects);
 
-    auto numBins    = std::max(32u, unsigned(1024.0f / std::powf(2.0f, float(depth))));
+    auto numBins    = std::max(32u, unsigned(1024.0f / std::pow(2.0f, float(depth))));
     auto invNumBins = 1.0f / numBins;
 
     for (auto axis : { Axis::X, Axis::Y, Axis::Z }) {
@@ -83,7 +83,7 @@ BVHNode* BVHNode::build(const std::vector<Object>& objects, unsigned depth) {
             }
             auto center = bbox.getCenter(axis);
 
-            auto bin    = std::min(numBins - 1, unsigned(std::floorf((center - bbAxisStart) * invStepSize)));
+            auto bin    = std::min(numBins - 1, unsigned(std::floor((center - bbAxisStart) * invStepSize)));
             binBBs[bin] = binBBs[bin].combine(bbox);
             ++binCounts[bin];
         }

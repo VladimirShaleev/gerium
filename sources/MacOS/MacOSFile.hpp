@@ -8,7 +8,7 @@
 
 namespace gerium::macos {
 
-class MacOSFile final : public unix::UnixFile {
+class MacOSFile final : public nix::UnixFile {
 public:
     explicit MacOSFile(gerium_uint64_t size);
     MacOSFile(gerium_utf8_t path, gerium_uint64_t size);

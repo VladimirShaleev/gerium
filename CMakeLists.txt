@@ -61,6 +61,7 @@ find_package(Stb REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
+include(cmake/x11.cmake)
 
 cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
@@ -121,6 +122,13 @@ elseif(APPLE)
     source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_MACOS_SOURCES})
     list(APPEND GERIUM_SOURCES ${GERIUM_MACOS_SOURCES})
     list(APPEND IMGUI_SOURCES "${imgui_SOURCE_DIR}/backends/imgui_impl_osx.mm")
+elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    file(GLOB GERIUM_LINUX_SOURCES 
+        "sources/Unix/*.hpp" "sources/Unix/*.cpp"
+        "sources/Linux/*.hpp" "sources/Linux/*.cpp" 
+        "sources/Vulkan/Linux/*.hpp" "sources/Vulkan/Linux/*.cpp")
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_LINUX_SOURCES})
+    list(APPEND GERIUM_SOURCES ${GERIUM_LINUX_SOURCES})
 endif()
 
 add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
@@ -138,6 +146,7 @@ target_link_libraries(gerium PRIVATE marl::marl)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${IMGUI_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${Stb_INCLUDE_DIR})
+target_include_directories(gerium PRIVATE $<$<PLATFORM_ID:Linux>:${x11_SOURCE_DIR}>)
 target_sources(gerium PRIVATE ${IMGUI_SOURCES})
 
 target_include_directories(gerium PUBLIC

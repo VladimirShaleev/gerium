@@ -372,7 +372,7 @@ void Application::createScene() {
     _scene.addComponentToNode(sponza, modelSponza);
 
     const gerium_uint32_t lightCount    = 16;
-    const gerium_uint32_t lightsPerSide = std::ceill(sqrtf(lightCount * 1.f));
+    const gerium_uint32_t lightsPerSide = std::ceil(sqrtf(lightCount * 1.f));
     for (gerium_uint32_t iy = 0; iy < 4; ++iy) {
         for (gerium_uint32_t i = 0; i < lightCount; ++i) {
             const float sx = 0.65f;

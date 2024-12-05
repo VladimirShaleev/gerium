@@ -7,10 +7,10 @@ namespace android {
 AndroidFile::AndroidFile(gerium_uint64_t size) : AndroidFile(getTempFile().c_str(), size) {
 }
 
-AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : unix::UnixFile(path, size) {
+AndroidFile::AndroidFile(gerium_utf8_t path, gerium_uint64_t size) : nix::UnixFile(path, size) {
 }
 
-AndroidFile::AndroidFile(gerium_utf8_t path, bool readOnly) : unix::UnixFile(copyFromAssets(path, readOnly), readOnly) {
+AndroidFile::AndroidFile(gerium_utf8_t path, bool readOnly) : nix::UnixFile(copyFromAssets(path, readOnly), readOnly) {
 }
 
 gerium_utf8_t AndroidFile::getCacheDirFromContext() {

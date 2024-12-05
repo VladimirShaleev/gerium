@@ -6,7 +6,7 @@
 
 namespace gerium::android {
 
-class AndroidFile final : public unix::UnixFile {
+class AndroidFile final : public nix::UnixFile {
 public:
     explicit AndroidFile(gerium_uint64_t size);
     AndroidFile(gerium_utf8_t path, gerium_uint64_t size);

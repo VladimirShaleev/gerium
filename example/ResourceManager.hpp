@@ -38,6 +38,36 @@ using Texture       = Resource<gerium_texture_h>;
 using Technique     = Resource<gerium_technique_h>;
 using DescriptorSet = Resource<gerium_descriptor_set_h>;
 
+enum Type {
+    TextureType       = 1,
+    TechniqueType     = 2,
+    BufferType        = 3,
+    DescriptorSetType = 4
+};
+
+template <typename>
+struct HandleToType {};
+
+template <>
+struct HandleToType<gerium_texture_h> {
+    static constexpr Type type = TextureType;
+};
+
+template <>
+struct HandleToType<gerium_technique_h> {
+    static constexpr Type type = TechniqueType;
+};
+
+template <>
+struct HandleToType<gerium_buffer_h> {
+    static constexpr Type type = BufferType;
+};
+
+template <>
+struct HandleToType<gerium_descriptor_set_h> {
+    static constexpr Type type = DescriptorSetType;
+};
+
 class ResourceManager final {
 public:
     static constexpr gerium_uint64_t NoRetention      = 0;
@@ -87,13 +117,6 @@ private:
     template <typename T>
     friend class Resource;
 
-    enum Type {
-        TextureType       = 1,
-        TechniqueType     = 2,
-        BufferType        = 3,
-        DescriptorSetType = 4
-    };
-
     struct Resource {
         Type type;
         gerium_uint16_t handle;
@@ -102,29 +125,6 @@ private:
         gerium_uint64_t name;
         gerium_uint64_t lastTick;
         gerium_uint64_t retentionMs;
-    };
-
-    template <typename>
-    struct HandleToType {};
-
-    template <>
-    struct HandleToType<gerium_texture_h> {
-        static constexpr Type type = TextureType;
-    };
-
-    template <>
-    struct HandleToType<gerium_technique_h> {
-        static constexpr Type type = TechniqueType;
-    };
-
-    template <>
-    struct HandleToType<gerium_buffer_h> {
-        static constexpr Type type = BufferType;
-    };
-
-    template <>
-    struct HandleToType<gerium_descriptor_set_h> {
-        static constexpr Type type = DescriptorSetType;
     };
 
     template <typename H>

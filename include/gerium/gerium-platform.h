@@ -40,6 +40,8 @@
 # endif
 #elif defined(__ANDROID__) && !defined(GERIUM_PLATFORM_ANDROID)
 # define GERIUM_PLATFORM_ANDROID
+#elif defined(__linux__) && !defined(GERIUM_PLATFORM_LINUX)
+# define GERIUM_PLATFORM_LINUX
 #else
 # error unsupported platform
 #endif

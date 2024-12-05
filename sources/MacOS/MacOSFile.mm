@@ -9,11 +9,11 @@ namespace macos {
 MacOSFile::MacOSFile(gerium_uint64_t size) : MacOSFile(getTempFile().c_str(), size) {
 }
 
-MacOSFile::MacOSFile(gerium_utf8_t path, gerium_uint64_t size) : unix::UnixFile(path, size) {
+MacOSFile::MacOSFile(gerium_utf8_t path, gerium_uint64_t size) : nix::UnixFile(path, size) {
 }
 
 MacOSFile::MacOSFile(gerium_utf8_t path, bool readOnly) :
-    unix::UnixFile(pathFromResources(path, readOnly), readOnly) {
+    nix::UnixFile(pathFromResources(path, readOnly), readOnly) {
 }
 
 std::string MacOSFile::getPath(NSSearchPathDirectory directory) noexcept {

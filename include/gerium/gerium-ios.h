@@ -1,6 +1,6 @@
 /**
  * \file      gerium-ios.h
- * \brief     gerium API Core
+ * \brief     gerium API iOS
  * \author    Vladimir Shaleev
  * \copyright MIT License
  */
