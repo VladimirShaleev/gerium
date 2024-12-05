@@ -352,6 +352,9 @@ void LinuxApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
         sendWMEvent(NET_WM_STATE, fullscreen ? 1 : 0, NET_WM_STATE_FULLSCREEN, 0, 1, 0);
 
         _x11.XFlush(_display);
+        // TODO:
+        //   It is not yet clear how to correctly switch from full-screen mode to 
+        //   windowed mode with the restoration of window decoders without this
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         onSetStyle(_styles);
         _x11.XFlush(_display);
@@ -508,6 +511,7 @@ void LinuxApplication::onSetTitle(gerium_utf8_t title) noexcept {
 }
 
 void LinuxApplication::onShowCursor(bool show) noexcept {
+    // TODO: At the moment I can't check, because it is not supported in wsl2
     if (show) {
         _x11.XUngrabPointer(_display, CurrentTime);
     } else {
