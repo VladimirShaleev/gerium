@@ -8,8 +8,9 @@
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>
 #include <X11/Xutil.h>
-#include <X11/extensions/Xinerama.h>
 #include <X11/extensions/XInput2.h>
+#include <X11/extensions/Xinerama.h>
+#include <X11/extensions/Xrandr.h>
 
 namespace gerium::linux {
 
@@ -90,6 +91,8 @@ private:
     void showWindow();
     void focusWindow();
 
+    void restoreMode();
+    void setMode();
     void sendWMEvent(Atom type, long a1, long a2, long a3, long a4, long a5);
     void setNormalHints(gerium_uint16_t minWidth,
                         gerium_uint16_t minHeight,
@@ -139,8 +142,89 @@ private:
         PFN_XIQueryVersion XIQueryVersion;
         PFN_XISelectEvents XISelectEvents;
 
-        void* dll;
-        int extension;
+        void* dll{};
+        int extension{};
+    };
+
+    struct XineramaTable {
+        typedef decltype(&::XineramaIsActive) PFN_XineramaIsActive;
+        typedef decltype(&::XineramaQueryExtension) PFN_XineramaQueryExtension;
+        typedef decltype(&::XineramaQueryScreens) PFN_XineramaQueryScreens;
+
+        XineramaTable();
+        ~XineramaTable();
+
+        void setup();
+
+        PFN_XineramaIsActive XineramaIsActive;
+        PFN_XineramaQueryExtension XineramaQueryExtension;
+        PFN_XineramaQueryScreens XineramaQueryScreens;
+
+        void* dll{};
+        int major{};
+        int minor{};
+        bool available{};
+    };
+
+    struct XRandrTable {
+        typedef decltype(&::XRRAllocGamma) PFN_XRRAllocGamma;
+        typedef decltype(&::XRRFreeCrtcInfo) PFN_XRRFreeCrtcInfo;
+        typedef decltype(&::XRRFreeGamma) PFN_XRRFreeGamma;
+        typedef decltype(&::XRRFreeOutputInfo) PFN_XRRFreeOutputInfo;
+        typedef decltype(&::XRRFreeScreenResources) PFN_XRRFreeScreenResources;
+        typedef decltype(&::XRRGetCrtcGamma) PFN_XRRGetCrtcGamma;
+        typedef decltype(&::XRRGetCrtcGammaSize) PFN_XRRGetCrtcGammaSize;
+        typedef decltype(&::XRRGetCrtcInfo) PFN_XRRGetCrtcInfo;
+        typedef decltype(&::XRRGetOutputInfo) PFN_XRRGetOutputInfo;
+        typedef decltype(&::XRRGetOutputPrimary) PFN_XRRGetOutputPrimary;
+        typedef decltype(&::XRRGetScreenResourcesCurrent) PFN_XRRGetScreenResourcesCurrent;
+        typedef decltype(&::XRRQueryExtension) PFN_XRRQueryExtension;
+        typedef decltype(&::XRRQueryVersion) PFN_XRRQueryVersion;
+        typedef decltype(&::XRRSelectInput) PFN_XRRSelectInput;
+        typedef decltype(&::XRRSetCrtcConfig) PFN_XRRSetCrtcConfig;
+        typedef decltype(&::XRRSetCrtcGamma) PFN_XRRSetCrtcGamma;
+        typedef decltype(&::XRRUpdateConfiguration) PFN_XRRUpdateConfiguration;
+
+        XRandrTable();
+        ~XRandrTable();
+
+        void setup(Window root);
+
+        PFN_XRRAllocGamma XRRAllocGamma;
+        PFN_XRRFreeCrtcInfo XRRFreeCrtcInfo;
+        PFN_XRRFreeGamma XRRFreeGamma;
+        PFN_XRRFreeOutputInfo XRRFreeOutputInfo;
+        PFN_XRRFreeScreenResources XRRFreeScreenResources;
+        PFN_XRRGetCrtcGamma XRRGetCrtcGamma;
+        PFN_XRRGetCrtcGammaSize XRRGetCrtcGammaSize;
+        PFN_XRRGetCrtcInfo XRRGetCrtcInfo;
+        PFN_XRRGetOutputInfo XRRGetOutputInfo;
+        PFN_XRRGetOutputPrimary XRRGetOutputPrimary;
+        PFN_XRRGetScreenResourcesCurrent XRRGetScreenResourcesCurrent;
+        PFN_XRRQueryExtension XRRQueryExtension;
+        PFN_XRRQueryVersion XRRQueryVersion;
+        PFN_XRRSelectInput XRRSelectInput;
+        PFN_XRRSetCrtcConfig XRRSetCrtcConfig;
+        PFN_XRRSetCrtcGamma XRRSetCrtcGamma;
+        PFN_XRRUpdateConfiguration XRRUpdateConfiguration;
+
+        void* dll{};
+        int eventBase{};
+        int errorBase{};
+        int major{};
+        int minor{};
+        bool available{};
+        bool gammaBroken{};
+    };
+
+    struct GeriumDisplay {
+        int index;
+        RRCrtc crtc;
+        RROutput output;
+        gerium_uint32_t id;
+        std::string name;
+        std::vector<gerium_display_mode_t> modes;
+        std::vector<RRMode> modeIds;
     };
 
     static constexpr auto kNoValue = std::numeric_limits<gerium_uint16_t>::max();
@@ -148,6 +232,8 @@ private:
     static int _errorCode;
     static Display* _display;
     XInput2Table _xinput{};
+    XineramaTable _xinerama{};
+    XRandrTable _randr{};
     XErrorHandler _errorHandler{};
     int _screen{};
     Window _root{};
@@ -165,6 +251,9 @@ private:
     gerium_uint16_t _maxHeight{ kNoValue };
     gerium_uint16_t _originWidth{};
     gerium_uint16_t _originHeight{};
+    RRMode _originMode{};
+    gerium_uint32_t _displayId{};
+    std::optional<gerium_display_mode_t> _displayMode{};
     std::string _title{};
     bool _running{};
     bool _active{};
@@ -172,6 +261,7 @@ private:
     bool _fullscreen{};
     gerium_uint64_t _lastInputTimestamp{};
     std::chrono::steady_clock::time_point _lastResizeTime{};
+    mutable std::vector<GeriumDisplay> _displays{};
     ObjectPtr<Logger> _logger{};
 
     Atom UTF8_STRING{};

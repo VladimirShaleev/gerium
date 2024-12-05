@@ -24,6 +24,9 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
     _colormap = XCreateColormap(_display, _root, visual, AllocNone);
     _context  = XUniqueContext();
 
+    _xinerama.setup();
+    _randr.setup(_root);
+
     UTF8_STRING                 = XInternAtom(_display, "UTF8_STRING", False);
     WM_PROTOCOLS                = XInternAtom(_display, "WM_PROTOCOLS", False);
     WM_STATE                    = XInternAtom(_display, "WM_STATE", False);
@@ -220,7 +223,99 @@ gerium_runtime_platform_t LinuxApplication::onGetPlatform() const noexcept {
 }
 
 void LinuxApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const {
-    displayCount = 0;
+    if (!_randr.available) {
+        displayCount = 0;
+        return;
+    }
+
+    _displays.clear();
+
+    int disconnectedCount, screenCount = 0;
+    XineramaScreenInfo* screens = nullptr;
+
+    auto sr = _randr.XRRGetScreenResourcesCurrent(_display, _root);
+
+    if (_xinerama.available) {
+        screens = _xinerama.XineramaQueryScreens(_display, &screenCount);
+    }
+
+    for (int i = 0; i < sr->noutput; i++) {
+        _displays.push_back({});
+
+        auto oi = _randr.XRRGetOutputInfo(_display, sr, sr->outputs[i]);
+        if (oi->connection != RR_Connected || oi->crtc == None) {
+            _randr.XRRFreeOutputInfo(oi);
+            continue;
+        }
+
+        auto& display = _displays.back();
+
+        auto ci = _randr.XRRGetCrtcInfo(_display, sr, oi->crtc);
+        for (int j = 0; j < screenCount; j++) {
+            if (screens[j].x_org == ci->x && screens[j].y_org == ci->y && screens[j].width == ci->width &&
+                screens[j].height == ci->height) {
+                display.index = j;
+                break;
+            }
+        }
+
+        display.crtc   = oi->crtc;
+        display.output = sr->outputs[i];
+        display.id     = i;
+        display.name   = oi->name;
+
+        display.modes.resize(oi->nmode);
+        display.modeIds.resize(oi->nmode);
+
+        for (int m = 0; m < oi->nmode; ++m) {
+            XRRModeInfo* mode;
+            for (int mi = 0; mi < sr->nmode; ++mi) {
+                if (sr->modes[mi].id == oi->modes[m]) {
+                    mode = &sr->modes[mi];
+                    break;
+                }
+            }
+
+            auto tv = mode->hTotal * mode->vTotal;
+
+            auto refreshRate = tv ? gerium_uint16_t(std::round((double) mode->dotClock / tv)) : 0;
+
+            display.modeIds[m] = mode->id;
+            if (ci->rotation == RR_Rotate_90 || ci->rotation == RR_Rotate_270) {
+                display.modes[m].width  = mode->height;
+                display.modes[m].height = mode->width;
+
+            } else {
+                display.modes[m].width  = mode->width;
+                display.modes[m].height = mode->height;
+            }
+            display.modes[m].refresh_rate = refreshRate;
+        }
+
+        _randr.XRRFreeOutputInfo(oi);
+        _randr.XRRFreeCrtcInfo(ci);
+    }
+
+    _randr.XRRFreeScreenResources(sr);
+
+    if (screens) {
+        XFree(screens);
+    }
+
+    if (displays) {
+        gerium_uint32_t count = 0;
+        for (; count < displayCount && count < _displays.size(); ++count) {
+            displays[count].id          = _displays[count].id;
+            displays[count].name        = _displays[count].name.c_str();
+            displays[count].gpu_name    = "Unknown";
+            displays[count].device_name = "Unknown";
+            displays[count].mode_count  = (gerium_uint32_t) _displays[count].modes.size();
+            displays[count].modes       = _displays[count].modes.data();
+        }
+        displayCount = count;
+    } else {
+        displayCount = (gerium_uint32_t) _displays.size();
+    }
 }
 
 bool LinuxApplication::onIsFullscreen() const noexcept {
@@ -234,6 +329,23 @@ void LinuxApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
     }
 
     if (NET_WM_STATE && NET_WM_STATE_FULLSCREEN) {
+        _displayId   = displayId;
+        _displayMode = mode ? std::make_optional(*mode) : std::nullopt;
+
+        if (_xinerama.available && NET_WM_FULLSCREEN_MONITORS) {
+            if (fullscreen) {
+                auto it = std::find_if(_displays.cbegin(), _displays.cend(), [displayId](const auto& display) {
+                    return display.id == displayId;
+                });
+                if (it != _displays.cend()) {
+                    auto index = it->index;
+                    sendWMEvent(NET_WM_FULLSCREEN_MONITORS, index, index, index, index, 0);
+                }
+            } else {
+                XDeleteProperty(_display, _window, NET_WM_FULLSCREEN_MONITORS);
+            }
+        }
+
         if (!_fullscreen && fullscreen) {
             _originWidth  = _width;
             _originHeight = _height;
@@ -492,6 +604,66 @@ void LinuxApplication::focusWindow() {
     XFlush(_display);
 }
 
+void LinuxApplication::restoreMode() {
+    if (_randr.available && _originMode) {
+        auto it = std::find_if(_displays.cbegin(), _displays.cend(), [this](const auto& display) {
+            return display.id == _displayId;
+        });
+
+        if (it == _displays.cend()) {
+            return;
+        }
+
+        auto sr = _randr.XRRGetScreenResourcesCurrent(_display, _root);
+        auto ci = _randr.XRRGetCrtcInfo(_display, sr, it->crtc);
+
+        _randr.XRRSetCrtcConfig(
+            _display, sr, it->crtc, CurrentTime, ci->x, ci->y, _originMode, ci->rotation, ci->outputs, ci->noutput);
+
+        _randr.XRRFreeCrtcInfo(ci);
+        _randr.XRRFreeScreenResources(sr);
+
+        _originMode = {};
+    }
+}
+
+void LinuxApplication::setMode() {
+    if (_randr.available && _displayMode) {
+        auto it = std::find_if(_displays.cbegin(), _displays.cend(), [this](const auto& display) {
+            return display.id == _displayId;
+        });
+
+        if (it == _displays.cend()) {
+            return;
+        }
+
+        const auto& display = *it;
+
+        auto sr = _randr.XRRGetScreenResourcesCurrent(_display, _root);
+        auto ci = _randr.XRRGetCrtcInfo(_display, sr, display.crtc);
+        auto oi = _randr.XRRGetOutputInfo(_display, sr, display.output);
+
+        size_t m = 0;
+        for (; m < display.modes.size(); ++m) {
+            if (display.modes[m].width == _displayMode->width && display.modes[m].height == _displayMode->height &&
+                display.modes[m].refresh_rate == _displayMode->refresh_rate) {
+                break;
+            }
+        }
+        if (display.modes.size() != m) {
+            auto modeId = display.modeIds[m];
+            _originMode = ci->mode;
+
+            _randr.XRRSetCrtcConfig(
+                _display, sr, display.crtc, CurrentTime, ci->x, ci->y, modeId, ci->rotation, ci->outputs, ci->noutput);
+        }
+
+        _randr.XRRFreeOutputInfo(oi);
+        _randr.XRRFreeCrtcInfo(ci);
+        _randr.XRRFreeScreenResources(sr);
+    }
+}
+
 void LinuxApplication::sendWMEvent(Atom type, long a1, long a2, long a3, long a4, long a5) {
     XEvent event               = { ClientMessage };
     event.xclient.window       = _window;
@@ -599,6 +771,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                 if (result == IconicState) {
                     changeState(GERIUM_APPLICATION_STATE_MINIMIZE);
                     stateChanged = true;
+                    restoreMode();
                 }
             } else if (event.xproperty.atom == NET_WM_STATE) {
                 auto states = getProperties<Atom>(NET_WM_STATE, XA_ATOM);
@@ -606,6 +779,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                     changeState(GERIUM_APPLICATION_STATE_FULLSCREEN);
                     stateChanged = true;
                     _fullscreen  = true;
+                    setMode();
                 } else if (states.size() == 2) {
                     std::vector maximizeStates{ NET_WM_STATE_MAXIMIZED_HORZ, NET_WM_STATE_MAXIMIZED_VERT };
                     std::sort(maximizeStates.begin(), maximizeStates.end());
@@ -614,11 +788,13 @@ void LinuxApplication::handleEvent(XEvent& event) {
                         changeState(GERIUM_APPLICATION_STATE_MAXIMIZE);
                         stateChanged = true;
                         _fullscreen  = false;
+                        restoreMode();
                     }
                 } else if (states.empty()) {
                     changeState(GERIUM_APPLICATION_STATE_NORMAL);
                     stateChanged = true;
                     _fullscreen  = false;
+                    restoreMode();
                 }
             }
             break;
@@ -860,6 +1036,93 @@ LinuxApplication::XInput2Table::XInput2Table() {
 LinuxApplication::XInput2Table::~XInput2Table() {
     if (dll) {
         dlclose(dll);
+    }
+}
+
+LinuxApplication::XineramaTable::XineramaTable() {
+    dll = dlopen("libXinerama.so.1", RTLD_GLOBAL | RTLD_LAZY);
+    if (!dll) {
+        dll = dlopen("libXinerama.so", RTLD_GLOBAL | RTLD_LAZY);
+    } else if (!dll) {
+        dll = dlopen("libXinerama-1.so", RTLD_GLOBAL | RTLD_LAZY);
+    }
+
+    if (dll) {
+        XineramaIsActive       = (PFN_XineramaIsActive) dlsym(dll, "XineramaIsActive");
+        XineramaQueryExtension = (PFN_XineramaQueryExtension) dlsym(dll, "XineramaQueryExtension");
+        XineramaQueryScreens   = (PFN_XineramaQueryScreens) dlsym(dll, "XineramaQueryScreens");
+    }
+}
+
+LinuxApplication::XineramaTable::~XineramaTable() {
+    if (dll) {
+        dlclose(dll);
+    }
+}
+
+void LinuxApplication::XineramaTable::setup() {
+    if (dll) {
+        available = XineramaQueryExtension(_display, &major, &minor) && XineramaIsActive(_display);
+    }
+}
+
+LinuxApplication::XRandrTable::XRandrTable() {
+    dll = dlopen("libXrandr.so.2", RTLD_GLOBAL | RTLD_LAZY);
+    if (!dll) {
+        dll = dlopen("libXrandr.so", RTLD_GLOBAL | RTLD_LAZY);
+    } else if (!dll) {
+        dll = dlopen("libXrandr-2.so", RTLD_GLOBAL | RTLD_LAZY);
+    }
+
+    if (dll) {
+        XRRAllocGamma                = (PFN_XRRAllocGamma) dlsym(dll, "XRRAllocGamma");
+        XRRFreeCrtcInfo              = (PFN_XRRFreeCrtcInfo) dlsym(dll, "XRRFreeCrtcInfo");
+        XRRFreeGamma                 = (PFN_XRRFreeGamma) dlsym(dll, "XRRFreeGamma");
+        XRRFreeOutputInfo            = (PFN_XRRFreeOutputInfo) dlsym(dll, "XRRFreeOutputInfo");
+        XRRFreeScreenResources       = (PFN_XRRFreeScreenResources) dlsym(dll, "XRRFreeScreenResources");
+        XRRGetCrtcGamma              = (PFN_XRRGetCrtcGamma) dlsym(dll, "XRRGetCrtcGamma");
+        XRRGetCrtcGammaSize          = (PFN_XRRGetCrtcGammaSize) dlsym(dll, "XRRGetCrtcGammaSize");
+        XRRGetCrtcInfo               = (PFN_XRRGetCrtcInfo) dlsym(dll, "XRRGetCrtcInfo");
+        XRRGetOutputInfo             = (PFN_XRRGetOutputInfo) dlsym(dll, "XRRGetOutputInfo");
+        XRRGetOutputPrimary          = (PFN_XRRGetOutputPrimary) dlsym(dll, "XRRGetOutputPrimary");
+        XRRGetScreenResourcesCurrent = (PFN_XRRGetScreenResourcesCurrent) dlsym(dll, "XRRGetScreenResourcesCurrent");
+        XRRQueryExtension            = (PFN_XRRQueryExtension) dlsym(dll, "XRRQueryExtension");
+        XRRQueryVersion              = (PFN_XRRQueryVersion) dlsym(dll, "XRRQueryVersion");
+        XRRSelectInput               = (PFN_XRRSelectInput) dlsym(dll, "XRRSelectInput");
+        XRRSetCrtcConfig             = (PFN_XRRSetCrtcConfig) dlsym(dll, "XRRSetCrtcConfig");
+        XRRSetCrtcGamma              = (PFN_XRRSetCrtcGamma) dlsym(dll, "XRRSetCrtcGamma");
+        XRRUpdateConfiguration       = (PFN_XRRUpdateConfiguration) dlsym(dll, "XRRUpdateConfiguration");
+    }
+}
+
+LinuxApplication::XRandrTable::~XRandrTable() {
+    if (dll) {
+        dlclose(dll);
+    }
+}
+
+void LinuxApplication::XRandrTable::setup(Window root) {
+    if (dll) {
+        if (XRRQueryExtension(_display, &eventBase, &errorBase)) {
+            if (XRRQueryVersion(_display, &major, &minor)) {
+                available = major > 1 || minor >= 3;
+            }
+        }
+    }
+
+    if (available) {
+        auto sr = XRRGetScreenResourcesCurrent(_display, root);
+        if (!sr->ncrtc || !XRRGetCrtcGammaSize(_display, sr->crtcs[0])) {
+            gammaBroken = true;
+        }
+        if (!sr->ncrtc) {
+            available = false;
+        }
+        XRRFreeScreenResources(sr);
+    }
+
+    if (available) {
+        XRRSelectInput(_display, root, RROutputChangeNotifyMask);
     }
 }
 
