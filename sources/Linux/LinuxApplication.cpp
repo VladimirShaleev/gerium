@@ -5,7 +5,7 @@ namespace gerium::linux {
 
 LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) :
     _logger(Logger::create("gerium:application:x11")) {
-    _display = XOpenDisplay(nullptr);
+    _display = _x11.XOpenDisplay(nullptr);
 
     if (!_display) {
         error(GERIUM_RESULT_ERROR_NO_DISPLAY);
@@ -21,31 +21,31 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
 
     _screen   = DefaultScreen(_display);
     _root     = RootWindow(_display, _screen);
-    _colormap = XCreateColormap(_display, _root, visual, AllocNone);
-    _context  = XUniqueContext();
+    _colormap = _x11.XCreateColormap(_display, _root, visual, AllocNone);
+    _context  = (XContext) _x11.XrmUniqueQuark();
 
     _xinerama.setup();
     _randr.setup(_root);
 
-    UTF8_STRING                 = XInternAtom(_display, "UTF8_STRING", False);
-    WM_PROTOCOLS                = XInternAtom(_display, "WM_PROTOCOLS", False);
-    WM_STATE                    = XInternAtom(_display, "WM_STATE", False);
-    WM_DELETE_WINDOW            = XInternAtom(_display, "WM_DELETE_WINDOW", False);
-    NET_ACTIVE_WINDOW           = XInternAtom(_display, "_NET_ACTIVE_WINDOW", False);
-    NET_WM_NAME                 = XInternAtom(_display, "_NET_WM_NAME", False);
-    NET_WM_ICON_NAME            = XInternAtom(_display, "_NET_WM_ICON_NAME", False);
-    NET_WM_ICON                 = XInternAtom(_display, "_NET_WM_ICON", False);
-    NET_WM_PID                  = XInternAtom(_display, "_NET_WM_PID", False);
-    NET_WM_PING                 = XInternAtom(_display, "_NET_WM_PING", False);
-    NET_WM_WINDOW_TYPE          = XInternAtom(_display, "_NET_WM_WINDOW_TYPE", False);
-    NET_WM_WINDOW_TYPE_NORMAL   = XInternAtom(_display, "_NET_WM_WINDOW_TYPE_NORMAL", False);
-    NET_WM_STATE                = XInternAtom(_display, "_NET_WM_STATE", False);
-    NET_WM_STATE_ABOVE          = XInternAtom(_display, "_NET_WM_STATE_ABOVE", False);
-    NET_WM_STATE_FULLSCREEN     = XInternAtom(_display, "_NET_WM_STATE_FULLSCREEN", False);
-    NET_WM_STATE_MAXIMIZED_VERT = XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    NET_WM_STATE_MAXIMIZED_HORZ = XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-    NET_WM_FULLSCREEN_MONITORS  = XInternAtom(_display, "_NET_WM_FULLSCREEN_MONITORS ", False);
-    MOTIF_WM_HINTS              = XInternAtom(_display, "_MOTIF_WM_HINTS", False);
+    UTF8_STRING                 = _x11.XInternAtom(_display, "UTF8_STRING", False);
+    WM_PROTOCOLS                = _x11.XInternAtom(_display, "WM_PROTOCOLS", False);
+    WM_STATE                    = _x11.XInternAtom(_display, "WM_STATE", False);
+    WM_DELETE_WINDOW            = _x11.XInternAtom(_display, "WM_DELETE_WINDOW", False);
+    NET_ACTIVE_WINDOW           = _x11.XInternAtom(_display, "_NET_ACTIVE_WINDOW", False);
+    NET_WM_NAME                 = _x11.XInternAtom(_display, "_NET_WM_NAME", False);
+    NET_WM_ICON_NAME            = _x11.XInternAtom(_display, "_NET_WM_ICON_NAME", False);
+    NET_WM_ICON                 = _x11.XInternAtom(_display, "_NET_WM_ICON", False);
+    NET_WM_PID                  = _x11.XInternAtom(_display, "_NET_WM_PID", False);
+    NET_WM_PING                 = _x11.XInternAtom(_display, "_NET_WM_PING", False);
+    NET_WM_WINDOW_TYPE          = _x11.XInternAtom(_display, "_NET_WM_WINDOW_TYPE", False);
+    NET_WM_WINDOW_TYPE_NORMAL   = _x11.XInternAtom(_display, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+    NET_WM_STATE                = _x11.XInternAtom(_display, "_NET_WM_STATE", False);
+    NET_WM_STATE_ABOVE          = _x11.XInternAtom(_display, "_NET_WM_STATE_ABOVE", False);
+    NET_WM_STATE_FULLSCREEN     = _x11.XInternAtom(_display, "_NET_WM_STATE_FULLSCREEN", False);
+    NET_WM_STATE_MAXIMIZED_VERT = _x11.XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    NET_WM_STATE_MAXIMIZED_HORZ = _x11.XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    NET_WM_FULLSCREEN_MONITORS  = _x11.XInternAtom(_display, "_NET_WM_FULLSCREEN_MONITORS ", False);
+    MOTIF_WM_HINTS              = _x11.XInternAtom(_display, "_MOTIF_WM_HINTS", False);
 
     XSetWindowAttributes wa{};
     wa.colormap   = _colormap;
@@ -54,81 +54,82 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
 
     {
         ErrorGuard error(this);
-        _window = XCreateWindow(_display,
-                                _root,
-                                0,
-                                0,
-                                width,
-                                height,
-                                0,
-                                depth,
-                                InputOutput,
-                                visual,
-                                CWBorderPixel | CWColormap | CWEventMask,
-                                &wa);
+        _window = _x11.XCreateWindow(_display,
+                                     _root,
+                                     0,
+                                     0,
+                                     width,
+                                     height,
+                                     0,
+                                     depth,
+                                     InputOutput,
+                                     visual,
+                                     CWBorderPixel | CWColormap | CWEventMask,
+                                     &wa);
     }
     error(GERIUM_RESULT_ERROR_UNKNOWN, "create X11 window failed", true); // TODO add error
 
-    XSaveContext(_display, _window, _context, (XPointer) this);
+    _x11.XSaveContext(_display, _window, _context, (XPointer) this);
 
     Atom protocols[] = { WM_DELETE_WINDOW, NET_WM_PING };
-    XSetWMProtocols(_display, _window, protocols, std::size(protocols));
+    _x11.XSetWMProtocols(_display, _window, protocols, std::size(protocols));
 
     const long pid = getpid();
-    XChangeProperty(_display, _window, NET_WM_PID, XA_CARDINAL, 32, PropModeReplace, (unsigned char*) &pid, 1);
+    _x11.XChangeProperty(_display, _window, NET_WM_PID, XA_CARDINAL, 32, PropModeReplace, (unsigned char*) &pid, 1);
 
     if (NET_WM_WINDOW_TYPE && NET_WM_WINDOW_TYPE_NORMAL) {
         auto type = NET_WM_WINDOW_TYPE_NORMAL;
-        XChangeProperty(_display, _window, NET_WM_WINDOW_TYPE, XA_ATOM, 32, PropModeReplace, (unsigned char*) &type, 1);
+        _x11.XChangeProperty(
+            _display, _window, NET_WM_WINDOW_TYPE, XA_ATOM, 32, PropModeReplace, (unsigned char*) &type, 1);
     }
 
-    auto wmHints = XAllocWMHints();
+    auto wmHints = _x11.XAllocWMHints();
     if (!wmHints) {
         error(GERIUM_RESULT_ERROR_OUT_OF_MEMORY);
     }
     wmHints->flags         = StateHint;
     wmHints->initial_state = NormalState;
-    XSetWMHints(_display, _window, wmHints);
-    XFree(wmHints);
+    _x11.XSetWMHints(_display, _window, wmHints);
+    _x11.XFree(wmHints);
 
-    auto sizeHints = XAllocSizeHints();
+    auto sizeHints = _x11.XAllocSizeHints();
     if (!sizeHints) {
         error(GERIUM_RESULT_ERROR_OUT_OF_MEMORY);
     }
     sizeHints->flags |= PWinGravity;
     sizeHints->win_gravity = StaticGravity;
-    XSetWMNormalHints(_display, _window, sizeHints);
-    XFree(sizeHints);
+    _x11.XSetWMNormalHints(_display, _window, sizeHints);
+    _x11.XFree(sizeHints);
 
-    auto classHint = XAllocClassHint();
+    auto classHint = _x11.XAllocClassHint();
     if (!classHint) {
         error(GERIUM_RESULT_ERROR_OUT_OF_MEMORY);
     }
     auto name            = strlen(title) ? (char*) title : (char*) "gerium";
     classHint->res_name  = name;
     classHint->res_class = name;
-    XSetClassHint(_display, _window, classHint);
-    XFree(classHint);
+    _x11.XSetClassHint(_display, _window, classHint);
+    _x11.XFree(classHint);
 
     onSetTitle(title);
 
-    _im = XOpenIM(_display, nullptr, nullptr, nullptr);
+    _im = _x11.XOpenIM(_display, nullptr, nullptr, nullptr);
     if (_im) {
         bool found        = false;
         XIMStyles* styles = NULL;
 
-        if (!XGetIMValues(_im, XNQueryInputStyle, &styles, NULL)) {
+        if (!_x11.XGetIMValues(_im, XNQueryInputStyle, &styles, NULL)) {
             for (unsigned int i = 0; i < styles->count_styles; i++) {
                 if (styles->supported_styles[i] == (XIMPreeditNothing | XIMStatusNothing)) {
                     found = true;
                     break;
                 }
             }
-            XFree(styles);
+            _x11.XFree(styles);
         }
 
         if (!found) {
-            XCloseIM(_im);
+            _x11.XCloseIM(_im);
             _im = nullptr;
         }
     }
@@ -137,37 +138,37 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
         XIMCallback callbackIm;
         callbackIm.callback    = destroyIm;
         callbackIm.client_data = (XPointer) this;
-        XSetIMValues(_im, XNDestroyCallback, &callbackIm, nullptr);
+        _x11.XSetIMValues(_im, XNDestroyCallback, &callbackIm, nullptr);
 
         XIMCallback callbackIc;
         callbackIc.callback    = destroyIc;
         callbackIc.client_data = (XPointer) this;
 
-        _ic = XCreateIC(_im,
-                        XNInputStyle,
-                        XIMPreeditNothing | XIMStatusNothing,
-                        XNClientWindow,
-                        _window,
-                        XNFocusWindow,
-                        _window,
-                        XNDestroyCallback,
-                        &callbackIc,
-                        nullptr);
+        _ic = _x11.XCreateIC(_im,
+                             XNInputStyle,
+                             XIMPreeditNothing | XIMStatusNothing,
+                             XNClientWindow,
+                             _window,
+                             XNFocusWindow,
+                             _window,
+                             XNDestroyCallback,
+                             &callbackIc,
+                             nullptr);
 
         if (_ic) {
             XWindowAttributes attribs;
-            XGetWindowAttributes(_display, _window, &attribs);
+            _x11.XGetWindowAttributes(_display, _window, &attribs);
 
             unsigned long filter = 0;
-            if (XGetICValues(_ic, XNFilterEvents, &filter, NULL) == NULL) {
-                XSelectInput(_display, _window, attribs.your_event_mask | filter);
+            if (_x11.XGetICValues(_ic, XNFilterEvents, &filter, NULL) == NULL) {
+                _x11.XSelectInput(_display, _window, attribs.your_event_mask | filter);
             }
         }
     }
 
     int queryEvent;
     int queryError;
-    if (!XQueryExtension(_display, "XInputExtension", &_xinput.extension, &queryEvent, &queryError)) {
+    if (!_x11.XQueryExtension(_display, "XInputExtension", &_xinput.extension, &queryEvent, &queryError)) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 
@@ -185,33 +186,33 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
     XISetMask(xiMask.mask, XI_KeyRelease);
 
     _xinput.XISelectEvents(_display, _window, &xiMask, 1);
-    XSync(_display, False);
+    _x11.XSync(_display, False);
 }
 
 LinuxApplication::~LinuxApplication() {
     if (_ic) {
-        XDestroyIC(_ic);
+        _x11.XDestroyIC(_ic);
     }
     if (_im) {
-        XCloseIM(_im);
+        _x11.XCloseIM(_im);
     }
 
     if (_display) {
         if (_window) {
-            XDeleteContext(_display, _window, _context);
-            XUnmapWindow(_display, _window);
-            XDestroyWindow(_display, _window);
+            _x11.XDeleteContext(_display, _window, _context);
+            _x11.XUnmapWindow(_display, _window);
+            _x11.XDestroyWindow(_display, _window);
         }
         if (_colormap) {
-            XFreeColormap(_display, _colormap);
+            _x11.XFreeColormap(_display, _colormap);
         }
-        XFlush(_display);
-        XCloseDisplay(_display);
+        _x11.XFlush(_display);
+        _x11.XCloseDisplay(_display);
     }
 }
 
 xcb_connection_t* LinuxApplication::connection() const noexcept {
-    return XGetXCBConnection(_display);
+    return _x11xcb.XGetXCBConnection(_display);
 }
 
 uint32_t LinuxApplication::window() const noexcept {
@@ -299,7 +300,7 @@ void LinuxApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_di
     _randr.XRRFreeScreenResources(sr);
 
     if (screens) {
-        XFree(screens);
+        _x11.XFree(screens);
     }
 
     if (displays) {
@@ -324,7 +325,7 @@ bool LinuxApplication::onIsFullscreen() const noexcept {
 
 void LinuxApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, const gerium_display_mode_t* mode) {
     if (!isVisible()) {
-        XMapRaised(_display, _window);
+        _x11.XMapRaised(_display, _window);
         waitVisible();
     }
 
@@ -342,7 +343,7 @@ void LinuxApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
                     sendWMEvent(NET_WM_FULLSCREEN_MONITORS, index, index, index, index, 0);
                 }
             } else {
-                XDeleteProperty(_display, _window, NET_WM_FULLSCREEN_MONITORS);
+                _x11.XDeleteProperty(_display, _window, NET_WM_FULLSCREEN_MONITORS);
             }
         }
 
@@ -357,10 +358,10 @@ void LinuxApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
         onSetStyle(_styles);
         sendWMEvent(NET_WM_STATE, fullscreen ? 1 : 0, NET_WM_STATE_FULLSCREEN, 0, 1, 0);
 
-        XFlush(_display);
+        _x11.XFlush(_display);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         onSetStyle(_styles);
-        XFlush(_display);
+        _x11.XFlush(_display);
     }
 }
 
@@ -416,23 +417,23 @@ void LinuxApplication::onSetStyle(gerium_application_style_flags_t style) noexce
             hints.functions |= MWM_FUNC_MAXIMIZE;
         }
 
-        XChangeProperty(_display,
-                        _window,
-                        MOTIF_WM_HINTS,
-                        MOTIF_WM_HINTS,
-                        32,
-                        PropModeReplace,
-                        (unsigned char*) &hints,
-                        sizeof(hints) / sizeof(long));
+        _x11.XChangeProperty(_display,
+                             _window,
+                             MOTIF_WM_HINTS,
+                             MOTIF_WM_HINTS,
+                             32,
+                             PropModeReplace,
+                             (unsigned char*) &hints,
+                             sizeof(hints) / sizeof(long));
     } else {
-        XChangeProperty(_display,
-                        _window,
-                        MOTIF_WM_HINTS,
-                        MOTIF_WM_HINTS,
-                        32,
-                        PropModeReplace,
-                        (unsigned char*) &hints,
-                        sizeof(hints) / sizeof(long));
+        _x11.XChangeProperty(_display,
+                             _window,
+                             MOTIF_WM_HINTS,
+                             MOTIF_WM_HINTS,
+                             32,
+                             PropModeReplace,
+                             (unsigned char*) &hints,
+                             sizeof(hints) / sizeof(long));
     }
     onSetSize(_width, _height);
 
@@ -477,7 +478,7 @@ void LinuxApplication::onSetMaxSize(gerium_uint16_t width, gerium_uint16_t heigh
 void LinuxApplication::onSetSize(gerium_uint16_t width, gerium_uint16_t height) noexcept {
     if (!_fullscreen) {
         setNormalHints(_minWidth, _minHeight, _maxWidth, _maxHeight);
-        XResizeWindow(_display, _window, width, height);
+        _x11.XResizeWindow(_display, _window, width, height);
         _width  = width;
         _height = height;
     } else {
@@ -493,23 +494,23 @@ gerium_utf8_t LinuxApplication::onGetTitle() const noexcept {
 void LinuxApplication::onSetTitle(gerium_utf8_t title) noexcept {
     if (_title != title) {
         _title = title;
-        XChangeProperty(_display,
-                        _window,
-                        NET_WM_NAME,
-                        UTF8_STRING,
-                        8,
-                        PropModeReplace,
-                        (unsigned char*) _title.data(),
-                        _title.length());
-        XChangeProperty(_display,
-                        _window,
-                        NET_WM_ICON_NAME,
-                        UTF8_STRING,
-                        8,
-                        PropModeReplace,
-                        (unsigned char*) _title.data(),
-                        _title.length());
-        XFlush(_display);
+        _x11.XChangeProperty(_display,
+                             _window,
+                             NET_WM_NAME,
+                             UTF8_STRING,
+                             8,
+                             PropModeReplace,
+                             (unsigned char*) _title.data(),
+                             _title.length());
+        _x11.XChangeProperty(_display,
+                             _window,
+                             NET_WM_ICON_NAME,
+                             UTF8_STRING,
+                             8,
+                             PropModeReplace,
+                             (unsigned char*) _title.data(),
+                             _title.length());
+        _x11.XFlush(_display);
     }
 }
 
@@ -565,7 +566,7 @@ void LinuxApplication::onExit() noexcept {
     reply.xclient.format       = 32;
     reply.xclient.data.l[0]    = WM_DELETE_WINDOW;
     reply.xclient.data.l[1]    = CurrentTime;
-    XSendEvent(_display, _window, False, NoEventMask, &reply);
+    _x11.XSendEvent(_display, _window, False, NoEventMask, &reply);
 }
 
 bool LinuxApplication::onIsRunning() const noexcept {
@@ -583,13 +584,13 @@ void LinuxApplication::onNewFrameImGui() {
 
 bool LinuxApplication::isVisible() const {
     XWindowAttributes wa;
-    XGetWindowAttributes(_display, _window, &wa);
+    _x11.XGetWindowAttributes(_display, _window, &wa);
     return wa.map_state == IsViewable;
 }
 
 void LinuxApplication::showWindow() {
     if (!isVisible()) {
-        XMapWindow(_display, _window);
+        _x11.XMapWindow(_display, _window);
         waitVisible();
     }
 }
@@ -598,10 +599,10 @@ void LinuxApplication::focusWindow() {
     if (NET_ACTIVE_WINDOW) {
         sendWMEvent(NET_ACTIVE_WINDOW, 1, 0, 0, 0, 0);
     } else if (isVisible()) {
-        XRaiseWindow(_display, _window);
-        XSetInputFocus(_display, _window, RevertToParent, CurrentTime);
+        _x11.XRaiseWindow(_display, _window);
+        _x11.XSetInputFocus(_display, _window, RevertToParent, CurrentTime);
     }
-    XFlush(_display);
+    _x11.XFlush(_display);
 }
 
 void LinuxApplication::restoreMode() {
@@ -674,7 +675,7 @@ void LinuxApplication::sendWMEvent(Atom type, long a1, long a2, long a3, long a4
     event.xclient.data.l[2]    = a3;
     event.xclient.data.l[3]    = a4;
     event.xclient.data.l[4]    = a5;
-    XSendEvent(_display, _root, False, SubstructureNotifyMask | SubstructureRedirectMask, &event);
+    _x11.XSendEvent(_display, _root, False, SubstructureNotifyMask | SubstructureRedirectMask, &event);
 }
 
 void LinuxApplication::setNormalHints(gerium_uint16_t minWidth,
@@ -682,10 +683,10 @@ void LinuxApplication::setNormalHints(gerium_uint16_t minWidth,
                                       gerium_uint16_t maxWidth,
                                       gerium_uint16_t maxHeight) {
     if (!_fullscreen) {
-        XSizeHints* hints = XAllocSizeHints();
+        XSizeHints* hints = _x11.XAllocSizeHints();
 
         long value;
-        XGetWMNormalHints(_display, _window, hints, &value);
+        _x11.XGetWMNormalHints(_display, _window, hints, &value);
 
         hints->flags &= ~(PMinSize | PMaxSize);
 
@@ -706,9 +707,9 @@ void LinuxApplication::setNormalHints(gerium_uint16_t minWidth,
             hints->min_height = hints->max_height = _height;
         }
 
-        XSetWMNormalHints(_display, _window, hints);
-        XFree(hints);
-        XFlush(_display);
+        _x11.XSetWMNormalHints(_display, _window, hints);
+        _x11.XFree(hints);
+        _x11.XFlush(_display);
     }
 
     _minWidth  = minWidth;
@@ -719,7 +720,7 @@ void LinuxApplication::setNormalHints(gerium_uint16_t minWidth,
 
 void LinuxApplication::handleEvent(XEvent& event) {
     LinuxApplication* app = nullptr;
-    if (XFindContext(_display, _window, _context, (XPointer*) &app) != 0) {
+    if (_x11.XFindContext(_display, _window, _context, (XPointer*) &app) != 0) {
         return;
     }
 
@@ -757,7 +758,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                 } else if (protocol == NET_WM_PING) {
                     XEvent reply         = event;
                     reply.xclient.window = _root;
-                    XSendEvent(_display, _root, False, SubstructureNotifyMask | SubstructureRedirectMask, &reply);
+                    _x11.XSendEvent(_display, _root, False, SubstructureNotifyMask | SubstructureRedirectMask, &reply);
                 }
             }
             break;
@@ -820,7 +821,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                 switch (event.xcookie.evtype) {
                     case XI_KeyPress:
                     case XI_KeyRelease: {
-                        if (XGetEventData(_display, &event.xcookie)) {
+                        if (_x11.XGetEventData(_display, &event.xcookie)) {
                             auto keyEvent       = (XIDeviceEvent*) event.xcookie.data;
                             auto scancode       = toScanCode((ScanCode) keyEvent->detail);
                             auto press          = event.xcookie.evtype == XI_KeyPress;
@@ -888,7 +889,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                 if (_ic) {
                                     Status status;
                                     char buffer[100];
-                                    auto count = Xutf8LookupString(
+                                    auto count = _x11.Xutf8LookupString(
                                         _ic, &lookupEvent, buffer, sizeof(buffer) - 1, nullptr, &status);
 
                                     if ((status == XLookupChars || status == XLookupBoth) && count <= 5) {
@@ -901,7 +902,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                     }
                                 } else {
                                     KeySym keysym{};
-                                    XLookupString(&lookupEvent, nullptr, 0, &keysym, nullptr);
+                                    _x11.XLookupString(&lookupEvent, nullptr, 0, &keysym, nullptr);
                                     if ((keysym >= 0x20 && keysym <= 0x7E) || (keysym >= 0xA0 && keysym <= 0xFF)) {
                                         e.keyboard.symbol[0] = (char) keysym;
                                     } else if (keysym == 65288) {
@@ -922,7 +923,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                 setKeyState(scancode, press);
                                 addEvent(e);
                             }
-                            XFreeEventData(_display, &event.xcookie);
+                            _x11.XFreeEventData(_display, &event.xcookie);
                         }
                         break;
                     }
@@ -933,15 +934,15 @@ void LinuxApplication::handleEvent(XEvent& event) {
 }
 
 void LinuxApplication::pollEvents() {
-    XPending(_display);
+    _x11.XPending(_display);
 
     while (QLength(_display)) {
         XEvent event;
-        XNextEvent(_display, &event);
+        _x11.XNextEvent(_display, &event);
         handleEvent(event);
     }
 
-    XFlush(_display);
+    _x11.XFlush(_display);
 
     if (_resizing) {
         const auto elapsed = std::chrono::steady_clock::now() - _lastResizeTime;
@@ -960,7 +961,7 @@ void LinuxApplication::waitEvents() {
 
 void LinuxApplication::waitVisible() {
     XEvent dummy;
-    while (!XCheckTypedWindowEvent(_display, _window, VisibilityNotify, &dummy)) {
+    while (!_x11.XCheckTypedWindowEvent(_display, _window, VisibilityNotify, &dummy)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     changeState(GERIUM_APPLICATION_STATE_VISIBLE);
@@ -968,7 +969,7 @@ void LinuxApplication::waitVisible() {
 
 void LinuxApplication::waitActive() {
     XEvent dummy;
-    while (!XCheckTypedWindowEvent(_display, _window, FocusIn, &dummy)) {
+    while (!_x11.XCheckTypedWindowEvent(_display, _window, FocusIn, &dummy)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     _active = true;
@@ -979,7 +980,7 @@ void LinuxApplication::waitActive() {
 void LinuxApplication::error(gerium_result_t error, const std::string_view message, bool throwError) {
     if (_errorCode != Success) {
         char buffer[512];
-        XGetErrorText(_display, _errorCode, buffer, sizeof(buffer));
+        _x11.XGetErrorText(_display, _errorCode, buffer, sizeof(buffer));
         _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [&message, buffer](auto& stream) {
             stream << message << ": " << buffer;
         });
@@ -992,12 +993,12 @@ void LinuxApplication::error(gerium_result_t error, const std::string_view messa
 void LinuxApplication::acquirereErrorHandler() {
     assert(!_errorHandler);
     _errorCode    = Success;
-    _errorHandler = XSetErrorHandler(errorHandler);
+    _errorHandler = _x11.XSetErrorHandler(errorHandler);
 }
 
 void LinuxApplication::releaseErrorHandler() {
-    XSync(_display, False);
-    XSetErrorHandler(_errorHandler);
+    _x11.XSync(_display, False);
+    _x11.XSetErrorHandler(_errorHandler);
     _errorHandler = nullptr;
 }
 
@@ -1018,12 +1019,102 @@ void LinuxApplication::destroyIc(XIM im, XPointer clientData, XPointer callData)
     app->_ic = nullptr;
 }
 
+LinuxApplication::X11Table::X11Table() {
+    dll = dlopen("libX11.so.6", RTLD_GLOBAL | RTLD_LAZY);
+    if (!dll) {
+        dll = dlopen("libX11.so", RTLD_GLOBAL | RTLD_LAZY);
+    } else if (!dll) {
+        dll = dlopen("libX11-6.so", RTLD_GLOBAL | RTLD_LAZY);
+    }
+    if (!dll) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    XAllocClassHint        = (PFN_XAllocClassHint) dlsym(dll, "XAllocClassHint");
+    XAllocSizeHints        = (PFN_XAllocSizeHints) dlsym(dll, "XAllocSizeHints");
+    XAllocWMHints          = (PFN_XAllocWMHints) dlsym(dll, "XAllocWMHints");
+    XChangeProperty        = (PFN_XChangeProperty) dlsym(dll, "XChangeProperty");
+    XCheckTypedWindowEvent = (PFN_XCheckTypedWindowEvent) dlsym(dll, "XCheckTypedWindowEvent");
+    XCloseDisplay          = (PFN_XCloseDisplay) dlsym(dll, "XCloseDisplay");
+    XCloseIM               = (PFN_XCloseIM) dlsym(dll, "XCloseIM");
+    XCreateColormap        = (PFN_XCreateColormap) dlsym(dll, "XCreateColormap");
+    XCreateIC              = (PFN_XCreateIC) dlsym(dll, "XCreateIC");
+    XCreateWindow          = (PFN_XCreateWindow) dlsym(dll, "XCreateWindow");
+    XDeleteContext         = (PFN_XDeleteContext) dlsym(dll, "XDeleteContext");
+    XDeleteProperty        = (PFN_XDeleteProperty) dlsym(dll, "XDeleteProperty");
+    XDestroyIC             = (PFN_XDestroyIC) dlsym(dll, "XDestroyIC");
+    XDestroyWindow         = (PFN_XDestroyWindow) dlsym(dll, "XDestroyWindow");
+    XFindContext           = (PFN_XFindContext) dlsym(dll, "XFindContext");
+    XFlush                 = (PFN_XFlush) dlsym(dll, "XFlush");
+    XFree                  = (PFN_XFree) dlsym(dll, "XFree");
+    XFreeColormap          = (PFN_XFreeColormap) dlsym(dll, "XFreeColormap");
+    XFreeEventData         = (PFN_XFreeEventData) dlsym(dll, "XFreeEventData");
+    XGetErrorText          = (PFN_XGetErrorText) dlsym(dll, "XGetErrorText");
+    XGetEventData          = (PFN_XGetEventData) dlsym(dll, "XGetEventData");
+    XGetICValues           = (PFN_XGetICValues) dlsym(dll, "XGetICValues");
+    XGetIMValues           = (PFN_XGetIMValues) dlsym(dll, "XGetIMValues");
+    XGetWindowAttributes   = (PFN_XGetWindowAttributes) dlsym(dll, "XGetWindowAttributes");
+    XGetWindowProperty     = (PFN_XGetWindowProperty) dlsym(dll, "XGetWindowProperty");
+    XGetWMNormalHints      = (PFN_XGetWMNormalHints) dlsym(dll, "XGetWMNormalHints");
+    XInternAtom            = (PFN_XInternAtom) dlsym(dll, "XInternAtom");
+    XLookupString          = (PFN_XLookupString) dlsym(dll, "XLookupString");
+    XMapRaised             = (PFN_XMapRaised) dlsym(dll, "XMapRaised");
+    XMapWindow             = (PFN_XMapWindow) dlsym(dll, "XMapWindow");
+    XNextEvent             = (PFN_XNextEvent) dlsym(dll, "XNextEvent");
+    XOpenDisplay           = (PFN_XOpenDisplay) dlsym(dll, "XOpenDisplay");
+    XOpenIM                = (PFN_XOpenIM) dlsym(dll, "XOpenIM");
+    XPending               = (PFN_XPending) dlsym(dll, "XPending");
+    XQueryExtension        = (PFN_XQueryExtension) dlsym(dll, "XQueryExtension");
+    XRaiseWindow           = (PFN_XRaiseWindow) dlsym(dll, "XRaiseWindow");
+    XResizeWindow          = (PFN_XResizeWindow) dlsym(dll, "XResizeWindow");
+    XrmUniqueQuark         = (PFN_XrmUniqueQuark) dlsym(dll, "XrmUniqueQuark");
+    XSaveContext           = (PFN_XSaveContext) dlsym(dll, "XSaveContext");
+    XSelectInput           = (PFN_XSelectInput) dlsym(dll, "XSelectInput");
+    XSendEvent             = (PFN_XSendEvent) dlsym(dll, "XSendEvent");
+    XSetClassHint          = (PFN_XSetClassHint) dlsym(dll, "XSetClassHint");
+    XSetErrorHandler       = (PFN_XSetErrorHandler) dlsym(dll, "XSetErrorHandler");
+    XSetIMValues           = (PFN_XSetIMValues) dlsym(dll, "XSetIMValues");
+    XSetInputFocus         = (PFN_XSetInputFocus) dlsym(dll, "XSetInputFocus");
+    XSetWMHints            = (PFN_XSetWMHints) dlsym(dll, "XSetWMHints");
+    XSetWMNormalHints      = (PFN_XSetWMNormalHints) dlsym(dll, "XSetWMNormalHints");
+    XSetWMProtocols        = (PFN_XSetWMProtocols) dlsym(dll, "XSetWMProtocols");
+    XSync                  = (PFN_XSync) dlsym(dll, "XSync");
+    XUnmapWindow           = (PFN_XUnmapWindow) dlsym(dll, "XUnmapWindow");
+    Xutf8LookupString      = (PFN_Xutf8LookupString) dlsym(dll, "Xutf8LookupString");
+}
+
+LinuxApplication::X11Table::~X11Table() {
+    if (dll) {
+        dlclose(dll);
+    }
+}
+
+LinuxApplication::X11XCBTable::X11XCBTable() {
+    dll = dlopen("libX11-xcb.so.1", RTLD_GLOBAL | RTLD_LAZY);
+    if (!dll) {
+        dll = dlopen("libX11-xcb.so", RTLD_GLOBAL | RTLD_LAZY);
+    } else if (!dll) {
+        dll = dlopen("libX11-xcb-1.so", RTLD_GLOBAL | RTLD_LAZY);
+    }
+    if (!dll) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    XGetXCBConnection = (PFN_XGetXCBConnection) dlsym(dll, "XGetXCBConnection");
+}
+
+LinuxApplication::X11XCBTable::~X11XCBTable() {
+    if (dll) {
+        dlclose(dll);
+    }
+}
+
 LinuxApplication::XInput2Table::XInput2Table() {
     dll = dlopen("libXi.so.6", RTLD_GLOBAL | RTLD_LAZY);
     if (!dll) {
         dll = dlopen("libXi.so", RTLD_GLOBAL | RTLD_LAZY);
     } else if (!dll) {
-        dll = dlopen("libXi.so.6", RTLD_GLOBAL | RTLD_LAZY);
+        dll = dlopen("libXi-6.so", RTLD_GLOBAL | RTLD_LAZY);
     }
     if (!dll) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err

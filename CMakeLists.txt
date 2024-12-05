@@ -59,11 +59,9 @@ find_package(marl CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    find_package(X11 REQUIRED)
-endif()
 
 include(CMakeDependentOption)
+include(cmake/x11.cmake)
 
 cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
@@ -145,11 +143,10 @@ target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE marl::marl)
-target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::X11>)  # libx11-dev, libxi-dev, libxinerama-dev, libxrandr-dev
-target_link_libraries(gerium PRIVATE $<$<PLATFORM_ID:Linux>:X11::X11_xcb>)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${IMGUI_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${Stb_INCLUDE_DIR})
+target_include_directories(gerium PRIVATE $<$<PLATFORM_ID:Linux>:${x11_SOURCE_DIR}>)
 target_sources(gerium PRIVATE ${IMGUI_SOURCES})
 
 target_include_directories(gerium PUBLIC

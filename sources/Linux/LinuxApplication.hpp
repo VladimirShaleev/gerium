@@ -66,24 +66,24 @@ private:
         unsigned long bytesAfter;
         unsigned char* values;
 
-        XGetWindowProperty(_display,
-                           _window,
-                           property,
-                           0,
-                           LONG_MAX,
-                           False,
-                           type,
-                           &actualType,
-                           &actualFormat,
-                           &itemCount,
-                           &bytesAfter,
-                           &values);
+        _x11.XGetWindowProperty(_display,
+                                _window,
+                                property,
+                                0,
+                                LONG_MAX,
+                                False,
+                                type,
+                                &actualType,
+                                &actualFormat,
+                                &itemCount,
+                                &bytesAfter,
+                                &values);
 
         std::vector<T> result;
         if (values) {
             result.resize(itemCount);
             memcpy(result.data(), values, itemCount * sizeof(T));
-            XFree(values);
+            _x11.XFree(values);
         }
         return result;
     }
@@ -130,6 +130,128 @@ private:
         }
 
         LinuxApplication* _app;
+    };
+
+    struct X11Table {
+        typedef decltype(&::XAllocClassHint) PFN_XAllocClassHint;
+        typedef decltype(&::XAllocSizeHints) PFN_XAllocSizeHints;
+        typedef decltype(&::XAllocWMHints) PFN_XAllocWMHints;
+        typedef decltype(&::XChangeProperty) PFN_XChangeProperty;
+        typedef decltype(&::XCheckTypedWindowEvent) PFN_XCheckTypedWindowEvent;
+        typedef decltype(&::XCloseDisplay) PFN_XCloseDisplay;
+        typedef decltype(&::XCloseIM) PFN_XCloseIM;
+        typedef decltype(&::XCreateColormap) PFN_XCreateColormap;
+        typedef decltype(&::XCreateIC) PFN_XCreateIC;
+        typedef decltype(&::XCreateWindow) PFN_XCreateWindow;
+        typedef decltype(&::XDeleteContext) PFN_XDeleteContext;
+        typedef decltype(&::XDeleteProperty) PFN_XDeleteProperty;
+        typedef decltype(&::XDestroyIC) PFN_XDestroyIC;
+        typedef decltype(&::XDestroyWindow) PFN_XDestroyWindow;
+        typedef decltype(&::XFindContext) PFN_XFindContext;
+        typedef decltype(&::XFlush) PFN_XFlush;
+        typedef decltype(&::XFree) PFN_XFree;
+        typedef decltype(&::XFreeColormap) PFN_XFreeColormap;
+        typedef decltype(&::XFreeEventData) PFN_XFreeEventData;
+        typedef decltype(&::XGetErrorText) PFN_XGetErrorText;
+        typedef decltype(&::XGetEventData) PFN_XGetEventData;
+        typedef decltype(&::XGetICValues) PFN_XGetICValues;
+        typedef decltype(&::XGetIMValues) PFN_XGetIMValues;
+        typedef decltype(&::XGetWindowAttributes) PFN_XGetWindowAttributes;
+        typedef decltype(&::XGetWindowProperty) PFN_XGetWindowProperty;
+        typedef decltype(&::XGetWMNormalHints) PFN_XGetWMNormalHints;
+        typedef decltype(&::XInternAtom) PFN_XInternAtom;
+        typedef decltype(&::XLookupString) PFN_XLookupString;
+        typedef decltype(&::XMapRaised) PFN_XMapRaised;
+        typedef decltype(&::XMapWindow) PFN_XMapWindow;
+        typedef decltype(&::XNextEvent) PFN_XNextEvent;
+        typedef decltype(&::XOpenDisplay) PFN_XOpenDisplay;
+        typedef decltype(&::XOpenIM) PFN_XOpenIM;
+        typedef decltype(&::XPending) PFN_XPending;
+        typedef decltype(&::XQueryExtension) PFN_XQueryExtension;
+        typedef decltype(&::XRaiseWindow) PFN_XRaiseWindow;
+        typedef decltype(&::XResizeWindow) PFN_XResizeWindow;
+        typedef decltype(&::XrmUniqueQuark) PFN_XrmUniqueQuark;
+        typedef decltype(&::XSaveContext) PFN_XSaveContext;
+        typedef decltype(&::XSelectInput) PFN_XSelectInput;
+        typedef decltype(&::XSendEvent) PFN_XSendEvent;
+        typedef decltype(&::XSetClassHint) PFN_XSetClassHint;
+        typedef decltype(&::XSetErrorHandler) PFN_XSetErrorHandler;
+        typedef decltype(&::XSetIMValues) PFN_XSetIMValues;
+        typedef decltype(&::XSetInputFocus) PFN_XSetInputFocus;
+        typedef decltype(&::XSetWMHints) PFN_XSetWMHints;
+        typedef decltype(&::XSetWMNormalHints) PFN_XSetWMNormalHints;
+        typedef decltype(&::XSetWMProtocols) PFN_XSetWMProtocols;
+        typedef decltype(&::XSync) PFN_XSync;
+        typedef decltype(&::XUnmapWindow) PFN_XUnmapWindow;
+        typedef decltype(&::Xutf8LookupString) PFN_Xutf8LookupString;
+
+        X11Table();
+        ~X11Table();
+
+        PFN_XAllocClassHint XAllocClassHint;
+        PFN_XAllocSizeHints XAllocSizeHints;
+        PFN_XAllocWMHints XAllocWMHints;
+        PFN_XChangeProperty XChangeProperty;
+        PFN_XCheckTypedWindowEvent XCheckTypedWindowEvent;
+        PFN_XCloseDisplay XCloseDisplay;
+        PFN_XCloseIM XCloseIM;
+        PFN_XCreateColormap XCreateColormap;
+        PFN_XCreateIC XCreateIC;
+        PFN_XCreateWindow XCreateWindow;
+        PFN_XDeleteContext XDeleteContext;
+        PFN_XDeleteProperty XDeleteProperty;
+        PFN_XDestroyIC XDestroyIC;
+        PFN_XDestroyWindow XDestroyWindow;
+        PFN_XFindContext XFindContext;
+        PFN_XFlush XFlush;
+        PFN_XFree XFree;
+        PFN_XFreeColormap XFreeColormap;
+        PFN_XFreeEventData XFreeEventData;
+        PFN_XGetErrorText XGetErrorText;
+        PFN_XGetEventData XGetEventData;
+        PFN_XGetICValues XGetICValues;
+        PFN_XGetIMValues XGetIMValues;
+        PFN_XGetWindowAttributes XGetWindowAttributes;
+        PFN_XGetWindowProperty XGetWindowProperty;
+        PFN_XGetWMNormalHints XGetWMNormalHints;
+        PFN_XInternAtom XInternAtom;
+        PFN_XLookupString XLookupString;
+        PFN_XMapRaised XMapRaised;
+        PFN_XMapWindow XMapWindow;
+        PFN_XNextEvent XNextEvent;
+        PFN_XOpenDisplay XOpenDisplay;
+        PFN_XOpenIM XOpenIM;
+        PFN_XPending XPending;
+        PFN_XQueryExtension XQueryExtension;
+        PFN_XRaiseWindow XRaiseWindow;
+        PFN_XResizeWindow XResizeWindow;
+        PFN_XrmUniqueQuark XrmUniqueQuark;
+        PFN_XSaveContext XSaveContext;
+        PFN_XSelectInput XSelectInput;
+        PFN_XSendEvent XSendEvent;
+        PFN_XSetClassHint XSetClassHint;
+        PFN_XSetErrorHandler XSetErrorHandler;
+        PFN_XSetIMValues XSetIMValues;
+        PFN_XSetInputFocus XSetInputFocus;
+        PFN_XSetWMHints XSetWMHints;
+        PFN_XSetWMNormalHints XSetWMNormalHints;
+        PFN_XSetWMProtocols XSetWMProtocols;
+        PFN_XSync XSync;
+        PFN_XUnmapWindow XUnmapWindow;
+        PFN_Xutf8LookupString Xutf8LookupString;
+
+        void* dll{};
+    };
+
+    struct X11XCBTable {
+        typedef decltype(&::XGetXCBConnection) PFN_XGetXCBConnection;
+
+        X11XCBTable();
+        ~X11XCBTable();
+
+        PFN_XGetXCBConnection XGetXCBConnection;
+
+        void* dll{};
     };
 
     struct XInput2Table {
@@ -231,6 +353,8 @@ private:
 
     static int _errorCode;
     static Display* _display;
+    X11Table _x11{};
+    X11XCBTable _x11xcb{};
     XInput2Table _xinput{};
     XineramaTable _xinerama{};
     XRandrTable _randr{};
