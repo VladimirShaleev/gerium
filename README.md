@@ -29,7 +29,7 @@ Examples created using this framework:
 
   <img src="https://media.githubusercontent.com/media/VladimirShaleev/gerium/refs/heads/main/doc/occlusion-culling-profiler.gif" alt="occlusion culling (profiler)" width="700">
 
-  More videos on [youtube channel](https://youtu.be/VmefQtZl29g)
+  More videos on [youtube channel](https://www.youtube.com/playlist?list=PLlKoKIZLrr-kLSHPs_UtlwtW9MBpYxDnV)
 
 Currently, the framework supports the following platforms and graphics APIs:
 
@@ -44,6 +44,7 @@ Ultimately the plan is to implement the following platforms and graphics APIs so
 | OS               |            Vulkan | WebGPU | GLES 3.0 (for legacy platforms) |
 |:---------------- | -----------------:| ------:| -------------------------------:|
 | Windows          |             `yes` |   `no` |                   `no` (ANGLE*) |
+| Linux            |             `yes` |   `no` |                   `no` (ANGLE*) |
 | MacOS            | `yes` (MoltenVK*) |   `no` |                   `no` (ANGLE*) |
 | Android          |             `yes` |   `no` |                            `no` |
 | iOS              |              `no` |   `no` |                            `no` |
