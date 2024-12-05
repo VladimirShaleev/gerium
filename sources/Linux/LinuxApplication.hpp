@@ -261,11 +261,17 @@ private:
         XInput2Table();
         ~XInput2Table();
 
+        void setup(X11Table& x11);
+
         PFN_XIQueryVersion XIQueryVersion;
         PFN_XISelectEvents XISelectEvents;
 
         void* dll{};
         int extension{};
+        int eventBase{};
+        int errorBase{};
+        int major{};
+        int minor{};
     };
 
     struct XineramaTable {
@@ -349,6 +355,12 @@ private:
         std::vector<RRMode> modeIds;
     };
 
+    struct GeriumPointer {
+        gerium_sint16_t x;
+        gerium_sint16_t y;
+        gerium_mouse_button_flags_t buttions;
+    };
+
     static constexpr auto kNoValue = std::numeric_limits<gerium_uint16_t>::max();
 
     static int _errorCode;
@@ -386,6 +398,7 @@ private:
     gerium_uint64_t _lastInputTimestamp{};
     std::chrono::steady_clock::time_point _lastResizeTime{};
     mutable std::vector<GeriumDisplay> _displays{};
+    std::unordered_map<gerium_sint32_t, GeriumPointer> _pointers{};
     ObjectPtr<Logger> _logger{};
 
     Atom UTF8_STRING{};

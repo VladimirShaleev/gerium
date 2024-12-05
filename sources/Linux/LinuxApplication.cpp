@@ -24,6 +24,7 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
     _colormap = _x11.XCreateColormap(_display, _root, visual, AllocNone);
     _context  = (XContext) _x11.XrmUniqueQuark();
 
+    _xinput.setup(_x11);
     _xinerama.setup();
     _randr.setup(_root);
 
@@ -166,17 +167,6 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
         }
     }
 
-    int queryEvent;
-    int queryError;
-    if (!_x11.XQueryExtension(_display, "XInputExtension", &_xinput.extension, &queryEvent, &queryError)) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-    }
-
-    int major = 2, minor = 0;
-    if (_xinput.XIQueryVersion(_display, &major, &minor) != Success) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-    }
-
     unsigned char masks[XIMaskLen(XI_LASTEVENT)]{};
     XIEventMask xiMask{};
     xiMask.deviceid = XIAllMasterDevices;
@@ -184,6 +174,9 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
     xiMask.mask     = masks;
     XISetMask(xiMask.mask, XI_KeyPress);
     XISetMask(xiMask.mask, XI_KeyRelease);
+    XISetMask(xiMask.mask, XI_ButtonPress);
+    XISetMask(xiMask.mask, XI_ButtonRelease);
+    XISetMask(xiMask.mask, XI_Motion);
 
     _xinput.XISelectEvents(_display, _window, &xiMask, 1);
     _x11.XSync(_display, False);
@@ -820,7 +813,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
             if (event.xcookie.extension == _xinput.extension) {
                 switch (event.xcookie.evtype) {
                     case XI_KeyPress:
-                    case XI_KeyRelease: {
+                    case XI_KeyRelease:
                         if (_x11.XGetEventData(_display, &event.xcookie)) {
                             auto keyEvent       = (XIDeviceEvent*) event.xcookie.data;
                             auto scancode       = toScanCode((ScanCode) keyEvent->detail);
@@ -926,7 +919,103 @@ void LinuxApplication::handleEvent(XEvent& event) {
                             _x11.XFreeEventData(_display, &event.xcookie);
                         }
                         break;
-                    }
+
+                    case XI_ButtonPress:
+                    case XI_ButtonRelease:
+                        if (_x11.XGetEventData(_display, &event.xcookie)) {
+                            auto motionEvent = (XIDeviceEvent*) event.xcookie.data;
+                            int up           = event.xcookie.evtype == XI_ButtonRelease ? 1 : 0;
+
+                            auto it                = _pointers.find(0);
+                            const auto prevPointer = it != _pointers.end()
+                                                         ? it->second
+                                                         : GeriumPointer{ gerium_sint16_t(motionEvent->event_x + 0.5),
+                                                                          gerium_sint16_t(motionEvent->event_y + 0.5) };
+
+                            gerium_event_t e{};
+                            e.type             = GERIUM_EVENT_TYPE_MOUSE;
+                            e.timestamp        = motionEvent->time;
+                            e.mouse.id         = 0;
+                            e.mouse.buttons    = GERIUM_MOUSE_BUTTON_NONE;
+                            e.mouse.absolute_x = gerium_sint16_t(motionEvent->event_x + 0.5);
+                            e.mouse.absolute_y = gerium_sint16_t(motionEvent->event_y + 0.5);
+
+                            switch (motionEvent->detail) {
+                                case Button1:
+                                    e.mouse.buttons |= gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_LEFT_DOWN << up);
+                                    break;
+                                case Button3:
+                                    e.mouse.buttons |=
+                                        gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_RIGHT_DOWN << up);
+                                    break;
+                                case Button2:
+                                    e.mouse.buttons |=
+                                        gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_MIDDLE_DOWN << up);
+                                    break;
+                            }
+
+                            if (event.xcookie.evtype == XI_ButtonPress) {
+                                constexpr gerium_float32_t scrollAmount = 1.5f;
+                                switch (motionEvent->detail) {
+                                    case 4:
+                                        e.mouse.wheel_vertical = scrollAmount;
+                                        break;
+                                    case 5:
+                                        e.mouse.wheel_vertical = -scrollAmount;
+                                        break;
+                                    case 6:
+                                        e.mouse.wheel_horizontal = scrollAmount;
+                                        break;
+                                    case 7:
+                                        e.mouse.wheel_horizontal = -scrollAmount;
+                                        break;
+                                }
+                            }
+
+                            _pointers[0] = { e.mouse.absolute_x, e.mouse.absolute_y, e.mouse.buttons };
+
+                            _x11.XFreeEventData(_display, &event.xcookie);
+
+                            if (e.mouse.buttons != prevPointer.buttions || e.mouse.wheel_vertical != 0.0f ||
+                                e.mouse.wheel_horizontal != 0.0f) {
+                                addEvent(e);
+                            }
+                        }
+                        break;
+
+                    case XI_Motion:
+                        if (_x11.XGetEventData(_display, &event.xcookie)) {
+                            auto motionEvent = (XIDeviceEvent*) event.xcookie.data;
+
+                            auto it                = _pointers.find(0);
+                            const auto prevPointer = it != _pointers.end()
+                                                         ? it->second
+                                                         : GeriumPointer{ gerium_sint16_t(motionEvent->event_x + 0.5),
+                                                                          gerium_sint16_t(motionEvent->event_y + 0.5) };
+
+                            gerium_event_t e{};
+                            e.type                   = GERIUM_EVENT_TYPE_MOUSE;
+                            e.timestamp              = motionEvent->time;
+                            e.mouse.id               = 0;
+                            e.mouse.buttons          = GERIUM_MOUSE_BUTTON_NONE;
+                            e.mouse.absolute_x       = gerium_sint16_t(motionEvent->event_x + 0.5);
+                            e.mouse.absolute_y       = gerium_sint16_t(motionEvent->event_y + 0.5);
+                            e.mouse.delta_x          = e.mouse.absolute_x - prevPointer.x;
+                            e.mouse.delta_y          = e.mouse.absolute_y - prevPointer.y;
+                            e.mouse.raw_delta_x      = e.mouse.delta_x;
+                            e.mouse.raw_delta_y      = e.mouse.delta_y;
+                            e.mouse.wheel_vertical   = 0;
+                            e.mouse.wheel_horizontal = 0;
+
+                            _pointers[0] = { e.mouse.absolute_x, e.mouse.absolute_y, prevPointer.buttions };
+
+                            _x11.XFreeEventData(_display, &event.xcookie);
+
+                            if (e.mouse.delta_x != 0 || e.mouse.delta_y != 0) {
+                                addEvent(e);
+                            }
+                        }
+                        break;
                 }
             }
             break;
@@ -1127,6 +1216,18 @@ LinuxApplication::XInput2Table::XInput2Table() {
 LinuxApplication::XInput2Table::~XInput2Table() {
     if (dll) {
         dlclose(dll);
+    }
+}
+
+void LinuxApplication::XInput2Table::setup(X11Table& x11) {
+    if (!x11.XQueryExtension(_display, "XInputExtension", &extension, &eventBase, &errorBase)) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    }
+
+    major = 2;
+    minor = 0;
+    if (XIQueryVersion(_display, &major, &minor) != Success) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
     }
 }
 
