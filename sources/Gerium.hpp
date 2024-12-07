@@ -54,7 +54,7 @@ CMRC_DECLARE(gerium::resources);
 #if defined(GERIUM_PLATFORM_WINDOWS)
 # define VK_USE_PLATFORM_WIN32_KHR
 #elif defined(GERIUM_PLATFORM_IOS)
-# error unsupported platform
+# define VK_USE_PLATFORM_METAL_EXT
 #elif defined(GERIUM_PLATFORM_MAC_OS)
 # define VK_USE_PLATFORM_MACOS_MVK
 # define VK_USE_PLATFORM_METAL_EXT

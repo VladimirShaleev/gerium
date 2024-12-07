@@ -113,6 +113,13 @@ elseif(ANDROID)
     list(APPEND GERIUM_SOURCES ${GERIUM_ANDROID_SOURCES})
     list(APPEND IMGUI_SOURCES "${imgui_SOURCE_DIR}/backends/imgui_impl_android.cpp")
 elseif(IOS)
+enable_language(OBJCXX)
+    file(GLOB GERIUM_IOS_SOURCES 
+        "sources/Unix/*.hpp" "sources/Unix/*.cpp"
+        "sources/iOS/*.hpp" "sources/iOS/*.cpp" "sources/iOS/*.mm"
+        "sources/Vulkan/iOS/*.hpp" "sources/Vulkan/iOS/*.cpp" "sources/Vulkan/iOS/*.mm")
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_IOS_SOURCES})
+    list(APPEND GERIUM_SOURCES ${GERIUM_IOS_SOURCES})
 elseif(APPLE)
     enable_language(OBJCXX)
     file(GLOB GERIUM_MACOS_SOURCES 
@@ -203,19 +210,31 @@ if(MSVC)
         set_target_properties(gerium PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif()
+elseif(IOS)
+    target_link_libraries(gerium PRIVATE "${MOLTEN_VK_SRC}/static/MoltenVK.xcframework/ios-arm64_x86_64-simulator/libMoltenVK.a")
+    target_link_libraries(gerium PRIVATE 
+        "-framework Foundation"
+        "-framework QuartzCore"
+        "-framework UIKit"
+        "-framework CoreGraphics"
+        "-framework MetalKit"
+        "-framework Metal"
+        "-framework IOSurface"
+        "-framework GameController")
 elseif(APPLE)
-    enable_language(OBJCXX)
-    # file(GLOB_RECURSE GERIUM_SOURCES_OBJC "sources/*.mm")
-    # source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_SOURCES_OBJC})
-    # target_sources(gerium PRIVATE ${GERIUM_SOURCES_OBJC})
-    # target_link_libraries(gerium PRIVATE "${MOLTEN_VK_SRC}/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
     target_link_libraries(gerium PRIVATE "${MOLTEN_VK_SRC}/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a")
-    target_link_libraries(gerium PRIVATE "-framework Foundation" "-framework QuartzCore" "-framework AppKit" "-framework IOKit" "-framework MetalKit" "-framework Metal" "-framework IOSurface" "-framework GameController")
-elseif(NOT APPLE)
+    target_link_libraries(gerium PRIVATE
+        "-framework Foundation"
+        "-framework QuartzCore"
+        "-framework AppKit"
+        "-framework IOKit"
+        "-framework MetalKit"
+        "-framework Metal"
+        "-framework IOSurface"
+        "-framework GameController")
+elseif(ANDROID)
     target_compile_options(gerium PUBLIC -fno-rtti)
-    if (ANDROID)
-        target_link_libraries(gerium PRIVATE android log)
-    endif()
+    target_link_libraries(gerium PRIVATE android log)
 endif()
 
 if(GERIUM_BUILD_SAMPLE)
