@@ -86,7 +86,7 @@ set_target_properties(gerium-resources PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 if(MSVC)
-    target_compile_options(gerium-resources PUBLIC /GR-)
+    target_compile_options(gerium-resources PRIVATE /GR-)
     if(GERIUM_MSVC_DYNAMIC_RUNTIME)
         set_target_properties(gerium-resources PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
@@ -141,7 +141,7 @@ add_library(gerium STATIC ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
 
 target_link_libraries(gerium PRIVATE $<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
-target_link_libraries(gerium PRIVATE $<BUILD_INTERFACE:gerium::resources>)
+target_link_libraries(gerium PRIVATE gerium::resources)
 target_link_libraries(gerium PRIVATE ctre::ctre)
 target_link_libraries(gerium PRIVATE absl::flat_hash_map)
 target_link_libraries(gerium PRIVATE Vulkan::Headers)
@@ -159,8 +159,7 @@ target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 target_include_directories(gerium PUBLIC
-    $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:include/${imgui_SOURCE_DIR}>)
+    $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>)
 
 target_precompile_headers(gerium PRIVATE "sources/Gerium.hpp")
 target_compile_features(gerium PRIVATE cxx_std_20)
@@ -192,7 +191,7 @@ if(ANDROID)
 endif()
 
 if(MSVC)
-    target_compile_options(gerium PUBLIC /GR-)
+    target_compile_options(gerium PRIVATE /GR-)
     if(GERIUM_MSVC_DYNAMIC_RUNTIME)
         set_target_properties(gerium PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
@@ -248,7 +247,32 @@ if(GERIUM_INSTALL)
 
     install(DIRECTORY include/ 
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        USE_SOURCE_PERMISSIONS) 
+        USE_SOURCE_PERMISSIONS)
+    install(
+        FILES
+            ${imgui_SOURCE_DIR}/imgui.h
+            ${imgui_SOURCE_DIR}/imconfig.h
+            ${imgui_SOURCE_DIR}/imstb_truetype.h
+            ${imgui_SOURCE_DIR}/imstb_textedit.h
+            ${imgui_SOURCE_DIR}/imstb_rectpack.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}) 
+    install(
+        FILES ${imgui_SOURCE_DIR}/LICENSE.txt
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} RENAME IMGUI_LICENSE.txt) 
+
+    install(TARGETS cmrc-base
+        EXPORT ${PROJECT_NAME}-targets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    install(TARGETS ${PROJECT_NAME}-resources
+        EXPORT ${PROJECT_NAME}-targets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     install(TARGETS ${PROJECT_NAME}
         EXPORT ${PROJECT_NAME}-targets
