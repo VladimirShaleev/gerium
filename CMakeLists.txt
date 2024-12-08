@@ -5,7 +5,6 @@ include(cmake/vcpkg_android.cmake)
 
 option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
-option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
 if(DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
@@ -138,11 +137,11 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
     list(APPEND GERIUM_SOURCES ${GERIUM_LINUX_SOURCES})
 endif()
 
-add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
+add_library(gerium STATIC ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
 
 target_link_libraries(gerium PRIVATE $<IF:$<TARGET_EXISTS:mimalloc-static>,mimalloc-static,mimalloc>)
-target_link_libraries(gerium PRIVATE gerium::resources)
+target_link_libraries(gerium PRIVATE $<BUILD_INTERFACE:gerium::resources>)
 target_link_libraries(gerium PRIVATE ctre::ctre)
 target_link_libraries(gerium PRIVATE absl::flat_hash_map)
 target_link_libraries(gerium PRIVATE Vulkan::Headers)
@@ -161,7 +160,7 @@ target_include_directories(gerium PUBLIC
     $<INSTALL_INTERFACE:include>)
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:include>)
+    $<INSTALL_INTERFACE:include/${imgui_SOURCE_DIR}>)
 
 target_precompile_headers(gerium PRIVATE "sources/Gerium.hpp")
 target_compile_features(gerium PRIVATE cxx_std_20)
@@ -170,16 +169,7 @@ set_target_properties(gerium PROPERTIES
     CXX_EXTENSIONS OFF
     POSITION_INDEPENDENT_CODE ON
     WINDOWS_EXPORT_ALL_SYMBOLS OFF)
-if(BUILD_SHARED_LIBS)
-    set_target_properties(gerium PROPERTIES 
-        VERSION ${PROJECT_VERSION} 
-        SOVERSION ${PROJECT_VERSION_MAJOR})
-    set_target_properties(gerium PROPERTIES
-        CXX_VISIBILITY_PRESET hidden 
-        VISIBILITY_INLINES_HIDDEN ON)
-else()
-    target_compile_definitions(gerium PUBLIC GERIUM_STATIC_BUILD)
-endif()
+target_compile_definitions(gerium PUBLIC GERIUM_STATIC_BUILD)
 
 if(ANDROID)
     enable_language(C)
@@ -239,4 +229,41 @@ endif()
 
 if(GERIUM_BUILD_SAMPLE)
     add_subdirectory(example)
+endif()
+
+if(GERIUM_INSTALL)
+    include(CMakePackageConfigHelpers)
+    include(GNUInstallDirs)
+
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake.in" 
+        "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+        INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
+        NO_SET_AND_CHECK_MACRO
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+
+    write_basic_package_version_file(${PROJECT_NAME}-config-version.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion)
+
+    install(DIRECTORY include/ 
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        USE_SOURCE_PERMISSIONS) 
+
+    install(TARGETS ${PROJECT_NAME}
+        EXPORT ${PROJECT_NAME}-targets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    install(EXPORT ${PROJECT_NAME}-targets
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
+        NAMESPACE ${PROJECT_NAME}::)
+
+    install(
+        FILES
+            "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME})  
 endif()
