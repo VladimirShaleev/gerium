@@ -48,6 +48,7 @@ struct SHADER_ALIGN SkyPrefilteredData {
 };
 
 struct SHADER_ALIGN VolumetricFogData {
+    mat4  froxelViewProjection;
     mat4  froxelInverseViewProjection;
     float froxelNear;
     float froxelFar;

@@ -10,6 +10,10 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneDataUBO {
     SceneData scene;
 };
 
+layout(std140, binding = 1, set = SCENE_DATA_SET) uniform VolumetricFogDataUBO {
+    VolumetricFogData fog;
+};
+
 layout(binding = 0, set = 1) uniform sampler2D texAlbedo;
 layout(binding = 1, set = 1) uniform sampler2D texNormal;
 layout(binding = 2, set = 1) uniform sampler2D texMetallicRoughness;
@@ -17,9 +21,26 @@ layout(binding = 3, set = 1) uniform sampler2D texAO;
 layout(binding = 4, set = 1) uniform sampler2D texDepth;
 layout(binding = 5, set = 1) uniform sampler2D texDiffuseGI;
 layout(binding = 6, set = 1) uniform sampler2D texSpecularGI;
+layout(binding = 7, set = 1) uniform sampler3D texIntegratedLightScattering;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outDiffuse;
+
+void calcVolumetricFog(vec2 uv, float rawDepth, out vec3 color, out float a) {
+    const float near = fog.froxelNear;
+    const float far = fog.froxelFar;
+    
+    float linearDepth = rawDepthToLinearDepth(rawDepth, near, far);
+    
+    float depthUv = linearDepthToUv(near, far, linearDepth, fog.froxelDimensionZ);
+    vec3 froxelUvw = vec3(uv, depthUv);
+    vec4 scatteringTransmittance = texture(texIntegratedLightScattering, froxelUvw);
+
+    const float scatteringModifier = max(1 - scatteringTransmittance.a, 0.00000001);
+
+    color = scatteringTransmittance.rgb * scatteringModifier;
+    a = scatteringTransmittance.a;
+}
 
 void main() {
     vec3  albedo     = pow(textureLod(texAlbedo, texCoord, 0).rgb, vec3(2.2));
@@ -32,6 +53,12 @@ void main() {
     float metallic   = orm.b;
     vec3  diffuseGI  = textureLod(texDiffuseGI, texCoord, 0).rgb;
     vec3  specularGI = textureLod(texSpecularGI, texCoord, 0).rgb;
+    
+    vec4 froxelPosition  = fog.froxelViewProjection * vec4(position, 1.0);
+    float froxelRawDepth = froxelPosition.z / froxelPosition.w;
+    vec3 froxelColor;
+    float froxelA;
+    calcVolumetricFog(texCoord, froxelRawDepth, froxelColor, froxelA);
 
     PixelData pixelData;
     pixelData.baseColor           = albedo;
@@ -55,4 +82,7 @@ void main() {
 
     outColor = vec4(color, 1.0);
     outDiffuse = vec4(colorDiffuse, 1.0);
+
+    outColor.rgb = outColor.rgb * froxelA + froxelColor;
+    outDiffuse.rgb = outDiffuse.rgb * froxelA + froxelColor;
 }

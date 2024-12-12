@@ -206,6 +206,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     auto camera  = application()->settings().DebugCamera ? application()->getDebugCamera() : application()->getCamera();
     auto skyDome = application()->getPass<SkyDomeGenPass>();
     auto csm     = application()->getPass<CsmPass>();
+    auto injectPass = application()->getPass<VolumetricInjectPass>();
 
     auto lightCountBuffer = application()->resourceManager().createBuffer(
         GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_count", nullptr, sizeof(glm::uint), 0);
@@ -222,6 +223,21 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     lights[0].type           = LIGHT_TYPE_DIRECTIONAL;
     gerium_renderer_unmap_buffer(renderer, lightBuffer);
 
+    auto cameraData = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", nullptr, sizeof(SceneData));
+    auto fogData = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "", nullptr, sizeof(VolumetricFogData));
+    auto data = gerium_renderer_map_buffer(renderer, cameraData, 0, sizeof(SceneData));
+    memcpy(data, &camera->sceneData(), sizeof(SceneData));
+    gerium_renderer_unmap_buffer(renderer, cameraData);
+    data = gerium_renderer_map_buffer(renderer, fogData, 0, sizeof(VolumetricFogData));
+    memcpy(data, &injectPass->volumetricFogData(), sizeof(VolumetricFogData));
+    gerium_renderer_unmap_buffer(renderer, fogData);
+
+    auto ds0 = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_buffer(renderer, ds0, 0, cameraData);
+    gerium_renderer_bind_buffer(renderer, ds0, 1, fogData);
+
     auto ds1 = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_resource(renderer, ds1, 0, "albedo", false);
     gerium_renderer_bind_resource(renderer, ds1, 1, "normal", false);
@@ -230,6 +246,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_renderer_bind_resource(renderer, ds1, 4, "depth", false);
     gerium_renderer_bind_resource(renderer, ds1, 5, "diffuse_gi", false);
     gerium_renderer_bind_resource(renderer, ds1, 6, "specular_gi", false);
+    gerium_renderer_bind_resource(renderer, ds1, 7, "integrated_light_scattering", false);
 
     auto ds2 = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_texture(renderer, ds2, 0, 0, application()->brdfLut());
@@ -238,7 +255,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     gerium_renderer_bind_buffer(renderer, ds2, 3, lightBuffer);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds0, SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds1, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds2, 2);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, csm->descriptorSet(), 3);
@@ -1189,9 +1206,11 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
     const auto aspect = float(application()->width()) / application()->height();
     const auto proj   = glm::perspective(camera->fov(), aspect, nearPlane, farPlane);
 
-    const auto invViewProjection = glm::inverse(proj * camera->view());
+    const auto viewProjection = proj * camera->view();
 
-    _data.froxelInverseViewProjection       = invViewProjection;
+    _data.froxelViewProjection              = viewProjection;
+
+    _data.froxelInverseViewProjection       = glm::inverse(viewProjection);
     _data.froxelNear                        = nearPlane;
     _data.froxelFar                         = farPlane;
     _data.scatteringFactor                  = 0.1f;
@@ -1217,7 +1236,7 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
     _data.boxPosition                       = { 0.0f, 0.0f, 0.0f, 1.0f };
     _data.boxFogDensity                     = 3.0f;
     _data.boxColor                          = 0xff00ff00;
-    _data.boxHalfSize                       = glm::vec4(glm::vec3(20.0f, 10.0f, 20.0f) * 0.5f, 1.0f);
+    _data.boxHalfSize                       = glm::vec4(glm::vec3(20.0f, 20.0f, 20.0f) * 0.5f, 1.0f);
 
     auto ptr = gerium_renderer_map_buffer(renderer, _buffer, 0, sizeof(VolumetricFogData));
     memcpy(ptr, &_data, sizeof(VolumetricFogData));

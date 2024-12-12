@@ -81,6 +81,13 @@ float sliceExponentialDepth(float near, float far, float slice, float numSlices)
     return near * pow(far / near, (slice + 0.5) / numSlices);
 }
 
+float linearDepthToUv(float near, float far, float linearDepth, float numSlices) {
+    const float oneOverLogFOverN = 1.0 / log2(far / near);
+    const float scale = numSlices * oneOverLogFOverN;
+    const float bias = -(numSlices * log2(near) * oneOverLogFOverN);
+    return max(log2(linearDepth) * scale + bias, 0.0) / float(numSlices);
+}
+
 float linearDepthToRawDepth(float linearDepth, float near, float far) {
     return (near * far) / (linearDepth * (near - far)) - far / (near - far);
 }

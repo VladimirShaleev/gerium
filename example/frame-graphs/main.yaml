@@ -117,6 +117,8 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: specular_gi
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: integrated_light_scattering
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: csm_depths
       # - type: GERIUM_RESOURCE_TYPE_REFERENCE
       #   name: stub_dep_1
