@@ -77,4 +77,16 @@ vec3 getDirection(uint face, float x, float y) {
     return normalize(direction);
 }
 
+float sliceExponentialDepth(float near, float far, float slice, float numSlices) {
+    return near * pow(far / near, (slice + 0.5) / numSlices);
+}
+
+float linearDepthToRawDepth(float linearDepth, float near, float far) {
+    return (near * far) / (linearDepth * (near - far)) - far / (near - far);
+}
+
+float rawDepthToLinearDepth(float rawDepth, float near, float far) {
+    return near * far / (far + rawDepth * (near - far));
+}
+
 #endif

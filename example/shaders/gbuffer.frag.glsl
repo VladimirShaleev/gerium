@@ -40,6 +40,10 @@ void main() {
     vec4 base = texture(globalTextures[nonuniformEXT(instances[instanceId].baseTexture)], texcoord);
     vec4 mr = texture(globalTextures[nonuniformEXT(instances[instanceId].metalnessTexture)], texcoord);
 
+    if (base.a < 0.5) {
+        discard;
+    }
+
     vec2 newPos = position.xy / position.w;
     vec2 oldPos = prevPosition.xy / prevPosition.w;
     newPos.xy = (newPos.xy + 1.0) * 0.5;

@@ -292,9 +292,9 @@ frame graph:
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: ao
-        format: GERIUM_FORMAT_R8G8B8A8_UNORM
+        format: GERIUM_FORMAT_R8_UNORM
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
-        clear color attachment: [1.0, 1.0, 1.0, 1.0]
+        clear color attachment: [1.0]
 
   - name: csm_culling_pass
     compute: true
@@ -323,3 +323,42 @@ frame graph:
         layers: 4
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         clear depth stencil attachment: [1.0, 0]
+
+  - name: volumetric_inject_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: volumetric_noise
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: froxel_data
+        external: true
+
+  - name: volumetric_noise_pass
+    compute: true
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: volumetric_noise
+        external: true
+
+  - name: light_scattering_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: froxel_data
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: csm_depths
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: light_scattering
+        external: true
+
+  - name: light_integration_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: light_scattering
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: integrated_light_scattering
+        external: true

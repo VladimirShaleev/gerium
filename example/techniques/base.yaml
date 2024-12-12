@@ -184,3 +184,27 @@ pipelines:
       - type: GERIUM_SHADER_TYPE_GEOMETRY
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/csm.geom.glsl
+
+  - render pass: volumetric_inject_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/volumetric_inject.comp.glsl
+
+  - render pass: volumetric_noise_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/volumetric_noise.comp.glsl
+
+  - render pass: light_scattering_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/light_scattering.comp.glsl
+
+  - render pass: light_integration_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/light_integration.comp.glsl
