@@ -50,6 +50,7 @@ struct SHADER_ALIGN SkyPrefilteredData {
 struct SHADER_ALIGN VolumetricFogData {
     mat4  froxelViewProjection;
     mat4  froxelInverseViewProjection;
+    mat4  prevFroxelViewProjection;
     float froxelNear;
     float froxelFar;
     float scatteringFactor;
@@ -76,6 +77,7 @@ struct SHADER_ALIGN VolumetricFogData {
     uint  boxColor;
     vec4  boxPosition;
     vec4  boxHalfSize;
+    vec2  haltonXY;
 };
 
 struct Angular {

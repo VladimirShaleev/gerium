@@ -28,17 +28,17 @@ vec4 unpackColorRgba(uint color) {
 void main() {
     ivec3 froxelCoord = ivec3(gl_GlobalInvocationID.xyz);
     
-    vec2 uv = uvFromCoords(froxelCoord.xy, 1.0 / vec2(float(fogData.froxelDimensionX), float(fogData.froxelDimensionY)));
+    vec3 worldPosition = worldPositionFromFroxel(
+        froxelCoord, 
+        uvec3(fogData.froxelDimensionX, fogData.froxelDimensionY, fogData.froxelDimensionZ), 
+        fogData.froxelNear, 
+        fogData.froxelFar, 
+        fogData.froxelInverseViewProjection,
+        fogData.haltonXY);
 
-    float depth = float(froxelCoord.z) / float(float(fogData.froxelDimensionZ));
-    float linearDepth = sliceExponentialDepth(fogData.froxelNear, fogData.froxelFar, float(froxelCoord.z), float(fogData.froxelDimensionZ));
-
-    float rawDepth = linearDepthToRawDepth(linearDepth, fogData.froxelNear, fogData.froxelFar);
-    vec3 worldPosition = worldPositionFromDepth(uv, rawDepth, fogData.froxelInverseViewProjection);
-    
     vec4 scatteringExtinction = vec4(0);
     
-    vec3 samplingCoord = worldPosition * fogData.volumetricNoisePositionMultiplier + vec3(1.0, 0.1, 2.0) * fogData.currentFrame * fogData.volumetricNoiseSpeedMultiplier;
+    vec3 samplingCoord = worldPosition * fogData.volumetricNoisePositionMultiplier + vec3(1.0, 0.1, 2.0) * fogData.volumetricNoiseSpeedMultiplier;
     float fogNoise = texture(noise, samplingCoord).r;
     fogNoise = clamp(fogNoise * fogNoise, 0.0f, 1.0f);
 

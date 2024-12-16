@@ -77,8 +77,8 @@ vec3 getDirection(uint face, float x, float y) {
     return normalize(direction);
 }
 
-float sliceExponentialDepth(float near, float far, float slice, float numSlices) {
-    return near * pow(far / near, (slice + 0.5) / numSlices);
+float sliceExponentialDepth(float near, float far, float jitter, float slice, float numSlices) {
+    return near * pow(far / near, (slice + 0.5 + jitter) / numSlices);
 }
 
 float linearDepthToUv(float near, float far, float linearDepth, float numSlices) {
@@ -94,6 +94,17 @@ float linearDepthToRawDepth(float linearDepth, float near, float far) {
 
 float rawDepthToLinearDepth(float rawDepth, float near, float far) {
     return near * far / (far + rawDepth * (near - far));
+}
+
+vec3 worldPositionFromFroxel(ivec3 froxelCoord, uvec3 dimensions, float near, float far, mat4 inverseVP, vec2 jitter) {
+    vec2 texelSize = 1.0 / vec2(dimensions.x, dimensions.y);
+    vec2 uv = (froxelCoord.xy + vec2(0.5) + jitter * 0.5) * texelSize;
+    float linearDepth = sliceExponentialDepth(near, far, jitter.x * 0.5, float(froxelCoord.z), float(dimensions.z));
+
+    float rawDepth = linearDepthToRawDepth(linearDepth, near, far);
+    vec3 worldPosition = worldPositionFromDepth(uv, rawDepth, inverseVP);
+    
+    return worldPosition;
 }
 
 #endif

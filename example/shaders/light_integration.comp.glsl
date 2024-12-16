@@ -26,7 +26,7 @@ void main() {
     for (int z = 0; z < fogData.froxelDimensionZ; ++z) {
         froxelCoord.z = z;
 
-        float nextZ = sliceExponentialDepth(fogData.froxelNear, fogData.froxelFar, float(z + 1), float(fogData.froxelDimensionZ));
+        float nextZ = sliceExponentialDepth(fogData.froxelNear, fogData.froxelFar, 0.0, float(z + 1), float(fogData.froxelDimensionZ));
         
         float zStep = abs(nextZ - currentZ);
         currentZ = nextZ;

@@ -355,11 +355,31 @@ frame graph:
         name: light_scattering
         external: true
 
-  - name: light_integration_pass
+  - name: light_filter_pass
     compute: true
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: light_scattering
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: light_filtering
+        external: true
+
+  - name: light_temporal_filter_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: light_filtering
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+        name: light_scattering_filtering
+        external: true
+
+  - name: light_integration_pass
+    compute: true
+    inputs:
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: light_scattering_filtering
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: integrated_light_scattering
