@@ -331,6 +331,8 @@ frame graph:
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: volumetric_noise
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: csm_depths
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: froxel_data
@@ -343,43 +345,43 @@ frame graph:
         name: volumetric_noise
         external: true
 
-  - name: light_scattering_pass
-    compute: true
-    inputs:
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: froxel_data
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: csm_depths
-    outputs:
-      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-        name: light_scattering
-        external: true
+  # - name: light_scattering_pass
+  #   compute: true
+  #   inputs:
+  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
+  #       name: froxel_data
+  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
+  #       name: csm_depths
+  #   outputs:
+  #     - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+  #       name: light_scattering
+  #       external: true
 
-  - name: light_filter_pass
-    compute: true
-    inputs:
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: light_scattering
-    outputs:
-      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-        name: light_filtering
-        external: true
+  # - name: light_filter_pass
+  #   compute: true
+  #   inputs:
+  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
+  #       name: light_scattering
+  #   outputs:
+  #     - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+  #       name: light_filtering
+  #       external: true
 
-  - name: light_temporal_filter_pass
-    compute: true
-    inputs:
-      - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: light_filtering
-    outputs:
-      - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-        name: light_scattering_filtering
-        external: true
+  # - name: light_temporal_filter_pass
+  #   compute: true
+  #   inputs:
+  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
+  #       name: light_filtering
+  #   outputs:
+  #     - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
+  #       name: light_scattering_filtering
+  #       external: true
 
   - name: light_integration_pass
     compute: true
     inputs:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: light_scattering_filtering
+        name: froxel_data
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: integrated_light_scattering

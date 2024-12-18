@@ -231,7 +231,7 @@ void LightPass::render(gerium_frame_graph_t frameGraph,
     memcpy(data, &camera->sceneData(), sizeof(SceneData));
     gerium_renderer_unmap_buffer(renderer, cameraData);
     data = gerium_renderer_map_buffer(renderer, fogData, 0, sizeof(VolumetricFogData));
-    memcpy(data, &injectPass->volumetricFogData(), sizeof(VolumetricFogData));
+    memcpy(data, &injectPass->data(), sizeof(VolumetricFogData));
     gerium_renderer_unmap_buffer(renderer, fogData);
 
     auto ds0 = application()->resourceManager().createDescriptorSet("");
@@ -1200,83 +1200,57 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
     auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
                                                                          : application()->getCamera();
 
+    auto skyDome = application()->getPass<SkyDomeGenPass>();
+    auto csm     = application()->getPass<CsmPass>();
+
     const auto nearPlane = camera->nearPlane();
     const auto farPlane  = 200.0f; // camera->farPlane();
 
-    auto jitter = glm::translate(glm::vec3(_haltonTable[_frame % _haltonTable.size()], 0.0f));
-
     const auto aspect = float(application()->width()) / application()->height();
-    const auto proj   = /*jitter * */ glm::perspective(camera->fov(), aspect, nearPlane, farPlane);
+    const auto proj   = glm::perspective(camera->fov(), aspect, nearPlane, farPlane);
 
     const auto viewProjection = proj * camera->view();
 
-    _data.prevFroxelViewProjection          = _data.froxelViewProjection;
-    _data.froxelViewProjection              = viewProjection;
-    _data.froxelInverseViewProjection       = glm::inverse(viewProjection);
-    _data.froxelNear                        = nearPlane;
-    _data.froxelFar                         = farPlane;
-    _data.scatteringFactor                  = 0.1f;
-    _data.densityModifier                   = 0.0f;
-    _data.useTemporalReprojection           = true;
-    _data.timeRandom                        = gerium_float32_t(rand()) / RAND_MAX;
-    _data.temporalReprojectionPercentage    = 0.2f;
-    _data.phaseAnisotropy                   = 0.2f;
-    _data.froxelDimensionX                  = 256;
-    _data.froxelDimensionY                  = 256;
-    _data.froxelDimensionZ                  = 256;
-    _data.phaseFunctionType                 = 0;
-    _data.heightFogDensity                  = 0.0f;
-    _data.heightFogFalloff                  = 1.0f;
-    _data.currentFrame                      = _frame++;
-    _data.noiseScale                        = 0.5f;
-    _data.integrationNoiseScale             = 0.25f;
-    _data.noiseType                         = 0;
-    _data.useSpatialFiltering               = true;
-    _data.volumetricNoisePositionMultiplier = 1.0f;
-    _data.volumetricNoiseSpeedMultiplier =
-        0.0f; // _data.volumetricNoiseSpeedMultiplier + application()->elapsed() * 0.05f;
-    _data.temporalReprojectionJitterScale = 1.6f;
-    _data.boxPosition                     = { 0.0f, 0.0f, 0.0f, 1.0f };
-    _data.boxFogDensity                   = 3.0f;
-    _data.boxColor                        = 0xff00ff00;
-    _data.boxHalfSize                     = glm::vec4(glm::vec3(20.0f, 20.0f, 20.0f) * 0.5f, 1.0f);
-    _data.haltonXY                        = {}; // _haltonTable[_frame % _haltonTable.size()];
+    _data.prevViewProj                     = _data.viewProj;
+    _data.view                             = camera->view();
+    _data.projection                       = proj;
+    _data.viewProj                         = viewProjection;
+    _data.invViewProj                      = glm::inverse(_data.viewProj);
+    _data.lightDirection                   = skyDome->skyData().sunDirection;
+    _data.lightColor                       = vec4(1.0f * 5.0f, 1.0f * 5.0f, 1.0f * 5.0f, 0.0001f);
+    _data.cameraPosition                   = vec4(camera->position(), 1.0f);
+    _data.biasNearFarPow                   = { 0.005f, nearPlane, farPlane, 1.0f };
+    _data.anisoDensityScatteringAbsorption = { 0.7f, 5.0f, 0.0f, 0.0f };
+    _data.widthHeight                      = { application()->width(), application()->height(), _frame++, 0 };
+    _data.time                             = _data.time + application()->elapsed();
 
-    auto ptr = gerium_renderer_map_buffer(renderer, _buffer, 0, sizeof(VolumetricFogData));
-    memcpy(ptr, &_data, sizeof(VolumetricFogData));
-    gerium_renderer_unmap_buffer(renderer, _buffer);
+    auto data = gerium_renderer_map_buffer(renderer, _fogData, 0, sizeof(VolumetricFogData));
+    memcpy(data, &_data, sizeof(VolumetricFogData));
+    gerium_renderer_unmap_buffer(renderer, _fogData);
 
-    auto descriptorSet = application()->resourceManager().createDescriptorSet("", false);
-    gerium_renderer_bind_resource(renderer, descriptorSet, 0, "volumetric_noise", false);
-    gerium_renderer_bind_resource(renderer, descriptorSet, 1, "froxel_data", false);
+    gerium_renderer_bind_buffer(renderer, _descriptorSet, 0, _fogData);
 
-    auto x = getGroupCount((int) _data.froxelDimensionX, FROXEL_DISPATCH_X);
-    auto y = getGroupCount((int) _data.froxelDimensionY, FROXEL_DISPATCH_Y);
-    auto z = getGroupCount((int) _data.froxelDimensionZ, FROXEL_DISPATCH_Z);
+    auto ds = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_resource(renderer, ds, 0, "volumetric_noise", false);
+    gerium_renderer_bind_resource(renderer, ds, 1, "csm_depths", false);
+    gerium_renderer_bind_resource(renderer, ds, 2, "froxel_data", false);
+
+    auto x = getGroupCount(FROXEL_GRID_SIZE_X, FROXEL_LOCAL_X);
+    auto y = getGroupCount(FROXEL_GRID_SIZE_Y, FROXEL_LOCAL_Y);
+    auto z = getGroupCount(FROXEL_GRID_SIZE_Z, FROXEL_LOCAL_Z);
 
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, _volumetricFogSet, 0);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, descriptorSet, 1);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, 0);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 1);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, csm->descriptorSet(), 2);
     gerium_command_buffer_dispatch(commandBuffer, x, y, z);
-
-    ++_frame;
 }
 
 void VolumetricInjectPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _haltonTable = Camera::calcJitterTable(Jitter::Halton, 8);
-    for (auto& jitter : _haltonTable) {
-        jitter = jitter * 2.0f - 1.0f;
-        // jitter.x *= 1.0f / 512.0f;
-        // jitter.y *= 1.0f / 512.0f;
-    }
-
-    _buffer = application()->resourceManager().createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "volumetric_fog_data", nullptr, sizeof(VolumetricFogData));
-
     gerium_texture_info_t info{};
-    info.width   = 256;
-    info.height  = 256;
-    info.depth   = 256;
+    info.width   = FROXEL_GRID_SIZE_X;
+    info.height  = FROXEL_GRID_SIZE_Y;
+    info.depth   = FROXEL_GRID_SIZE_Z;
     info.mipmaps = 1;
     info.layers  = 1;
     info.format  = GERIUM_FORMAT_R16G16B16A16_SFLOAT;
@@ -1286,14 +1260,16 @@ void VolumetricInjectPass::registerResources(gerium_frame_graph_t frameGraph, ge
     _froxelData = application()->resourceManager().createTexture(info, nullptr);
     gerium_frame_graph_add_texture(frameGraph, info.name, _froxelData);
 
-    _volumetricFogSet = application()->resourceManager().createDescriptorSet("volumetric_fog_set", true);
-    gerium_renderer_bind_buffer(renderer, _volumetricFogSet, 0, _buffer);
+    _fogData = application()->resourceManager().createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "volumetric_fog_data", nullptr, sizeof(VolumetricFogData));
+
+    _descriptorSet = application()->resourceManager().createDescriptorSet("volumetric_fog_set");
 }
 
 void VolumetricInjectPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _volumetricFogSet = nullptr;
-    _buffer           = nullptr;
-    _froxelData       = nullptr;
+    _descriptorSet = nullptr;
+    _fogData       = nullptr;
+    _froxelData    = nullptr;
 }
 
 void VolumetricNoisePass::render(gerium_frame_graph_t frameGraph,
@@ -1346,7 +1322,7 @@ void LightScatteringPass::render(gerium_frame_graph_t frameGraph,
                                  gerium_command_buffer_t commandBuffer,
                                  gerium_uint32_t worker,
                                  gerium_uint32_t totalWorkers) {
-    ++_frame;
+    /*++_frame;
     gerium_frame_graph_add_texture(frameGraph, "light_scattering", currentLightScattering());
 
     auto skyDome    = application()->getPass<SkyDomeGenPass>();
@@ -1388,7 +1364,7 @@ void LightScatteringPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, injectPass->volumetricFogSet(), 1);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, descriptorSet, 2);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, csm->descriptorSet(), 3);
-    gerium_command_buffer_dispatch(commandBuffer, x, y, z);
+    gerium_command_buffer_dispatch(commandBuffer, x, y, z);*/
 }
 
 void LightScatteringPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1418,7 +1394,7 @@ void LightFilterPass::render(gerium_frame_graph_t frameGraph,
                              gerium_command_buffer_t commandBuffer,
                              gerium_uint32_t worker,
                              gerium_uint32_t totalWorkers) {
-    auto injectPass = application()->getPass<VolumetricInjectPass>();
+    /*auto injectPass = application()->getPass<VolumetricInjectPass>();
     auto lightPass  = application()->getPass<LightScatteringPass>();
     auto& data      = injectPass->volumetricFogData();
 
@@ -1433,7 +1409,7 @@ void LightFilterPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, injectPass->volumetricFogSet(), 0);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, descriptorSet, 1);
-    gerium_command_buffer_dispatch(commandBuffer, x, y, z);
+    gerium_command_buffer_dispatch(commandBuffer, x, y, z);*/
 }
 
 void LightFilterPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1460,7 +1436,7 @@ void LightTemporalFilterPass::render(gerium_frame_graph_t frameGraph,
                                      gerium_command_buffer_t commandBuffer,
                                      gerium_uint32_t worker,
                                      gerium_uint32_t totalWorkers) {
-    auto injectPass = application()->getPass<VolumetricInjectPass>();
+    /*auto injectPass = application()->getPass<VolumetricInjectPass>();
     auto lightPass  = application()->getPass<LightScatteringPass>();
     auto& data      = injectPass->volumetricFogData();
 
@@ -1476,7 +1452,7 @@ void LightTemporalFilterPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, injectPass->volumetricFogSet(), 0);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, descriptorSet, 1);
-    gerium_command_buffer_dispatch(commandBuffer, x, y, z);
+    gerium_command_buffer_dispatch(commandBuffer, x, y, z);*/
 }
 
 void LightTemporalFilterPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1503,7 +1479,21 @@ void LightIntegrationPass::render(gerium_frame_graph_t frameGraph,
                                   gerium_command_buffer_t commandBuffer,
                                   gerium_uint32_t worker,
                                   gerium_uint32_t totalWorkers) {
-    auto injectPass = application()->getPass<VolumetricInjectPass>();
+    auto inject = application()->getPass<VolumetricInjectPass>();
+
+    auto ds = application()->resourceManager().createDescriptorSet("");
+    gerium_renderer_bind_resource(renderer, ds, 0, "froxel_data", false);
+    gerium_renderer_bind_resource(renderer, ds, 1, "integrated_light_scattering", false);
+
+    auto x = getGroupCount(FROXEL_GRID_SIZE_X, FROXEL_LOCAL_X);
+    auto y = getGroupCount(FROXEL_GRID_SIZE_Y, FROXEL_LOCAL_Y);
+
+    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, inject->descriptorSet(), 0);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 1);
+    gerium_command_buffer_dispatch(commandBuffer, x, y, 1);
+
+    /*auto injectPass = application()->getPass<VolumetricInjectPass>();
     auto& data      = injectPass->volumetricFogData();
 
     auto x = getGroupCount((int) data.froxelDimensionX, FROXEL_DISPATCH_X);
@@ -1516,14 +1506,14 @@ void LightIntegrationPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
     gerium_command_buffer_bind_descriptor_set(commandBuffer, injectPass->volumetricFogSet(), 0);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, descriptorSet, 1);
-    gerium_command_buffer_dispatch(commandBuffer, x, y, 1);
+    gerium_command_buffer_dispatch(commandBuffer, x, y, 1);*/
 }
 
 void LightIntegrationPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     gerium_texture_info_t info{};
-    info.width   = 256;
-    info.height  = 256;
-    info.depth   = 256;
+    info.width   = FROXEL_GRID_SIZE_X;
+    info.height  = FROXEL_GRID_SIZE_Y;
+    info.depth   = FROXEL_GRID_SIZE_Z;
     info.mipmaps = 1;
     info.layers  = 1;
     info.format  = GERIUM_FORMAT_R16G16B16A16_SFLOAT;

@@ -391,22 +391,21 @@ public:
     void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
-    const VolumetricFogData& volumetricFogData() const noexcept {
+    const VolumetricFogData& data() const noexcept {
         return _data;
     }
 
-    gerium_descriptor_set_h volumetricFogSet() const noexcept {
-        return _volumetricFogSet;
+    gerium_descriptor_set_h descriptorSet() const noexcept {
+        return _descriptorSet;
     }
 
 private:
-    gerium_uint64_t _frame{};
     VolumetricFogData _data{};
-    std::vector<glm::vec2> _haltonTable{};
-
-    Buffer _buffer{};
-    DescriptorSet _volumetricFogSet{};
+    gerium_uint64_t _frame{};
+    
     Texture _froxelData{};
+    Buffer _fogData{};
+    DescriptorSet _descriptorSet{};
 };
 
 class VolumetricNoisePass final : public RenderPass {

@@ -26,20 +26,35 @@ layout(binding = 7, set = 1) uniform sampler3D texIntegratedLightScattering;
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outDiffuse;
 
+// void calcVolumetricFog(vec2 uv, float rawDepth, out vec3 color, out float a) {
+//     const float near = fog.froxelNear;
+//     const float far = fog.froxelFar;
+//     
+//     float linearDepth = rawDepthToLinearDepth(rawDepth, near, far);
+//     
+//     float depthUv = linearDepthToUv(near, far, linearDepth, fog.froxelDimensionZ);
+//     vec3 froxelUvw = vec3(uv, depthUv);
+//     vec4 scatteringTransmittance = texture(texIntegratedLightScattering, froxelUvw);
+// 
+//     const float scatteringModifier = max(1 - scatteringTransmittance.a, 0.00000001);
+// 
+//     color = scatteringTransmittance.rgb * scatteringModifier;
+//     a = scatteringTransmittance.a;
+// }
+
 void calcVolumetricFog(vec2 uv, float rawDepth, out vec3 color, out float a) {
-    const float near = fog.froxelNear;
-    const float far = fog.froxelFar;
+    const float near = fog.biasNearFarPow.y;
+    const float far = fog.biasNearFarPow.z;
     
     float linearDepth = rawDepthToLinearDepth(rawDepth, near, far);
-    
-    float depthUv = linearDepthToUv(near, far, linearDepth, fog.froxelDimensionZ);
+    float depthUv = linearDepthToUv(near, far, linearDepth, FROXEL_GRID_SIZE_Z);
     vec3 froxelUvw = vec3(uv, depthUv);
-    vec4 scatteringTransmittance = texture(texIntegratedLightScattering, froxelUvw);
 
-    const float scatteringModifier = max(1 - scatteringTransmittance.a, 0.00000001);
+    vec4  scatteredLight = textureLod(texIntegratedLightScattering, froxelUvw, 0);
+    float transmittance  = scatteredLight.a;
 
-    color = scatteringTransmittance.rgb * scatteringModifier;
-    a = scatteringTransmittance.a;
+    a = transmittance;
+    color = scatteredLight.rgb;
 }
 
 void main() {
@@ -54,7 +69,7 @@ void main() {
     vec3  diffuseGI  = textureLod(texDiffuseGI, texCoord, 0).rgb;
     vec3  specularGI = textureLod(texSpecularGI, texCoord, 0).rgb;
     
-    vec4 froxelPosition  = fog.froxelViewProjection * vec4(position, 1.0);
+    vec4 froxelPosition  = fog.viewProj * vec4(position, 1.0);
     float froxelRawDepth = froxelPosition.z / froxelPosition.w;
     vec3 froxelColor;
     float froxelA;

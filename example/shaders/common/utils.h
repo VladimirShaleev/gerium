@@ -1,6 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "defines.h"
+
 bool coneCulling(vec3 center, float radius, vec3 coneAxis, float coneCutoff, vec3 cameraPosition) {
     return dot(center - cameraPosition, coneAxis) >= coneCutoff * length(center - cameraPosition) + radius;
 }
@@ -105,6 +107,74 @@ vec3 worldPositionFromFroxel(ivec3 froxelCoord, uvec3 dimensions, float near, fl
     vec3 worldPosition = worldPositionFromDepth(uv, rawDepth, inverseVP);
     
     return worldPosition;
+}
+
+float linear01ToExp01Depth(float z, float near, float far) {
+    float zBufferParamsY = far / near;
+    float zBufferParamsX = 1.0 - zBufferParamsY;
+
+    return (1.0 / z - zBufferParamsY) / zBufferParamsX;
+}
+
+float exp01ToLinear01Depth(float z, float near, float far) {
+    float zBufferParamsY = far / near;
+    float zBufferParamsX = 1.0 - zBufferParamsY;
+
+    return 1.0 / (zBufferParamsX * z + zBufferParamsY);
+}
+
+vec3 coordToUvWithJitter(ivec3 coord, float jitter, float near, float far) {
+    float viewZ = near * pow(far / near, (float(coord.z) + 0.5 + jitter) / float(FROXEL_GRID_SIZE_Z));
+    return vec3(
+        (float(coord.x) + 0.5) / float(FROXEL_GRID_SIZE_X),
+        (float(coord.y) + 0.5) / float(FROXEL_GRID_SIZE_Y),
+        viewZ / far);
+}
+
+vec3 uvToNdc(vec3 uv, float near, float far) {
+    vec3 ndc;
+    ndc.x = 2.0 * uv.x - 1.0;
+    ndc.y = 1.0 - 2.0 * uv.y;
+    ndc.z = linear01ToExp01Depth(uv.z, near, far);
+    return ndc;
+}
+
+vec3 ndcToWorld(vec3 ndc, mat4 invViewProj) {
+    vec4 p = invViewProj * vec4(ndc, 1.0f);
+    return p.xyz / p.w;
+}
+
+vec3 coordToWorldWithJitter(ivec3 coord, float jitter, float near, float far, mat4 invViewProj) {
+    vec3 uv = coordToUvWithJitter(coord, jitter, near, far);
+    vec3 ndc = uvToNdc(uv, near, far);
+    return ndcToWorld(ndc, invViewProj);
+}
+
+vec3 worldToNdc(vec3 worldPos, mat4 viewProj) {
+    vec4 p = viewProj * vec4(worldPos, 1.0);
+    if (p.w > 0.0) {
+        return p.xyz /= p.w;
+    }
+    return p.xyz;
+}
+
+vec3 ndcToUv(vec3 ndc, float near, float far) {
+    vec3 uv;
+    uv.x = ndc.x * 0.5f + 0.5f;
+    uv.y =  1.0 - (ndc.y * 0.5 + 0.5);
+    uv.z = exp01ToLinear01Depth(ndc.z, near, far);
+
+    vec2 params = vec2(float(FROXEL_GRID_SIZE_Z) / log2(far / near), (float(FROXEL_GRID_SIZE_Z) * log2(near) / log2(far / near)));
+
+    float viewZ = uv.z * far;
+    uv.z = (max(log2(viewZ) * params.x + params.y, 0.0)) / FROXEL_GRID_SIZE_Z;
+
+    return uv;
+}
+
+vec3 worldToUv(vec3 worldPos, float near, float far, mat4 viewProj) {
+    vec3 ndc = worldToNdc(worldPos, viewProj);
+    return ndcToUv(ndc, near, far);
 }
 
 #endif

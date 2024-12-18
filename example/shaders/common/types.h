@@ -48,36 +48,18 @@ struct SHADER_ALIGN SkyPrefilteredData {
 };
 
 struct SHADER_ALIGN VolumetricFogData {
-    mat4  froxelViewProjection;
-    mat4  froxelInverseViewProjection;
-    mat4  prevFroxelViewProjection;
-    float froxelNear;
-    float froxelFar;
-    float scatteringFactor;
-    float densityModifier;
-    uint  useTemporalReprojection;
-    float timeRandom;
-    float temporalReprojectionPercentage;
-    float phaseAnisotropy;
-    uint  froxelDimensionX;
-    uint  froxelDimensionY;
-    uint  froxelDimensionZ;
-    uint  phaseFunctionType;
-    float heightFogDensity;
-    float heightFogFalloff;
-    int   currentFrame;
-    float noiseScale;
-    float integrationNoiseScale;
-    uint  noiseType;
-    uint  useSpatialFiltering;
-    float volumetricNoisePositionMultiplier;
-    float volumetricNoiseSpeedMultiplier;
-    float temporalReprojectionJitterScale;
-    float boxFogDensity;
-    uint  boxColor;
-    vec4  boxPosition;
-    vec4  boxHalfSize;
-    vec2  haltonXY;
+    mat4  view;
+    mat4  projection;
+    mat4  viewProj;
+    mat4  invViewProj;
+    mat4  prevViewProj;
+    vec4  lightDirection;
+    vec4  lightColor;
+    vec4  cameraPosition;
+    vec4  biasNearFarPow;
+    vec4  anisoDensityScatteringAbsorption;
+    ivec4 widthHeight;
+    float time;
 };
 
 struct Angular {
