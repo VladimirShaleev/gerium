@@ -39,17 +39,19 @@ vec4 accumulate(int z, vec3 accumScattering, float accumTransmittance, vec3 slic
 void main() {
     vec4 accumScatteringTransmittance = vec4(0.0, 0.0, 0.0, 1.0);
 
-    for (int z = 0; z < FROXEL_GRID_SIZE_Z; z++) {
-        ivec3 coord = ivec3(gl_GlobalInvocationID.xy, z);
+    if (all(lessThan(gl_GlobalInvocationID.xy, ivec2(FROXEL_GRID_SIZE_X, FROXEL_GRID_SIZE_Y)))) {
+        for (int z = 0; z < FROXEL_GRID_SIZE_Z; z++) {
+            ivec3 coord = ivec3(gl_GlobalInvocationID.xy, z);
 
-        vec4 sliceScatteringDensity = texelFetch(froxelData, coord, 0);
+            vec4 sliceScatteringDensity = texelFetch(froxelData, coord, 0);
 
-        accumScatteringTransmittance = accumulate(z,
-            accumScatteringTransmittance.rgb, 
-            accumScatteringTransmittance.a,
-            sliceScatteringDensity.rgb,
-            sliceScatteringDensity.a);
+            accumScatteringTransmittance = accumulate(z,
+                accumScatteringTransmittance.rgb, 
+                accumScatteringTransmittance.a,
+                sliceScatteringDensity.rgb,
+                sliceScatteringDensity.a);
 
-        imageStore(integratedLight, coord, accumScatteringTransmittance);
+            imageStore(integratedLight, coord, accumScatteringTransmittance);
+        }
     }
 }

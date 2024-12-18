@@ -42,13 +42,8 @@ layout(location = 1) out vec4 outDiffuse;
 //     a = scatteringTransmittance.a;
 // }
 
-void calcVolumetricFog(vec2 uv, float rawDepth, out vec3 color, out float a) {
-    const float near = fog.biasNearFarPow.y;
-    const float far = fog.biasNearFarPow.z;
-    
-    float linearDepth = rawDepthToLinearDepth(rawDepth, near, far);
-    float depthUv = linearDepthToUv(near, far, linearDepth, FROXEL_GRID_SIZE_Z);
-    vec3 froxelUvw = vec3(uv, depthUv);
+void calcVolumetricFog(vec3 worldPos, out vec3 color, out float a) {
+    vec3 froxelUvw = worldToUv(worldPos, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.viewProj);
 
     vec4  scatteredLight = textureLod(texIntegratedLightScattering, froxelUvw, 0);
     float transmittance  = scatteredLight.a;
@@ -69,11 +64,9 @@ void main() {
     vec3  diffuseGI  = textureLod(texDiffuseGI, texCoord, 0).rgb;
     vec3  specularGI = textureLod(texSpecularGI, texCoord, 0).rgb;
     
-    vec4 froxelPosition  = fog.viewProj * vec4(position, 1.0);
-    float froxelRawDepth = froxelPosition.z / froxelPosition.w;
     vec3 froxelColor;
     float froxelA;
-    calcVolumetricFog(texCoord, froxelRawDepth, froxelColor, froxelA);
+    calcVolumetricFog(position, froxelColor, froxelA);
 
     PixelData pixelData;
     pixelData.baseColor           = albedo;

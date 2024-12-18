@@ -9,9 +9,13 @@ layout(set = 0, binding = 0, std140) uniform VolumetricFogDataUBO {
 
 layout(set = 1, binding = 0) uniform sampler3D noise;
 
-layout(set = 1, binding = 1) uniform sampler2DArray csm;
+layout(set = 1, binding = 1) uniform sampler2D blueNoise;
 
-layout(set = 1, binding = 2, rgba16f) uniform writeonly image3D froxelData;
+layout(set = 1, binding = 2) uniform sampler2DArray csm;
+
+layout(set = 1, binding = 3) uniform sampler3D prevIntegratedLight;
+
+layout(set = 1, binding = 4, rgba16f) uniform writeonly image3D froxelData;
 
 layout(std140, set = 2, binding = 0) uniform LightSpaceMatricesUBO {
     mat4 lightSpaceMatrices[CSM_MAX_CASCADES];
@@ -47,8 +51,13 @@ float visibility(vec3 worldPosition) {
     bias *= 1.0 / (cascadeDistances[layer] * 0.5);
 
     float pcfDepth = texture(csm, vec3(projCoords.xy, layer)).r; 
-    float shadow = pcfDepth < projCoords.z - bias ? 0.0 : 1.0;   
+    float shadow = pcfDepth < projCoords.z + bias ? 0.0 : 1.0;   
     return shadow;
+}
+
+float sampleBlueNoise(ivec3 coord) {
+    ivec2 noiseCoord = (coord.xy + ivec2(0, 1) * coord.z * 128) % 128;
+    return texelFetch(blueNoise, noiseCoord, 0).r;
 }
 
 float phaseFunction(vec3 wo, vec3 wi, float g) {
@@ -61,7 +70,9 @@ void main() {
     ivec3 coord = ivec3(gl_GlobalInvocationID.xyz);
     
     if (all(lessThan(coord, ivec3(FROXEL_GRID_SIZE_X, FROXEL_GRID_SIZE_Y, FROXEL_GRID_SIZE_Z)))) {
-        vec3 worldPos = coordToWorldWithJitter(coord, 0.0, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.invViewProj);
+        float jitter = (sampleBlueNoise(coord) - 0.5) * 0.999;
+
+        vec3 worldPos = coordToWorldWithJitter(coord, jitter, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.invViewProj);
             
         // vec3 worldPos = worldPositionFromFroxel(
         //     coord, 
@@ -84,6 +95,16 @@ void main() {
         }
 
         vec4 colorAndDensity = vec4(lighting * density, density);
+
+        vec3 worldPosWithoutJitter = coordToWorldWithJitter(coord, 0.0, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.invViewProj);
+
+        vec3 historyUv = worldToUv(worldPosWithoutJitter, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.prevViewProj);
+
+        if (all(greaterThanEqual(historyUv, vec3(0.0))) && all(lessThanEqual(historyUv, vec3(1.0)))) {
+            vec4 history = textureLod(prevIntegratedLight, historyUv, 0.0);
+
+            colorAndDensity = mix(history, colorAndDensity, 0.05);
+        }
 
         imageStore(froxelData, coord, colorAndDensity);
     }

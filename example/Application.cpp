@@ -1197,11 +1197,14 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
                                   gerium_command_buffer_t commandBuffer,
                                   gerium_uint32_t worker,
                                   gerium_uint32_t totalWorkers) {
+    gerium_frame_graph_add_texture(frameGraph, "froxel_data", _froxelData[_frame % std::size(_froxelData)]);
+
     auto camera = (settings().DebugCamera && settings().MoveDebugCamera) ? application()->getDebugCamera()
                                                                          : application()->getCamera();
 
-    auto skyDome = application()->getPass<SkyDomeGenPass>();
-    auto csm     = application()->getPass<CsmPass>();
+    auto skyDome    = application()->getPass<SkyDomeGenPass>();
+    auto csm        = application()->getPass<CsmPass>();
+    auto integrated = application()->getPass<LightIntegrationPass>();
 
     const auto nearPlane = camera->nearPlane();
     const auto farPlane  = 200.0f; // camera->farPlane();
@@ -1221,7 +1224,7 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
     _data.cameraPosition                   = vec4(camera->position(), 1.0f);
     _data.biasNearFarPow                   = { 0.005f, nearPlane, farPlane, 1.0f };
     _data.anisoDensityScatteringAbsorption = { 0.7f, 5.0f, 0.0f, 0.0f };
-    _data.widthHeight                      = { application()->width(), application()->height(), _frame++, 0 };
+    _data.widthHeight                      = { application()->width(), application()->height(), _frame, 0 };
     _data.time                             = _data.time + application()->elapsed();
 
     auto data = gerium_renderer_map_buffer(renderer, _fogData, 0, sizeof(VolumetricFogData));
@@ -1232,8 +1235,10 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
 
     auto ds = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_resource(renderer, ds, 0, "volumetric_noise", false);
-    gerium_renderer_bind_resource(renderer, ds, 1, "csm_depths", false);
-    gerium_renderer_bind_resource(renderer, ds, 2, "froxel_data", false);
+    gerium_renderer_bind_texture(renderer, ds, 1, 0, application()->blueNoiseTexture(_frame));
+    gerium_renderer_bind_resource(renderer, ds, 2, "csm_depths", false);
+    gerium_renderer_bind_texture(renderer, ds, 3, 0, _froxelData[(_frame + 1) % std::size(_froxelData)]);
+    gerium_renderer_bind_texture(renderer, ds, 4, 0, _froxelData[_frame % std::size(_froxelData)]);
 
     auto x = getGroupCount(FROXEL_GRID_SIZE_X, FROXEL_LOCAL_X);
     auto y = getGroupCount(FROXEL_GRID_SIZE_Y, FROXEL_LOCAL_Y);
@@ -1244,6 +1249,8 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 1);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, csm->descriptorSet(), 2);
     gerium_command_buffer_dispatch(commandBuffer, x, y, z);
+
+    ++_frame;
 }
 
 void VolumetricInjectPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1255,10 +1262,13 @@ void VolumetricInjectPass::registerResources(gerium_frame_graph_t frameGraph, ge
     info.layers  = 1;
     info.format  = GERIUM_FORMAT_R16G16B16A16_SFLOAT;
     info.type    = GERIUM_TEXTURE_TYPE_3D;
-    info.name    = "froxel_data";
+    info.name    = "froxel_data_0";
 
-    _froxelData = application()->resourceManager().createTexture(info, nullptr);
-    gerium_frame_graph_add_texture(frameGraph, info.name, _froxelData);
+    _froxelData[0] = application()->resourceManager().createTexture(info, nullptr);
+    gerium_frame_graph_add_texture(frameGraph, "froxel_data", _froxelData[0]);
+
+    info.name      = "froxel_data_1";
+    _froxelData[1] = application()->resourceManager().createTexture(info, nullptr);
 
     _fogData = application()->resourceManager().createBuffer(
         GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "volumetric_fog_data", nullptr, sizeof(VolumetricFogData));
@@ -1269,7 +1279,7 @@ void VolumetricInjectPass::registerResources(gerium_frame_graph_t frameGraph, ge
 void VolumetricInjectPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     _descriptorSet = nullptr;
     _fogData       = nullptr;
-    _froxelData    = nullptr;
+    _froxelData    = {};
 }
 
 void VolumetricNoisePass::render(gerium_frame_graph_t frameGraph,
@@ -1492,21 +1502,6 @@ void LightIntegrationPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, inject->descriptorSet(), 0);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 1);
     gerium_command_buffer_dispatch(commandBuffer, x, y, 1);
-
-    /*auto injectPass = application()->getPass<VolumetricInjectPass>();
-    auto& data      = injectPass->volumetricFogData();
-
-    auto x = getGroupCount((int) data.froxelDimensionX, FROXEL_DISPATCH_X);
-    auto y = getGroupCount((int) data.froxelDimensionY, FROXEL_DISPATCH_Y);
-
-    auto descriptorSet = application()->resourceManager().createDescriptorSet("", false);
-    gerium_renderer_bind_resource(renderer, descriptorSet, 0, "light_scattering_filtering", false);
-    gerium_renderer_bind_resource(renderer, descriptorSet, 1, "integrated_light_scattering", false);
-
-    gerium_command_buffer_bind_technique(commandBuffer, application()->getBaseTechnique());
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, injectPass->volumetricFogSet(), 0);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, descriptorSet, 1);
-    gerium_command_buffer_dispatch(commandBuffer, x, y, 1);*/
 }
 
 void LightIntegrationPass::registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1525,7 +1520,7 @@ void LightIntegrationPass::registerResources(gerium_frame_graph_t frameGraph, ge
 }
 
 void LightIntegrationPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _integrated = nullptr;
+    _integrated = {};
 }
 
 Application::Application() {
@@ -1858,6 +1853,10 @@ void Application::initialize() {
     for (size_t i = 0; i < _noiseTextures.size(); ++i) {
         auto fullPath     = appDir / "textures" / "noise" / ("LDR_RG01_" + std::to_string(i) + ".png");
         _noiseTextures[i] = _resourceManager.loadTexture(fullPath.string());
+    }
+    for (size_t i = 0; i < _blueNoiseTextures.size(); ++i) {
+        auto fullPath         = appDir / "textures" / "blue_noise" / ("LDR_LLL1_" + std::to_string(i) + ".png");
+        _blueNoiseTextures[i] = _resourceManager.loadTexture(fullPath.string());
     }
     _brdfLut = _resourceManager.loadTexture((appDir / "textures" / "brdf" / "BRDFLut.png").string());
 

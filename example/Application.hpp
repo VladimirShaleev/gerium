@@ -403,7 +403,7 @@ private:
     VolumetricFogData _data{};
     gerium_uint64_t _frame{};
     
-    Texture _froxelData{};
+    std::array<Texture, 2> _froxelData{};
     Buffer _fogData{};
     DescriptorSet _descriptorSet{};
 };
@@ -590,6 +590,10 @@ public:
         return _noiseTextures[index % std::size(_noiseTextures)];
     }
 
+    gerium_texture_h blueNoiseTexture(uint32_t index) const noexcept {
+        return _blueNoiseTextures[index % std::size(_blueNoiseTextures)];
+    }
+
     template <typename RP>
     RP* getPass() noexcept {
         static_assert(std::is_base_of_v<RenderPass, RP>);
@@ -695,6 +699,7 @@ private:
     Technique _baseTechnique{};
 
     std::array<Texture, 16> _noiseTextures{};
+    std::array<Texture, 16> _blueNoiseTextures{};
     Texture _brdfLut{};
     std::vector<Texture> _textures{};
     DescriptorSet _texturesSet{};

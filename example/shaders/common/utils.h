@@ -164,7 +164,7 @@ vec3 ndcToUv(vec3 ndc, float near, float far) {
     uv.y =  1.0 - (ndc.y * 0.5 + 0.5);
     uv.z = exp01ToLinear01Depth(ndc.z, near, far);
 
-    vec2 params = vec2(float(FROXEL_GRID_SIZE_Z) / log2(far / near), (float(FROXEL_GRID_SIZE_Z) * log2(near) / log2(far / near)));
+    vec2 params = vec2(float(FROXEL_GRID_SIZE_Z) / log2(far / near), -(float(FROXEL_GRID_SIZE_Z) * log2(near) / log2(far / near)));
 
     float viewZ = uv.z * far;
     uv.z = (max(log2(viewZ) * params.x + params.y, 0.0)) / FROXEL_GRID_SIZE_Z;
