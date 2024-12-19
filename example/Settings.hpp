@@ -17,11 +17,12 @@ enum SettingsOutput {
 };
 
 struct Settings {
-    bool DebugCamera      = false;
-    bool MoveDebugCamera  = false;
-    SettingsOutput Output = SettingsOutput::FinalResult;
-    int Hour              = 7;
-    float CurrentHour     = 7;
+    bool DebugCamera        = false;
+    bool MoveDebugCamera    = false;
+    SettingsOutput Output   = SettingsOutput::FinalResult;
+    int Hour                = 7;
+    float CurrentHour       = 7;
+    bool DebugVolumetricBox = false;
 
     bool isDebugGI() const noexcept {
         return Output == SettingsOutput::RadianceCache || Output == SettingsOutput::IrradianceCache;

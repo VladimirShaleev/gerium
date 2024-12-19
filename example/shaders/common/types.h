@@ -59,6 +59,7 @@ struct SHADER_ALIGN VolumetricFogData {
     vec4  biasNearFarPow;
     vec4  anisoDensityScatteringAbsorption;
     ivec4 widthHeight;
+    vec4  debugBox;
     float time;
 };
 

@@ -82,19 +82,28 @@ void main() {
         
         float visibilityValue = visibility(worldPos);
         
-        if (visibilityValue > 0.0001) {
-            lighting += visibilityValue * fog.lightColor.rgb * phaseFunction(V, -fog.lightDirection.xyz, fog.anisoDensityScatteringAbsorption.x);
+        if (fog.debugBox.x > 0.0) {
+            vec3 box = abs(worldPos);
+            if (all(lessThanEqual(box, vec3(10.0, 10.0, 10.0)))) {
+                vec3 samplingCoord = worldPos + vec3(1.0, 0.1, 2.0) * fog.debugBox.y;
+                float fogNoise = texture(noise, samplingCoord * 0.25).r;
+                fogNoise = clamp(fogNoise * fogNoise, 0.0f, 1.0f);
+
+                float scatteringFactor = 0.1;
+                float boxFogDensity = 3.0;
+                float extinction = boxFogDensity * fogNoise;
+                density += scatteringFactor * extinction;
+                lighting += vec3(0.0, 1.0, 0.0) * visibilityValue * extinction;
+            }
         }
 
+        lighting += visibilityValue * fog.lightColor.rgb * phaseFunction(V, -fog.lightDirection.xyz, fog.anisoDensityScatteringAbsorption.x);
         vec4 colorAndDensity = vec4(lighting * density, density);
 
         vec3 worldPosWithoutJitter = coordToWorldWithJitter(coord, 0.0, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.invViewProj);
-
         vec3 historyUv = worldToUv(worldPosWithoutJitter, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.prevViewProj);
-
         if (all(greaterThanEqual(historyUv, vec3(0.0))) && all(lessThanEqual(historyUv, vec3(1.0)))) {
             vec4 history = textureLod(prevFroxelData, historyUv, 0.0);
-
             colorAndDensity = mix(history, colorAndDensity, 0.05);
         }
 
