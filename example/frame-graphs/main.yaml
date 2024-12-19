@@ -117,7 +117,7 @@ frame graph:
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: specular_gi
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
-        name: integrated_light_scattering
+        name: integrated_light
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: csm_depths
       # - type: GERIUM_RESOURCE_TYPE_REFERENCE
@@ -333,10 +333,17 @@ frame graph:
         name: volumetric_noise
       - type: GERIUM_RESOURCE_TYPE_TEXTURE
         name: csm_depths
+      - type: GERIUM_RESOURCE_TYPE_TEXTURE
+        name: froxel_data
+        previous frame: true
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
         name: froxel_data
-        external: true
+        format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
+        width: 240
+        height: 140
+        depth: 256
+        auto scale: 0
 
   - name: volumetric_noise_pass
     compute: true
@@ -345,38 +352,6 @@ frame graph:
         name: volumetric_noise
         external: true
 
-  # - name: light_scattering_pass
-  #   compute: true
-  #   inputs:
-  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
-  #       name: froxel_data
-  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
-  #       name: csm_depths
-  #   outputs:
-  #     - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-  #       name: light_scattering
-  #       external: true
-
-  # - name: light_filter_pass
-  #   compute: true
-  #   inputs:
-  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
-  #       name: light_scattering
-  #   outputs:
-  #     - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-  #       name: light_filtering
-  #       external: true
-
-  # - name: light_temporal_filter_pass
-  #   compute: true
-  #   inputs:
-  #     - type: GERIUM_RESOURCE_TYPE_TEXTURE
-  #       name: light_filtering
-  #   outputs:
-  #     - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-  #       name: light_scattering_filtering
-  #       external: true
-
   - name: light_integration_pass
     compute: true
     inputs:
@@ -384,5 +359,9 @@ frame graph:
         name: froxel_data
     outputs:
       - type: GERIUM_RESOURCE_TYPE_ATTACHMENT
-        name: integrated_light_scattering
-        external: true
+        name: integrated_light
+        format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
+        width: 240
+        height: 140
+        depth: 256
+        auto scale: 0

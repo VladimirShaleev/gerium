@@ -1155,6 +1155,7 @@ typedef struct
     gerium_format_t                               format;
     gerium_uint16_t                               width;
     gerium_uint16_t                               height;
+    gerium_uint16_t                               depth;
     gerium_uint16_t                               layers;
     gerium_float32_t                              auto_scale;
     gerium_render_pass_op_t                       render_pass_op;

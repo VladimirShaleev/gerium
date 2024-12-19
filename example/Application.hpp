@@ -388,7 +388,7 @@ public:
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
 
-    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
+    void initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
     void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
     const VolumetricFogData& data() const noexcept {
@@ -403,7 +403,6 @@ private:
     VolumetricFogData _data{};
     gerium_uint64_t _frame{};
     
-    std::array<Texture, 2> _froxelData{};
     Buffer _fogData{};
     DescriptorSet _descriptorSet{};
 };
@@ -426,69 +425,6 @@ private:
     Texture _noise{};
 };
 
-class LightScatteringPass final : public RenderPass {
-public:
-    LightScatteringPass() : RenderPass("light_scattering_pass") {
-    }
-
-    void render(gerium_frame_graph_t frameGraph,
-                gerium_renderer_t renderer,
-                gerium_command_buffer_t commandBuffer,
-                gerium_uint32_t worker,
-                gerium_uint32_t totalWorkers) override;
-
-    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-
-    gerium_texture_h currentLightScattering() const noexcept {
-        return _lightScattering[_frame % 2];
-    }
-
-    gerium_texture_h previosLightScattering() const noexcept {
-        return _lightScattering[(_frame + 1) % 2];
-    }
-
-private:
-    std::array<Texture, 2> _lightScattering{};
-    gerium_uint64_t _frame{};
-};
-
-class LightFilterPass final : public RenderPass {
-public:
-    LightFilterPass() : RenderPass("light_filter_pass") {
-    }
-
-    void render(gerium_frame_graph_t frameGraph,
-                gerium_renderer_t renderer,
-                gerium_command_buffer_t commandBuffer,
-                gerium_uint32_t worker,
-                gerium_uint32_t totalWorkers) override;
-
-    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-
-private:
-    Texture _lightFiltering{};
-};
-
-class LightTemporalFilterPass final : public RenderPass {
-public:
-    LightTemporalFilterPass() : RenderPass("light_temporal_filter_pass") {
-    }
-
-    void render(gerium_frame_graph_t frameGraph,
-                gerium_renderer_t renderer,
-                gerium_command_buffer_t commandBuffer,
-                gerium_uint32_t worker,
-                gerium_uint32_t totalWorkers) override;
-
-    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-
-private:
-    Texture _lightScatteringFiltering{};
-};
-
 class LightIntegrationPass final : public RenderPass {
 public:
     LightIntegrationPass() : RenderPass("light_integration_pass") {
@@ -499,9 +435,6 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
-
-    void registerResources(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
-    void uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) override;
 
 private:
     Texture _integrated{};

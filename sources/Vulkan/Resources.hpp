@@ -141,6 +141,7 @@ struct DescriptorSetLayoutData {
     VkDescriptorSetLayoutBindingFlagsCreateInfo bindlessInfo;
     std::vector<VkDescriptorSetLayoutBinding> bindings;
     std::vector<VkDescriptorBindingFlags> bindlessFlags;
+    std::set<uint32_t> default3DTextures;
 };
 
 struct DescriptorSetLayoutCreation {

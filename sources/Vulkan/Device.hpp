@@ -210,7 +210,7 @@ public:
         auto texture = _textures.access(handle);
 
         if (texture->loadedMips == 0) {
-            texture = _textures.access(_defaultTexture);
+            texture = _textures.access(texture->type == GERIUM_TEXTURE_TYPE_2D ? _defaultTexture : _defaultTexture3D);
         }
 
         FfxResourceDescription resourceDescription{};
@@ -370,6 +370,7 @@ private:
     Swapchain getSwapchain();
     void frameCountersAdvance() noexcept;
     void uploadTextureData(TextureHandle handle, gerium_cdata_t data);
+    TextureHandle getDefaultTexture(const DescriptorSetLayout& descriptorSetLayout, uint32_t binding) const noexcept;
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
@@ -454,6 +455,7 @@ private:
     uint8_t* _dynamicSSBOMapped{};
     SamplerHandle _defaultSampler{ Undefined };
     TextureHandle _defaultTexture{ Undefined };
+    TextureHandle _defaultTexture3D{ Undefined };
     VkWriteDescriptorSet _descriptorWrite[kBindlessPoolElements]{};
     VkDescriptorBufferInfo _bufferInfo[kBindlessPoolElements]{};
     VkDescriptorImageInfo _imageInfo[kBindlessPoolElements]{};

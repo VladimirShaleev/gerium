@@ -13,7 +13,7 @@ layout(set = 1, binding = 1) uniform sampler2D blueNoise;
 
 layout(set = 1, binding = 2) uniform sampler2DArray csm;
 
-layout(set = 1, binding = 3) uniform sampler3D prevIntegratedLight;
+layout(set = 1, binding = 3) uniform sampler3D prevFroxelData;
 
 layout(set = 1, binding = 4, rgba16f) uniform writeonly image3D froxelData;
 
@@ -73,15 +73,7 @@ void main() {
         float jitter = (sampleBlueNoise(coord) - 0.5) * 0.999;
 
         vec3 worldPos = coordToWorldWithJitter(coord, jitter, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.invViewProj);
-            
-        // vec3 worldPos = worldPositionFromFroxel(
-        //     coord, 
-        //     uvec3(FROXEL_GRID_SIZE_X, FROXEL_GRID_SIZE_Y, FROXEL_GRID_SIZE_Z), 
-        //     fog.biasNearFarPow.y, 
-        //     fog.biasNearFarPow.z, 
-        //     fog.invViewProj,
-        //     vec2(0.0));
-
+    
         vec3 V = normalize(fog.cameraPosition.xyz - worldPos);
 
         float density = fog.anisoDensityScatteringAbsorption.y;
@@ -101,7 +93,7 @@ void main() {
         vec3 historyUv = worldToUv(worldPosWithoutJitter, fog.biasNearFarPow.y, fog.biasNearFarPow.z, fog.prevViewProj);
 
         if (all(greaterThanEqual(historyUv, vec3(0.0))) && all(lessThanEqual(historyUv, vec3(1.0)))) {
-            vec4 history = textureLod(prevIntegratedLight, historyUv, 0.0);
+            vec4 history = textureLod(prevFroxelData, historyUv, 0.0);
 
             colorAndDensity = mix(history, colorAndDensity, 0.05);
         }

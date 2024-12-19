@@ -802,6 +802,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                         bindingFlags =
                             VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
                     }
+                    if (reflBinding.image.dim == SpvDim3D) {
+                        layout.default3DTextures.insert(layoutBinding.binding);
+                    }
                 }
                 layoutBinding.stageFlags = static_cast<VkShaderStageFlagBits>(module.shader_stage);
 
@@ -1915,6 +1918,8 @@ void Device::createDefaultTexture() {
         .setName("default_texture")
         .build();
     _defaultTexture = createTexture(tc);
+    tc.setFormat(GERIUM_FORMAT_R8G8B8A8_UNORM, GERIUM_TEXTURE_TYPE_3D).setName("default_texture_3d").build();
+    _defaultTexture3D = createTexture(tc);
 }
 
 void Device::createSynchronizations() {
@@ -2275,13 +2280,14 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-                auto texture = _textures.access(resource != Undefined ? resource : _defaultTexture);
+                auto texture = _textures.access(
+                    resource != Undefined ? resource : getDefaultTexture(descriptorSetLayout, binding.binding));
 
                 imageInfo[i].sampler =
                     texture->sampler != Undefined ? _samplers.access(texture->sampler)->vkSampler : defaultSampler;
 
                 if (texture->loadedMips == 0) {
-                    texture        = _textures.access(_defaultTexture);
+                    texture        = _textures.access(getDefaultTexture(descriptorSetLayout, binding.binding));
                     updateRequired = true;
                 }
 
@@ -2976,6 +2982,11 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
     destroyBuffer(stagingBuffer);
 
     finishLoadTexture(handle, 0);
+}
+
+TextureHandle Device::getDefaultTexture(const DescriptorSetLayout& descriptorSetLayout,
+                                        uint32_t binding) const noexcept {
+    return descriptorSetLayout.data.default3DTextures.contains(binding) ? _defaultTexture3D : _defaultTexture;
 }
 
 std::vector<const char*> Device::selectValidationLayers() {

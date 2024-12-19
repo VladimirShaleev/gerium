@@ -284,7 +284,7 @@ void FrameGraph::compile() {
                     const auto& info = resource->info.texture;
 
                     TextureCreation creation{};
-                    creation.setFormat(info.format, GERIUM_TEXTURE_TYPE_2D)
+                    creation.setFormat(info.format, info.depth <= 1 ? GERIUM_TEXTURE_TYPE_2D : GERIUM_TEXTURE_TYPE_3D)
                         .setSize(info.width, info.height, info.depth)
                         .setFlags(1, info.layers, true, node->compute);
 
@@ -315,7 +315,7 @@ void FrameGraph::compile() {
                             creation.setName(name.c_str());
                         }
                         if (handle == Undefined) {
-                            handle = _renderer->createTexture(creation);
+                            handle = _renderer->createTexture(creation.build());
                         }
                         if (!resource->saveForNextFrame) {
                             break;
@@ -585,7 +585,7 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
         resource->info.texture.width             = output.width;
         resource->info.texture.height            = output.height;
         resource->info.texture.layers            = output.layers;
-        resource->info.texture.depth             = 1;
+        resource->info.texture.depth             = output.depth;
         resource->info.texture.autoScale         = output.auto_scale;
         resource->info.texture.operation         = renderPassOp;
         resource->info.texture.colorWriteMask    = output.color_write_mask;
