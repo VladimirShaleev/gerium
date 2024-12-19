@@ -197,24 +197,6 @@ pipelines:
         lang: GERIUM_SHADER_LANGUAGE_GLSL
         name: shaders/volumetric_noise.comp.glsl
 
-  - render pass: light_scattering_pass
-    shaders:
-      - type: GERIUM_SHADER_TYPE_COMPUTE
-        lang: GERIUM_SHADER_LANGUAGE_GLSL
-        name: shaders/light_scattering.comp.glsl
-
-  - render pass: light_filter_pass
-    shaders:
-      - type: GERIUM_SHADER_TYPE_COMPUTE
-        lang: GERIUM_SHADER_LANGUAGE_GLSL
-        name: shaders/light_filter.comp.glsl
-
-  - render pass: light_temporal_filter_pass
-    shaders:
-      - type: GERIUM_SHADER_TYPE_COMPUTE
-        lang: GERIUM_SHADER_LANGUAGE_GLSL
-        name: shaders/light_temporal_filter.comp.glsl
-
   - render pass: light_integration_pass
     shaders:
       - type: GERIUM_SHADER_TYPE_COMPUTE
