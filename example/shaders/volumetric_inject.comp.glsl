@@ -90,10 +90,10 @@ void main() {
                 fogNoise = clamp(fogNoise * fogNoise, 0.0f, 1.0f);
 
                 float scatteringFactor = 0.1;
-                float boxFogDensity = 3.0;
-                float extinction = boxFogDensity * fogNoise;
-                density += scatteringFactor * extinction;
-                lighting += vec3(0.0, 1.0, 0.0) * visibilityValue * extinction;
+                float boxFogDensity = 2.0;
+                float extinction = boxFogDensity * fogNoise * fogNoise;
+                density += mix(1.0, scatteringFactor, visibilityValue) * extinction;
+                lighting += vec3(0.0, 1.0, 0.0) * max(visibilityValue, 0.05) * extinction;
             }
         }
 

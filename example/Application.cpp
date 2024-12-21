@@ -309,9 +309,8 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
             ImGui::EndCombo();
         }
         ImGui::Checkbox("Show profiler", &drawProfiler);
-        static int hour = 7;
         ImGui::SliderInt("Hour", &settings.Hour, 5, 19, "%d", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::Checkbox("Debug Volumetric Box", &settings.DebugVolumetricBox);
+        ImGui::Checkbox("Debug Volumetric Fog", &settings.DebugVolumetricBox);
     }
 
     ImGui::End();
@@ -1222,11 +1221,11 @@ void VolumetricInjectPass::render(gerium_frame_graph_t frameGraph,
     _data.lightColor                       = vec4(1.0f * 5.0f, 1.0f * 5.0f, 1.0f * 5.0f, 0.0001f);
     _data.cameraPosition                   = vec4(camera->position(), 1.0f);
     _data.biasNearFarPow                   = { 0.005f, nearPlane, farPlane, 1.0f };
-    _data.anisoDensityScatteringAbsorption = { 0.7f, 1.5f, 0.0f, 0.0f };
+    _data.anisoDensityScatteringAbsorption = { 0.8f, 1.0f, 0.0f, 0.0f };
     _data.widthHeight                      = { application()->width(), application()->height(), _frame, 0 };
     _data.time                             = _data.time + application()->elapsed();
     _data.debugBox.x                       = settings().DebugVolumetricBox ? 1 : 0;
-    _data.debugBox.y                       = _data.debugBox.y + application()->elapsed() * 0.1f;
+    _data.debugBox.y                       = _data.debugBox.y + application()->elapsed() * 0.3f;
 
     auto data = gerium_renderer_map_buffer(renderer, _fogData, 0, sizeof(VolumetricFogData));
     memcpy(data, &_data, sizeof(VolumetricFogData));
