@@ -37,20 +37,6 @@
             }
         },
         {
-            "name": "win32-base",
-            "displayName": "Windows 32-bit base configuration",
-            "hidden": true,
-            "binaryDir": "${sourceDir}/build/${presetName}",
-            "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x86-windows-static"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            }
-        },
-        {
             "name": "linux-base",
             "displayName": "Linux base configuration",
             "hidden": true,
@@ -91,22 +77,6 @@
             "displayName": "Windows x64 default config (static, debug)",
             "inherits": [
                 "win64-base",
-                "debug"
-            ]
-        },
-        {
-            "name": "win32-release",
-            "displayName": "Windows x86 default config (static, release)",
-            "inherits": [
-                "win32-base",
-                "release"
-            ]
-        },
-        {
-            "name": "win32-debug",
-            "displayName": "Windows x86 default config (static, debug)",
-            "inherits": [
-                "win32-base",
                 "debug"
             ]
         },
@@ -152,16 +122,6 @@
         {
             "name": "win64-debug",
             "configurePreset": "win64-debug",
-            "configuration": "Debug"
-        },
-        {
-            "name": "win32-release",
-            "configurePreset": "win32-release",
-            "configuration": "Release"
-        },
-        {
-            "name": "win32-debug",
-            "configurePreset": "win32-debug",
             "configuration": "Debug"
         },
         {

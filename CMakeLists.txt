@@ -69,7 +69,7 @@ find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
 
-cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
+cmake_dependent_option(GERIUM_BUILD_SAMPLES "Build samples" ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
 file(GLOB GERIUM_INCLUDE "include/*.h")
@@ -217,8 +217,8 @@ elseif(NOT APPLE)
     endif()
 endif()
 
-if(GERIUM_BUILD_SAMPLE)
-    add_subdirectory(example)
+if(GERIUM_BUILD_SAMPLES)
+    add_subdirectory(examples/example2)
 endif()
 
 include(cmake/fidelityfx.cmake)
