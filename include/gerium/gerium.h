@@ -30,4 +30,8 @@
 # include "gerium-linux.h"
 #endif
 
+#ifdef GERIUM_FIDELITY_FX
+# include "gerium-fidelityfx.h"
+#endif
+
 #endif

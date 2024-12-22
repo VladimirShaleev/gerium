@@ -481,69 +481,227 @@ GERIUM_FLAGS(gerium_mouse_button_flags_t)
 
 typedef enum
 {
-    GERIUM_FEATURE_NONE     = 0,
-    GERIUM_FEATURE_BINDLESS = 1,
-    GERIUM_FEATURE_MAX_ENUM = 0x7FFFFFFF
+    GERIUM_FEATURE_NONE_BIT           = 0,
+    GERIUM_FEATURE_BINDLESS_BIT       = 1,
+    GERIUM_FEATURE_MESH_SHADER_BIT    = 2,
+    GERIUM_FEATURE_8_BIT_STORAGE_BIT  = 4,
+    GERIUM_FEATURE_16_BIT_STORAGE_BIT = 8,
+    GERIUM_FEATURE_MAX_ENUM           = 0x7FFFFFFF
 } gerium_feature_flags_t;
 GERIUM_FLAGS(gerium_feature_flags_t)
 
 typedef enum
 {
-    GERIUM_FORMAT_R8_UNORM            = 0, 
-    GERIUM_FORMAT_R8_SNORM            = 1, 
-    GERIUM_FORMAT_R8_UINT             = 2, 
-    GERIUM_FORMAT_R8_SINT             = 3, 
-    GERIUM_FORMAT_R8G8_UNORM          = 4, 
-    GERIUM_FORMAT_R8G8_SNORM          = 5, 
-    GERIUM_FORMAT_R8G8_UINT           = 6, 
-    GERIUM_FORMAT_R8G8_SINT           = 7, 
-    GERIUM_FORMAT_R8G8B8_UNORM        = 8, 
-    GERIUM_FORMAT_R8G8B8_SNORM        = 9, 
-    GERIUM_FORMAT_R8G8B8_UINT         = 10,
-    GERIUM_FORMAT_R8G8B8_SINT         = 11,
-    GERIUM_FORMAT_R8G8B8_SRGB         = 12,
-    GERIUM_FORMAT_R4G4B4A4_UNORM      = 13,
-    GERIUM_FORMAT_R5G5B5A1_UNORM      = 14,
-    GERIUM_FORMAT_R8G8B8A8_UNORM      = 15,
-    GERIUM_FORMAT_R8G8B8A8_SNORM      = 16,
-    GERIUM_FORMAT_R8G8B8A8_UINT       = 17,
-    GERIUM_FORMAT_R8G8B8A8_SINT       = 18,
-    GERIUM_FORMAT_R8G8B8A8_SRGB       = 19,
-    GERIUM_FORMAT_A2R10G10B10_UNORM   = 20,
-    GERIUM_FORMAT_A2R10G10B10_UINT    = 21,
-    GERIUM_FORMAT_R16_UINT            = 22,
-    GERIUM_FORMAT_R16_SINT            = 23,
-    GERIUM_FORMAT_R16_SFLOAT          = 24,
-    GERIUM_FORMAT_R16G16_UINT         = 25,
-    GERIUM_FORMAT_R16G16_SINT         = 26,
-    GERIUM_FORMAT_R16G16_SFLOAT       = 27,
-    GERIUM_FORMAT_R16G16B16_UINT      = 28,
-    GERIUM_FORMAT_R16G16B16_SINT      = 29,
-    GERIUM_FORMAT_R16G16B16_SFLOAT    = 30,
-    GERIUM_FORMAT_R16G16B16A16_UINT   = 31,
-    GERIUM_FORMAT_R16G16B16A16_SINT   = 32,
-    GERIUM_FORMAT_R16G16B16A16_SFLOAT = 33,
-    GERIUM_FORMAT_R32_UINT            = 34,
-    GERIUM_FORMAT_R32_SINT            = 35,
-    GERIUM_FORMAT_R32_SFLOAT          = 36,
-    GERIUM_FORMAT_R32G32_UINT         = 37,
-    GERIUM_FORMAT_R32G32_SINT         = 38,
-    GERIUM_FORMAT_R32G32_SFLOAT       = 39,
-    GERIUM_FORMAT_R32G32B32_UINT      = 40,
-    GERIUM_FORMAT_R32G32B32_SINT      = 41,
-    GERIUM_FORMAT_R32G32B32_SFLOAT    = 42,
-    GERIUM_FORMAT_R32G32B32A32_UINT   = 43,
-    GERIUM_FORMAT_R32G32B32A32_SINT   = 44,
-    GERIUM_FORMAT_R32G32B32A32_SFLOAT = 45,
-    GERIUM_FORMAT_B10G11R11_UFLOAT    = 46,
-    GERIUM_FORMAT_E5B9G9R9_UFLOAT     = 47,
-    GERIUM_FORMAT_D16_UNORM           = 48,
-    GERIUM_FORMAT_X8_D24_UNORM        = 49,
-    GERIUM_FORMAT_D32_SFLOAT          = 50,
-    GERIUM_FORMAT_S8_UINT             = 51,
-    GERIUM_FORMAT_D24_UNORM_S8_UINT   = 52,
-    GERIUM_FORMAT_D32_SFLOAT_S8_UINT  = 53,
-    GERIUM_FORMAT_MAX_ENUM            = 0x7FFFFFFF
+    GERIUM_FORMAT_R4G4_UNORM           = 0,
+    GERIUM_FORMAT_R4G4B4A4_UNORM       = 1,
+    GERIUM_FORMAT_R5G5B5A1_UNORM       = 2,
+    GERIUM_FORMAT_R5G6B5_UNORM         = 3,
+    GERIUM_FORMAT_R8_UNORM             = 4,
+    GERIUM_FORMAT_R8_SNORM             = 5,
+    GERIUM_FORMAT_R8_UINT              = 6,
+    GERIUM_FORMAT_R8_SINT              = 7,
+    GERIUM_FORMAT_R8_SRGB              = 8,
+    GERIUM_FORMAT_R8_USCALED           = 9,
+    GERIUM_FORMAT_R8_SSCALED           = 10,
+    GERIUM_FORMAT_R8G8_UNORM           = 11,
+    GERIUM_FORMAT_R8G8_SNORM           = 12,
+    GERIUM_FORMAT_R8G8_UINT            = 13,
+    GERIUM_FORMAT_R8G8_SINT            = 14,
+    GERIUM_FORMAT_R8G8_SRGB            = 15,
+    GERIUM_FORMAT_R8G8_USCALED         = 16,
+    GERIUM_FORMAT_R8G8_SSCALED         = 17,
+    GERIUM_FORMAT_R8G8B8_UNORM         = 18,
+    GERIUM_FORMAT_R8G8B8_SNORM         = 19,
+    GERIUM_FORMAT_R8G8B8_UINT          = 20,
+    GERIUM_FORMAT_R8G8B8_SINT          = 21,
+    GERIUM_FORMAT_R8G8B8_SRGB          = 22,
+    GERIUM_FORMAT_R8G8B8_USCALED       = 23,
+    GERIUM_FORMAT_R8G8B8_SSCALED       = 24,
+    GERIUM_FORMAT_R8G8B8A8_UNORM       = 25,
+    GERIUM_FORMAT_R8G8B8A8_SNORM       = 26,
+    GERIUM_FORMAT_R8G8B8A8_UINT        = 27,
+    GERIUM_FORMAT_R8G8B8A8_SINT        = 28,
+    GERIUM_FORMAT_R8G8B8A8_SRGB        = 29,
+    GERIUM_FORMAT_R8G8B8A8_USCALED     = 30,
+    GERIUM_FORMAT_R8G8B8A8_SSCALED     = 31,
+    GERIUM_FORMAT_R16_UNORM            = 32,
+    GERIUM_FORMAT_R16_SNORM            = 33,
+    GERIUM_FORMAT_R16_UINT             = 34,
+    GERIUM_FORMAT_R16_SINT             = 35,
+    GERIUM_FORMAT_R16_SFLOAT           = 36,
+    GERIUM_FORMAT_R16_USCALED          = 37,
+    GERIUM_FORMAT_R16_SSCALED          = 38,
+    GERIUM_FORMAT_R16G16_UNORM         = 39,
+    GERIUM_FORMAT_R16G16_SNORM         = 40,
+    GERIUM_FORMAT_R16G16_UINT          = 41,
+    GERIUM_FORMAT_R16G16_SINT          = 42,
+    GERIUM_FORMAT_R16G16_SFLOAT        = 43,
+    GERIUM_FORMAT_R16G16_USCALED       = 44,
+    GERIUM_FORMAT_R16G16_SSCALED       = 45,
+    GERIUM_FORMAT_R16G16B16_UNORM      = 46,
+    GERIUM_FORMAT_R16G16B16_SNORM      = 47,
+    GERIUM_FORMAT_R16G16B16_UINT       = 48,
+    GERIUM_FORMAT_R16G16B16_SINT       = 49,
+    GERIUM_FORMAT_R16G16B16_SFLOAT     = 50,
+    GERIUM_FORMAT_R16G16B16_USCALED    = 51,
+    GERIUM_FORMAT_R16G16B16_SSCALED    = 52,
+    GERIUM_FORMAT_R16G16B16A16_UNORM   = 53,
+    GERIUM_FORMAT_R16G16B16A16_SNORM   = 54,
+    GERIUM_FORMAT_R16G16B16A16_UINT    = 55,
+    GERIUM_FORMAT_R16G16B16A16_SINT    = 56,
+    GERIUM_FORMAT_R16G16B16A16_SFLOAT  = 57,
+    GERIUM_FORMAT_R16G16B16A16_USCALED = 58,
+    GERIUM_FORMAT_R16G16B16A16_SSCALED = 59,
+    GERIUM_FORMAT_R32_UINT             = 60,
+    GERIUM_FORMAT_R32_SINT             = 61,
+    GERIUM_FORMAT_R32_SFLOAT           = 62,
+    GERIUM_FORMAT_R32G32_UINT          = 63,
+    GERIUM_FORMAT_R32G32_SINT          = 64,
+    GERIUM_FORMAT_R32G32_SFLOAT        = 65,
+    GERIUM_FORMAT_R32G32B32_UINT       = 66,
+    GERIUM_FORMAT_R32G32B32_SINT       = 67,
+    GERIUM_FORMAT_R32G32B32_SFLOAT     = 68,
+    GERIUM_FORMAT_R32G32B32A32_UINT    = 69,
+    GERIUM_FORMAT_R32G32B32A32_SINT    = 70,
+    GERIUM_FORMAT_R32G32B32A32_SFLOAT  = 71,
+    GERIUM_FORMAT_R64_UINT             = 72,
+    GERIUM_FORMAT_R64_SINT             = 73,
+    GERIUM_FORMAT_R64_SFLOAT           = 74,
+    GERIUM_FORMAT_R64G64_UINT          = 75,
+    GERIUM_FORMAT_R64G64_SINT          = 76,
+    GERIUM_FORMAT_R64G64_SFLOAT        = 77,
+    GERIUM_FORMAT_R64G64B64_UINT       = 78,
+    GERIUM_FORMAT_R64G64B64_SINT       = 79,
+    GERIUM_FORMAT_R64G64B64_SFLOAT     = 80,
+    GERIUM_FORMAT_R64G64B64A64_UINT    = 81,
+    GERIUM_FORMAT_R64G64B64A64_SINT    = 82,
+    GERIUM_FORMAT_R64G64B64A64_SFLOAT  = 83,
+    GERIUM_FORMAT_B4G4R4A4_UNORM       = 84,
+    GERIUM_FORMAT_B5G5R5A1_UNORM       = 85,
+    GERIUM_FORMAT_B5G6R5_UNORM         = 86,
+    GERIUM_FORMAT_B8G8R8_UNORM         = 87,
+    GERIUM_FORMAT_B8G8R8_SNORM         = 88,
+    GERIUM_FORMAT_B8G8R8_UINT          = 89,
+    GERIUM_FORMAT_B8G8R8_SINT          = 90,
+    GERIUM_FORMAT_B8G8R8_SRGB          = 91,
+    GERIUM_FORMAT_B8G8R8_USCALED       = 92,
+    GERIUM_FORMAT_B8G8R8_SSCALED       = 93,
+    GERIUM_FORMAT_B8G8R8A8_UNORM       = 94,
+    GERIUM_FORMAT_B8G8R8A8_SNORM       = 95,
+    GERIUM_FORMAT_B8G8R8A8_UINT        = 96,
+    GERIUM_FORMAT_B8G8R8A8_SINT        = 97,
+    GERIUM_FORMAT_B8G8R8A8_SRGB        = 98,
+    GERIUM_FORMAT_B8G8R8A8_USCALED     = 99,
+    GERIUM_FORMAT_B8G8R8A8_SSCALED     = 100,
+    GERIUM_FORMAT_B10G11R11_UFLOAT     = 101,
+    GERIUM_FORMAT_A1B5G5R5_UNORM       = 102,
+    GERIUM_FORMAT_A1R5G5B5_UNORM       = 103,
+    GERIUM_FORMAT_A2B10G10R10_UNORM    = 104,
+    GERIUM_FORMAT_A2B10G10R10_SNORM    = 105,
+    GERIUM_FORMAT_A2B10G10R10_UINT     = 106,
+    GERIUM_FORMAT_A2B10G10R10_SINT     = 107,
+    GERIUM_FORMAT_A2B10G10R10_USCALED  = 108,
+    GERIUM_FORMAT_A2B10G10R10_SSCALED  = 109,
+    GERIUM_FORMAT_A2R10G10B10_UNORM    = 110,
+    GERIUM_FORMAT_A2R10G10B10_SNORM    = 111,
+    GERIUM_FORMAT_A2R10G10B10_UINT     = 112,
+    GERIUM_FORMAT_A2R10G10B10_SINT     = 113,
+    GERIUM_FORMAT_A2R10G10B10_USCALED  = 114,
+    GERIUM_FORMAT_A2R10G10B10_SSCALED  = 115,
+    GERIUM_FORMAT_A4B4G4R4_UNORM       = 116,
+    GERIUM_FORMAT_A4R4G4B4_UNORM       = 117,
+    GERIUM_FORMAT_A8_UNORM             = 118,
+    GERIUM_FORMAT_A8B8G8R8_UNORM       = 119,
+    GERIUM_FORMAT_A8B8G8R8_SNORM       = 120,
+    GERIUM_FORMAT_A8B8G8R8_UINT        = 121,
+    GERIUM_FORMAT_A8B8G8R8_SINT        = 122,
+    GERIUM_FORMAT_A8B8G8R8_SRGB        = 123,
+    GERIUM_FORMAT_A8B8G8R8_USCALED     = 124,
+    GERIUM_FORMAT_A8B8G8R8_SSCALED     = 125,
+    GERIUM_FORMAT_S8_UINT              = 126,
+    GERIUM_FORMAT_X8_D24_UNORM         = 127,
+    GERIUM_FORMAT_D16_UNORM            = 128,
+    GERIUM_FORMAT_D16_UNORM_S8_UINT    = 129,
+    GERIUM_FORMAT_D24_UNORM_S8_UINT    = 130,
+    GERIUM_FORMAT_D32_SFLOAT           = 131,
+    GERIUM_FORMAT_D32_SFLOAT_S8_UINT   = 132,
+    GERIUM_FORMAT_ASTC_4x4_UNORM       = 133,
+    GERIUM_FORMAT_ASTC_4x4_SRGB        = 134,
+    GERIUM_FORMAT_ASTC_4x4_SFLOAT      = 135,
+    GERIUM_FORMAT_ASTC_5x4_UNORM       = 136,
+    GERIUM_FORMAT_ASTC_5x4_SRGB        = 137,
+    GERIUM_FORMAT_ASTC_5x4_SFLOAT      = 138,
+    GERIUM_FORMAT_ASTC_5x5_UNORM       = 139,
+    GERIUM_FORMAT_ASTC_5x5_SRGB        = 140,
+    GERIUM_FORMAT_ASTC_5x5_SFLOAT      = 141,
+    GERIUM_FORMAT_ASTC_6x5_UNORM       = 142,
+    GERIUM_FORMAT_ASTC_6x5_SRGB        = 143,
+    GERIUM_FORMAT_ASTC_6x5_SFLOAT      = 144,
+    GERIUM_FORMAT_ASTC_6x6_UNORM       = 145,
+    GERIUM_FORMAT_ASTC_6x6_SRGB        = 146,
+    GERIUM_FORMAT_ASTC_6x6_SFLOAT      = 147,
+    GERIUM_FORMAT_ASTC_8x5_UNORM       = 148,
+    GERIUM_FORMAT_ASTC_8x5_SRGB        = 149,
+    GERIUM_FORMAT_ASTC_8x5_SFLOAT      = 150,
+    GERIUM_FORMAT_ASTC_8x6_UNORM       = 151,
+    GERIUM_FORMAT_ASTC_8x6_SRGB        = 152,
+    GERIUM_FORMAT_ASTC_8x6_SFLOAT      = 153,
+    GERIUM_FORMAT_ASTC_8x8_UNORM       = 154,
+    GERIUM_FORMAT_ASTC_8x8_SRGB        = 155,
+    GERIUM_FORMAT_ASTC_8x8_SFLOAT      = 156,
+    GERIUM_FORMAT_ASTC_10x5_UNORM      = 157,
+    GERIUM_FORMAT_ASTC_10x5_SRGB       = 158,
+    GERIUM_FORMAT_ASTC_10x5_SFLOAT     = 159,
+    GERIUM_FORMAT_ASTC_10x6_UNORM      = 160,
+    GERIUM_FORMAT_ASTC_10x6_SRGB       = 161,
+    GERIUM_FORMAT_ASTC_10x6_SFLOAT     = 162,
+    GERIUM_FORMAT_ASTC_10x8_UNORM      = 163,
+    GERIUM_FORMAT_ASTC_10x8_SRGB       = 164,
+    GERIUM_FORMAT_ASTC_10x8_SFLOAT     = 165,
+    GERIUM_FORMAT_ASTC_10x10_UNORM     = 166,
+    GERIUM_FORMAT_ASTC_10x10_SRGB      = 167,
+    GERIUM_FORMAT_ASTC_10x10_SFLOAT    = 168,
+    GERIUM_FORMAT_ASTC_12x10_UNORM     = 169,
+    GERIUM_FORMAT_ASTC_12x10_SRGB      = 170,
+    GERIUM_FORMAT_ASTC_12x10_SFLOAT    = 171,
+    GERIUM_FORMAT_ASTC_12x12_UNORM     = 172,
+    GERIUM_FORMAT_ASTC_12x12_SRGB      = 173,
+    GERIUM_FORMAT_ASTC_12x12_SFLOAT    = 174,
+    GERIUM_FORMAT_BC1_RGB_UNORM        = 175,
+    GERIUM_FORMAT_BC1_RGB_SRGB         = 176,
+    GERIUM_FORMAT_BC1_RGBA_UNORM       = 177,
+    GERIUM_FORMAT_BC1_RGBA_SRGB        = 178,
+    GERIUM_FORMAT_BC2_UNORM            = 179,
+    GERIUM_FORMAT_BC2_SRGB             = 180,
+    GERIUM_FORMAT_BC3_UNORM            = 181,
+    GERIUM_FORMAT_BC3_SRGB             = 182,
+    GERIUM_FORMAT_BC4_UNORM            = 183,
+    GERIUM_FORMAT_BC4_SNORM            = 184,
+    GERIUM_FORMAT_BC5_UNORM            = 185,
+    GERIUM_FORMAT_BC5_SNORM            = 186,
+    GERIUM_FORMAT_BC6H_UFLOAT          = 187,
+    GERIUM_FORMAT_BC6H_SFLOAT          = 188,
+    GERIUM_FORMAT_BC7_UNORM            = 189,
+    GERIUM_FORMAT_BC7_SRGB             = 190,
+    GERIUM_FORMAT_ETC2_R8G8B8_UNORM    = 191,
+    GERIUM_FORMAT_ETC2_R8G8B8_SRGB     = 192,
+    GERIUM_FORMAT_ETC2_R8G8B8A1_UNORM  = 193,
+    GERIUM_FORMAT_ETC2_R8G8B8A1_SRGB   = 194,
+    GERIUM_FORMAT_ETC2_R8G8B8A8_UNORM  = 195,
+    GERIUM_FORMAT_ETC2_R8G8B8A8_SRGB   = 196,
+    GERIUM_FORMAT_EAC_R11_UNORM        = 197,
+    GERIUM_FORMAT_EAC_R11_SNORM        = 198,
+    GERIUM_FORMAT_EAC_R11G11_UNORM     = 199,
+    GERIUM_FORMAT_EAC_R11G11_SNORM     = 200,
+    GERIUM_FORMAT_PVRTC1_2BPP_UNORM    = 201,
+    GERIUM_FORMAT_PVRTC1_2BPP_SRGB     = 202,
+    GERIUM_FORMAT_PVRTC1_4BPP_UNORM    = 203,
+    GERIUM_FORMAT_PVRTC1_4BPP_SRGB     = 204,
+    GERIUM_FORMAT_PVRTC2_2BPP_UNORM    = 205,
+    GERIUM_FORMAT_PVRTC2_2BPP_SRGB     = 206,
+    GERIUM_FORMAT_PVRTC2_4BPP_UNORM    = 207,
+    GERIUM_FORMAT_PVRTC2_4BPP_SRGB     = 208,
+    GERIUM_FORMAT_MAX_ENUM             = 0x7FFFFFFF
 } gerium_format_t;
 
 typedef enum
@@ -641,8 +799,7 @@ typedef enum
 typedef enum
 {
     GERIUM_RENDER_PASS_OP_DONT_CARE = 0,
-    GERIUM_RENDER_PASS_OP_LOAD      = 1,
-    GERIUM_RENDER_PASS_OP_CLEAR     = 2,
+    GERIUM_RENDER_PASS_OP_CLEAR     = 1,
     GERIUM_RENDER_PASS_OP_MAX_ENUM  = 0x7FFFFFFF
 } gerium_render_pass_op_t;
 
@@ -682,23 +839,23 @@ GERIUM_FLAGS(gerium_color_component_flags_t)
 
 typedef enum
 {
-    GERIUM_BUFFER_USAGE_VERTEX_BIT  = 1,
-    GERIUM_BUFFER_USAGE_INDEX_BIT   = 2,
-    GERIUM_BUFFER_USAGE_UNIFORM_BIT = 4,
-    GERIUM_BUFFER_USAGE_STORAGE_BIT = 8,
-    GERIUM_BUFFER_USAGE_MAX_ENUM    = 0x7FFFFFFF
+    GERIUM_BUFFER_USAGE_NONE_BIT     = 0,
+    GERIUM_BUFFER_USAGE_VERTEX_BIT   = 1,
+    GERIUM_BUFFER_USAGE_INDEX_BIT    = 2,
+    GERIUM_BUFFER_USAGE_UNIFORM_BIT  = 4,
+    GERIUM_BUFFER_USAGE_STORAGE_BIT  = 8,
+    GERIUM_BUFFER_USAGE_INDIRECT_BIT = 16,
+    GERIUM_BUFFER_USAGE_MAX_ENUM     = 0x7FFFFFFF
 } gerium_buffer_usage_flags_t;
 GERIUM_FLAGS(gerium_buffer_usage_flags_t)
 
 typedef enum
 {
-    GERIUM_TEXTURE_TYPE_1D         = 0,
-    GERIUM_TEXTURE_TYPE_2D         = 1,
-    GERIUM_TEXTURE_TYPE_3D         = 2,
-    GERIUM_TEXTURE_TYPE_1D_ARRAY   = 3,
-    GERIUM_TEXTURE_TYPE_2D_ARRAY   = 4,
-    GERIUM_TEXTURE_TYPE_CUBE_ARRAY = 5,
-    GERIUM_TEXTURE_TYPE_MAX_ENUM   = 0x7FFFFFFF
+    GERIUM_TEXTURE_TYPE_1D       = 0,
+    GERIUM_TEXTURE_TYPE_2D       = 1,
+    GERIUM_TEXTURE_TYPE_3D       = 2,
+    GERIUM_TEXTURE_TYPE_CUBE     = 3,
+    GERIUM_TEXTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_texture_type_t;
 
 typedef enum
@@ -717,6 +874,14 @@ typedef enum
     GERIUM_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE = 4,
     GERIUM_ADDRESS_MODE_MAX_ENUM             = 0x7FFFFFFF
 } gerium_address_mode_t;
+
+typedef enum
+{
+    GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE  = 0,
+    GERIUM_REDUCTION_MODE_MIN               = 1,
+    GERIUM_REDUCTION_MODE_MAX               = 2,
+    GERIUM_REDUCTION_MODE_MAX_ENUM          = 0x7FFFFFFF
+} gerium_reduction_mode_t;
 
 typedef enum
 {
@@ -744,7 +909,10 @@ typedef enum
 typedef enum {
     GERIUM_SHADER_TYPE_VERTEX   = 0,
     GERIUM_SHADER_TYPE_FRAGMENT = 1,
-    GERIUM_SHADER_TYPE_COMPUTE  = 2,
+    GERIUM_SHADER_TYPE_GEOMETRY = 2,
+    GERIUM_SHADER_TYPE_COMPUTE  = 3,
+    GERIUM_SHADER_TYPE_TASK     = 4,
+    GERIUM_SHADER_TYPE_MESH     = 5,
     GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
 } gerium_shader_type_t;
 
@@ -849,6 +1017,7 @@ typedef struct
     gerium_uint16_t       height;
     gerium_uint16_t       depth;
     gerium_uint16_t       mipmaps;
+    gerium_uint16_t       layers;
     gerium_format_t       format;
     gerium_texture_type_t type;
     gerium_utf8_t         name;
@@ -986,12 +1155,17 @@ typedef struct
     gerium_format_t                               format;
     gerium_uint16_t                               width;
     gerium_uint16_t                               height;
+    gerium_uint16_t                               depth;
+    gerium_uint16_t                               layers;
     gerium_float32_t                              auto_scale;
     gerium_render_pass_op_t                       render_pass_op;
     gerium_color_component_flags_t                color_write_mask;
     gerium_color_blend_attachment_state_t         color_blend_attachment;
     gerium_clear_color_attachment_state_t         clear_color_attachment;
     gerium_clear_depth_stencil_attachment_state_t clear_depth_stencil_attachment;
+    gerium_uint32_t                               size;
+    gerium_uint32_t                               fill_value;
+    gerium_buffer_usage_flags_t                   usage;
 } gerium_resource_output_t;
 
 typedef struct
@@ -1307,6 +1481,17 @@ gerium_renderer_create_texture(gerium_renderer_t renderer,
                                gerium_texture_h* handle);
 
 gerium_public gerium_result_t
+gerium_renderer_create_texture_view(gerium_renderer_t renderer,
+                                    gerium_texture_h texture,
+                                    gerium_texture_type_t type,
+                                    gerium_uint16_t mip_base_level,
+                                    gerium_uint16_t mip_level_count,
+                                    gerium_uint16_t layer_base,
+                                    gerium_uint16_t layer_count,
+                                    gerium_utf8_t name,
+                                    gerium_texture_h* handle);
+
+gerium_public gerium_result_t
 gerium_renderer_create_technique(gerium_renderer_t renderer,
                                  gerium_frame_graph_t frame_graph,
                                  gerium_utf8_t name,
@@ -1318,6 +1503,13 @@ gerium_public gerium_result_t
 gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
                                       gerium_bool_t global,
                                       gerium_descriptor_set_h* handle);
+
+gerium_public gerium_result_t
+gerium_renderer_async_load_texture(gerium_renderer_t renderer,
+                                   gerium_utf8_t filename,
+                                   gerium_texture_loaded_func_t callback,
+                                   gerium_data_t data,
+                                   gerium_texture_h* handle);
 
 gerium_public gerium_result_t
 gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
@@ -1334,7 +1526,19 @@ gerium_renderer_texture_sampler(gerium_renderer_t renderer,
                                 gerium_filter_t mip_filter,
                                 gerium_address_mode_t address_mode_u,
                                 gerium_address_mode_t address_mode_v,
-                                gerium_address_mode_t address_mode_w);
+                                gerium_address_mode_t address_mode_w,
+                                gerium_reduction_mode_t reduction_mode);
+
+gerium_public gerium_result_t
+gerium_renderer_get_buffer(gerium_renderer_t renderer,
+                           gerium_utf8_t resource,
+                           gerium_buffer_h* handle);
+
+gerium_public gerium_result_t
+gerium_renderer_get_texture(gerium_renderer_t renderer,
+                            gerium_utf8_t resource,
+                            gerium_bool_t from_previous_frame,
+                            gerium_texture_h* handle);
 
 gerium_public void
 gerium_renderer_destroy_buffer(gerium_renderer_t renderer,
@@ -1369,7 +1573,8 @@ gerium_public void
 gerium_renderer_bind_resource(gerium_renderer_t renderer,
                               gerium_descriptor_set_h handle,
                               gerium_uint16_t binding,
-                              gerium_utf8_t resource_input);
+                              gerium_utf8_t resource_input,
+                              gerium_bool_t from_previous_frame);
 
 gerium_public gerium_data_t
 gerium_renderer_map_buffer(gerium_renderer_t renderer,
@@ -1390,10 +1595,6 @@ gerium_renderer_render(gerium_renderer_t renderer,
 
 gerium_public gerium_result_t
 gerium_renderer_present(gerium_renderer_t renderer);
-
-gerium_public gerium_result_t
-gerium_frame_graph_create(gerium_renderer_t renderer,
-                          gerium_frame_graph_t* frame_graph);
 
 gerium_public void
 gerium_command_buffer_set_viewport(gerium_command_buffer_t command_buffer,
@@ -1454,8 +1655,57 @@ gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
                                    gerium_uint32_t instance_count);
 
 gerium_public void
+gerium_command_buffer_draw_indexed_indirect(gerium_command_buffer_t command_buffer,
+                                            gerium_buffer_h handle,
+                                            gerium_uint32_t offset,
+                                            gerium_buffer_h draw_count_handle,
+                                            gerium_uint32_t draw_count_offset,
+                                            gerium_uint32_t draw_count,
+                                            gerium_uint32_t stride);
+
+gerium_public void
+gerium_command_buffer_draw_mesh_tasks(gerium_command_buffer_t command_buffer,
+                                      gerium_uint32_t group_x,
+                                      gerium_uint32_t group_y,
+                                      gerium_uint32_t group_z);
+
+gerium_public void
+gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_buffer,
+                                               gerium_buffer_h handle,
+                                               gerium_uint32_t offset,
+                                               gerium_uint32_t draw_count,
+                                               gerium_uint32_t stride);
+
+gerium_public void
 gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,
                                     gerium_bool_t* show);
+
+gerium_public void
+gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
+                                  gerium_buffer_h handle,
+                                  gerium_uint32_t offset,
+                                  gerium_uint32_t size,
+                                  gerium_uint32_t data);
+
+gerium_public void
+gerium_command_buffer_barrier_buffer_write(gerium_command_buffer_t command_buffer,
+                                           gerium_buffer_h handle);
+
+gerium_public void
+gerium_command_buffer_barrier_buffer_read(gerium_command_buffer_t command_buffer,
+                                          gerium_buffer_h handle);
+
+gerium_public void
+gerium_command_buffer_barrier_texture_write(gerium_command_buffer_t command_buffer,
+                                            gerium_texture_h handle);
+
+gerium_public void
+gerium_command_buffer_barrier_texture_read(gerium_command_buffer_t command_buffer,
+                                           gerium_texture_h handle);
+
+gerium_public gerium_result_t
+gerium_frame_graph_create(gerium_renderer_t renderer,
+                          gerium_frame_graph_t* frame_graph);
 
 gerium_public gerium_frame_graph_t
 gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);
@@ -1481,6 +1731,21 @@ gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             const gerium_resource_input_t* inputs,
                             gerium_uint32_t output_count,
                             const gerium_resource_output_t* outputs);
+
+gerium_public gerium_result_t
+gerium_frame_graph_enable_node(gerium_frame_graph_t frame_graph,
+                               gerium_utf8_t name,
+                               gerium_bool_t enable);
+
+gerium_public gerium_result_t
+gerium_frame_graph_add_buffer(gerium_frame_graph_t frame_graph,
+                              gerium_utf8_t name,
+                              gerium_buffer_h handle);
+
+gerium_public gerium_result_t
+gerium_frame_graph_add_texture(gerium_frame_graph_t frame_graph,
+                               gerium_utf8_t name,
+                               gerium_texture_h handle);
 
 gerium_public void
 gerium_frame_graph_clear(gerium_frame_graph_t frame_graph);

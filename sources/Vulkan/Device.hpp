@@ -27,6 +27,7 @@ public:
 
     BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
+    TextureHandle createTextureView(const TextureViewCreation& creation);
     SamplerHandle createSampler(const SamplerCreation& creation);
     RenderPassHandle createRenderPass(const RenderPassCreation& creation);
     FramebufferHandle createFramebuffer(const FramebufferCreation& creation);
@@ -48,18 +49,16 @@ public:
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
-    void finishLoadTexture(TextureHandle handle);
+    void finishLoadTexture(TextureHandle handle, uint8_t mip);
+    void showViewMips(TextureHandle handle);
 
     void bind(DescriptorSetHandle handle,
               gerium_uint16_t binding,
               gerium_uint16_t element,
               Handle resource,
+              bool dynamic                = false,
               gerium_utf8_t resourceInput = nullptr,
-              bool dynamic                = false);
-    void bind(DescriptorSetHandle handle,
-              uint16_t binding,
-              BufferHandle resource,
-              gerium_utf8_t resourceInput = nullptr);
+              bool fromPreviousFrame      = false);
     VkDescriptorSet updateDescriptorSet(DescriptorSetHandle handle,
                                         DescriptorSetLayoutHandle layoutHandle,
                                         FrameGraph* frameGraph);
@@ -72,8 +71,14 @@ public:
     SamplerHandle getTextureSampler(TextureHandle texture) const noexcept;
     void linkTextureSampler(TextureHandle texture, SamplerHandle sampler) noexcept;
 
+    FfxInterface createFfxInterface(gerium_uint32_t maxContexts);
+    void destroyFfxInterface(FfxInterface* ffxInterface);
+    void waitFfxJobs() const noexcept;
+
     void clearInputResources();
-    void addInputResource(const FrameGraphResource* resource, gerium_uint32_t index, Handle handle);
+    void addInputResource(const FrameGraphResource* resource, Handle handle, bool fromPreviousFrame);
+    Handle findInputResource(gerium_utf8_t resource, bool fromPreviousFrame) const noexcept;
+    static gerium_uint64_t calcKeyInputResource(gerium_utf8_t resource, bool fromPreviousFrame) noexcept;
 
     bool isSupportedFormat(gerium_format_t format) noexcept;
 
@@ -133,6 +138,14 @@ public:
         return _bindlessSupported;
     }
 
+    bool meshShaderSupported() const noexcept {
+        return _meshShaderSupported;
+    }
+
+    TextureCompressionFlags compressions() const noexcept {
+        return _compressions;
+    }
+
     bool isProfilerEnable() const noexcept {
         return _profilerEnabled;
     }
@@ -157,14 +170,106 @@ public:
         info.width   = texture->width;
         info.height  = texture->height;
         info.depth   = texture->depth;
-        info.mipmaps = texture->mipmaps;
+        info.mipmaps = texture->mipLevels;
+        info.layers  = texture->layers;
         info.format  = toGeriumFormat(texture->vkFormat);
         info.type    = texture->type;
         info.name    = texture->name;
     }
 
+    bool isBufferDynamic(BufferHandle handle) const noexcept {
+        return _buffers.access(handle)->parent != Undefined;
+    }
+
     bool isSupportedTransferQueue() const noexcept {
         return !_queueFamilies.transferIsGraphic;
+    }
+
+    FfxResource ffxBuffer(BufferHandle handle) const noexcept {
+        auto buffer = _buffers.access(handle);
+
+        FfxResourceDescription resourceDescription{};
+        resourceDescription.type  = FFX_RESOURCE_TYPE_BUFFER;
+        resourceDescription.size  = buffer->size;
+        resourceDescription.flags = FFX_RESOURCE_FLAGS_NONE;
+        resourceDescription.usage = FFX_RESOURCE_USAGE_READ_ONLY;
+        // resourceDescription.stride = 16;
+        if (buffer->vkUsageFlags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
+            resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_UAV);
+        }
+
+        FfxResource resource{};
+        resource.resource    = reinterpret_cast<void*>(buffer->vkBuffer);
+        resource.description = resourceDescription;
+        resource.state       = FFX_RESOURCE_STATE_UNORDERED_ACCESS; // FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ;
+
+        return resource;
+    }
+
+    FfxResource ffxTexture(TextureHandle handle) const noexcept {
+        auto texture = _textures.access(handle);
+
+        if (texture->loadedMips == 0) {
+            texture = _textures.access(texture->type == GERIUM_TEXTURE_TYPE_2D ? _defaultTexture : _defaultTexture3D);
+        }
+
+        FfxResourceDescription resourceDescription{};
+
+        switch (texture->type) {
+            case GERIUM_TEXTURE_TYPE_1D:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE1D;
+                resourceDescription.depth = texture->layers;
+                break;
+            case GERIUM_TEXTURE_TYPE_2D:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE2D;
+                resourceDescription.depth = texture->layers;
+                break;
+            case GERIUM_TEXTURE_TYPE_3D:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE3D;
+                resourceDescription.depth = texture->depth;
+                break;
+            case GERIUM_TEXTURE_TYPE_CUBE:
+                resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE_CUBE;
+                resourceDescription.depth = texture->layers;
+                break;
+        }
+
+        resourceDescription.usage = FFX_RESOURCE_USAGE_READ_ONLY;
+
+        if (hasDepth(texture->vkFormat)) {
+            resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_DEPTHTARGET);
+        }
+        if (hasStencil(texture->vkFormat)) {
+            resourceDescription.usage =
+                (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_STENCILTARGET);
+        }
+        if ((texture->flags & TextureFlags::Compute) == TextureFlags::Compute) {
+            resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_UAV);
+        }
+
+        resourceDescription.width    = texture->width;
+        resourceDescription.height   = texture->height;
+        resourceDescription.mipCount = texture->mipLevels;
+        resourceDescription.format   = ffxGetSurfaceFormatVK(texture->vkFormat);
+
+        FfxResource resource{};
+        resource.resource    = reinterpret_cast<void*>(texture->vkImage);
+        resource.description = resourceDescription;
+
+        constexpr int FFX_RESOURCE_STATE_DEPTH_STENCIL_READ_ONLY = (1 << 9);
+        switch (texture->states[0]) {
+            case ResourceState::ShaderResource:
+                resource.state = FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ;
+                break;
+            case ResourceState::DepthRead:
+                resource.state = (FfxResourceStates) FFX_RESOURCE_STATE_DEPTH_STENCIL_READ_ONLY;
+                break;
+            default:
+                resource.state = FFX_RESOURCE_STATE_UNORDERED_ACCESS;
+                break;
+        }
+
+        return resource;
     }
 
 protected:
@@ -237,6 +342,7 @@ private:
     void createSynchronizations();
     void createSwapchain(Application* application);
     void createImGui(Application* application);
+    void createFidelityFX();
     void resizeSwapchain();
 
     void printValidationLayers();
@@ -256,6 +362,7 @@ private:
                                   gerium_uint32_t numMacros,
                                   const gerium_macro_definition_t* macros);
     VkRenderPass vkCreateRenderPass(const RenderPassOutput& output, const char* name);
+    void vkCreateImageView(const TextureViewCreation& creation, TextureHandle handle);
     void deleteResources(bool forceDelete = false);
     void setObjectName(VkObjectType type, uint64_t handle, gerium_utf8_t name);
     int getPhysicalDeviceScore(VkPhysicalDevice device);
@@ -263,10 +370,11 @@ private:
     Swapchain getSwapchain();
     void frameCountersAdvance() noexcept;
     void uploadTextureData(TextureHandle handle, gerium_cdata_t data);
+    TextureHandle getDefaultTexture(const DescriptorSetLayout& descriptorSetLayout, uint32_t binding) const noexcept;
 
     std::vector<const char*> selectValidationLayers();
     std::vector<const char*> selectExtensions();
-    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device);
+    std::vector<const char*> selectDeviceExtensions(VkPhysicalDevice device, bool meshShader);
     VkPhysicalDevice selectPhysicalDevice();
     VkSurfaceFormatKHR selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats);
     VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
@@ -347,6 +455,7 @@ private:
     uint8_t* _dynamicSSBOMapped{};
     SamplerHandle _defaultSampler{ Undefined };
     TextureHandle _defaultTexture{ Undefined };
+    TextureHandle _defaultTexture3D{ Undefined };
     VkWriteDescriptorSet _descriptorWrite[kBindlessPoolElements]{};
     VkDescriptorBufferInfo _bufferInfo[kBindlessPoolElements]{};
     VkDescriptorImageInfo _imageInfo[kBindlessPoolElements]{};
@@ -372,7 +481,8 @@ private:
     VkDescriptorSet _freeDescriptorSetQueue2[64]{};
     gerium_uint32_t _numFreeDescriptorSetQueue{};
     gerium_uint32_t _numFreeDescriptorSetQueue2{};
-    std::map<std::string, std::pair<const FrameGraphResource*, Handle>> _currentInputResources{};
+    std::vector<std::pair<gerium_uint32_t, VkImageView>> _unusedImageViews{};
+    std::map<gerium_uint64_t, Handle> _currentInputResources{};
 
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};
@@ -381,9 +491,18 @@ private:
     bool _profilerEnabled{};
     bool _memoryBudgetSupported{};
     bool _bindlessSupported{};
+    bool _fidelityFXSupported{};
+    bool _meshShaderSupported{};
+    bool _8BitStorageSupported{};
+    bool _16BitStorageSupported{};
+    TextureCompressionFlags _compressions{};
     double _gpuFrequency{};
     ObjectPtr<VkProfiler> _profiler{};
     std::vector<VmaBudget> _vmaBudget{};
+
+#ifdef GERIUM_FIDELITY_FX
+    VkDeviceContext _ffxDeviceContext{};
+#endif
 };
 
 } // namespace gerium::vulkan

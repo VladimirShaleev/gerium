@@ -24,238 +24,6 @@ gerium_inline bool hasDepth(VkFormat format) noexcept {
            (format >= VK_FORMAT_D16_UNORM_S8_UINT && format <= VK_FORMAT_D32_SFLOAT_S8_UINT);
 }
 
-gerium_inline VkFormat toVkFormat(gerium_format_t format) noexcept {
-    switch (format) {
-        case GERIUM_FORMAT_R8_UNORM:
-            return VK_FORMAT_R8_UNORM;
-        case GERIUM_FORMAT_R8_SNORM:
-            return VK_FORMAT_R8_SNORM;
-        case GERIUM_FORMAT_R8_UINT:
-            return VK_FORMAT_R8_UINT;
-        case GERIUM_FORMAT_R8_SINT:
-            return VK_FORMAT_R8_SINT;
-        case GERIUM_FORMAT_R8G8_UNORM:
-            return VK_FORMAT_R8G8_UNORM;
-        case GERIUM_FORMAT_R8G8_SNORM:
-            return VK_FORMAT_R8G8_SNORM;
-        case GERIUM_FORMAT_R8G8_UINT:
-            return VK_FORMAT_R8G8_UINT;
-        case GERIUM_FORMAT_R8G8_SINT:
-            return VK_FORMAT_R8G8_SINT;
-        case GERIUM_FORMAT_R8G8B8_UNORM:
-            return VK_FORMAT_R8G8B8_UNORM;
-        case GERIUM_FORMAT_R8G8B8_SNORM:
-            return VK_FORMAT_R8G8B8_SNORM;
-        case GERIUM_FORMAT_R8G8B8_UINT:
-            return VK_FORMAT_R8G8B8_UINT;
-        case GERIUM_FORMAT_R8G8B8_SINT:
-            return VK_FORMAT_R8G8B8_SINT;
-        case GERIUM_FORMAT_R8G8B8_SRGB:
-            return VK_FORMAT_R8G8B8_SRGB;
-        case GERIUM_FORMAT_R4G4B4A4_UNORM:
-            return VK_FORMAT_R4G4B4A4_UNORM_PACK16;
-        case GERIUM_FORMAT_R5G5B5A1_UNORM:
-            return VK_FORMAT_R5G5B5A1_UNORM_PACK16;
-        case GERIUM_FORMAT_R8G8B8A8_UNORM:
-            return VK_FORMAT_R8G8B8A8_UNORM;
-        case GERIUM_FORMAT_R8G8B8A8_SNORM:
-            return VK_FORMAT_R8G8B8A8_SNORM;
-        case GERIUM_FORMAT_R8G8B8A8_UINT:
-            return VK_FORMAT_R8G8B8A8_UINT;
-        case GERIUM_FORMAT_R8G8B8A8_SINT:
-            return VK_FORMAT_R8G8B8A8_SINT;
-        case GERIUM_FORMAT_R8G8B8A8_SRGB:
-            return VK_FORMAT_R8G8B8A8_SRGB;
-        case GERIUM_FORMAT_A2R10G10B10_UNORM:
-            return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-        case GERIUM_FORMAT_A2R10G10B10_UINT:
-            return VK_FORMAT_A2R10G10B10_UINT_PACK32;
-        case GERIUM_FORMAT_R16_UINT:
-            return VK_FORMAT_R16_UINT;
-        case GERIUM_FORMAT_R16_SINT:
-            return VK_FORMAT_R16_SINT;
-        case GERIUM_FORMAT_R16_SFLOAT:
-            return VK_FORMAT_R16_SFLOAT;
-        case GERIUM_FORMAT_R16G16_UINT:
-            return VK_FORMAT_R16G16_UINT;
-        case GERIUM_FORMAT_R16G16_SINT:
-            return VK_FORMAT_R16G16_SINT;
-        case GERIUM_FORMAT_R16G16_SFLOAT:
-            return VK_FORMAT_R16G16_SFLOAT;
-        case GERIUM_FORMAT_R16G16B16_UINT:
-            return VK_FORMAT_R16G16B16_UINT;
-        case GERIUM_FORMAT_R16G16B16_SINT:
-            return VK_FORMAT_R16G16B16_SINT;
-        case GERIUM_FORMAT_R16G16B16_SFLOAT:
-            return VK_FORMAT_R16G16B16_SFLOAT;
-        case GERIUM_FORMAT_R16G16B16A16_UINT:
-            return VK_FORMAT_R16G16B16A16_UINT;
-        case GERIUM_FORMAT_R16G16B16A16_SINT:
-            return VK_FORMAT_R16G16B16A16_SINT;
-        case GERIUM_FORMAT_R16G16B16A16_SFLOAT:
-            return VK_FORMAT_R16G16B16A16_SFLOAT;
-        case GERIUM_FORMAT_R32_UINT:
-            return VK_FORMAT_R32_UINT;
-        case GERIUM_FORMAT_R32_SINT:
-            return VK_FORMAT_R32_SINT;
-        case GERIUM_FORMAT_R32_SFLOAT:
-            return VK_FORMAT_R32_SFLOAT;
-        case GERIUM_FORMAT_R32G32_UINT:
-            return VK_FORMAT_R32G32_UINT;
-        case GERIUM_FORMAT_R32G32_SINT:
-            return VK_FORMAT_R32G32_SINT;
-        case GERIUM_FORMAT_R32G32_SFLOAT:
-            return VK_FORMAT_R32G32_SFLOAT;
-        case GERIUM_FORMAT_R32G32B32_UINT:
-            return VK_FORMAT_R32G32B32_UINT;
-        case GERIUM_FORMAT_R32G32B32_SINT:
-            return VK_FORMAT_R32G32B32_SINT;
-        case GERIUM_FORMAT_R32G32B32_SFLOAT:
-            return VK_FORMAT_R32G32B32_SFLOAT;
-        case GERIUM_FORMAT_R32G32B32A32_UINT:
-            return VK_FORMAT_R32G32B32A32_UINT;
-        case GERIUM_FORMAT_R32G32B32A32_SINT:
-            return VK_FORMAT_R32G32B32A32_SINT;
-        case GERIUM_FORMAT_R32G32B32A32_SFLOAT:
-            return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case GERIUM_FORMAT_B10G11R11_UFLOAT:
-            return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
-        case GERIUM_FORMAT_E5B9G9R9_UFLOAT:
-            return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
-        case GERIUM_FORMAT_D16_UNORM:
-            return VK_FORMAT_D16_UNORM;
-        case GERIUM_FORMAT_X8_D24_UNORM:
-            return VK_FORMAT_X8_D24_UNORM_PACK32;
-        case GERIUM_FORMAT_D32_SFLOAT:
-            return VK_FORMAT_D32_SFLOAT;
-        case GERIUM_FORMAT_S8_UINT:
-            return VK_FORMAT_S8_UINT;
-        case GERIUM_FORMAT_D24_UNORM_S8_UINT:
-            return VK_FORMAT_D24_UNORM_S8_UINT;
-        case GERIUM_FORMAT_D32_SFLOAT_S8_UINT:
-            return VK_FORMAT_D32_SFLOAT_S8_UINT;
-        default:
-            assert(!"unreachable code");
-            return VK_FORMAT_UNDEFINED;
-    }
-}
-
-gerium_inline gerium_format_t toGeriumFormat(VkFormat format) noexcept {
-    switch (format) {
-        case VK_FORMAT_R8_UNORM:
-            return GERIUM_FORMAT_R8_UNORM;
-        case VK_FORMAT_R8_SNORM:
-            return GERIUM_FORMAT_R8_SNORM;
-        case VK_FORMAT_R8_UINT:
-            return GERIUM_FORMAT_R8_UINT;
-        case VK_FORMAT_R8_SINT:
-            return GERIUM_FORMAT_R8_SINT;
-        case VK_FORMAT_R8G8_UNORM:
-            return GERIUM_FORMAT_R8G8_UNORM;
-        case VK_FORMAT_R8G8_SNORM:
-            return GERIUM_FORMAT_R8G8_SNORM;
-        case VK_FORMAT_R8G8_UINT:
-            return GERIUM_FORMAT_R8G8_UINT;
-        case VK_FORMAT_R8G8_SINT:
-            return GERIUM_FORMAT_R8G8_SINT;
-        case VK_FORMAT_R8G8B8_UNORM:
-            return GERIUM_FORMAT_R8G8B8_UNORM;
-        case VK_FORMAT_R8G8B8_SNORM:
-            return GERIUM_FORMAT_R8G8B8_SNORM;
-        case VK_FORMAT_R8G8B8_UINT:
-            return GERIUM_FORMAT_R8G8B8_UINT;
-        case VK_FORMAT_R8G8B8_SINT:
-            return GERIUM_FORMAT_R8G8B8_SINT;
-        case VK_FORMAT_R8G8B8_SRGB:
-            return GERIUM_FORMAT_R8G8B8_SRGB;
-        case VK_FORMAT_R4G4B4A4_UNORM_PACK16:
-            return GERIUM_FORMAT_R4G4B4A4_UNORM;
-        case VK_FORMAT_R5G5B5A1_UNORM_PACK16:
-            return GERIUM_FORMAT_R5G5B5A1_UNORM;
-        case VK_FORMAT_R8G8B8A8_UNORM:
-            return GERIUM_FORMAT_R8G8B8A8_UNORM;
-        case VK_FORMAT_R8G8B8A8_SNORM:
-            return GERIUM_FORMAT_R8G8B8A8_SNORM;
-        case VK_FORMAT_R8G8B8A8_UINT:
-            return GERIUM_FORMAT_R8G8B8A8_UINT;
-        case VK_FORMAT_R8G8B8A8_SINT:
-            return GERIUM_FORMAT_R8G8B8A8_SINT;
-        case VK_FORMAT_R8G8B8A8_SRGB:
-            return GERIUM_FORMAT_R8G8B8A8_SRGB;
-        case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
-            return GERIUM_FORMAT_A2R10G10B10_UNORM;
-        case VK_FORMAT_A2R10G10B10_UINT_PACK32:
-            return GERIUM_FORMAT_A2R10G10B10_UINT;
-        case VK_FORMAT_R16_UINT:
-            return GERIUM_FORMAT_R16_UINT;
-        case VK_FORMAT_R16_SINT:
-            return GERIUM_FORMAT_R16_SINT;
-        case VK_FORMAT_R16_SFLOAT:
-            return GERIUM_FORMAT_R16_SFLOAT;
-        case VK_FORMAT_R16G16_UINT:
-            return GERIUM_FORMAT_R16G16_UINT;
-        case VK_FORMAT_R16G16_SINT:
-            return GERIUM_FORMAT_R16G16_SINT;
-        case VK_FORMAT_R16G16_SFLOAT:
-            return GERIUM_FORMAT_R16G16_SFLOAT;
-        case VK_FORMAT_R16G16B16_UINT:
-            return GERIUM_FORMAT_R16G16B16_UINT;
-        case VK_FORMAT_R16G16B16_SINT:
-            return GERIUM_FORMAT_R16G16B16_SINT;
-        case VK_FORMAT_R16G16B16_SFLOAT:
-            return GERIUM_FORMAT_R16G16B16_SFLOAT;
-        case VK_FORMAT_R16G16B16A16_UINT:
-            return GERIUM_FORMAT_R16G16B16A16_UINT;
-        case VK_FORMAT_R16G16B16A16_SINT:
-            return GERIUM_FORMAT_R16G16B16A16_SINT;
-        case VK_FORMAT_R16G16B16A16_SFLOAT:
-            return GERIUM_FORMAT_R16G16B16A16_SFLOAT;
-        case VK_FORMAT_R32_UINT:
-            return GERIUM_FORMAT_R32_UINT;
-        case VK_FORMAT_R32_SINT:
-            return GERIUM_FORMAT_R32_SINT;
-        case VK_FORMAT_R32_SFLOAT:
-            return GERIUM_FORMAT_R32_SFLOAT;
-        case VK_FORMAT_R32G32_UINT:
-            return GERIUM_FORMAT_R32G32_UINT;
-        case VK_FORMAT_R32G32_SINT:
-            return GERIUM_FORMAT_R32G32_SINT;
-        case VK_FORMAT_R32G32_SFLOAT:
-            return GERIUM_FORMAT_R32G32_SFLOAT;
-        case VK_FORMAT_R32G32B32_UINT:
-            return GERIUM_FORMAT_R32G32B32_UINT;
-        case VK_FORMAT_R32G32B32_SINT:
-            return GERIUM_FORMAT_R32G32B32_SINT;
-        case VK_FORMAT_R32G32B32_SFLOAT:
-            return GERIUM_FORMAT_R32G32B32_SFLOAT;
-        case VK_FORMAT_R32G32B32A32_UINT:
-            return GERIUM_FORMAT_R32G32B32A32_UINT;
-        case VK_FORMAT_R32G32B32A32_SINT:
-            return GERIUM_FORMAT_R32G32B32A32_SINT;
-        case VK_FORMAT_R32G32B32A32_SFLOAT:
-            return GERIUM_FORMAT_R32G32B32A32_SFLOAT;
-        case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
-            return GERIUM_FORMAT_B10G11R11_UFLOAT;
-        case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
-            return GERIUM_FORMAT_E5B9G9R9_UFLOAT;
-        case VK_FORMAT_D16_UNORM:
-            return GERIUM_FORMAT_D16_UNORM;
-        case VK_FORMAT_X8_D24_UNORM_PACK32:
-            return GERIUM_FORMAT_X8_D24_UNORM;
-        case VK_FORMAT_D32_SFLOAT:
-            return GERIUM_FORMAT_D32_SFLOAT;
-        case VK_FORMAT_S8_UINT:
-            return GERIUM_FORMAT_S8_UINT;
-        case VK_FORMAT_D24_UNORM_S8_UINT:
-            return GERIUM_FORMAT_D24_UNORM_S8_UINT;
-        case VK_FORMAT_D32_SFLOAT_S8_UINT:
-            return GERIUM_FORMAT_D32_SFLOAT_S8_UINT;
-        default:
-            assert(!"unreachable code");
-            return {};
-    }
-}
-
 gerium_inline VkPolygonMode toVkPolygonMode(gerium_polygon_mode_t polygonMode) noexcept {
     constexpr VkPolygonMode modes[] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
     return modes[int(polygonMode)];
@@ -364,6 +132,10 @@ gerium_inline VkBufferUsageFlags toVkBufferUsageFlags(gerium_buffer_usage_flags_
         result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     }
 
+    if ((flags & GERIUM_BUFFER_USAGE_INDIRECT_BIT) == GERIUM_BUFFER_USAGE_INDIRECT_BIT) {
+        result |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+    }
+
     return result;
 }
 
@@ -372,14 +144,9 @@ gerium_inline VkImageType toVkImageType(gerium_texture_type_t type) noexcept {
         case GERIUM_TEXTURE_TYPE_1D:
             return VK_IMAGE_TYPE_1D;
         case GERIUM_TEXTURE_TYPE_2D:
+        case GERIUM_TEXTURE_TYPE_CUBE:
             return VK_IMAGE_TYPE_2D;
         case GERIUM_TEXTURE_TYPE_3D:
-            return VK_IMAGE_TYPE_3D;
-        case GERIUM_TEXTURE_TYPE_1D_ARRAY:
-            return VK_IMAGE_TYPE_1D;
-        case GERIUM_TEXTURE_TYPE_2D_ARRAY:
-            return VK_IMAGE_TYPE_2D;
-        case GERIUM_TEXTURE_TYPE_CUBE_ARRAY:
             return VK_IMAGE_TYPE_3D;
         default:
             assert(!"unreachable code");
@@ -399,11 +166,20 @@ gerium_inline VkSamplerAddressMode toVkSamplerAddressMode(gerium_address_mode_t 
     return (VkSamplerAddressMode) mode;
 }
 
-gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type) noexcept {
-    constexpr VkImageViewType types[] = { VK_IMAGE_VIEW_TYPE_1D,       VK_IMAGE_VIEW_TYPE_2D,
-                                          VK_IMAGE_VIEW_TYPE_3D,       VK_IMAGE_VIEW_TYPE_1D_ARRAY,
-                                          VK_IMAGE_VIEW_TYPE_2D_ARRAY, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY };
-    return types[(int) type];
+gerium_inline VkSamplerReductionMode toVkSamplerReductionMode(gerium_reduction_mode_t mode) noexcept {
+    return (VkSamplerReductionMode) mode;
+}
+
+gerium_inline VkImageViewType toVkImageViewType(gerium_texture_type_t type, bool arrayed) noexcept {
+    constexpr VkImageViewType types[] = {
+        VK_IMAGE_VIEW_TYPE_1D, VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_VIEW_TYPE_3D, VK_IMAGE_VIEW_TYPE_CUBE
+    };
+
+    constexpr VkImageViewType arrayTypes[] = {
+        VK_IMAGE_VIEW_TYPE_1D_ARRAY, VK_IMAGE_VIEW_TYPE_2D_ARRAY, {}, VK_IMAGE_VIEW_TYPE_CUBE
+    };
+
+    return !arrayed ? types[(int) type] : arrayTypes[(int) type];
 }
 
 gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) noexcept {
@@ -412,8 +188,14 @@ gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) n
             return VK_SHADER_STAGE_VERTEX_BIT;
         case GERIUM_SHADER_TYPE_FRAGMENT:
             return VK_SHADER_STAGE_FRAGMENT_BIT;
+        case GERIUM_SHADER_TYPE_GEOMETRY:
+            return VK_SHADER_STAGE_GEOMETRY_BIT;
         case GERIUM_SHADER_TYPE_COMPUTE:
             return VK_SHADER_STAGE_COMPUTE_BIT;
+        case GERIUM_SHADER_TYPE_TASK:
+            return VK_SHADER_STAGE_TASK_BIT_EXT;
+        case GERIUM_SHADER_TYPE_MESH:
+            return VK_SHADER_STAGE_MESH_BIT_EXT;
         default:
             assert(!"TODO");
             return {};
@@ -426,8 +208,14 @@ gerium_inline gerium_shader_type_t toGerumShaderType(VkShaderStageFlagBits type)
             return GERIUM_SHADER_TYPE_VERTEX;
         case VK_SHADER_STAGE_FRAGMENT_BIT:
             return GERIUM_SHADER_TYPE_FRAGMENT;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            return GERIUM_SHADER_TYPE_GEOMETRY;
         case VK_SHADER_STAGE_COMPUTE_BIT:
             return GERIUM_SHADER_TYPE_COMPUTE;
+        case VK_SHADER_STAGE_TASK_BIT_EXT:
+            return GERIUM_SHADER_TYPE_TASK;
+        case VK_SHADER_STAGE_MESH_BIT_EXT:
+            return GERIUM_SHADER_TYPE_MESH;
         default:
             assert(!"TODO");
             return {};
@@ -545,13 +333,6 @@ gerium_inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags
                 0) {
                 flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
                 flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-                /*if ( pRenderer->pActiveGpuSettings->mGeometryShaderSupported ) {
-                    flags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
-                }
-                if ( pRenderer->pActiveGpuSettings->mTessellationSupported ) {
-                    flags |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
-                    flags |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
-                }*/
                 flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             }
 
@@ -592,7 +373,6 @@ gerium_inline VkPipelineStageFlags utilDeterminePipelineStageFlags(VkAccessFlags
             break;
     }
 
-    // Compatible with both compute and graphics queues
     if ((accessFlags & VK_ACCESS_INDIRECT_COMMAND_READ_BIT) != 0) {
         flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
     }

@@ -20,6 +20,10 @@ public:
                          gerium_uint32_t mipCount,
                          QueueType srcQueueType = QueueType::Graphics,
                          QueueType dstQueueType = QueueType::Graphics);
+    void addBufferBarrier(BufferHandle handle,
+                          ResourceState dstState,
+                          QueueType srcQueueType = QueueType::Graphics,
+                          QueueType dstQueueType = QueueType::Graphics);
     void clearColor(gerium_uint32_t index,
                     gerium_float32_t red,
                     gerium_float32_t green,
@@ -27,12 +31,13 @@ public:
                     gerium_float32_t alpha) noexcept;
     void clearDepthStencil(gerium_float32_t depth, gerium_uint32_t value) noexcept;
     void bindPass(RenderPassHandle renderPass, FramebufferHandle framebuffer, bool useSecondaryCommandBuffers);
-    // void bindPipeline(PipelineHandle pipeline);
     void copyBuffer(BufferHandle src, BufferHandle dst);
-    void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset = 0);
+    void copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint8_t mip, gerium_uint32_t offset = 0);
     void generateMipmaps(TextureHandle handle);
     void pushMarker(gerium_utf8_t name);
     void popMarker();
+    void pushLabel(gerium_utf8_t name);
+    void popLabel();
     void submit(QueueType queue, bool wait = true);
     void execute(gerium_uint32_t numCommandBuffers, CommandBuffer* commandBuffers[]);
 
@@ -72,9 +77,33 @@ private:
                        gerium_uint32_t vertexOffset,
                        gerium_uint32_t firstInstance,
                        gerium_uint32_t instanceCount) noexcept override;
+    void onDrawIndexedIndirect(BufferHandle handle,
+                             gerium_uint32_t offset,
+                             BufferHandle drawCountHandle,
+                             gerium_uint32_t drawCountOffset,
+                             gerium_uint32_t drawCount,
+                             gerium_uint32_t stride) noexcept override;
+    void onDrawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept override;
+    void onDrawMeshTasksIndirect(BufferHandle handle,
+                                 gerium_uint32_t offset,
+                                 gerium_uint32_t drawCount,
+                                 gerium_uint32_t stride) noexcept override;
+    void onFillBuffer(BufferHandle handle,
+                      gerium_uint32_t offset,
+                      gerium_uint32_t size,
+                      gerium_uint32_t data) noexcept override;
+
+    void onBarrierBufferWrite(BufferHandle handle) noexcept override;
+    void onBarrierBufferRead(BufferHandle handle) noexcept override;
+    void onBarrierTextureWrite(TextureHandle handle) noexcept override;
+    void onBarrierTextureRead(TextureHandle handle) noexcept override;
+
+    FfxCommandList onGetFfxCommandList() noexcept override;
 
     void bindDescriptorSets();
     uint32_t getFamilyIndex(QueueType queue) const noexcept;
+    std::pair<VkBuffer, VkDeviceSize> getVkBuffer(BufferHandle handle, gerium_uint32_t offset) const noexcept;
+    ResourceState* getTextureStates(TextureHandle handle) noexcept;
 
     Device* _device{};
     VkCommandBuffer _commandBuffer{};

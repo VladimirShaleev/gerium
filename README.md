@@ -34,6 +34,7 @@ Examples created using this framework:
 Currently, the framework supports the following platforms and graphics APIs:
 
 - Windows (Vulkan API);
+- Linux (Vulkan API);
 - MacOS (Vulkan API via MoltenVK on Metal);
 - Android (Vulkan API).
 

@@ -1,0 +1,204 @@
+name: base
+pipelines:
+  - render pass: gbuffer_pass
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_FILL
+      cull mode: GERIUM_CULL_MODE_NONE
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+      depth clamp enable: 0
+      depth bias enable: 0
+      depth bias constant factor: 0.0
+      depth bias clamp: 0.0
+      depth bias slope factor: 0.0
+      line width: 1.0
+    depth stencil:
+      depth test enable: true
+      depth write enable: true
+      depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+    color blend:
+      logic op enable: false
+      logic op: GERIUM_LOGIC_OP_CLEAR
+      blend constants: [0.0, 0.0, 0.0, 0.0]
+    shaders:
+      - type: GERIUM_SHADER_TYPE_TASK
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.task.glsl
+      - type: GERIUM_SHADER_TYPE_MESH
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.mesh.glsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.frag.glsl
+        
+  - render pass: gbuffer_late_pass
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_FILL
+      cull mode: GERIUM_CULL_MODE_NONE
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+    depth stencil:
+      depth test enable: true
+      depth write enable: true
+      depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+    shaders:
+      - type: GERIUM_SHADER_TYPE_TASK
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.task.glsl
+        macros:
+          - LATE: 1
+      - type: GERIUM_SHADER_TYPE_MESH
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.mesh.glsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.frag.glsl
+
+  - render pass: present_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_HLSL
+        name: shaders/screen.vert.hlsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/present.frag.glsl
+
+  - render pass: culling_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/culling.comp.glsl
+
+  - render pass: indirect_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/indirect.comp.glsl
+
+  - render pass: indirect_late_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/indirect.comp.glsl
+
+  - render pass: depth_pyramid_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/depth_reduce.comp.glsl
+
+  - render pass: culling_late_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/culling.comp.glsl
+        macros:
+          - LATE: 1
+
+  # - render pass: debug_occlusion_pass
+  #   rasterization:
+  #     polygon mode: GERIUM_POLYGON_MODE_FILL
+  #     cull mode: GERIUM_CULL_MODE_BACK
+  #     front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+  #   depth stencil:
+  #     depth test enable: true
+  #     depth write enable: true
+  #     depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+  #   shaders:
+  #     - type: GERIUM_SHADER_TYPE_TASK
+  #       lang: GERIUM_SHADER_LANGUAGE_GLSL
+  #       name: shaders/gbuffer.task.glsl
+  #     - type: GERIUM_SHADER_TYPE_MESH
+  #       lang: GERIUM_SHADER_LANGUAGE_GLSL
+  #       name: shaders/gbuffer.mesh.glsl
+  #     - type: GERIUM_SHADER_TYPE_FRAGMENT
+  #       lang: GERIUM_SHADER_LANGUAGE_GLSL
+  #       name: shaders/gbuffer.frag.glsl
+
+  - render pass: light_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_HLSL
+        name: shaders/screen.vert.hlsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/light.frag.glsl
+
+  # - render pass: debug_line_pass
+  #   rasterization:
+  #     polygon mode: GERIUM_POLYGON_MODE_LINE
+  #     primitive topology: GERIUM_PRIMITIVE_TOPOLOGY_LINE_LIST
+  #     cull mode: GERIUM_CULL_MODE_NONE
+  #     front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+  #   depth stencil:
+  #     depth test enable: true
+  #     depth write enable: true
+  #     depth compare op: GERIUM_COMPARE_OP_GREATER_OR_EQUAL
+  #   vertex attributes:
+  #     - location: 0
+  #       binding: 0
+  #       offset: 0
+  #       format: GERIUM_FORMAT_R32G32B32_SFLOAT
+  #   vertex bindings:
+  #     - binding: 0
+  #       stride: 12
+  #       input rate: GERIUM_VERTEX_RATE_PER_VERTEX
+  #   shaders:
+  #     - type: GERIUM_SHADER_TYPE_VERTEX
+  #       lang: GERIUM_SHADER_LANGUAGE_GLSL
+  #       name: shaders/lines.glsl
+  #     - type: GERIUM_SHADER_TYPE_FRAGMENT
+  #       lang: GERIUM_SHADER_LANGUAGE_GLSL
+  #       name: shaders/lines.glsl
+
+  - render pass: csm_culling_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/csm_culling.comp.glsl
+
+  - render pass: csm_pass
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_FILL
+      cull mode: GERIUM_CULL_MODE_NONE
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+      # depth bias enable: true
+      # depth bias constant factor: 1.25
+      # depth bias clamp: 0.0
+      # depth bias slope factor: 1.75
+    depth stencil:
+      depth test enable: true
+      depth write enable: true
+      depth compare op: GERIUM_COMPARE_OP_LESS_OR_EQUAL
+    vertex attributes:
+      - location: 0
+        binding: 0
+        offset: 0
+        format: GERIUM_FORMAT_R16G16B16A16_SFLOAT
+    vertex bindings:
+      - binding: 0
+        stride: 8
+        input rate: GERIUM_VERTEX_RATE_PER_VERTEX
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/csm.vert.glsl
+      - type: GERIUM_SHADER_TYPE_GEOMETRY
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/csm.geom.glsl
+
+  - render pass: volumetric_inject_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/volumetric_inject.comp.glsl
+
+  - render pass: volumetric_noise_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/volumetric_noise.comp.glsl
+
+  - render pass: light_integration_pass
+    shaders:
+      - type: GERIUM_SHADER_TYPE_COMPUTE
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/light_integration.comp.glsl

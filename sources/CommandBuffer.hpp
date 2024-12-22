@@ -35,7 +35,24 @@ public:
                      gerium_uint32_t vertexOffset,
                      gerium_uint32_t firstInstance,
                      gerium_uint32_t instanceCount) noexcept;
+    void drawIndexedIndirect(BufferHandle handle,
+                             gerium_uint32_t offset,
+                             BufferHandle drawCountHandle,
+                             gerium_uint32_t drawCountOffset,
+                             gerium_uint32_t drawCount,
+                             gerium_uint32_t stride) noexcept;
+    void drawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept;
+    void drawMeshTasksIndirect(BufferHandle handle,
+                               gerium_uint32_t offset,
+                               gerium_uint32_t drawCount,
+                               gerium_uint32_t stride) noexcept;
     void drawProfiler(bool* show) noexcept;
+    void fillBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size, gerium_uint32_t data) noexcept;
+    void barrierBufferWrite(BufferHandle handle) noexcept;
+    void barrierBufferRead(BufferHandle handle) noexcept;
+    void barrierTextureWrite(TextureHandle handle) noexcept;
+    void barrierTextureRead(TextureHandle handle) noexcept;
+    FfxCommandList getFfxCommandList() noexcept;
 
 protected:
     Renderer* getRenderer() noexcept;
@@ -69,6 +86,32 @@ private:
                                gerium_uint32_t vertexOffset,
                                gerium_uint32_t firstInstance,
                                gerium_uint32_t instanceCount) noexcept = 0;
+
+    virtual void onDrawIndexedIndirect(BufferHandle handle,
+                                       gerium_uint32_t offset,
+                                       BufferHandle drawCountHandle,
+                                       gerium_uint32_t drawCountOffset,
+                                       gerium_uint32_t drawCount,
+                                       gerium_uint32_t stride) noexcept = 0;
+
+    virtual void onDrawMeshTasksIndirect(BufferHandle handle,
+                                         gerium_uint32_t offset,
+                                         gerium_uint32_t drawCount,
+                                         gerium_uint32_t stride) noexcept = 0;
+
+    virtual void onDrawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept = 0;
+
+    virtual void onFillBuffer(BufferHandle handle,
+                              gerium_uint32_t offset,
+                              gerium_uint32_t size,
+                              gerium_uint32_t data) noexcept = 0;
+
+    virtual void onBarrierBufferWrite(BufferHandle handle) noexcept   = 0;
+    virtual void onBarrierBufferRead(BufferHandle handle) noexcept    = 0;
+    virtual void onBarrierTextureWrite(TextureHandle handle) noexcept = 0;
+    virtual void onBarrierTextureRead(TextureHandle handle) noexcept  = 0;
+
+    virtual FfxCommandList onGetFfxCommandList() noexcept = 0;
 
     Renderer* _renderer{};
 };

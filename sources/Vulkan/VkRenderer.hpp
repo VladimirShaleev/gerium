@@ -23,7 +23,10 @@ protected:
 
 private:
     struct LoadRequest {
+        gerium_uint32_t dataSize{};
         gerium_cdata_t data{};
+        gerium_uint8_t mip{};
+        bool generateMips{};
         TextureHandle texture{ Undefined };
         gerium_texture_loaded_func_t callback{};
         gerium_data_t userData{};
@@ -31,8 +34,10 @@ private:
 
     void createTransferBuffer();
     void sendTextureToGraphic();
+    bool isResourceEnabled(FrameGraph& frameGraph, const FrameGraphResource* resource) const noexcept;
 
     gerium_feature_flags_t onGetEnabledFeatures() const noexcept override;
+    TextureCompressionFlags onGetTextureComperssion() const noexcept override;
 
     bool onGetProfilerEnable() const noexcept override;
     void onSetProfilerEnable(bool enable) noexcept override;
@@ -42,6 +47,7 @@ private:
 
     BufferHandle onCreateBuffer(const BufferCreation& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
+    TextureHandle onCreateTextureView(const TextureViewCreation& creation) override;
     TechniqueHandle onCreateTechnique(const FrameGraph& frameGraph,
                                       gerium_utf8_t name,
                                       gerium_uint32_t pipelineCount,
@@ -53,6 +59,9 @@ private:
                                           gerium_uint32_t textureIndex) override;
 
     void onAsyncUploadTextureData(TextureHandle handle,
+                                  gerium_uint8_t mip,
+                                  bool generateMips,
+                                  gerium_uint32_t textureDataSize,
                                   gerium_cdata_t textureData,
                                   gerium_texture_loaded_func_t callback,
                                   gerium_data_t data) override;
@@ -63,7 +72,11 @@ private:
                           gerium_filter_t mipFilter,
                           gerium_address_mode_t addressModeU,
                           gerium_address_mode_t addressModeV,
-                          gerium_address_mode_t addressModeW) override;
+                          gerium_address_mode_t addressModeW,
+                          gerium_reduction_mode_t reductionMode) override;
+
+    BufferHandle onGetBuffer(gerium_utf8_t resource) override;
+    TextureHandle onGetTexture(gerium_utf8_t resource, bool fromPreviousFrame) override;
 
     void onDestroyBuffer(BufferHandle handle) noexcept override;
     void onDestroyTexture(TextureHandle handle) noexcept override;
@@ -77,7 +90,10 @@ private:
                 gerium_uint16_t binding,
                 gerium_uint16_t element,
                 TextureHandle texture) noexcept override;
-    void onBind(DescriptorSetHandle handle, gerium_uint16_t binding, gerium_utf8_t resourceInput) noexcept override;
+    void onBind(DescriptorSetHandle handle,
+                gerium_uint16_t binding,
+                gerium_utf8_t resourceInput,
+                bool fromPreviousFrame) noexcept override;
 
     gerium_data_t onMapBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_uint32_t size) noexcept override;
     void onUnmapBuffer(BufferHandle handle) noexcept override;
@@ -85,6 +101,12 @@ private:
     bool onNewFrame() override;
     void onRender(FrameGraph& frameGraph) override;
     void onPresent() override;
+
+    FfxInterface onCreateFfxInterface(gerium_uint32_t maxContexts) override;
+    void onWaitFfxJobs() const noexcept override;
+    void onDestroyFfxInterface(FfxInterface* ffxInterface) noexcept override;
+    FfxResource onGetFfxBuffer(BufferHandle handle) const noexcept override;
+    FfxResource onGetFfxTexture(TextureHandle handle) const noexcept override;
 
     Profiler* onGetProfiler() noexcept override;
     void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept override;

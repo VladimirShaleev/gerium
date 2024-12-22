@@ -14,6 +14,10 @@ Device::~Device() {
         ImGui::DestroyContext();
         deleteResources(true);
 
+        for (auto [_, view] : _unusedImageViews) {
+            _vkTable.vkDestroyImageView(_device, view, getAllocCalls());
+        }
+
         for (auto framebuffer : _framebuffers) {
             destroyFramebuffer(_framebuffers.handle(framebuffer));
         }
@@ -122,7 +126,7 @@ void Device::create(Application* application,
     createSurface(application);
     createPhysicalDevice();
     createDevice(application->workerThreadCount(), features);
-    createProfiler(32);
+    createProfiler(64);
     createDescriptorPools();
     createVmaAllocator();
     createDynamicBuffers();
@@ -131,6 +135,7 @@ void Device::create(Application* application,
     createSynchronizations();
     createSwapchain(application);
     createImGui(application);
+    createFidelityFX();
 }
 
 bool Device::newFrame() {
@@ -192,6 +197,14 @@ bool Device::newFrame() {
         memcpy(_freeDescriptorSetQueue2, _freeDescriptorSetQueue, sizeof(_freeDescriptorSetQueue2));
         _numFreeDescriptorSetQueue2 = _numFreeDescriptorSetQueue;
         _numFreeDescriptorSetQueue  = 0;
+    }
+    auto unusedImageViews = std::move(_unusedImageViews);
+    for (auto [frame, view] : unusedImageViews) {
+        if (_absoluteFrame - frame >= 2) {
+            _vkTable.vkDestroyImageView(_device, view, getAllocCalls());
+        } else {
+            _unusedImageViews.emplace_back(frame, view);
+        }
     }
     return true;
 }
@@ -269,12 +282,14 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 
     buffer->vkUsageFlags = toVkBufferUsageFlags(creation.usageFlags);
     buffer->usage        = creation.usage;
+    buffer->state        = ResourceState::Undefined;
     buffer->size         = creation.size;
     buffer->name         = intern(creation.name);
     buffer->parent       = Undefined;
 
     constexpr auto dynamicBufferFlags = GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT |
-                                        GERIUM_BUFFER_USAGE_UNIFORM_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT;
+                                        GERIUM_BUFFER_USAGE_UNIFORM_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT |
+                                        GERIUM_BUFFER_USAGE_INDIRECT_BIT;
 
     const bool useGlobalBuffer = gerium_uint32_t(creation.usageFlags & dynamicBufferFlags) != 0;
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
@@ -347,21 +362,36 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
         buffer->mappedData = static_cast<uint8_t*>(allocationInfo.pMappedData);
     }
 
-    if (creation.initialData) {
+    if (creation.initialData || creation.hasFillValue) {
         VkMemoryPropertyFlags memPropFlags;
         vmaGetAllocationMemoryProperties(_vmaAllocator, buffer->vmaAllocation, &memPropFlags);
 
+        auto fill = [&creation](void* data) {
+            auto ptr = (gerium_uint32_t*) data;
+            for (uint32_t i = 0; i < creation.size / 4; i++) {
+                *ptr++ = creation.fillValue;
+            }
+        };
+
         if (memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
             if (buffer->mappedData) {
-                memcpy(buffer->mappedData, creation.initialData, (size_t) creation.size);
+                if (creation.initialData) {
+                    memcpy(buffer->mappedData, creation.initialData, (size_t) creation.size);
+                } else {
+                    fill(buffer->mappedData);
+                }
             } else {
                 void* data = mapBuffer(handle);
-                memcpy(data, creation.initialData, (size_t) creation.size);
+                if (creation.initialData) {
+                    memcpy(data, creation.initialData, (size_t) creation.size);
+                } else {
+                    fill(data);
+                }
                 unmapBuffer(handle);
             }
-        } else {
+        } else if (creation.initialData) {
             BufferCreation stagingCreation{};
-            stagingCreation.set(dynamicBufferFlags, ResourceUsageType::Dynamic, buffer->size);
+            stagingCreation.set(GERIUM_BUFFER_USAGE_STORAGE_BIT, ResourceUsageType::Dynamic, buffer->size);
             auto stagingBuffer = createBuffer(stagingCreation);
 
             auto ptr = mapBuffer(stagingBuffer, 0, buffer->size);
@@ -370,6 +400,8 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 
             _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
             destroyBuffer(stagingBuffer);
+        } else {
+            _frameCommandBuffer->fillBuffer(handle, 0, buffer->size, creation.fillValue);
         }
     }
 
@@ -379,16 +411,22 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
 TextureHandle Device::createTexture(const TextureCreation& creation) {
     auto [handle, texture] = _textures.obtain_and_access();
 
-    texture->vkFormat = toVkFormat(creation.format);
-    texture->size     = calcTextureSize(creation.width, creation.height, creation.depth, creation.format);
-    texture->width    = creation.width;
-    texture->height   = creation.height;
-    texture->depth    = creation.depth;
-    texture->mipmaps  = creation.mipmaps;
-    texture->flags    = creation.flags;
-    texture->type     = creation.type;
-    texture->name     = intern(creation.name);
-    texture->sampler  = Undefined;
+    texture->vkFormat      = toVkFormat(creation.format);
+    texture->size          = calcTextureSize(creation.width, creation.height, creation.depth, creation.format);
+    texture->width         = creation.width;
+    texture->height        = creation.height;
+    texture->depth         = creation.depth;
+    texture->mipBase       = 0;
+    texture->mipLevels     = creation.mipmaps;
+    texture->layers        = creation.layers;
+    texture->flags         = creation.flags;
+    texture->type          = creation.type;
+    texture->name          = intern(creation.name);
+    texture->parentTexture = Undefined;
+    texture->sampler       = Undefined;
+
+    auto imageFlags =
+        creation.type == GERIUM_TEXTURE_TYPE_CUBE ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : VkImageCreateFlags{};
 
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -398,24 +436,21 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     if (hasDepthOrStencil(texture->vkFormat)) {
         usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        texture->loaded = true;
     } else {
         const auto renderTarget = (creation.flags & TextureFlags::RenderTarget) == TextureFlags::RenderTarget;
         usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         usage |= renderTarget ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0;
-        if (renderTarget) {
-            texture->loaded = true;
-        }
     }
 
     VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    imageInfo.flags                 = imageFlags;
     imageInfo.imageType             = toVkImageType(creation.type);
     imageInfo.format                = texture->vkFormat;
-    imageInfo.extent.width          = creation.width;
-    imageInfo.extent.height         = creation.height;
-    imageInfo.extent.depth          = creation.depth;
-    imageInfo.mipLevels             = creation.mipmaps;
-    imageInfo.arrayLayers           = 1;
+    imageInfo.extent.width          = texture->width;
+    imageInfo.extent.height         = texture->height;
+    imageInfo.extent.depth          = texture->depth;
+    imageInfo.mipLevels             = texture->mipLevels;
+    imageInfo.arrayLayers           = texture->layers;
     imageInfo.samples               = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling                = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.usage                 = usage;
@@ -442,36 +477,50 @@ TextureHandle Device::createTexture(const TextureCreation& creation) {
 
     setObjectName(VK_OBJECT_TYPE_IMAGE, (uint64_t) texture->vkImage, texture->name);
 
-    VkImageAspectFlags aspectMask{};
-    if (hasDepthOrStencil(texture->vkFormat)) {
-        aspectMask |= hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
-        aspectMask |= hasStencil(texture->vkFormat) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
-    } else {
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-
-    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    viewInfo.image      = texture->vkImage;
-    viewInfo.viewType   = toVkImageViewType(creation.type);
-    viewInfo.format     = texture->vkFormat;
-    viewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
-                            VK_COMPONENT_SWIZZLE_IDENTITY,
-                            VK_COMPONENT_SWIZZLE_IDENTITY,
-                            VK_COMPONENT_SWIZZLE_IDENTITY };
-
-    viewInfo.subresourceRange.aspectMask     = aspectMask;
-    viewInfo.subresourceRange.baseMipLevel   = 0;
-    viewInfo.subresourceRange.levelCount     = creation.mipmaps;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount     = 1;
-
-    check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &texture->vkImageView));
-    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture->vkImageView, texture->name);
+    TextureViewCreation vc{};
+    vc.setType(texture->type).setMips(0, texture->mipLevels).setArray(0, texture->layers).setName(texture->name);
+    vkCreateImageView(vc, handle);
 
     if (creation.initialData) {
         uploadTextureData(handle, creation.initialData);
     }
 
+    return handle;
+}
+
+TextureHandle Device::createTextureView(const TextureViewCreation& creation) {
+    auto [handle, texture] = _textures.obtain_and_access();
+
+    auto parentTexture = _textures.access(creation.texture);
+
+    texture->vkImage       = parentTexture->vkImage;
+    texture->vkFormat      = parentTexture->vkFormat;
+    texture->size          = parentTexture->size;
+    texture->width         = parentTexture->width;
+    texture->height        = parentTexture->height;
+    texture->depth         = parentTexture->depth;
+    texture->mipBase       = creation.mipBaseLevel;
+    texture->mipLevels     = creation.mipLevelCount;
+    texture->layers        = creation.arrayLayerCount;
+    texture->loadedMips    = creation.mipLevelCount;
+    texture->flags         = parentTexture->flags;
+    texture->type          = creation.type;
+    texture->name          = intern(creation.name);
+    texture->parentTexture = creation.texture;
+    texture->sampler       = parentTexture->sampler;
+
+    _textures.addReference(creation.texture);
+    parentTexture->loadedMips = parentTexture->mipLevels;
+
+    if (parentTexture->sampler != Undefined) {
+        _samplers.addReference(parentTexture->sampler);
+    }
+
+    for (size_t i = 0; i < std::size(texture->states); ++i) {
+        texture->states[i] = parentTexture->states[i];
+    }
+
+    vkCreateImageView(creation, handle);
     return handle;
 }
 
@@ -509,6 +558,13 @@ SamplerHandle Device::createSampler(const SamplerCreation& creation) {
     createInfo.maxLod                  = 16;
     createInfo.borderColor             = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
     createInfo.unnormalizedCoordinates = VK_FALSE;
+
+    VkSamplerReductionModeCreateInfo reductionInfo{ VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO };
+    if (creation.reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE) {
+        reductionInfo.reductionMode = creation.reductionMode;
+        createInfo.pNext            = &reductionInfo;
+    }
+
     check(_vkTable.vkCreateSampler(_device, &createInfo, getAllocCalls(), &sampler->vkSampler));
 
     setObjectName(VK_OBJECT_TYPE_SAMPLER, (uint64_t) sampler->vkSampler, sampler->name);
@@ -543,6 +599,7 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
     framebuffer->renderPass             = creation.renderPass;
     framebuffer->width                  = creation.width;
     framebuffer->height                 = creation.height;
+    framebuffer->layers                 = creation.layers;
     framebuffer->scaleX                 = creation.scaleX;
     framebuffer->scaleY                 = creation.scaleY;
     framebuffer->depthStencilAttachment = creation.depthStencilTexture;
@@ -579,7 +636,7 @@ FramebufferHandle Device::createFramebuffer(const FramebufferCreation& creation)
     createInfo.pAttachments    = framebufferAttachments;
     createInfo.width           = framebuffer->width;
     createInfo.height          = framebuffer->height;
-    createInfo.layers          = 1;
+    createInfo.layers          = framebuffer->layers;
     check(_vkTable.vkCreateFramebuffer(_device, &createInfo, getAllocCalls(), &framebuffer->vkFramebuffer));
 
     setObjectName(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t) framebuffer->vkFramebuffer, framebuffer->name);
@@ -744,6 +801,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                         layoutBinding.descriptorCount = kBindlessPoolElements;
                         bindingFlags =
                             VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+                    }
+                    if (reflBinding.image.dim == SpvDim3D) {
+                        layout.default3DTextures.insert(layoutBinding.binding);
                     }
                 }
                 layoutBinding.stageFlags = static_cast<VkShaderStageFlagBits>(module.shader_stage);
@@ -1231,18 +1291,31 @@ void Device::unmapBuffer(BufferHandle handle) {
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
-void Device::finishLoadTexture(TextureHandle handle) {
-    auto texture    = _textures.access(handle);
-    texture->loaded = true;
+void Device::finishLoadTexture(TextureHandle handle, uint8_t mip) {
+    auto texture        = _textures.access(handle);
+    texture->loadedMips = texture->mipLevels - mip;
+}
+
+void Device::showViewMips(TextureHandle handle) {
+    auto texture = _textures.access(handle);
+    TextureViewCreation vc{};
+    vc.setType(texture->type)
+        .setMips(texture->mipLevels - texture->loadedMips, texture->loadedMips)
+        .setArray(0, texture->layers)
+        .setName(texture->name);
+    _unusedImageViews.emplace_back(_absoluteFrame, texture->vkImageView);
+    vkCreateImageView(vc, handle);
 }
 
 void Device::bind(DescriptorSetHandle handle,
                   gerium_uint16_t binding,
                   gerium_uint16_t element,
                   Handle resource,
+                  bool dynamic,
                   gerium_utf8_t resourceInput,
-                  bool dynamic) {
-    auto descriptorSet = _descriptorSets.access(handle);
+                  bool fromPreviousFrame) {
+    auto descriptorSet       = _descriptorSets.access(handle);
+    auto internResourceInput = intern(resourceInput);
 
     const auto key = calcBindingKey(binding, element);
 
@@ -1259,11 +1332,12 @@ void Device::bind(DescriptorSetHandle handle,
                 DescriptorSet tempDescriptorSet{};
                 tempDescriptorSet.vkDescriptorSet = descriptorSet->vkDescriptorSet;
 
-                auto& item    = tempDescriptorSet.bindings[key];
-                item.binding  = binding;
-                item.element  = element;
-                item.resource = resourceInput;
-                item.handle   = resource;
+                auto& item         = tempDescriptorSet.bindings[key];
+                item.binding       = binding;
+                item.element       = element;
+                item.resource      = internResourceInput;
+                item.previousFrame = fromPreviousFrame;
+                item.handle        = resource;
                 VkWriteDescriptorSet descriptorWrite[1]{};
                 VkDescriptorBufferInfo bufferInfo[1]{};
                 VkDescriptorImageInfo imageInfo[1]{};
@@ -1277,31 +1351,29 @@ void Device::bind(DescriptorSetHandle handle,
     }
 
     if (auto it = descriptorSet->bindings.find(key); it != descriptorSet->bindings.end()) {
-        if (it->second.binding != binding || it->second.element != element || it->second.resource != resourceInput ||
-            it->second.handle != resource) {
-            it->second.binding  = binding;
-            it->second.element  = element;
-            it->second.resource = resourceInput;
-            it->second.handle   = resource;
+        if (it->second.binding != binding || it->second.element != element ||
+            it->second.resource != internResourceInput || it->second.handle != resource ||
+            it->second.previousFrame != fromPreviousFrame) {
+            it->second.binding       = binding;
+            it->second.element       = element;
+            it->second.resource      = internResourceInput;
+            it->second.previousFrame = fromPreviousFrame;
+            it->second.handle        = resource;
 
             if (!descriptorSet->changed) {
                 descriptorSet->changed = !dynamic;
             }
         }
     } else {
-        auto& item    = descriptorSet->bindings[key];
-        item.binding  = binding;
-        item.element  = element;
-        item.resource = resourceInput;
-        item.handle   = resource;
+        auto& item         = descriptorSet->bindings[key];
+        item.binding       = binding;
+        item.element       = element;
+        item.resource      = internResourceInput;
+        item.previousFrame = fromPreviousFrame;
+        item.handle        = resource;
 
         descriptorSet->changed = true;
     }
-}
-
-void Device::bind(DescriptorSetHandle handle, uint16_t binding, BufferHandle resource, gerium_utf8_t resourceInput) {
-    auto dynamic = _buffers.access(resource)->parent != Undefined;
-    bind(handle, binding, 0, (Handle) resource, resourceInput, dynamic);
 }
 
 VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
@@ -1319,11 +1391,8 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         bool swapToPrevResource = false;
         for (auto& [_, item] : descriptorSet->bindings) {
             if (item.resource) {
-                auto priorityResource = std::string(item.resource) + '-' + std::to_string(item.binding);
-                auto it               = _currentInputResources.find(priorityResource);
-                auto [_, resourceHandle] =
-                    it != _currentInputResources.end() ? it->second : _currentInputResources[item.resource];
-                bind(handle, item.binding, item.element, resourceHandle, item.resource, false);
+                auto resourceHandle = findInputResource(item.resource, item.previousFrame);
+                bind(handle, item.binding, item.element, resourceHandle, false, item.resource, item.previousFrame);
             }
         }
 
@@ -1388,14 +1457,52 @@ void Device::linkTextureSampler(TextureHandle texture, SamplerHandle sampler) no
     _textures.access(texture)->sampler = sampler;
 }
 
+FfxInterface Device::createFfxInterface(gerium_uint32_t maxContexts) {
+    if (!_fidelityFXSupported) {
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err: not supported FidelityFX
+    }
+
+#ifdef GERIUM_FIDELITY_FX
+    const size_t scratchBufferSize = ffxGetScratchMemorySizeVK(_physicalDevice, maxContexts);
+    auto scratchBuffer             = new uint8_t[scratchBufferSize];
+    memset(scratchBuffer, 0, scratchBufferSize);
+
+    FfxInterface ffxInterface{};
+    ffxGetInterfaceVK(&ffxInterface, &_ffxDeviceContext, scratchBuffer, scratchBufferSize, maxContexts);
+    return ffxInterface;
+#else
+    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err: not supported FidelityFX
+#endif
+}
+
+void Device::destroyFfxInterface(FfxInterface* ffxInterface) {
+    delete[] ffxInterface->scratchBuffer;
+}
+
+void Device::waitFfxJobs() const noexcept {
+    _vkTable.vkDeviceWaitIdle(_device);
+}
+
 void Device::clearInputResources() {
     _currentInputResources.clear();
 }
 
-void Device::addInputResource(const FrameGraphResource* resource, gerium_uint32_t index, Handle handle) {
-    _currentInputResources[resource->name] = { resource, handle };
+void Device::addInputResource(const FrameGraphResource* resource, Handle handle, bool fromPreviousFrame) {
+    const auto key              = calcKeyInputResource(resource->name, fromPreviousFrame);
+    _currentInputResources[key] = handle;
+}
 
-    _currentInputResources[std::string(resource->name) + '-' + std::to_string(index)] = { resource, handle };
+Handle Device::findInputResource(gerium_utf8_t resource, bool fromPreviousFrame) const noexcept {
+    const auto key = calcKeyInputResource(resource, fromPreviousFrame);
+    if (auto it = _currentInputResources.find(key); it != _currentInputResources.end()) {
+        return it->second;
+    }
+    return Undefined;
+}
+
+gerium_uint64_t Device::calcKeyInputResource(gerium_utf8_t resource, bool fromPreviousFrame) noexcept {
+    auto key = hash(resource);
+    return hash(fromPreviousFrame, key);
 }
 
 bool Device::isSupportedFormat(gerium_format_t format) noexcept {
@@ -1446,7 +1553,7 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     const auto layers     = selectValidationLayers();
     const auto extensions = selectExtensions();
 
-    if (layers.empty()) {
+    if (layers.empty() || !contains(extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME)) {
         _enableDebugNames = false;
     }
 
@@ -1524,11 +1631,16 @@ void Device::createPhysicalDevice() {
 void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags) {
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
-    const auto extensions    = selectDeviceExtensions(_physicalDevice);
+    const auto extensions    = selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT);
 
-    _memoryBudgetSupported = std::find_if(extensions.cbegin(), extensions.cend(), [](const auto extension) {
-        return strcmp(extension, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME) == 0;
-    }) != std::end(extensions);
+    _memoryBudgetSupported = contains(extensions, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+
+    _fidelityFXSupported = contains(extensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+
+    _meshShaderSupported = (featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT) == GERIUM_FEATURE_MESH_SHADER_BIT &&
+                           contains(extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME);
+
+    _8BitStorageSupported = (featureFlags & GERIUM_FEATURE_8_BIT_STORAGE_BIT) == GERIUM_FEATURE_8_BIT_STORAGE_BIT;
 
     size_t queueCreateInfoCount                 = 0;
     VkDeviceQueueCreateInfo queueCreateInfos[4] = {};
@@ -1561,37 +1673,111 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
         info.pQueuePriorities = priorities;
     }
 
-    VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
+    void* pNext = nullptr;
+
+    VkPhysicalDeviceVulkan11Features testFeatures11{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+    pNext = &testFeatures11;
+
+    VkPhysicalDeviceVulkan12Features testFeatures12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    testFeatures12.pNext = pNext;
+    pNext                = &testFeatures12;
+
+    VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeatures{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT
     };
-    VkPhysicalDeviceFeatures2 deviceFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, &indexingFeatures };
+    if (_meshShaderSupported) {
+        meshShaderFeatures.pNext = pNext;
+        pNext                    = &meshShaderFeatures;
+    }
+
+    VkPhysicalDeviceFeatures2 deviceFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, pNext };
     _vkTable.vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures);
 
-    _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS) == GERIUM_FEATURE_BINDLESS &&
-                         indexingFeatures.descriptorBindingPartiallyBound && indexingFeatures.runtimeDescriptorArray &&
-                         indexingFeatures.descriptorBindingSampledImageUpdateAfterBind;
+    _bindlessSupported = (featureFlags & GERIUM_FEATURE_BINDLESS_BIT) == GERIUM_FEATURE_BINDLESS_BIT &&
+                         testFeatures12.shaderSampledImageArrayNonUniformIndexing &&
+                         testFeatures12.descriptorBindingPartiallyBound && testFeatures12.runtimeDescriptorArray &&
+                         testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
+    _fidelityFXSupported = _fidelityFXSupported && testFeatures12.shaderStorageBufferArrayNonUniformIndexing &&
+                           testFeatures12.shaderFloat16 && deviceFeatures.features.shaderImageGatherExtended;
+    _meshShaderSupported  = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
+    _8BitStorageSupported = _8BitStorageSupported && testFeatures12.storageBuffer8BitAccess &&
+                            testFeatures12.uniformAndStorageBuffer8BitAccess && testFeatures12.shaderInt8;
+    _16BitStorageSupported = (featureFlags & GERIUM_FEATURE_16_BIT_STORAGE_BIT) == GERIUM_FEATURE_16_BIT_STORAGE_BIT &&
+                             testFeatures11.storageBuffer16BitAccess &&
+                             testFeatures11.uniformAndStorageBuffer16BitAccess && deviceFeatures.features.shaderInt16;
+
+    meshShaderFeatures.pNext = nullptr;
 
     VkPhysicalDeviceVulkan11Features features11{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
     features11.shaderDrawParameters = VK_TRUE;
+    if (_16BitStorageSupported) {
+        features11.storageBuffer16BitAccess           = testFeatures11.storageBuffer16BitAccess;
+        features11.uniformAndStorageBuffer16BitAccess = testFeatures11.uniformAndStorageBuffer16BitAccess;
+    }
+
+    VkPhysicalDeviceVulkan12Features features12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    features12.pNext = &features11;
 
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-    features.pNext                              = &features11;
-    features.features.geometryShader            = deviceFeatures.features.geometryShader;
-    features.features.logicOp                   = deviceFeatures.features.logicOp;
-    features.features.multiDrawIndirect         = deviceFeatures.features.multiDrawIndirect;
-    features.features.drawIndirectFirstInstance = deviceFeatures.features.drawIndirectFirstInstance;
-    features.features.depthClamp                = deviceFeatures.features.depthClamp;
-    features.features.depthBiasClamp            = deviceFeatures.features.depthBiasClamp;
-    features.features.fillModeNonSolid          = deviceFeatures.features.fillModeNonSolid;
-    features.features.depthBounds               = deviceFeatures.features.depthBounds;
-    features.features.wideLines                 = deviceFeatures.features.wideLines;
-    features.features.largePoints               = deviceFeatures.features.largePoints;
-    features.features.alphaToOne                = deviceFeatures.features.alphaToOne;
-    features.features.multiViewport             = deviceFeatures.features.multiViewport;
-    features.features.samplerAnisotropy         = deviceFeatures.features.samplerAnisotropy;
-    features.features.textureCompressionETC2    = deviceFeatures.features.textureCompressionETC2;
+    features.pNext = &features12;
+
+    features12.samplerFilterMinmax =
+        testFeatures12.samplerFilterMinmax; // TODO: add flag for reduction GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT
+    features12.drawIndirectCount = testFeatures12.drawIndirectCount;
     if (_bindlessSupported) {
-        features11.pNext = &indexingFeatures;
+        features12.shaderSampledImageArrayNonUniformIndexing = testFeatures12.shaderSampledImageArrayNonUniformIndexing;
+        features12.descriptorBindingPartiallyBound           = testFeatures12.descriptorBindingPartiallyBound;
+        features12.runtimeDescriptorArray                    = testFeatures12.runtimeDescriptorArray;
+        features12.descriptorBindingSampledImageUpdateAfterBind =
+            testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
+    }
+    if (_fidelityFXSupported) {
+        features.features.shaderImageGatherExtended = deviceFeatures.features.shaderImageGatherExtended;
+        features12.shaderFloat16                    = testFeatures12.shaderFloat16;
+        features12.shaderStorageBufferArrayNonUniformIndexing =
+            testFeatures12.shaderStorageBufferArrayNonUniformIndexing;
+    }
+    if (_8BitStorageSupported) {
+        features12.storageBuffer8BitAccess           = testFeatures12.storageBuffer8BitAccess;
+        features12.uniformAndStorageBuffer8BitAccess = testFeatures12.uniformAndStorageBuffer8BitAccess;
+        features12.shaderInt8                        = testFeatures12.shaderInt8;
+    }
+
+    features.features.imageCubeArray             = deviceFeatures.features.imageCubeArray;
+    features.features.geometryShader             = deviceFeatures.features.geometryShader;
+    features.features.logicOp                    = deviceFeatures.features.logicOp;
+    features.features.multiDrawIndirect          = deviceFeatures.features.multiDrawIndirect;
+    features.features.drawIndirectFirstInstance  = deviceFeatures.features.drawIndirectFirstInstance;
+    features.features.depthClamp                 = deviceFeatures.features.depthClamp;
+    features.features.depthBiasClamp             = deviceFeatures.features.depthBiasClamp;
+    features.features.fillModeNonSolid           = deviceFeatures.features.fillModeNonSolid;
+    features.features.depthBounds                = deviceFeatures.features.depthBounds;
+    features.features.wideLines                  = deviceFeatures.features.wideLines;
+    features.features.largePoints                = deviceFeatures.features.largePoints;
+    features.features.alphaToOne                 = deviceFeatures.features.alphaToOne;
+    features.features.multiViewport              = deviceFeatures.features.multiViewport;
+    features.features.samplerAnisotropy          = deviceFeatures.features.samplerAnisotropy;
+    features.features.textureCompressionETC2     = deviceFeatures.features.textureCompressionETC2;
+    features.features.textureCompressionASTC_LDR = deviceFeatures.features.textureCompressionASTC_LDR;
+    features.features.textureCompressionBC       = deviceFeatures.features.textureCompressionBC;
+    features.features.shaderInt16                = deviceFeatures.features.shaderInt16;
+
+    if (features.features.textureCompressionETC2) {
+        _compressions |= TextureCompressionFlags::ETC2;
+    }
+    if (features.features.textureCompressionASTC_LDR) {
+        _compressions |= TextureCompressionFlags::ASTC_LDR;
+    }
+    if (features.features.textureCompressionBC) {
+        _compressions |= TextureCompressionFlags::BC;
+    }
+
+    if (_meshShaderSupported) {
+        meshShaderFeatures.pNext                                  = features11.pNext;
+        meshShaderFeatures.multiviewMeshShader                    = VK_FALSE;
+        meshShaderFeatures.primitiveFragmentShadingRateMeshShader = VK_FALSE;
+        meshShaderFeatures.meshShaderQueries                      = VK_FALSE;
+        features11.pNext                                          = &meshShaderFeatures;
     }
 
     VkDeviceCreateInfo createInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
@@ -1690,7 +1876,7 @@ void Device::createDynamicBuffers() {
     BufferCreation bcUBO;
     bcUBO
         .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT |
-                 GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                 GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_INDIRECT_BIT,
              ResourceUsageType::Staging,
              _dynamicUBOSize * kMaxFrames)
         .setPersistent(true)
@@ -1702,7 +1888,8 @@ void Device::createDynamicBuffers() {
 
     BufferCreation bcSSBO;
     bcSSBO
-        .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT,
+        .set(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_INDEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT |
+                 GERIUM_BUFFER_USAGE_INDIRECT_BIT,
              ResourceUsageType::Staging,
              _dynamicSSBOSize * kMaxFrames)
         .setPersistent(true)
@@ -1725,11 +1912,14 @@ void Device::createDefaultTexture() {
     gerium_uint32_t black = 0;
     TextureCreation tc{};
     tc.setSize(1, 1, 1)
-        .setFlags(1, false, false)
+        .setFlags(1, 1, false, false)
         .setFormat(GERIUM_FORMAT_R8G8B8A8_UNORM, GERIUM_TEXTURE_TYPE_2D)
         .setData(&black)
-        .setName("default_texture");
+        .setName("default_texture")
+        .build();
     _defaultTexture = createTexture(tc);
+    tc.setFormat(GERIUM_FORMAT_R8G8B8A8_UNORM, GERIUM_TEXTURE_TYPE_3D).setName("default_texture_3d").build();
+    _defaultTexture3D = createTexture(tc);
 }
 
 void Device::createSynchronizations() {
@@ -1789,9 +1979,9 @@ void Device::createSwapchain(Application* application) {
     if (_swapchainRenderPass == Undefined) {
         RenderPassCreation rc{};
         rc.setName("SwapchainRenderPass");
-        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, GERIUM_RENDER_PASS_OP_DONT_CARE);
+        rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, RenderPassOp::DontCare);
         rc.output.depth(VK_FORMAT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-        rc.output.setDepthStencilOperations(GERIUM_RENDER_PASS_OP_CLEAR, GERIUM_RENDER_PASS_OP_CLEAR);
+        rc.output.setDepthStencilOperations(RenderPassOp::Clear, RenderPassOp::Clear);
         _swapchainRenderPass = createRenderPass(rc);
     }
 
@@ -1813,9 +2003,11 @@ void Device::createSwapchain(Application* application) {
         auto [colorHandle, color] = _textures.obtain_and_access();
         _swapchainImages.insert(colorHandle);
 
-        color->vkImage = images[i];
-        color->sampler = Undefined;
-        color->loaded  = true;
+        color->vkImage       = images[i];
+        color->layers        = 1;
+        color->parentTexture = Undefined;
+        color->sampler       = Undefined;
+        color->loadedMips    = 1;
 
         VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
         viewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
@@ -1933,6 +2125,14 @@ void Device::createImGui(Application* application) {
     ImGui_ImplVulkan_CreateFontsTexture();
 }
 
+void Device::createFidelityFX() {
+#ifdef GERIUM_FIDELITY_FX
+    _ffxDeviceContext.vkDevice         = _device;
+    _ffxDeviceContext.vkPhysicalDevice = _physicalDevice;
+    _ffxDeviceContext.vkDeviceProcAddr = _vkTable.vkGetDeviceProcAddr;
+#endif
+}
+
 void Device::resizeSwapchain() {
     _vkTable.vkDeviceWaitIdle(_device);
 
@@ -1941,6 +2141,12 @@ void Device::resizeSwapchain() {
 
     if (oldSwapchain) {
         _vkTable.vkDestroySwapchainKHR(_device, oldSwapchain, getAllocCalls());
+    }
+
+    for (auto descriptorSet : _descriptorSets) {
+        if (descriptorSet->global) {
+            descriptorSet->changed = 1;
+        }
     }
 }
 
@@ -2077,13 +2283,14 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
                 descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-                auto texture = _textures.access(resource != Undefined ? resource : _defaultTexture);
+                auto texture = _textures.access(
+                    resource != Undefined ? resource : getDefaultTexture(descriptorSetLayout, binding.binding));
 
                 imageInfo[i].sampler =
                     texture->sampler != Undefined ? _samplers.access(texture->sampler)->vkSampler : defaultSampler;
 
-                if (!texture->loaded) {
-                    texture        = _textures.access(_defaultTexture);
+                if (texture->loadedMips == 0) {
+                    texture        = _textures.access(getDefaultTexture(descriptorSetLayout, binding.binding));
                     updateRequired = true;
                 }
 
@@ -2111,16 +2318,13 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 descriptorWrite[i].pImageInfo = &imageInfo[i];
                 break;
             }
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: {
                 if (resource == Undefined) {
                     continue;
                 }
                 auto buffer = _buffers.access(resource);
 
-                descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
-                                                        ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
-                                                        : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 
                 if (buffer->parent != Undefined) {
                     bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
@@ -2134,16 +2338,13 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
                 descriptorWrite[i].pBufferInfo = &bufferInfo[i];
                 break;
             }
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: {
                 if (resource == Undefined) {
                     continue;
                 }
                 auto buffer = _buffers.access(resource);
 
-                descriptorWrite[i].descriptorType = buffer->usage == ResourceUsageType::Dynamic
-                                                        ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
-                                                        : VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                descriptorWrite[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 
                 if (buffer->parent != Undefined) {
                     bufferInfo[i].buffer = _buffers.access(buffer->parent)->vkBuffer;
@@ -2194,16 +2395,28 @@ std::vector<uint32_t> Device::compile(const char* code,
 
     switch (stage) {
         case VK_SHADER_STAGE_VERTEX_BIT:
-            options.AddMacroDefinition("VERTEX"s, "1"s);
+            options.AddMacroDefinition("VERTEX_SHADER"s, "1"s);
             kind = shaderc_glsl_vertex_shader;
             break;
         case VK_SHADER_STAGE_FRAGMENT_BIT:
-            options.AddMacroDefinition("FRAGMENT"s, "1"s);
+            options.AddMacroDefinition("FRAGMENT_SHADER"s, "1"s);
             kind = shaderc_glsl_fragment_shader;
             break;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            options.AddMacroDefinition("GEOMETRY_SHADER"s, "1"s);
+            kind = shaderc_glsl_geometry_shader;
+            break;
         case VK_SHADER_STAGE_COMPUTE_BIT:
-            options.AddMacroDefinition("COMPUTE"s, "1"s);
+            options.AddMacroDefinition("COMPUTE_SHADER"s, "1"s);
             kind = shaderc_glsl_compute_shader;
+            break;
+        case VK_SHADER_STAGE_TASK_BIT_EXT:
+            options.AddMacroDefinition("TASK_SHADER"s, "1"s);
+            kind = shaderc_glsl_task_shader;
+            break;
+        case VK_SHADER_STAGE_MESH_BIT_EXT:
+            options.AddMacroDefinition("MESH_SHADER"s, "1"s);
+            kind = shaderc_glsl_mesh_shader;
             break;
         default:
             throw std::runtime_error("Not supported shader type");
@@ -2211,6 +2424,26 @@ std::vector<uint32_t> Device::compile(const char* code,
 
     if (_bindlessSupported) {
         options.AddMacroDefinition("BINDLESS_SUPPORTED"s, "1"s);
+    }
+
+    if (_meshShaderSupported) {
+        options.AddMacroDefinition("MESH_SHADER_SUPPORTED"s, "1"s);
+    }
+
+    if (_fidelityFXSupported) {
+        options.AddMacroDefinition("FIDELITY_FX_SUPPORTED"s, "1"s);
+    }
+
+    if (_8BitStorageSupported) {
+        options.AddMacroDefinition("SHADER_8BIT_STORAGE_SUPPORTED"s, "1"s);
+    }
+
+    if (_16BitStorageSupported) {
+        options.AddMacroDefinition("SHADER_16BIT_STORAGE_SUPPORTED"s, "1"s);
+    }
+
+    if (!_enableValidations) {
+        options.AddMacroDefinition("NDEBUG"s, "1"s);
     }
 
     for (gerium_uint32_t i = 0; i < numMacros; ++i) {
@@ -2276,7 +2509,7 @@ std::vector<uint32_t> Device::compile(const char* code,
     options.SetSourceLanguage(sourceLang);
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
     options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
-    options.SetTargetSpirv(shaderc_spirv_version_1_2);
+    options.SetTargetSpirv(shaderc_spirv_version_1_4);
     options.SetWarningsAsErrors();
     options.SetPreserveBindings(true);
     options.SetAutoMapLocations(true);
@@ -2308,15 +2541,15 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     VkImageLayout depthInitial;
 
     switch (output.depthOperation) {
-        case GERIUM_RENDER_PASS_OP_DONT_CARE:
+        case RenderPassOp::DontCare:
             depthOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
             break;
-        case GERIUM_RENDER_PASS_OP_LOAD:
+        case RenderPassOp::Load:
             depthOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
             depthInitial = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             break;
-        case GERIUM_RENDER_PASS_OP_CLEAR:
+        case RenderPassOp::Clear:
             depthOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
             depthInitial = VK_IMAGE_LAYOUT_UNDEFINED;
             break;
@@ -2326,13 +2559,13 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     }
 
     switch (output.stencilOperation) {
-        case GERIUM_RENDER_PASS_OP_DONT_CARE:
+        case RenderPassOp::DontCare:
             stencilOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             break;
-        case GERIUM_RENDER_PASS_OP_LOAD:
+        case RenderPassOp::Load:
             stencilOp = VK_ATTACHMENT_LOAD_OP_LOAD;
             break;
-        case GERIUM_RENDER_PASS_OP_CLEAR:
+        case RenderPassOp::Clear:
             stencilOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             break;
         default:
@@ -2347,15 +2580,15 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
         VkAttachmentLoadOp colorOp;
         VkImageLayout colorInitial;
         switch (output.colorOperations[attachmentCount]) {
-            case GERIUM_RENDER_PASS_OP_DONT_CARE:
+            case RenderPassOp::DontCare:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
-            case GERIUM_RENDER_PASS_OP_LOAD:
+            case RenderPassOp::Load:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_LOAD;
                 colorInitial = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 break;
-            case GERIUM_RENDER_PASS_OP_CLEAR:
+            case RenderPassOp::Clear:
                 colorOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
                 colorInitial = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
@@ -2449,6 +2682,36 @@ VkRenderPass Device::vkCreateRenderPass(const RenderPassOutput& output, const ch
     return renderPass;
 }
 
+void Device::vkCreateImageView(const TextureViewCreation& creation, TextureHandle handle) {
+    auto texture = _textures.access(handle);
+
+    VkImageAspectFlags aspectMask{};
+    if (hasDepthOrStencil(texture->vkFormat)) {
+        aspectMask |= hasDepth(texture->vkFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
+        aspectMask |= hasStencil(texture->vkFormat) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
+    } else {
+        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
+    VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    viewInfo.image      = texture->vkImage;
+    viewInfo.viewType   = toVkImageViewType(creation.type, creation.arrayLayerCount > 1);
+    viewInfo.format     = texture->vkFormat;
+    viewInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY,
+                            VK_COMPONENT_SWIZZLE_IDENTITY };
+
+    viewInfo.subresourceRange.aspectMask     = aspectMask;
+    viewInfo.subresourceRange.baseMipLevel   = creation.mipBaseLevel;
+    viewInfo.subresourceRange.levelCount     = creation.mipLevelCount;
+    viewInfo.subresourceRange.baseArrayLayer = creation.arrayBaseLayer;
+    viewInfo.subresourceRange.layerCount     = creation.arrayLayerCount;
+
+    check(_vkTable.vkCreateImageView(_device, &viewInfo, getAllocCalls(), &texture->vkImageView));
+    setObjectName(VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t) texture->vkImageView, creation.name);
+}
+
 void Device::deleteResources(bool forceDelete) {
     while (!_deletionQueue.empty()) {
         const auto& resource = _deletionQueue.front();
@@ -2476,10 +2739,14 @@ void Device::deleteResources(bool forceDelete) {
                     }
                     if (texture->vkImage && texture->vmaAllocation) {
                         vmaDestroyImage(_vmaAllocator, texture->vkImage, texture->vmaAllocation);
-                    } else if (texture->vkImage && !_swapchainImages.contains(resource.handle)) {
+                    } else if (texture->vkImage && !_swapchainImages.contains(resource.handle) &&
+                               texture->parentTexture == Undefined) {
                         _vkTable.vkDestroyImage(_device, texture->vkImage, getAllocCalls());
                     } else {
                         _swapchainImages.erase(TextureHandle{ resource.handle });
+                    }
+                    if (texture->parentTexture != Undefined) {
+                        destroyTexture(texture->parentTexture);
                     }
                 }
                 _textures.release(resource.handle);
@@ -2594,8 +2861,12 @@ int Device::getPhysicalDeviceScore(VkPhysicalDevice device) {
         return 0;
     }
 
+    if (!features.imageCubeArray) {
+        return 0;
+    }
+
     try {
-        selectDeviceExtensions(device);
+        selectDeviceExtensions(device, false);
     } catch (const Exception& exc) {
         if (exc.result() == GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED) {
             return 0;
@@ -2709,11 +2980,16 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
     memcpy((void*) mapped, (void*) data, texture->size);
     unmapBuffer(stagingBuffer);
 
-    _frameCommandBuffer->copyBuffer(stagingBuffer, handle);
+    _frameCommandBuffer->copyBuffer(stagingBuffer, handle, 0);
     _frameCommandBuffer->generateMipmaps(handle);
     destroyBuffer(stagingBuffer);
 
-    finishLoadTexture(handle);
+    finishLoadTexture(handle, 0);
+}
+
+TextureHandle Device::getDefaultTexture(const DescriptorSetLayout& descriptorSetLayout,
+                                        uint32_t binding) const noexcept {
+    return descriptorSetLayout.data.default3DTextures.contains(binding) ? _defaultTexture3D : _defaultTexture;
 }
 
 std::vector<const char*> Device::selectValidationLayers() {
@@ -2736,11 +3012,16 @@ std::vector<const char*> Device::selectExtensions() {
     return checkExtensions(extensions);
 }
 
-std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device) {
+std::vector<const char*> Device::selectDeviceExtensions(VkPhysicalDevice device, bool meshShader) {
     std::vector<std::pair<const char*, bool>> extensions = {
-        { VK_KHR_SWAPCHAIN_EXTENSION_NAME,     true  },
-        { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false }
+        { VK_KHR_SWAPCHAIN_EXTENSION_NAME,                 true  },
+        { VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,             false },
+        { VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME, false }  // need FidelityFX
     };
+
+    if (meshShader) {
+        extensions.emplace_back(VK_EXT_MESH_SHADER_EXTENSION_NAME, false);
+    }
 
     for (const auto& extension : onGetDeviceExtensions()) {
         extensions.emplace_back(extension, true);
@@ -2839,7 +3120,7 @@ std::vector<const char*> Device::checkValidationLayers(const std::vector<const c
 
         for (const auto& layer : layers) {
             _logger->print(GERIUM_LOGGER_LEVEL_DEBUG, [&results, layer](auto& stream) {
-                const auto found = std::find(results.cbegin(), results.cend(), layer) != results.cend();
+                const auto found = contains(results, layer);
                 stream << "Layer "sv << layer << ' ' << (found ? "found"sv : "not found"sv);
             });
         }
@@ -2869,7 +3150,7 @@ std::vector<const char*> Device::checkExtensions(const std::vector<std::pair<con
     }
 
     for (const auto& [extension, required] : extensions) {
-        const auto notFound = std::find(results.cbegin(), results.cend(), extension) == results.cend();
+        const auto notFound = !contains(results, extension);
         if (notFound && required) {
             check(VK_ERROR_EXTENSION_NOT_PRESENT);
         }
@@ -2987,6 +3268,7 @@ gerium_uint64_t Device::calcSamplerHash(const SamplerCreation& creation) noexcep
     seed = hash(creation.addressModeU, seed);
     seed = hash(creation.addressModeV, seed);
     seed = hash(creation.addressModeW, seed);
+    seed = hash(creation.reductionMode, seed);
 
     return seed;
 }

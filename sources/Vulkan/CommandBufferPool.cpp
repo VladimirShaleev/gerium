@@ -20,23 +20,28 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
                                     QueueType srcQueueType,
                                     QueueType dstQueueType) {
     auto texture = _device->_textures.access(handle);
+    auto states  = getTextureStates(handle);
+
+    if (mipLevel == 0 && mipCount == 1 && states[0] == newState) {
+        return;
+    }
 
     auto srcFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(srcQueueType);
     auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
 
     VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-    barrier.srcAccessMask                   = toVkAccessFlags(texture->states[mipLevel]);
+    barrier.srcAccessMask                   = toVkAccessFlags(states[mipLevel]);
     barrier.dstAccessMask                   = toVkAccessFlags(newState);
-    barrier.oldLayout                       = toVkImageLayout(texture->states[mipLevel]);
+    barrier.oldLayout                       = toVkImageLayout(states[mipLevel]);
     barrier.newLayout                       = toVkImageLayout(newState);
     barrier.srcQueueFamilyIndex             = srcFamily;
     barrier.dstQueueFamilyIndex             = dstFamily;
     barrier.image                           = texture->vkImage;
     barrier.subresourceRange.aspectMask     = toVkImageAspect(texture->vkFormat);
     barrier.subresourceRange.baseMipLevel   = mipLevel;
-    barrier.subresourceRange.levelCount     = mipCount == 0 ? texture->mipmaps : mipCount;
+    barrier.subresourceRange.levelCount     = mipCount == 0 ? texture->mipLevels : mipCount;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount     = 1;
+    barrier.subresourceRange.layerCount     = texture->layers;
 
     if (hasStencil(texture->vkFormat)) {
         barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -49,8 +54,36 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     for (gerium_uint32_t mip = mipLevel; mip < mipLevel + mipCount; ++mip) {
-        texture->states[mip] = newState;
+        states[mip] = newState;
     }
+}
+
+void CommandBuffer::addBufferBarrier(BufferHandle handle,
+                                     ResourceState dstState,
+                                     QueueType srcQueueType,
+                                     QueueType dstQueueType) {
+    auto buffer = _device->_buffers.access(handle);
+
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, 0);
+
+    auto srcFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(srcQueueType);
+    auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
+
+    VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+    barrier.srcAccessMask       = toVkAccessFlags(buffer->state);
+    barrier.dstAccessMask       = toVkAccessFlags(dstState);
+    barrier.srcQueueFamilyIndex = srcFamily;
+    barrier.dstQueueFamilyIndex = dstFamily;
+    barrier.buffer              = vkBuffer;
+    barrier.offset              = vkOffset;
+    barrier.size                = buffer->size;
+
+    const auto srcStageMask = utilDeterminePipelineStageFlags(barrier.srcAccessMask, srcQueueType);
+    const auto dstStageMask = utilDeterminePipelineStageFlags(barrier.dstAccessMask, dstQueueType);
+
+    _device->vkTable().vkCmdPipelineBarrier(
+        _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+    buffer->state = dstState;
 }
 
 void CommandBuffer::clearColor(gerium_uint32_t index,
@@ -78,13 +111,13 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass,
         VkClearValue clearValues[kMaxImageOutputs + 1];
 
         for (gerium_uint32_t o = 0; o < renderPassObj->output.numColorFormats; ++o) {
-            if (renderPassObj->output.colorOperations[o] == GERIUM_RENDER_PASS_OP_CLEAR) {
+            if (renderPassObj->output.colorOperations[o] == RenderPassOp::Clear) {
                 clearValues[clearValuesCount++] = _clearColors[o];
             }
         }
 
         if (renderPassObj->output.depthStencilFormat != VK_FORMAT_UNDEFINED) {
-            if (renderPassObj->output.depthOperation == GERIUM_RENDER_PASS_OP_CLEAR) {
+            if (renderPassObj->output.depthOperation == RenderPassOp::Clear) {
                 clearValues[clearValuesCount++] = _clearDepthStencil;
             }
         }
@@ -105,17 +138,6 @@ void CommandBuffer::bindPass(RenderPassHandle renderPass,
         _currentFramebuffer = framebuffer;
     }
 }
-
-// void CommandBuffer::bindPipeline(PipelineHandle pipeline) {
-//     if (_currentPipeline != pipeline) {
-//         auto pipelineObj = _device->_pipelines.access(pipeline);
-//         _device->vkTable().vkCmdBindPipeline(_commandBuffer, pipelineObj->vkBindPoint, pipelineObj->vkPipeline);
-//         _currentPipeline = pipeline;
-//         for (auto& set : _currentDescriptorSets) {
-//             set = Undefined;
-//         }
-//     }
-// }
 
 void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
     auto srcBuffer = _device->_buffers.access(src);
@@ -163,7 +185,7 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
         _commandBuffer, srcStageMask2, dstStageMask2, 0, 0, nullptr, 1, &barrier2, 0, nullptr);
 }
 
-void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint32_t offset) {
+void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint8_t mip, gerium_uint32_t offset) {
     auto srcBuffer  = _device->_buffers.access(src);
     auto dstTexture = _device->_textures.access(dst);
     auto srcOffset  = srcBuffer->globalOffset + offset;
@@ -177,22 +199,24 @@ void CommandBuffer::copyBuffer(BufferHandle src, TextureHandle dst, gerium_uint3
         srcBuffer = _device->_buffers.access(srcBuffer->parent);
     }
 
+    const auto width  = std::max(static_cast<uint32_t>(dstTexture->width * std::pow(0.5, mip)), 1U);
+    const auto height = std::max(static_cast<uint32_t>(dstTexture->height * std::pow(0.5, mip)), 1U);
+    const auto depth  = std::max(static_cast<uint32_t>(dstTexture->depth * std::pow(0.5, mip)), 1U);
+
     VkBufferImageCopy region{};
     region.bufferOffset                    = (VkDeviceSize) srcOffset;
     region.bufferRowLength                 = 0;
     region.bufferImageHeight               = 0;
     region.imageSubresource.aspectMask     = toVkImageAspect(dstTexture->vkFormat);
-    region.imageSubresource.mipLevel       = 0;
+    region.imageSubresource.mipLevel       = mip;
     region.imageSubresource.baseArrayLayer = 0;
     region.imageSubresource.layerCount     = 1;
     region.imageOffset                     = { 0, 0, 0 };
-    region.imageExtent                     = { dstTexture->width, dstTexture->height, dstTexture->depth };
+    region.imageExtent                     = { width, height, depth };
 
-    addImageBarrier(dst, ResourceState::CopyDest, 0, 1, queue, queue);
+    addImageBarrier(dst, ResourceState::CopyDest, mip, 1, queue, queue);
     _device->vkTable().vkCmdCopyBufferToImage(
         _commandBuffer, srcBuffer->vkBuffer, dstTexture->vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    dstTexture->states[0] = ResourceState::CopyDest;
-    addImageBarrier(dst, ResourceState::CopySource, 0, 1, queue, queue);
 }
 
 void CommandBuffer::generateMipmaps(TextureHandle handle) {
@@ -201,7 +225,8 @@ void CommandBuffer::generateMipmaps(TextureHandle handle) {
     int32_t w = texture->width;
     int32_t h = texture->height;
 
-    for (int mipIndex = 1; mipIndex < texture->mipmaps; ++mipIndex) {
+    addImageBarrier(handle, ResourceState::CopySource, 0, 1);
+    for (int mipIndex = 1; mipIndex < texture->mipLevels; ++mipIndex) {
         addImageBarrier(handle, ResourceState::CopyDest, mipIndex, 1);
 
         VkImageBlit blitRegion{};
@@ -230,7 +255,7 @@ void CommandBuffer::generateMipmaps(TextureHandle handle) {
         addImageBarrier(handle, ResourceState::CopySource, mipIndex, 1);
     }
 
-    addImageBarrier(handle, ResourceState::ShaderResource, 0, texture->mipmaps);
+    addImageBarrier(handle, ResourceState::ShaderResource, 0, texture->mipLevels);
 }
 
 void CommandBuffer::pushMarker(gerium_utf8_t name) {
@@ -246,6 +271,26 @@ void CommandBuffer::popMarker() {
         auto queryIndex = _device->profiler()->popTimestamp();
         _device->vkTable().vkCmdWriteTimestamp(
             _commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, _device->_queryPool, queryIndex);
+    }
+}
+
+void CommandBuffer::pushLabel(gerium_utf8_t name) {
+    if (_device->_enableDebugNames) {
+        const auto color = nameColorVec4(name);
+        VkDebugUtilsLabelEXT label{};
+        label.sType      = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        label.pLabelName = name;
+        label.color[0]   = color.r;
+        label.color[1]   = color.g;
+        label.color[2]   = color.b;
+        label.color[3]   = color.a;
+        _device->vkTable().vkCmdBeginDebugUtilsLabelEXT(_commandBuffer, &label);
+    }
+}
+
+void CommandBuffer::popLabel() {
+    if (_device->_enableDebugNames) {
+        _device->vkTable().vkCmdEndDebugUtilsLabelEXT(_commandBuffer);
     }
 }
 
@@ -390,28 +435,12 @@ void CommandBuffer::onBindTechnique(TechniqueHandle handle) noexcept {
 }
 
 void CommandBuffer::onBindVertexBuffer(BufferHandle handle, gerium_uint32_t binding, gerium_uint32_t offset) noexcept {
-    auto buffer = _device->_buffers.access(handle);
-
-    VkBuffer vkBuffer     = buffer->vkBuffer;
-    VkDeviceSize vkOffset = offset;
-    if (buffer->parent != Undefined) {
-        auto parentBuffer = _device->_buffers.access(buffer->parent);
-        vkBuffer          = parentBuffer->vkBuffer;
-        vkOffset          = buffer->globalOffset + offset;
-    }
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
     _device->vkTable().vkCmdBindVertexBuffers(_commandBuffer, binding, 1, &vkBuffer, &vkOffset);
 }
 
 void CommandBuffer::onBindIndexBuffer(BufferHandle handle, gerium_uint32_t offset, gerium_index_type_t type) noexcept {
-    auto buffer = _device->_buffers.access(handle);
-
-    VkBuffer vkBuffer     = buffer->vkBuffer;
-    VkDeviceSize vkOffset = offset;
-    if (buffer->parent != Undefined) {
-        auto parentBuffer = _device->_buffers.access(buffer->parent);
-        vkBuffer          = parentBuffer->vkBuffer;
-        vkOffset          = buffer->globalOffset + offset;
-    }
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
     _device->vkTable().vkCmdBindIndexBuffer(_commandBuffer, vkBuffer, vkOffset, toVkIndexType(type));
 }
 
@@ -423,9 +452,7 @@ void CommandBuffer::onBindDescriptorSet(DescriptorSetHandle handle, gerium_uint3
     }
 }
 
-void CommandBuffer::onDispatch(gerium_uint32_t groupX,
-                               gerium_uint32_t groupY,
-                               gerium_uint32_t groupZ) noexcept {
+void CommandBuffer::onDispatch(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept {
     bindDescriptorSets();
     _device->vkTable().vkCmdDispatch(_commandBuffer, groupX, groupY, groupZ);
 }
@@ -446,6 +473,72 @@ void CommandBuffer::onDrawIndexed(gerium_uint32_t firstIndex,
     bindDescriptorSets();
     _device->vkTable().vkCmdDrawIndexed(
         _commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void CommandBuffer::onDrawIndexedIndirect(BufferHandle handle,
+                                          gerium_uint32_t offset,
+                                          BufferHandle drawCountHandle,
+                                          gerium_uint32_t drawCountOffset,
+                                          gerium_uint32_t drawCount,
+                                          gerium_uint32_t stride) noexcept {
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
+
+    bindDescriptorSets();
+    if (drawCountHandle == Undefined) {
+        _device->vkTable().vkCmdDrawIndexedIndirect(_commandBuffer, vkBuffer, vkOffset, drawCount, stride);
+    } else {
+        auto [vkBufferCount, vkOffsetCount] = getVkBuffer(drawCountHandle, drawCountOffset);
+        _device->vkTable().vkCmdDrawIndexedIndirectCount(
+            _commandBuffer, vkBuffer, vkOffset, vkBufferCount, vkOffsetCount, drawCount, stride);
+    }
+}
+
+void CommandBuffer::onDrawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept {
+    bindDescriptorSets();
+    _device->vkTable().vkCmdDrawMeshTasksEXT(_commandBuffer, groupX, groupY, groupZ);
+}
+
+void CommandBuffer::onDrawMeshTasksIndirect(BufferHandle handle,
+                                            gerium_uint32_t offset,
+                                            gerium_uint32_t drawCount,
+                                            gerium_uint32_t stride) noexcept {
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
+
+    bindDescriptorSets();
+    _device->vkTable().vkCmdDrawMeshTasksIndirectEXT(_commandBuffer, vkBuffer, vkOffset, drawCount, stride);
+}
+
+void CommandBuffer::onFillBuffer(BufferHandle handle,
+                                 gerium_uint32_t offset,
+                                 gerium_uint32_t size,
+                                 gerium_uint32_t data) noexcept {
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
+    addBufferBarrier(handle, ResourceState::CopyDest);
+    _device->vkTable().vkCmdFillBuffer(_commandBuffer, vkBuffer, vkOffset, VkDeviceSize{ size }, data);
+    addBufferBarrier(handle, ResourceState::ShaderResource);
+}
+
+void CommandBuffer::onBarrierBufferWrite(BufferHandle handle) noexcept {
+    addBufferBarrier(handle, ResourceState::UnorderedAccess);
+}
+
+void CommandBuffer::onBarrierBufferRead(BufferHandle handle) noexcept {
+    addBufferBarrier(handle,
+                     ResourceState::UnorderedAccess | ResourceState::IndirectArgument | ResourceState::ShaderResource);
+}
+
+void CommandBuffer::onBarrierTextureWrite(TextureHandle handle) noexcept {
+    auto texture = _device->_textures.access(handle);
+    addImageBarrier(handle, ResourceState::UnorderedAccess, texture->mipBase, texture->mipLevels);
+}
+
+void CommandBuffer::onBarrierTextureRead(TextureHandle handle) noexcept {
+    auto texture = _device->_textures.access(handle);
+    addImageBarrier(handle, ResourceState::ShaderResource, texture->mipBase, texture->mipLevels);
+}
+
+FfxCommandList CommandBuffer::onGetFfxCommandList() noexcept {
+    return reinterpret_cast<FfxCommandList>(_commandBuffer);
 }
 
 void CommandBuffer::bindDescriptorSets() {
@@ -516,6 +609,32 @@ uint32_t CommandBuffer::getFamilyIndex(QueueType queue) const noexcept {
     }
     assert(!"unreachable code");
     return 0;
+}
+
+std::pair<VkBuffer, VkDeviceSize> CommandBuffer::getVkBuffer(BufferHandle handle,
+                                                             gerium_uint32_t offset) const noexcept {
+    auto buffer = _device->_buffers.access(handle);
+
+    VkBuffer vkBuffer     = buffer->vkBuffer;
+    VkDeviceSize vkOffset = offset;
+
+    if (buffer->parent != Undefined) {
+        auto parentBuffer = _device->_buffers.access(buffer->parent);
+
+        vkBuffer = parentBuffer->vkBuffer;
+        vkOffset = buffer->globalOffset + offset;
+    }
+
+    return { vkBuffer, vkOffset };
+}
+
+ResourceState* CommandBuffer::getTextureStates(TextureHandle handle) noexcept {
+    auto texture = _device->_textures.access(handle);
+    auto states  = texture->states;
+    if (texture->parentTexture != Undefined) {
+        states = _device->_textures.access(texture->parentTexture)->states;
+    }
+    return states;
 }
 
 CommandBufferPool::~CommandBufferPool() {

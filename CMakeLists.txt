@@ -1,19 +1,25 @@
 cmake_minimum_required(VERSION 3.16)
+cmake_policy(SET CMP0135 NEW)
+
 include(FetchContent)
 include(cmake/version.cmake)
 include(cmake/vcpkg_android.cmake)
 
 option(GERIUM_INSTALL "Generate installation target" ON)
+option(GERIUM_FIDELITY_FX "Integrate with FidelityFX" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
 if(DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 else()
+    message(WARNING "vcpkg not found, so will be installed in the project build directory; "
+        "it is recommended to install vcpkg according to the instructions, which will "
+        "allow correct caching of build dependencies (https://learn.microsoft.com/vcpkg/get_started/get-started)")
     FetchContent_Declare(
         vcpkg
         GIT_REPOSITORY https://github.com/microsoft/vcpkg/
-        GIT_TAG 2024.06.15)
+        GIT_TAG 2024.12.16)
     FetchContent_MakeAvailable(vcpkg)
     set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 endif()
@@ -58,12 +64,13 @@ find_package(unofficial-spirv-reflect CONFIG REQUIRED)
 find_package(marl CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(Ktx CONFIG REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
 include(cmake/x11.cmake)
 
-cmake_dependent_option(GERIUM_BUILD_SAMPLE "Build sample" ON
+cmake_dependent_option(GERIUM_BUILD_SAMPLES "Build samples" ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
 file(GLOB GERIUM_INCLUDE "include/*.h")
@@ -143,6 +150,7 @@ target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE marl::marl)
+target_link_libraries(gerium PRIVATE KTX::ktx KTX::astcenc-avx2-static)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${IMGUI_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${Stb_INCLUDE_DIR})
@@ -218,6 +226,9 @@ elseif(NOT APPLE)
     endif()
 endif()
 
-if(GERIUM_BUILD_SAMPLE)
-    add_subdirectory(example)
+if(GERIUM_BUILD_SAMPLES)
+    add_subdirectory(examples/example1)
+    add_subdirectory(examples/example2)
 endif()
+
+include(cmake/fidelityfx.cmake)

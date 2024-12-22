@@ -11,7 +11,8 @@ FrameGraph::FrameGraph(Renderer* renderer) :
     _logger(Logger::create("gerium:frame-graph")),
     _renderer(renderer),
     _hasChanges(false),
-    _nodeGraphCount(0) {
+    _nodeGraphCount(0),
+    _sortedNodeGraphCount(0) {
 }
 
 void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t data) {
@@ -89,6 +90,39 @@ void FrameGraph::addNode(gerium_utf8_t name,
     _hasChanges = true;
 }
 
+void FrameGraph::enableNode(gerium_utf8_t name, gerium_bool_t enable) {
+    const auto key = hash(name);
+
+    if (auto it = _nodeCache.find(key); it != _nodeCache.end()) {
+        auto node = _nodes.access(it->second);
+        if ((node->enabled != 0) != (enable != 0)) {
+            node->enabled = enable;
+            _hasChanges   = true;
+        }
+    } else {
+        _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name](auto& stream) {
+            stream << "Node '" << name << "' not found in frame graph";
+        });
+        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
+    }
+}
+
+void FrameGraph::addBuffer(gerium_utf8_t name, BufferHandle handle) {
+    if (handle != Undefined) {
+        _externalCache[hash(name)] = { handle, false };
+    } else {
+        _externalCache.erase(hash(name));
+    }
+}
+
+void FrameGraph::addTexture(gerium_utf8_t name, TextureHandle handle) {
+    if (handle != Undefined) {
+        _externalCache[hash(name)] = { handle, true };
+    } else {
+        _externalCache.erase(hash(name));
+    }
+}
+
 void FrameGraph::clear() {
     _hasChanges = false;
 
@@ -120,10 +154,16 @@ void FrameGraph::clear() {
                         handle = Undefined;
                     }
                 }
+            } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+                if (resource->info.buffer.handle != Undefined) {
+                    _renderer->destroyBuffer(resource->info.buffer.handle);
+                    resource->info.buffer.handle = Undefined;
+                }
             }
         }
     }
-    _nodeGraphCount = 0;
+    _nodeGraphCount       = 0;
+    _sortedNodeGraphCount = 0;
 
     _renderPassCache.clear();
     _resourceCache.clear();
@@ -140,14 +180,16 @@ void FrameGraph::compile() {
     }
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        _nodes.access(_nodeGraph[i])->edgeCount = 0;
+        auto node       = _nodes.access(_nodeGraph[i]);
+        node->edgeCount = 0;
+        for (gerium_uint32_t j = 0; j < node->outputCount; ++j) {
+            _resources.access(node->outputs[j])->saveForNextFrame = false;
+        }
     }
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
-        if (node->enabled) {
-            computeEdges(node);
-        }
+        computeEdges(node);
     }
 
     gerium_uint32_t sortedNodeCount = 0;
@@ -194,7 +236,8 @@ void FrameGraph::compile() {
         }
     }
 
-    std::copy_n(_sortedNodes.crbegin() + (kMaxNodes - _nodeGraphCount), sortedNodeCount, _nodeGraph.begin());
+    std::copy_n(_sortedNodes.crbegin() + (kMaxNodes - sortedNodeCount), sortedNodeCount, _sortedNodeGraph.begin());
+    _sortedNodeGraphCount = sortedNodeCount;
 
     for (auto& item : _allocations) {
         item = Undefined;
@@ -204,8 +247,8 @@ void FrameGraph::compile() {
 
     std::set<std::string> storedResources;
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
@@ -223,8 +266,8 @@ void FrameGraph::compile() {
         }
     }
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
@@ -235,15 +278,15 @@ void FrameGraph::compile() {
             auto resource      = _resources.access(node->outputs[j]);
 
             if (!resource->external && _allocations[resourceIndex] == Undefined) {
-                _allocations[resourceIndex] = _nodeGraph[i];
+                _allocations[resourceIndex] = _sortedNodeGraph[i];
 
                 if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
                     const auto& info = resource->info.texture;
 
                     TextureCreation creation{};
-                    creation.setFormat(info.format, GERIUM_TEXTURE_TYPE_2D)
+                    creation.setFormat(info.format, info.depth <= 1 ? GERIUM_TEXTURE_TYPE_2D : GERIUM_TEXTURE_TYPE_3D)
                         .setSize(info.width, info.height, info.depth)
-                        .setFlags(1, true, node->compute);
+                        .setFlags(1, info.layers, true, node->compute);
 
                     if (!_freeList.empty()) {
                         const auto size =
@@ -272,11 +315,20 @@ void FrameGraph::compile() {
                             creation.setName(name.c_str());
                         }
                         if (handle == Undefined) {
-                            handle = _renderer->createTexture(creation);
+                            handle = _renderer->createTexture(creation.build());
                         }
                         if (!resource->saveForNextFrame) {
                             break;
                         }
+                    }
+                } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
+                    if (resource->info.buffer.handle == Undefined) {
+                        BufferCreation creation{};
+                        creation
+                            .set(resource->info.buffer.usage, ResourceUsageType::Immutable, resource->info.buffer.size)
+                            .setFillValue(resource->info.buffer.fillValue)
+                            .setName(resource->name);
+                        resource->info.buffer.handle = _renderer->createBuffer(creation);
                     }
                 }
             }
@@ -299,35 +351,50 @@ void FrameGraph::compile() {
         }
     }
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
         }
 
+        bool hasOutput = false;
         for (gerium_uint32_t j = 0; j < node->inputCount; ++j) {
             auto resource = _resources.access(node->inputs[j]);
 
-            if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER ||
-                resource->info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
+            if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                hasOutput = true;
+            }
+
+            if (resource->info.type == GERIUM_RESOURCE_TYPE_REFERENCE) {
                 continue;
             }
 
-            const auto& texture = getResource(resource->name)->info.texture;
-            for (auto i = 0; i < std::size(texture.handles); ++i) {
-                resource->info.texture.handles[i] = texture.handles[i];
+            if (resource->info.type != GERIUM_RESOURCE_TYPE_BUFFER) {
+                const auto& texture = getResource(resource->name)->info.texture;
+                for (auto i = 0; i < std::size(texture.handles); ++i) {
+                    resource->info.texture.handles[i] = texture.handles[i];
+                }
+            } else {
+                resource->info.buffer.handle = getResource(resource->name)->info.buffer.handle;
             }
         }
 
-        if (node->outputCount && !node->compute) {
+        if ((node->outputCount || hasOutput) && !node->compute) {
             if (node->renderPass == Undefined) {
                 node->renderPass = _renderer->createRenderPass(*this, node);
             }
 
             gerium_uint32_t maxFramebuffers = 1;
+            for (auto i = 0; i < node->inputCount; ++i) {
+                if (_resources.access(node->inputs[i])->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT &&
+                    storedResources.contains(_resources.access(node->inputs[i])->name)) {
+                    maxFramebuffers = std::size(_resources.access(node->inputs[i])->info.texture.handles);
+                    break;
+                }
+            }
             for (auto o = 0; o < node->outputCount; ++o) {
-                if (_resources.access(node->outputs[o])->saveForNextFrame) {
+                if (storedResources.contains(_resources.access(node->outputs[o])->name)) {
                     maxFramebuffers = std::size(_resources.access(node->outputs[o])->info.texture.handles);
                     break;
                 }
@@ -340,8 +407,8 @@ void FrameGraph::compile() {
         }
     }
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         if (!node->enabled) {
             continue;
@@ -356,6 +423,8 @@ void FrameGraph::compile() {
             error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err GERIUM_RESULT_ERROR_NOT_FOUND;
         }
     }
+
+    _hasChanges = false;
 }
 
 void FrameGraph::resize(gerium_uint16_t oldWidth,
@@ -365,8 +434,8 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
     auto scaleX = gerium_float64_t(newWidth) / oldWidth;
     auto scaleY = gerium_float64_t(newHeight) / oldHeight;
 
-    for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
-        auto node = _nodes.access(_nodeGraph[i]);
+    for (gerium_uint32_t i = 0; i < _sortedNodeGraphCount; ++i) {
+        auto node = _nodes.access(_sortedNodeGraph[i]);
 
         for (auto& framebuffer : node->framebuffers) {
             if (framebuffer != Undefined) {
@@ -422,7 +491,6 @@ void FrameGraph::resize(gerium_uint16_t oldWidth,
             _hasChanges = true;
         }
     }
-    compile();
 }
 
 const FrameGraphResource* FrameGraph::getResource(FrameGraphResourceHandle handle) const noexcept {
@@ -436,12 +504,56 @@ const FrameGraphResource* FrameGraph::getResource(gerium_utf8_t name) const noex
     return nullptr;
 }
 
+void FrameGraph::fillExternalResource(FrameGraphResourceHandle handle) noexcept {
+    if (auto resource = _resources.access(handle); resource->external) {
+        if (resource->saveForNextFrame) {
+            _logger->print(GERIUM_LOGGER_LEVEL_WARNING, [name = resource->name](auto& stream) {
+                stream << "External resource '" << name << "' cannot be set to previous_frame flag";
+            });
+        }
+
+        if (auto it = _externalCache.find(hash(resource->name)); it != _externalCache.end()) {
+            auto externaHandle   = it->second.handle;
+            auto externalTexture = it->second.texture;
+            auto resourceTexture = resource->info.type != GERIUM_RESOURCE_TYPE_BUFFER;
+
+            if (externalTexture == resourceTexture) {
+                if (resourceTexture) {
+                    gerium_texture_info_t info;
+                    _renderer->getTextureInfo(externaHandle, info);
+
+                    resource->info.texture.format     = info.format;
+                    resource->info.texture.width      = info.width;
+                    resource->info.texture.height     = info.height;
+                    resource->info.texture.layers     = info.layers;
+                    resource->info.texture.depth      = info.depth;
+                    resource->info.texture.handles[0] = externaHandle;
+                } else {
+                    resource->info.buffer.handle = externaHandle;
+                }
+            } else {
+                _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name = resource->name](auto& stream) {
+                    stream << "Cannot bind external resource because it has a different resource type '" << name << "'";
+                });
+            }
+        } else {
+            _logger->print(GERIUM_LOGGER_LEVEL_ERROR, [name = resource->name](auto& stream) {
+                stream << "External resource not found '" << name << "'";
+            });
+        }
+    }
+}
+
 gerium_uint32_t FrameGraph::nodeCount() const noexcept {
-    return _nodeGraphCount;
+    return _sortedNodeGraphCount;
 }
 
 const FrameGraphNode* FrameGraph::getNode(gerium_uint32_t index) const noexcept {
-    return _nodes.access(_nodeGraph[index]);
+    return _nodes.access(_sortedNodeGraph[index]);
+}
+
+const FrameGraphNode* FrameGraph::getNode(FrameGraphNodeHandle handle) const noexcept {
+    return _nodes.access(handle);
 }
 
 const FrameGraphNode* FrameGraph::getNode(gerium_utf8_t name) const noexcept {
@@ -459,25 +571,37 @@ FrameGraphResourceHandle FrameGraph::createNodeOutput(const gerium_resource_outp
                                                       FrameGraphNodeHandle producer) {
     auto [handle, resource] = _resources.obtain_and_access();
 
-    resource->name                           = intern(output.name);
-    resource->external                       = output.external;
-    resource->producer                       = Undefined;
-    resource->output                         = Undefined;
-    resource->info.type                      = output.type;
-    resource->info.texture.format            = output.format;
-    resource->info.texture.width             = output.width;
-    resource->info.texture.height            = output.height;
-    resource->info.texture.depth             = 1;
-    resource->info.texture.autoScale         = output.auto_scale;
-    resource->info.texture.operation         = output.render_pass_op;
-    resource->info.texture.colorWriteMask    = output.color_write_mask;
-    resource->info.texture.colorBlend        = output.color_blend_attachment;
-    resource->info.texture.clearColor        = output.clear_color_attachment;
-    resource->info.texture.clearDepthStencil = output.clear_depth_stencil_attachment;
-    for (auto& handle : resource->info.texture.handles) {
-        handle = Undefined;
+    resource->name      = intern(output.name);
+    resource->external  = output.external;
+    resource->producer  = Undefined;
+    resource->output    = Undefined;
+    resource->info.type = output.type;
+
+    if (output.type != GERIUM_RESOURCE_TYPE_BUFFER) {
+        const auto renderPassOp =
+            output.render_pass_op == GERIUM_RENDER_PASS_OP_DONT_CARE ? RenderPassOp::DontCare : RenderPassOp::Clear;
+
+        resource->info.texture.format            = output.format;
+        resource->info.texture.width             = output.width;
+        resource->info.texture.height            = output.height;
+        resource->info.texture.layers            = output.layers;
+        resource->info.texture.depth             = output.depth;
+        resource->info.texture.autoScale         = output.auto_scale;
+        resource->info.texture.operation         = renderPassOp;
+        resource->info.texture.colorWriteMask    = output.color_write_mask;
+        resource->info.texture.colorBlend        = output.color_blend_attachment;
+        resource->info.texture.clearColor        = output.clear_color_attachment;
+        resource->info.texture.clearDepthStencil = output.clear_depth_stencil_attachment;
+        for (auto& handle : resource->info.texture.handles) {
+            handle = Undefined;
+        }
+        calcFramebufferSize(resource->info);
+    } else {
+        resource->info.buffer.size      = output.size;
+        resource->info.buffer.usage     = output.usage;
+        resource->info.buffer.fillValue = output.fill_value;
+        resource->info.buffer.handle    = Undefined;
     }
-    calcFramebufferSize(resource->info);
 
     if (output.type != GERIUM_RESOURCE_TYPE_REFERENCE) {
         resource->producer = producer;
@@ -521,6 +645,10 @@ void FrameGraph::computeEdges(FrameGraphNode* node) {
         inputResource->output    = outputResource->output;
         inputResource->info      = outputResource->info;
         inputResource->info.type = type;
+
+        if (inputResource->saveForNextFrame) {
+            continue;
+        }
 
         auto perentNode                            = _nodes.access(inputResource->producer);
         perentNode->edges[perentNode->edgeCount++] = _nodes.handle(node);
@@ -600,6 +728,36 @@ gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
     GERIUM_ASSERT_ARG(output_count == 0 || (output_count > 0 && outputs));
     GERIUM_BEGIN_SAFE_BLOCK
         alias_cast<FrameGraph*>(frame_graph)->addNode(name, compute, input_count, inputs, output_count, outputs);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_frame_graph_enable_node(gerium_frame_graph_t frame_graph,
+                                               gerium_utf8_t name,
+                                               gerium_bool_t enable) {
+    assert(frame_graph);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->enableNode(name, enable);
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_frame_graph_add_buffer(gerium_frame_graph_t frame_graph,
+                                              gerium_utf8_t name,
+                                              gerium_buffer_h handle) {
+    assert(frame_graph);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->addBuffer(name, { handle.index });
+    GERIUM_END_SAFE_BLOCK
+}
+
+gerium_result_t gerium_frame_graph_add_texture(gerium_frame_graph_t frame_graph,
+                                               gerium_utf8_t name,
+                                               gerium_texture_h handle) {
+    assert(frame_graph);
+    GERIUM_ASSERT_ARG(name);
+    GERIUM_BEGIN_SAFE_BLOCK
+        alias_cast<FrameGraph*>(frame_graph)->addTexture(name, { handle.index });
     GERIUM_END_SAFE_BLOCK
 }
 

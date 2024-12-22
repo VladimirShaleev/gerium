@@ -51,30 +51,37 @@ struct SamplerCreation {
     VkSamplerAddressMode addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     VkSamplerAddressMode addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
+    VkSamplerReductionMode reductionMode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+
     const char* name = nullptr;
 
-    SamplerCreation& setMinMagMip(VkFilter min, VkFilter mag, VkSamplerMipmapMode mip) {
+    SamplerCreation& setMinMagMip(VkFilter min, VkFilter mag, VkSamplerMipmapMode mip) noexcept {
         minFilter = min;
         magFilter = mag;
         mipFilter = mip;
         return *this;
     }
 
-    SamplerCreation& setAddressModeU(VkSamplerAddressMode u) {
+    SamplerCreation& setAddressModeU(VkSamplerAddressMode u) noexcept {
         addressModeU = u;
         return *this;
     }
 
-    SamplerCreation& setAddressModeUv(VkSamplerAddressMode u, VkSamplerAddressMode v) {
+    SamplerCreation& setAddressModeUv(VkSamplerAddressMode u, VkSamplerAddressMode v) noexcept {
         addressModeU = u;
         addressModeV = v;
         return *this;
     }
 
-    SamplerCreation& setAddressModeUvw(VkSamplerAddressMode u, VkSamplerAddressMode v, VkSamplerAddressMode w) {
+    SamplerCreation& setAddressModeUvw(VkSamplerAddressMode u, VkSamplerAddressMode v, VkSamplerAddressMode w) noexcept {
         addressModeU = u;
         addressModeV = v;
         addressModeW = w;
+        return *this;
+    }
+
+    SamplerCreation& setReductionMode(VkSamplerReductionMode reduction) noexcept {
+        reductionMode = reduction;
         return *this;
     }
 
@@ -85,17 +92,17 @@ struct SamplerCreation {
 };
 
 struct RenderPassOutput {
-    uint32_t                numColorFormats;
-    VkFormat                colorFormats[kMaxImageOutputs];
-    VkImageLayout           colorFinalLayouts[kMaxImageOutputs];
-    gerium_render_pass_op_t colorOperations[kMaxImageOutputs];
+    uint32_t      numColorFormats;
+    VkFormat      colorFormats[kMaxImageOutputs];
+    VkImageLayout colorFinalLayouts[kMaxImageOutputs];
+    RenderPassOp  colorOperations[kMaxImageOutputs];
 
-    VkFormat                depthStencilFormat;
-    VkImageLayout           depthStencilFinalLayout;
-    gerium_render_pass_op_t depthOperation;
-    gerium_render_pass_op_t stencilOperation;
+    VkFormat      depthStencilFormat;
+    VkImageLayout depthStencilFinalLayout;
+    RenderPassOp  depthOperation;
+    RenderPassOp  stencilOperation;
 
-    RenderPassOutput& color(VkFormat format, VkImageLayout layout, gerium_render_pass_op_t loadOp) {
+    RenderPassOutput& color(VkFormat format, VkImageLayout layout, RenderPassOp loadOp) {
         assert(numColorFormats < kMaxImageOutputs);
         colorFormats[numColorFormats]      = format;
         colorFinalLayouts[numColorFormats] = layout;
@@ -110,7 +117,7 @@ struct RenderPassOutput {
         return *this;
     }
 
-    RenderPassOutput& setDepthStencilOperations(gerium_render_pass_op_t depth, gerium_render_pass_op_t stencil) {
+    RenderPassOutput& setDepthStencilOperations(RenderPassOp depth, RenderPassOp stencil) {
         depthOperation   = depth;
         stencilOperation = stencil;
         return *this;
@@ -134,6 +141,7 @@ struct DescriptorSetLayoutData {
     VkDescriptorSetLayoutBindingFlagsCreateInfo bindlessInfo;
     std::vector<VkDescriptorSetLayoutBinding> bindings;
     std::vector<VkDescriptorBindingFlags> bindlessFlags;
+    std::set<uint32_t> default3DTextures;
 };
 
 struct DescriptorSetLayoutCreation {
@@ -278,6 +286,7 @@ struct FramebufferCreation {
 
     uint16_t width  = 0;
     uint16_t height = 0;
+    uint16_t layers = 1;
     float    scaleX = 1.0f;
     float    scaleY = 1.0f;
     uint8_t  resize = 1;
@@ -338,6 +347,7 @@ struct Buffer {
     VkDeviceMemory     vkDeviceMemory;
     VkBufferUsageFlags vkUsageFlags;
     ResourceUsageType  usage;
+    ResourceState      state;
     gerium_uint32_t    size;
     gerium_uint32_t    globalOffset;
     void*              mappedData;
@@ -356,11 +366,14 @@ struct Texture {
     uint16_t              width;
     uint16_t              height;
     uint16_t              depth;
-    uint8_t               mipmaps;
-    uint8_t               loaded;
+    uint8_t               mipBase;
+    uint8_t               mipLevels;
+    uint8_t               layers;
+    uint8_t               loadedMips;
     TextureFlags          flags;
     gerium_texture_type_t type;
     gerium_utf8_t         name;
+    TextureHandle         parentTexture;
     SamplerHandle         sampler;
     ResourceState         states[16];
 };
@@ -390,6 +403,7 @@ struct DescriptorSet {
         gerium_uint16_t binding;
         gerium_uint16_t element;
         gerium_utf8_t resource;
+        bool previousFrame;
         Handle handle;
     };
     VkDescriptorSet vkDescriptorSet;
@@ -445,6 +459,7 @@ struct Framebuffer {
     RenderPassHandle renderPass;
     uint16_t         width;
     uint16_t         height;
+    uint16_t         layers;
     float            scaleX;
     float            scaleY;
 
