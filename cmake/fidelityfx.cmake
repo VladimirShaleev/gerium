@@ -9,7 +9,7 @@ include(ExternalProject)
 ExternalProject_Add(
     FidelityFX
     GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK
-    GIT_TAG tags/v1.1.2
+    GIT_TAG tags/v1.1.3
     STEP_TARGETS build
     EXCLUDE_FROM_ALL TRUE
     SOURCE_SUBDIR sdk
