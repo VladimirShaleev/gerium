@@ -6,7 +6,6 @@ include(cmake/version.cmake)
 include(cmake/vcpkg_android.cmake)
 
 option(GERIUM_INSTALL "Generate installation target" ON)
-option(GERIUM_FIDELITY_FX "Integrate with FidelityFX" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 

@@ -9,6 +9,7 @@
 #define GERIUM_H
 
 #include "gerium-core.h"
+#include "gerium-fidelityfx.h"
 
 #ifdef GERIUM_PLATFORM_ANDROID
 # include "gerium-android.h"
@@ -28,10 +29,6 @@
 
 #ifdef GERIUM_PLATFORM_LINUX
 # include "gerium-linux.h"
-#endif
-
-#ifdef GERIUM_FIDELITY_FX
-# include "gerium-fidelityfx.h"
 #endif
 
 #endif

@@ -1,8 +1,3 @@
-if(NOT WIN32)
-    message(WARNING "example2 currently only works for Windows")
-    return()
-endif()
-
 include (FetchContent)
 get_filename_component(ASSETS "../assets" REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
 set(FETCHCONTENT_QUIET OFF)
@@ -44,16 +39,34 @@ set_target_properties(example2 PROPERTIES
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS OFF)
 
-target_compile_options(example2 PUBLIC /GR-)
-target_compile_options(example2 PRIVATE -DNOMINMAX)
-if(GERIUM_MSVC_DYNAMIC_RUNTIME)
+if(MSVC)
+    target_compile_options(example2 PUBLIC /GR-)
+    target_compile_options(example2 PRIVATE -DNOMINMAX)
+    if(GERIUM_MSVC_DYNAMIC_RUNTIME)
+        set_target_properties(example2 PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    else()
+        set_target_properties(example2 PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
+    set_target_properties(example2 PROPERTIES WIN32_EXECUTABLE ON)
+elseif(ANDROID)
+elseif(APPLE)
     set_target_properties(example2 PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-else()
-    set_target_properties(example2 PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        MACOSX_BUNDLE ON
+        MACOSX_RPATH ON
+        MACOSX_BUNDLE_BUNDLE_NAME "example2"
+        MACOSX_BUNDLE_BUNDLE_VERSION 1
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.vladimirshaleev.gerium"
+        MACOSX_BUNDLE_INFO_STRING "Example 2"
+        MACOSX_BUNDLE_LONG_VERSION_STRING "1.0.0"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
+        XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@loader_path/Libraries"
+        XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.github.vladimirshaleev.gerium")
+elseif(NOT APPLE)
+    target_compile_options(example2 PUBLIC -fno-rtti)
 endif()
-set_target_properties(example2 PROPERTIES WIN32_EXECUTABLE ON)
 
 if(GERIUM_BUILD_CLUSTER_PACK)
     find_package(argparse CONFIG REQUIRED)
@@ -69,19 +82,27 @@ if(GERIUM_BUILD_CLUSTER_PACK)
     target_link_libraries(cluster-pack PRIVATE gli)
     target_link_libraries(cluster-pack PRIVATE KTX::ktx KTX::astcenc-avx2-static)
     target_include_directories(cluster-pack PRIVATE ${Stb_INCLUDE_DIR})
-    target_compile_options(cluster-pack PUBLIC /GR-)
-    target_compile_options(cluster-pack PRIVATE -DNOMINMAX)
-    if(GERIUM_MSVC_DYNAMIC_RUNTIME)
-        set_target_properties(cluster-pack PROPERTIES
-            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-    else()
-        set_target_properties(cluster-pack PROPERTIES
-            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    if(MSVC)
+        target_compile_options(cluster-pack PUBLIC /GR-)
+        target_compile_options(cluster-pack PRIVATE -DNOMINMAX)
+        if(GERIUM_MSVC_DYNAMIC_RUNTIME)
+            set_target_properties(cluster-pack PROPERTIES
+                MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+        else()
+            set_target_properties(cluster-pack PROPERTIES
+                MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        endif()
     endif()
 endif()
 
 function(copy_dir target src dst)
-    set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>")
+    if(ANDROID)
+        set(OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/../../../../assets")
+    elseif(APPLE)
+        set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>/../Resources")
+    else()
+        set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>")
+    endif()
     if(CMAKE_VERSION VERSION_LESS "3.26.0")
         set(COPY_ARG copy_directory)
     else()

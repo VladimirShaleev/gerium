@@ -1462,21 +1462,17 @@ FfxInterface Device::createFfxInterface(gerium_uint32_t maxContexts) {
         error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err: not supported FidelityFX
     }
 
-#ifdef GERIUM_FIDELITY_FX
-    const size_t scratchBufferSize = ffxGetScratchMemorySizeVK(_physicalDevice, maxContexts);
+    const size_t scratchBufferSize = ffxGetScratchMemorySizeVK(&_ffxDeviceContext, maxContexts);
     auto scratchBuffer             = new uint8_t[scratchBufferSize];
     memset(scratchBuffer, 0, scratchBufferSize);
 
     FfxInterface ffxInterface{};
     ffxGetInterfaceVK(&ffxInterface, &_ffxDeviceContext, scratchBuffer, scratchBufferSize, maxContexts);
     return ffxInterface;
-#else
-    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err: not supported FidelityFX
-#endif
 }
 
 void Device::destroyFfxInterface(FfxInterface* ffxInterface) {
-    delete[] ffxInterface->scratchBuffer;
+    delete[] ((uint8_t*) ffxInterface->scratchBuffer);
 }
 
 void Device::waitFfxJobs() const noexcept {
@@ -2126,11 +2122,11 @@ void Device::createImGui(Application* application) {
 }
 
 void Device::createFidelityFX() {
-#ifdef GERIUM_FIDELITY_FX
-    _ffxDeviceContext.vkDevice         = _device;
-    _ffxDeviceContext.vkPhysicalDevice = _physicalDevice;
-    _ffxDeviceContext.vkDeviceProcAddr = _vkTable.vkGetDeviceProcAddr;
-#endif
+    _ffxDeviceContext.vkInstance         = _instance;
+    _ffxDeviceContext.vkDevice           = _device;
+    _ffxDeviceContext.vkPhysicalDevice   = _physicalDevice;
+    _ffxDeviceContext.vkInstanceProcAddr = _vkTable.vkGetInstanceProcAddr;
+    _ffxDeviceContext.vkDeviceProcAddr   = _vkTable.vkGetDeviceProcAddr;
 }
 
 void Device::resizeSwapchain() {

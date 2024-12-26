@@ -56,7 +56,7 @@ inline void check(gerium_result_t result) {
 }
 
 inline void ffxCheck(FfxErrorCode code) {
-    switch (code) {
+    switch ((unsigned int) code) {
         case FFX_ERROR_INVALID_POINTER:
             throw std::runtime_error("The operation failed due to an invalid pointer");
         case FFX_ERROR_INVALID_ALIGNMENT:

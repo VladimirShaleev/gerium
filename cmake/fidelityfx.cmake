@@ -1,9 +1,3 @@
-if(NOT GERIUM_FIDELITY_FX OR NOT WIN32)
-    return()
-endif()
-
-find_package(Vulkan REQUIRED)
-
 include(ExternalProject)
 
 ExternalProject_Add(
@@ -15,16 +9,22 @@ ExternalProject_Add(
     SOURCE_SUBDIR sdk
     UPDATE_DISCONNECTED TRUE
     PATCH_COMMAND git apply --ignore-space-change --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/fidelityfx.patch"
-    CMAKE_ARGS "-DFFX_API_BACKEND=VK_X64;-DFFX_FSR3=ON;-DFFX_SSSR=ON;-DFFX_ALL=ON;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    CMAKE_ARGS "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE};-DVCPKG_TARGET_TRIPLET=${VCPKG_TARGET_TRIPLET};-DFFX_API_BACKEND=VK_X64;-DFFX_FSR3=ON;-DFFX_SSSR=ON;-DFFX_ALL=ON;-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded$<$<CONFIG:Debug>:Debug>;-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
 )
 
 ExternalProject_Get_property(FidelityFX SOURCE_DIR)
 
+macro(linkFfxLib libName)
+    if(WIN32)
+        target_link_libraries(gerium PRIVATE ${SOURCE_DIR}/sdk/bin/ffx_sdk/ffx_${libName}_native$<$<CONFIG:Debug>:d>.lib)
+    else()
+        target_link_libraries(gerium PRIVATE ${SOURCE_DIR}/sdk/bin/ffx_sdk/${CMAKE_FIND_LIBRARY_PREFIXES}ffx_${libName}_native$<$<CONFIG:Debug>:d>.a)
+    endif()
+endmacro()
+
 add_dependencies(gerium FidelityFX-build)
-target_link_libraries(gerium PRIVATE Vulkan::Vulkan)
-target_link_libraries(gerium PRIVATE ${SOURCE_DIR}/sdk/bin/ffx_sdk/ffx_backend_vk_x64$<$<CONFIG:Debug>:d>.lib)
-target_link_libraries(gerium PRIVATE ${SOURCE_DIR}/sdk/bin/ffx_sdk/ffx_brixelizer_x64$<$<CONFIG:Debug>:d>.lib)
-target_link_libraries(gerium PRIVATE ${SOURCE_DIR}/sdk/bin/ffx_sdk/ffx_brixelizergi_x64$<$<CONFIG:Debug>:d>.lib)
-target_link_libraries(gerium PRIVATE ${SOURCE_DIR}/sdk/bin/ffx_sdk/ffx_cacao_x64$<$<CONFIG:Debug>:d>.lib)
-target_compile_definitions(gerium PUBLIC GERIUM_FIDELITY_FX)
+linkFfxLib(backend_vk)
+linkFfxLib(brixelizer)
+linkFfxLib(brixelizergi)
+linkFfxLib(cacao)
 target_include_directories(gerium PUBLIC ${SOURCE_DIR}/sdk/include)
