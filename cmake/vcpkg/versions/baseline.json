@@ -1,0 +1,8 @@
+{
+  "default": {
+    "fidelityfx": {
+      "baseline": "1.1.3",
+      "port-version": 0
+    }
+  }
+}

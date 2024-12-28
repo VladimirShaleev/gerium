@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "gerium",
   "version": "1.0.0",
-  "builtin-baseline": "7adc2e4d49e8d0efc07a369079faa6bc3dbb90f3",
+  "builtin-baseline": "80d54ff62d528339c626a6fbc3489a7f25956ade",
   "dependencies": [
     "mimalloc",
     "cmakerc",
@@ -12,6 +12,7 @@
     "vulkan-headers",
     "vulkan-memory-allocator",
     "shaderc",
+    "fidelityfx",
     "spirv-reflect",
     "marl",
     "stb",
@@ -21,7 +22,7 @@
         "vulkan"
       ]
     },
-    
+
     "nlohmann-json",
     "yaml-cpp",
     "glm",
