@@ -10,6 +10,8 @@ vcpkg_from_github(
 
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}/sdk/tools/ffx_shader_compiler"
+    OPTIONS_RELEASE
+        -DCMAKE_BUILD_TYPE=Debug
 )
 
 set(VCPKG_POLICY_EMPTY_INCLUDE_FOLDER enabled)
