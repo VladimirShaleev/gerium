@@ -1,5 +1,9 @@
 {
   "default": {
+    "fidelityfx-sc": {
+      "baseline": "1.1.3",
+      "port-version": 0
+    },
     "fidelityfx": {
       "baseline": "1.1.3",
       "port-version": 0

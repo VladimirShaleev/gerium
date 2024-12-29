@@ -4,7 +4,7 @@
       {
         "kind": "filesystem",
         "path": "cmake/vcpkg",
-        "packages": [ "fidelityfx" ]
+        "packages": [ "fidelityfx-sc", "fidelityfx" ]
       }
     ]
 }

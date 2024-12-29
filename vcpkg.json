@@ -36,6 +36,10 @@
     {
       "name": "wyhash",
       "version": "2023-01-25"
+    },
+    {
+      "name": "glslang",
+      "version": "14.3.0"
     }
   ]
 }
