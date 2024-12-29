@@ -2017,7 +2017,7 @@ index 571ceb9..fa7504b 100644
              if (res == VK_SUCCESS && s_uiCompositionDescriptorSets[i] == VK_NULL_HANDLE)
              {
 diff --git a/sdk/src/backends/vk/ffx_vk.cpp b/sdk/src/backends/vk/ffx_vk.cpp
-index ef187c3..8aa96a6 100644
+index ef187c3..3b96499 100644
 --- a/sdk/src/backends/vk/ffx_vk.cpp
 +++ b/sdk/src/backends/vk/ffx_vk.cpp
 @@ -20,6 +20,8 @@
@@ -2369,6 +2369,15 @@ index ef187c3..8aa96a6 100644
  
                  if (allocInfo.memoryTypeIndex == UINT32_MAX)
                      res = VK_ERROR_INITIALIZATION_FAILED;
+@@ -1299,7 +1293,7 @@ FfxConstantAllocation BackendContext_VK::FallbackConstantAllocator(void* data, F
+ 
+     FFX_ASSERT(uniformBufferMem);
+ 
+-    allocation.resource.resource = uniformBuffer;
++    allocation.resource.resource = (void*) uniformBuffer;
+     allocation.handle            = 0;
+ 
+     if (data)
 @@ -1435,8 +1429,12 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
          backendContext->extensionProperties = (VkExtensionProperties*)pMem;
  
@@ -2631,6 +2640,15 @@ index ef187c3..8aa96a6 100644
      }
  
      outPipeline->constCount = shaderBlob.cbvCount;
+@@ -3625,7 +3615,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+     pipelineCreateInfo.layout = pPipelineLayout->pipelineLayout;
+ 
+     VkPipeline computePipeline = VK_NULL_HANDLE;
+-    if (backendContext->vkFunctionTable.vkCreateComputePipelines(backendContext->device, nullptr, 1, &pipelineCreateInfo, nullptr, &computePipeline) != VK_SUCCESS) {
++    if (backendContext->vkFunctionTable.vkCreateComputePipelines(backendContext->device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &computePipeline) != VK_SUCCESS) {
+         return FFX_ERROR_BACKEND_API_ERROR;
+     }
+ 
 @@ -3636,7 +3626,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
      outPipeline->pipeline = reinterpret_cast<FfxPipeline>(computePipeline);
  
@@ -2640,6 +2658,15 @@ index ef187c3..8aa96a6 100644
  
      return FFX_OK;
  }
+@@ -3906,7 +3896,7 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_VK*    backendContext,
+             job->computeJobDescriptor.pipeline.constantBufferBindings[currentRootConstantIndex].slotIndex;
+         writeDescriptorSets[descriptorWriteIndex].dstArrayElement = 0;
+ 
+-        bufferDescriptorInfos[bufferDescriptorIndex].buffer = static_cast<VkBuffer>(allocation.resource.resource);
++        bufferDescriptorInfos[bufferDescriptorIndex].buffer = (VkBuffer) allocation.resource.resource;
+         bufferDescriptorInfos[bufferDescriptorIndex].offset = static_cast<VkDeviceSize>(allocation.handle);
+         bufferDescriptorInfos[bufferDescriptorIndex].range  = dataSize;
+ 
 @@ -4335,8 +4325,8 @@ void BreadcrumbsPrintDeviceInfoVK(
  
      VkPhysicalDeviceProperties devProps = {};
@@ -2974,8 +3001,21 @@ index 719fdfe..a7e7a36 100644
  	
  endif()
 \ No newline at end of file
+diff --git a/sdk/src/components/brixelizer/ffx_brixelizer.cpp b/sdk/src/components/brixelizer/ffx_brixelizer.cpp
+index 15c2a56..3169d6e 100644
+--- a/sdk/src/components/brixelizer/ffx_brixelizer.cpp
++++ b/sdk/src/components/brixelizer/ffx_brixelizer.cpp
+@@ -59,7 +59,7 @@ typedef struct FfxBrixelizerBakedUpdateDescription_Private {
+     FfxBrixelizerRawJobDescription                 dynamicJobs[FFX_BRIXELIZER_MAX_INSTANCES];
+ } FfxBrixelizerBakedUpdateDescription_Private;
+ 
+-FFX_STATIC_ASSERT(sizeof(FfxBrixelizerBakedUpdateDescription) == sizeof(FfxBrixelizerBakedUpdateDescription_Private));
++FFX_STATIC_ASSERT(sizeof(FfxBrixelizerBakedUpdateDescription) >= sizeof(FfxBrixelizerBakedUpdateDescription_Private));
+ 
+ typedef struct FfxBrixelizerCascadePrivate {
+     FfxBrixelizerCascadeFlag flags;
 diff --git a/sdk/src/components/brixelizer/ffx_brixelizer_raw.cpp b/sdk/src/components/brixelizer/ffx_brixelizer_raw.cpp
-index 377d9de..3ae9263 100644
+index 377d9de..37bffbd 100644
 --- a/sdk/src/components/brixelizer/ffx_brixelizer_raw.cpp
 +++ b/sdk/src/components/brixelizer/ffx_brixelizer_raw.cpp
 @@ -20,6 +20,8 @@
@@ -3545,7 +3585,7 @@ index 377d9de..3ae9263 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FfxResourceUsage(FFX_RESOURCE_USAGE_UAV | FFX_RESOURCE_USAGE_INDIRECT),
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -945,7 +947,7 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
+@@ -945,61 +947,61 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_RESOURCE_IDENTIFIER_CONTEXT_BRICKS_VOXEL_MAP,
@@ -3554,7 +3594,9 @@ index 377d9de..3ae9263 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -954,7 +956,7 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
+-             context->totalBricks * sizeof(uint32_t),
++             uint32_t(context->totalBricks * sizeof(uint32_t)),
+              sizeof(uint32_t),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_RESOURCE_IDENTIFIER_CONTEXT_BRICKS_FREE_LIST,
@@ -3563,7 +3605,9 @@ index 377d9de..3ae9263 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -963,7 +965,7 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
+-             context->totalBricks * sizeof(uint32_t),
++             uint32_t(context->totalBricks * sizeof(uint32_t)),
+              sizeof(uint32_t),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_RESOURCE_IDENTIFIER_CONTEXT_BRICKS_CLEAR_LIST,
@@ -3572,7 +3616,9 @@ index 377d9de..3ae9263 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -972,7 +974,7 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
+-             context->totalBricks * sizeof(uint32_t),
++             uint32_t(context->totalBricks * sizeof(uint32_t)),
+              sizeof(uint32_t),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_RESOURCE_IDENTIFIER_CONTEXT_BRICKS_EIKONAL_LIST,
@@ -3581,7 +3627,9 @@ index 377d9de..3ae9263 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -981,7 +983,7 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
+-             context->totalBricks * sizeof(uint32_t),
++             uint32_t(context->totalBricks * sizeof(uint32_t)),
+              sizeof(uint32_t),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              { FFX_BRIXELIZER_RESOURCE_IDENTIFIER_CONTEXT_BRICKS_MERGE_LIST,
@@ -3590,7 +3638,9 @@ index 377d9de..3ae9263 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -990,7 +992,7 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
+-             context->totalBricks * sizeof(uint32_t) * 2,
++             uint32_t(context->totalBricks * sizeof(uint32_t) * 2),
+              sizeof(uint32_t),
               1,
               FFX_RESOURCE_FLAGS_NONE },
              { FFX_BRIXELIZER_RESOURCE_IDENTIFIER_CONTEXT_BRICKS_EIKONAL_COUNTERS,
@@ -3599,7 +3649,9 @@ index 377d9de..3ae9263 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -999,7 +1001,7 @@ static FfxErrorCode brixelizerCreate(FfxBrixelizerRawContext_Private* context, c
+-             context->totalBricks * sizeof(uint32_t),
++             uint32_t(context->totalBricks * sizeof(uint32_t)),
+              sizeof(uint32_t),
               1,
               FFX_RESOURCE_FLAGS_NONE },
              { FFX_BRIXELIZER_RESOURCE_IDENTIFIER_CONTEXT_COUNTERS,
@@ -3734,7 +3786,7 @@ index 5dfe2b2..4a921d0 100644
  endif()
 \ No newline at end of file
 diff --git a/sdk/src/components/brixelizergi/ffx_brixelizergi.cpp b/sdk/src/components/brixelizergi/ffx_brixelizergi.cpp
-index ae6c1b0..7d5ae8b 100644
+index ae6c1b0..0ada99e 100644
 --- a/sdk/src/components/brixelizergi/ffx_brixelizergi.cpp
 +++ b/sdk/src/components/brixelizergi/ffx_brixelizergi.cpp
 @@ -20,6 +20,9 @@
@@ -4371,7 +4423,7 @@ index ae6c1b0..7d5ae8b 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -1014,7 +1017,7 @@ static FfxErrorCode brixelizerGICreate(FfxBrixelizerGIContext_Private* pContext,
+@@ -1014,52 +1017,52 @@ static FfxErrorCode brixelizerGICreate(FfxBrixelizerGIContext_Private* pContext,
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_GI_RESOURCE_IDENTIFIER_STATIC_PROBE_SH,
@@ -4380,7 +4432,9 @@ index ae6c1b0..7d5ae8b 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -1023,7 +1026,7 @@ static FfxErrorCode brixelizerGICreate(FfxBrixelizerGIContext_Private* pContext,
+-             tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x2) * 9,
++             uint32_t(tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x2) * 9),
+              sizeof(FfxUInt32x2),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_GI_RESOURCE_IDENTIFIER_STATIC_PROBE_INFO,
@@ -4389,7 +4443,9 @@ index ae6c1b0..7d5ae8b 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -1032,7 +1035,7 @@ static FfxErrorCode brixelizerGICreate(FfxBrixelizerGIContext_Private* pContext,
+-             tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x4),
++             uint32_t(tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x4)),
+              sizeof(FfxUInt32x4),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_GI_RESOURCE_IDENTIFIER_TEMP_PROBE_INFO,
@@ -4398,7 +4454,9 @@ index ae6c1b0..7d5ae8b 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -1041,7 +1044,7 @@ static FfxErrorCode brixelizerGICreate(FfxBrixelizerGIContext_Private* pContext,
+-             tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x4),
++             uint32_t(tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x4)),
+              sizeof(FfxUInt32x4),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_GI_RESOURCE_IDENTIFIER_TEMP_SPECULAR_RAY_SWAP,
@@ -4407,7 +4465,9 @@ index ae6c1b0..7d5ae8b 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -1050,7 +1053,7 @@ static FfxErrorCode brixelizerGICreate(FfxBrixelizerGIContext_Private* pContext,
+-             pContext->internalSize.width * pContext->internalSize.height * sizeof(FfxUInt32),
++             uint32_t(pContext->internalSize.width * pContext->internalSize.height * sizeof(FfxUInt32)),
+              sizeof(FfxUInt32),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_GI_RESOURCE_IDENTIFIER_TEMP_PROBE_SH,
@@ -4416,7 +4476,9 @@ index ae6c1b0..7d5ae8b 100644
               FFX_RESOURCE_TYPE_BUFFER,
               FFX_RESOURCE_USAGE_UAV,
               FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -1059,7 +1062,7 @@ static FfxErrorCode brixelizerGICreate(FfxBrixelizerGIContext_Private* pContext,
+-             tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x2) * 9,
++             uint32_t(tileBufferWidth * tileBufferHeight * sizeof(FfxUInt32x2) * 9),
+              sizeof(FfxUInt32x2),
               1,
               FFX_RESOURCE_FLAGS_NONE},
              {FFX_BRIXELIZER_GI_RESOURCE_IDENTIFIER_RAY_SWAP_INDIRECT_ARGS,
@@ -5397,7 +5459,7 @@ index 864efbd..b389576 100644
  	
  endif()
 diff --git a/sdk/src/components/denoiser/ffx_denoiser.cpp b/sdk/src/components/denoiser/ffx_denoiser.cpp
-index c0d9fe9..97c6356 100644
+index c0d9fe9..eddd123 100644
 --- a/sdk/src/components/denoiser/ffx_denoiser.cpp
 +++ b/sdk/src/components/denoiser/ffx_denoiser.cpp
 @@ -20,8 +20,9 @@
@@ -5805,7 +5867,7 @@ index c0d9fe9..97c6356 100644
                                                                     FFX_RESOURCE_TYPE_TEXTURE2D,
                                                                     FFX_RESOURCE_USAGE_UAV,
                                                                     FFX_SURFACE_FORMAT_R16G16_FLOAT,
-@@ -874,7 +875,7 @@ static FfxErrorCode denoiserShadowsCreateResources(FfxDenoiserContext_Private* c
+@@ -874,22 +875,22 @@ static FfxErrorCode denoiserShadowsCreateResources(FfxDenoiserContext_Private* c
                                                                     {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
  
                                                                    {FFX_DENOISER_RESOURCE_IDENTIFIER_TILE_BUFFER,
@@ -5814,7 +5876,11 @@ index c0d9fe9..97c6356 100644
                                                                     FFX_RESOURCE_TYPE_BUFFER,
                                                                     FFX_RESOURCE_USAGE_UAV,
                                                                     FFX_SURFACE_FORMAT_UNKNOWN,
-@@ -885,7 +886,7 @@ static FfxErrorCode denoiserShadowsCreateResources(FfxDenoiserContext_Private* c
+-                                                                   sizeof(uint32_t) * tileCount,
++                                                                   uint32_t(sizeof(uint32_t) * tileCount),
+                                                                    sizeof(uint32_t),
+                                                                    1,
+                                                                    FFX_RESOURCE_FLAGS_NONE,
                                                                     {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
  
                                                                    {FFX_DENOISER_RESOURCE_IDENTIFIER_TILE_META_DATA,
@@ -5823,6 +5889,11 @@ index c0d9fe9..97c6356 100644
                                                                     FFX_RESOURCE_TYPE_BUFFER,
                                                                     FFX_RESOURCE_USAGE_UAV,
                                                                     FFX_SURFACE_FORMAT_UNKNOWN,
+-                                                                   sizeof(uint32_t) * tileCount,
++                                                                   uint32_t(sizeof(uint32_t) * tileCount),
+                                                                    sizeof(uint32_t),
+                                                                    1,
+                                                                    FFX_RESOURCE_FLAGS_NONE,
 @@ -918,7 +919,7 @@ static FfxErrorCode denoiserReflectionsCreateResources(FfxDenoiserContext_Privat
  
      // Declare internal resources needed
@@ -9385,7 +9456,7 @@ index 2772089..f34c24f 100644
  	
  endif()
 diff --git a/sdk/src/components/parallelsort/ffx_parallelsort.cpp b/sdk/src/components/parallelsort/ffx_parallelsort.cpp
-index 1b1af64..e3b5f59 100644
+index 1b1af64..47b1f1d 100644
 --- a/sdk/src/components/parallelsort/ffx_parallelsort.cpp
 +++ b/sdk/src/components/parallelsort/ffx_parallelsort.cpp
 @@ -20,8 +20,9 @@
@@ -9517,7 +9588,7 @@ index 1b1af64..e3b5f59 100644
          FFX_VALIDATE(context->contextDescription.backendInterface.fpCreatePipeline(&context->contextDescription.backendInterface, FFX_EFFECT_PARALLEL_SORT, FFX_PARALLELSORT_PASS_SCATTER,
              getPipelinePermutationFlags(contextFlags, FFX_PARALLELSORT_PASS_SCATTER, supportedFP16, canForceWave64),
              &pipelineDescription, context->effectContextId, &context->pipelineScatter[i]));
-@@ -231,7 +232,7 @@ static FfxErrorCode parallelSortCreate(FfxParallelSortContext_Private* context,
+@@ -231,29 +232,29 @@ static FfxErrorCode parallelSortCreate(FfxParallelSortContext_Private* context,
      // declare internal resources needed
      const FfxInternalResourceDescription internalResourceDescs[] = {
          {FFX_PARALLELSORT_RESOURCE_IDENTIFIER_KEY_SCRATCH_BUFFER,
@@ -9526,7 +9597,11 @@ index 1b1af64..e3b5f59 100644
           FFX_RESOURCE_TYPE_BUFFER,
           FFX_RESOURCE_USAGE_UAV,
           FFX_SURFACE_FORMAT_UNKNOWN,
-@@ -242,7 +243,7 @@ static FfxErrorCode parallelSortCreate(FfxParallelSortContext_Private* context,
+-         contextDescription->maxEntries * sizeof(uint32_t),
++         uint32_t(contextDescription->maxEntries * sizeof(uint32_t)),
+          sizeof(uint32_t),
+          1,
+          FFX_RESOURCE_FLAGS_NONE,
           {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
  
          {FFX_PARALLELSORT_RESOURCE_IDENTIFIER_PAYLOAD_SCRATCH_BUFFER,
@@ -9535,7 +9610,11 @@ index 1b1af64..e3b5f59 100644
           FFX_RESOURCE_TYPE_BUFFER,
           FFX_RESOURCE_USAGE_UAV,
           FFX_SURFACE_FORMAT_UNKNOWN,
-@@ -253,7 +254,7 @@ static FfxErrorCode parallelSortCreate(FfxParallelSortContext_Private* context,
+-         contextDescription->maxEntries * sizeof(uint32_t),
++         uint32_t(contextDescription->maxEntries * sizeof(uint32_t)),
+          sizeof(uint32_t),
+          1,
+          FFX_RESOURCE_FLAGS_NONE,
           {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
  
          {FFX_PARALLELSORT_RESOURCE_IDENTIFIER_SCRATCH_BUFFER,
@@ -9881,7 +9960,7 @@ index 77cd284..ed27b2b 100644
 +	
  endif()
 diff --git a/sdk/src/components/sssr/ffx_sssr.cpp b/sdk/src/components/sssr/ffx_sssr.cpp
-index 2d5c559..16eab17 100644
+index 2d5c559..75f91af 100644
 --- a/sdk/src/components/sssr/ffx_sssr.cpp
 +++ b/sdk/src/components/sssr/ffx_sssr.cpp
 @@ -41,49 +41,49 @@ namespace _noiseBuffers
@@ -10034,7 +10113,7 @@ index 2d5c559..16eab17 100644
           FFX_RESOURCE_TYPE_TEXTURE2D,
           FFX_RESOURCE_USAGE_UAV,
           FFX_SURFACE_FORMAT_R32_FLOAT,
-@@ -283,7 +283,7 @@ static FfxErrorCode sssrCreate(FfxSssrContext_Private* context, const FfxSssrCon
+@@ -283,29 +283,29 @@ static FfxErrorCode sssrCreate(FfxSssrContext_Private* context, const FfxSssrCon
           {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
          
          {FFX_SSSR_RESOURCE_IDENTIFIER_RAY_LIST,
@@ -10043,7 +10122,11 @@ index 2d5c559..16eab17 100644
           FFX_RESOURCE_TYPE_BUFFER,
           FFX_RESOURCE_USAGE_UAV,
           FFX_SURFACE_FORMAT_R32_UINT,
-@@ -294,7 +294,7 @@ static FfxErrorCode sssrCreate(FfxSssrContext_Private* context, const FfxSssrCon
+-         numPixels * sizeof(uint32_t),
++         uint32_t(numPixels * sizeof(uint32_t)),
+          sizeof(uint32_t),
+          1,
+          FFX_RESOURCE_FLAGS_NONE,
           {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
  
          {FFX_SSSR_RESOURCE_IDENTIFIER_DENOISER_TILE_LIST,
@@ -10052,7 +10135,11 @@ index 2d5c559..16eab17 100644
           FFX_RESOURCE_TYPE_BUFFER,
           FFX_RESOURCE_USAGE_UAV,
           FFX_SURFACE_FORMAT_R32_UINT,
-@@ -305,7 +305,7 @@ static FfxErrorCode sssrCreate(FfxSssrContext_Private* context, const FfxSssrCon
+-         numPixels * sizeof(uint32_t),
++         uint32_t(numPixels * sizeof(uint32_t)),
+          sizeof(uint32_t),
+          1,
+          FFX_RESOURCE_FLAGS_NONE,
           {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
  
          {FFX_SSSR_RESOURCE_IDENTIFIER_RAY_COUNTER,

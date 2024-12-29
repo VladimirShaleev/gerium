@@ -15,7 +15,6 @@ vcpkg_cmake_configure(
         -DFFX_FSR3=ON
         -DFFX_SSSR=ON
         -DFFX_ALL=ON
-        # -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
         "-DFFX_SC_EXECUTABLE=${CURRENT_HOST_INSTALLED_DIR}/tools/fidelityfx-sc/FidelityFX_SC${VCPKG_HOST_EXECUTABLE_SUFFIX}"
         "-DGLSLANG_VALIDATOR_EXECUTABLE=${CURRENT_HOST_INSTALLED_DIR}/tools/glslang/glslangValidator${VCPKG_HOST_EXECUTABLE_SUFFIX}"
 )

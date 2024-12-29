@@ -24,6 +24,9 @@ android {
                 cppFlags += "-std=c++20"
             }
         }
+        ndk {
+            abiFilters += listOf("x86_64", "arm64-v8a", "armeabi-v7a")
+        }
     }
     buildTypes {
         release {
@@ -32,7 +35,8 @@ android {
     }
     externalNativeBuild {
         cmake {
-            path = file("../../../CMakeLists.txt")
+            path = file("../../../../CMakeLists.txt")
+            version = "3.31.1"
         }
     }
     applicationVariants.configureEach {
