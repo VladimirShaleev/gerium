@@ -986,6 +986,34 @@ index 532b192..0c1c8c2 100644
  
          for (size_t i = 1; i < errors.size(); i++)
          {
+diff --git a/sdk/tools/ffx_shader_compiler/src/pch.hpp b/sdk/tools/ffx_shader_compiler/src/pch.hpp
+index c017698..fa0ea59 100644
+--- a/sdk/tools/ffx_shader_compiler/src/pch.hpp
++++ b/sdk/tools/ffx_shader_compiler/src/pch.hpp
+@@ -24,10 +24,10 @@
+ 
+ #define NOMINMAX
+ #define WIN32_LEAN_AND_MEAN
+-#include <Windows.h>
+-#include <atlcomcli.h>
+-#include <dxcapi.h>
+-#include <d3dcompiler.h>
++// #include <Windows.h>
++// #include <atlcomcli.h>
++// #include <dxcapi.h>
++// #include <d3dcompiler.h>
+ #include <assert.h>
+ #include <stdio.h>
+ #include <exception>
+@@ -44,7 +44,7 @@
+ #include <iostream>
+ #include <algorithm>
+ #include <fstream>
+-#include <d3d12shader.h>
++// #include <d3d12shader.h>
+ 
+ #include <filesystem>
+ namespace fs = std::filesystem;
 diff --git a/sdk/tools/ffx_shader_compiler/src/utils.h b/sdk/tools/ffx_shader_compiler/src/utils.h
 index ff57b45..17da3c2 100644
 --- a/sdk/tools/ffx_shader_compiler/src/utils.h
