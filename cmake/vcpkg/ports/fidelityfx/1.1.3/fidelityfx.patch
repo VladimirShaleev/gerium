@@ -1,5 +1,5 @@
 diff --git a/sdk/CMakeLists.txt b/sdk/CMakeLists.txt
-index f271025..24dd702 100644
+index f271025..0c2fc9b 100644
 --- a/sdk/CMakeLists.txt
 +++ b/sdk/CMakeLists.txt
 @@ -89,7 +89,8 @@ elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "arm64" OR CMAKE_EXE_LINKER_FLAGS STREQ
@@ -61,15 +61,15 @@ index f271025..24dd702 100644
 +include(GNUInstallDirs)
 +
 +configure_package_config_file(
-+  "${CMAKE_CURRENT_SOURCE_DIR}/FidelityFX-config.cmake.in" 
-+  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-+  INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
-+  NO_SET_AND_CHECK_MACRO
-+  NO_CHECK_REQUIRED_COMPONENTS_MACRO)
++	"${CMAKE_CURRENT_SOURCE_DIR}/FidelityFX-config.cmake.in" 
++	"${PROJECT_BINARY_DIR}/fidelityfx-config.cmake"
++	INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
++	NO_SET_AND_CHECK_MACRO
++	NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 +
-+write_basic_package_version_file(${PROJECT_NAME}-config-version.cmake
-+  VERSION 1.1.3
-+  COMPATIBILITY SameMajorVersion)
++write_basic_package_version_file(fidelityfx-config-version.cmake
++	VERSION 1.1.3
++	COMPATIBILITY SameMajorVersion)
 +
  # Components
  add_subdirectory(${FFX_COMPONENTS_PATH}/opticalflow)
