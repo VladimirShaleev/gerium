@@ -1,5 +1,5 @@
 diff --git a/sdk/CMakeLists.txt b/sdk/CMakeLists.txt
-index f271025..0c2fc9b 100644
+index f271025..609b87f 100644
 --- a/sdk/CMakeLists.txt
 +++ b/sdk/CMakeLists.txt
 @@ -89,7 +89,8 @@ elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "arm64" OR CMAKE_EXE_LINKER_FLAGS STREQ
@@ -80,8 +80,8 @@ index f271025..0c2fc9b 100644
  
 +install(
 +  FILES
-+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
-+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
++    "${PROJECT_BINARY_DIR}/fidelityfx-config-version.cmake"
++    "${PROJECT_BINARY_DIR}/fidelityfx-config.cmake"
 +  DESTINATION ${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME})
 +install(DIRECTORY include/ DESTINATION include)
 +
