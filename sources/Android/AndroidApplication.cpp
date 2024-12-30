@@ -108,10 +108,11 @@ void AndroidApplication::onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_
                     _getSupportedModes ? (jobjectArray) env->CallObjectMethod(jDisplay, _getSupportedModes) : nullptr;
                 auto jModeCount = jModes ? env->GetArrayLength(jModes) : 0;
                 if (jName) {
-                    auto jNameLength = env->GetStringUTFLength(jName);
+                    auto jNameUnicodeLength = env->GetStringLength(jName);
+                    auto jNameLength        = env->GetStringUTFLength(jName);
                     std::string name;
                     name.resize(jNameLength + 1);
-                    env->GetStringUTFRegion(jName, 0, jNameLength, name.data());
+                    env->GetStringUTFRegion(jName, 0, jNameUnicodeLength, name.data());
                     env->DeleteLocalRef(jName);
                     _names.push_back(std::move(name));
                 } else {

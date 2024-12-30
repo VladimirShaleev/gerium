@@ -72,7 +72,7 @@ endif()
 
 function(copy_dir target src dst)
     if(ANDROID)
-        set(OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/../../../../assets")
+        set(OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/../../../../../assets")
     elseif(APPLE)
         set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>/../Resources")
     else()

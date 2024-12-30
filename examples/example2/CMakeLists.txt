@@ -1,3 +1,7 @@
+if(ANDROID)
+    return()
+endif()
+
 include (FetchContent)
 get_filename_component(ASSETS "../assets" REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
 set(FETCHCONTENT_QUIET OFF)

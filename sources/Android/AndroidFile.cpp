@@ -28,10 +28,11 @@ std::string AndroidFile::getTempFile() {
         auto file = env->CallStaticObjectMethod(_fileClass, _createTempFile, prefix, (jstring) nullptr);
         auto dir  = (jstring) env->CallObjectMethod(file, _getAbsolutePath);
 
-        auto dirLength = env->GetStringUTFLength(dir);
+        auto dirUnicodeLength = env->GetStringLength(dir);
+        auto dirLength        = env->GetStringUTFLength(dir);
         std::string name;
         name.resize(dirLength + 1);
-        env->GetStringUTFRegion(dir, 0, dirLength, name.data());
+        env->GetStringUTFRegion(dir, 0, dirUnicodeLength, name.data());
 
         env->CallVoidMethod(file, _deleteOnExit);
 
@@ -63,10 +64,11 @@ void AndroidFile::initialize() {
 
             auto file = env->CallObjectMethod(activityClazz, getCacheDir);
 
-            auto dir       = (jstring) env->CallObjectMethod(file, _getAbsolutePath);
-            auto dirLength = env->GetStringUTFLength(dir);
+            auto dir              = (jstring) env->CallObjectMethod(file, _getAbsolutePath);
+            auto dirUnicodeLength = env->GetStringLength(dir);
+            auto dirLength       = env->GetStringUTFLength(dir);
             _cacheDir.resize(dirLength + 1);
-            env->GetStringUTFRegion(dir, 0, dirLength, _cacheDir.data());
+            env->GetStringUTFRegion(dir, 0, dirUnicodeLength, _cacheDir.data());
 
             env->DeleteLocalRef(dir);
             env->DeleteLocalRef(file);

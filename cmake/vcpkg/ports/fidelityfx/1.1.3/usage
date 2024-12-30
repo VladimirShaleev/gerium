@@ -1,0 +1,25 @@
+FidelityFX provides CMake targets:
+
+    find_package(FidelityFX CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE
+        fidelityfx::backend_vk
+        fidelityfx::blur
+        fidelityfx::breadcrumbs
+        fidelityfx::brixelizer
+        fidelityfx::brixelizergi
+        fidelityfx::cacao
+        fidelityfx::cas
+        fidelityfx::classifier
+        fidelityfx::denoiser
+        fidelityfx::dof
+        fidelityfx::fsr3upscaler
+        fidelityfx::opticalflow
+        fidelityfx::fsr1
+        fidelityfx::fsr2
+        fidelityfx::fsr3
+        fidelityfx::lens
+        fidelityfx::lpm
+        fidelityfx::parallelsort
+        fidelityfx::spd
+        fidelityfx::sssr
+        fidelityfx::vrs)

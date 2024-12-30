@@ -1,0 +1,10 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
+    "registries": [
+      {
+        "kind": "filesystem",
+        "path": "cmake/vcpkg",
+        "packages": [ "fidelityfx-sc", "fidelityfx" ]
+      }
+    ]
+}
