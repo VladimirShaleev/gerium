@@ -96,7 +96,7 @@ TextureHandle Renderer::asyncLoadTexture(gerium_utf8_t filename,
     auto name  = std::filesystem::path(filename).filename().string();
     Task* task = nullptr;
 
-    constexpr char ktx2Identifier[] = { char('«'), 'K', 'T', 'X', ' ', '2', '0', char('»'), '\r', '\n', '\x1A', '\n' };
+    constexpr char ktx2Identifier[] = { char(-85), 'K', 'T', 'X', ' ', '2', '0', char(-69), '\r', '\n', '\x1A', '\n' };
 
     if (memcmp(ktx2Identifier, fileData, std::size(ktx2Identifier)) == 0 && fileSize >= KTX_HEADER_SIZE) {
         task = createLoadTaskKtx2(file, name);

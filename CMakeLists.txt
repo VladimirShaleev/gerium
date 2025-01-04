@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.24)
 cmake_policy(SET CMP0135 NEW)
 
 include(FetchContent)
@@ -64,6 +64,7 @@ find_package(marl CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 find_package(Ktx CONFIG REQUIRED)
+find_package(FidelityFX CONFIG REQUIRED)
 find_path(WYHASH_INCLUDE_DIRS "wyhash.h")
 
 include(CMakeDependentOption)
@@ -149,12 +150,35 @@ target_link_libraries(gerium PRIVATE GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(gerium PRIVATE unofficial::shaderc::shaderc)
 target_link_libraries(gerium PRIVATE unofficial::spirv-reflect)
 target_link_libraries(gerium PRIVATE marl::marl)
-target_link_libraries(gerium PRIVATE KTX::ktx KTX::astcenc-avx2-static)
+target_link_libraries(gerium PRIVATE KTX::ktx $<$<PLATFORM_ID:Windows>:KTX::astcenc-avx2-static>)
 target_include_directories(gerium PRIVATE ${WYHASH_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${IMGUI_INCLUDE_DIRS})
 target_include_directories(gerium PRIVATE ${Stb_INCLUDE_DIR})
 target_include_directories(gerium PRIVATE $<$<PLATFORM_ID:Linux>:${x11_SOURCE_DIR}>)
 target_sources(gerium PRIVATE ${IMGUI_SOURCES})
+
+target_link_libraries(gerium PRIVATE
+    fidelityfx::backend_vk
+    fidelityfx::blur
+    fidelityfx::breadcrumbs
+    fidelityfx::brixelizer
+    fidelityfx::brixelizergi
+    fidelityfx::cacao
+    fidelityfx::cas
+    fidelityfx::classifier
+    fidelityfx::denoiser
+    fidelityfx::dof
+    fidelityfx::fsr3upscaler
+    fidelityfx::opticalflow
+    fidelityfx::fsr1
+    fidelityfx::fsr2
+    fidelityfx::fsr3
+    fidelityfx::lens
+    fidelityfx::lpm
+    fidelityfx::parallelsort
+    fidelityfx::spd
+    fidelityfx::sssr
+    fidelityfx::vrs)
 
 target_include_directories(gerium PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -229,5 +253,3 @@ if(GERIUM_BUILD_SAMPLES)
     add_subdirectory(examples/example1)
     add_subdirectory(examples/example2)
 endif()
-
-include(cmake/fidelityfx.cmake)
