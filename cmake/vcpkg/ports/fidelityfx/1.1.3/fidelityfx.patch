@@ -170,6 +170,111 @@ index ac1088d..3f2f6eb 100644
      endforeach()
  
  	set (FFX_SC_PERMUTATION_OUTPUTS ${FFX_SC_PERMUTATION_OUTPUTS} PARENT_SCOPE)
+diff --git a/sdk/include/FidelityFX/gpu/blur/CMakeCompileBlurShaders.txt b/sdk/include/FidelityFX/gpu/blur/CMakeCompileBlurShaders.txt
+index 7fe0d7a..4e87244 100644
+--- a/sdk/include/FidelityFX/gpu/blur/CMakeCompileBlurShaders.txt
++++ b/sdk/include/FidelityFX/gpu/blur/CMakeCompileBlurShaders.txt
+@@ -24,8 +24,8 @@ set(BLUR_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(BLUR_PERMUTATION_ARGS
+-    -DFFX_BLUR_OPTION_KERNEL_DIMENSION={3,5,7,9,11,13,15,17,19,21}
+-	-DFFX_BLUR_OPTION_KERNEL_PERMUTATION={0,1,2})
++    \"-DFFX_BLUR_OPTION_KERNEL_DIMENSION={3,5,7,9,11,13,15,17,19,21}\"
++	\"-DFFX_BLUR_OPTION_KERNEL_PERMUTATION={0,1,2}\")
+ 	
+ set(BLUR_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/brixelizergi/CMakeCompileBrixelizerGIShaders.txt b/sdk/include/FidelityFX/gpu/brixelizergi/CMakeCompileBrixelizerGIShaders.txt
+index 0f31482..1abcd47 100644
+--- a/sdk/include/FidelityFX/gpu/brixelizergi/CMakeCompileBrixelizerGIShaders.txt
++++ b/sdk/include/FidelityFX/gpu/brixelizergi/CMakeCompileBrixelizerGIShaders.txt
+@@ -29,9 +29,9 @@ set(BRIXELIZER_GI_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}/brixelizergi")
+ 
+ set(BRIXELIZER_GI_PERMUTATION_ARGS
+-	-DFFX_BRIXELIZER_GI_OPTION_DEPTH_INVERTED={0,1}
+-	-DFFX_BRIXELIZER_GI_OPTION_DISABLE_SPECULAR={0,1}
+-	-DFFX_BRIXELIZER_GI_OPTION_DISABLE_DENOISER={0,1})
++	\"-DFFX_BRIXELIZER_GI_OPTION_DEPTH_INVERTED={0,1}\"
++	\"-DFFX_BRIXELIZER_GI_OPTION_DISABLE_SPECULAR={0,1}\"
++	\"-DFFX_BRIXELIZER_GI_OPTION_DISABLE_DENOISER={0,1}\")
+ 
+ if (NOT BRIXELIZER_GI_SHADER_EXT)
+ 	set(BRIXELIZER_GI_SHADER_EXT *)
+diff --git a/sdk/include/FidelityFX/gpu/cacao/CMakeCompileCACAOShaders.txt b/sdk/include/FidelityFX/gpu/cacao/CMakeCompileCACAOShaders.txt
+index 6fa4c50..b9a484e 100644
+--- a/sdk/include/FidelityFX/gpu/cacao/CMakeCompileCACAOShaders.txt
++++ b/sdk/include/FidelityFX/gpu/cacao/CMakeCompileCACAOShaders.txt
+@@ -24,7 +24,7 @@ set(CACAO_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(CACAO_PERMUTATION_ARGS
+-    -DFFX_CACAO_OPTION_APPLY_SMART={0,1}
++    \"-DFFX_CACAO_OPTION_APPLY_SMART={0,1}\"
+ )
+ 
+ set(CACAO_INCLUDE_ARGS
+diff --git a/sdk/include/FidelityFX/gpu/cas/CMakeCompileCASShaders.txt b/sdk/include/FidelityFX/gpu/cas/CMakeCompileCASShaders.txt
+index e494359..d3c2430 100644
+--- a/sdk/include/FidelityFX/gpu/cas/CMakeCompileCASShaders.txt
++++ b/sdk/include/FidelityFX/gpu/cas/CMakeCompileCASShaders.txt
+@@ -24,8 +24,8 @@ set(CAS_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(CAS_PERMUTATION_ARGS
+-	-DFFX_CAS_OPTION_SHARPEN_ONLY={0,1}
+-	-DFFX_CAS_COLOR_SPACE_CONVERSION={0,1,2,3,4})
++	\"-DFFX_CAS_OPTION_SHARPEN_ONLY={0,1}\"
++	\"-DFFX_CAS_COLOR_SPACE_CONVERSION={0,1,2,3,4}\")
+ 	
+ set(CAS_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/classifier/CMakeCompileClassifierShaders.txt b/sdk/include/FidelityFX/gpu/classifier/CMakeCompileClassifierShaders.txt
+index b62699e..8712fae 100644
+--- a/sdk/include/FidelityFX/gpu/classifier/CMakeCompileClassifierShaders.txt
++++ b/sdk/include/FidelityFX/gpu/classifier/CMakeCompileClassifierShaders.txt
+@@ -24,8 +24,8 @@ set(CLASSIFIER_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(CLASSIFIER_PERMUTATION_ARGS
+-	-DFFX_CLASSIFIER_OPTION_INVERTED_DEPTH={0,1}
+-	-DFFX_CLASSIFIER_OPTION_CLASSIFIER_MODE={0,1}
++	\"-DFFX_CLASSIFIER_OPTION_INVERTED_DEPTH={0,1}\"
++	\"-DFFX_CLASSIFIER_OPTION_CLASSIFIER_MODE={0,1}\"
+ )
+ 
+ set(CLASSIFIER_INCLUDE_ARGS
+diff --git a/sdk/include/FidelityFX/gpu/denoiser/CMakeCompileDenoiserShaders.txt b/sdk/include/FidelityFX/gpu/denoiser/CMakeCompileDenoiserShaders.txt
+index 567424c..c2ce70a 100644
+--- a/sdk/include/FidelityFX/gpu/denoiser/CMakeCompileDenoiserShaders.txt
++++ b/sdk/include/FidelityFX/gpu/denoiser/CMakeCompileDenoiserShaders.txt
+@@ -24,7 +24,7 @@ set(DENOISER_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(DENOISER_PERMUTATION_ARGS
+-	-DFFX_DENOISER_OPTION_INVERTED_DEPTH={0,1})
++	\"-DFFX_DENOISER_OPTION_INVERTED_DEPTH={0,1}\")
+ 
+ set(DENOISER_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/dof/CMakeCompileDOFShaders.txt b/sdk/include/FidelityFX/gpu/dof/CMakeCompileDOFShaders.txt
+index 4ab2f1c..4dfe63a 100644
+--- a/sdk/include/FidelityFX/gpu/dof/CMakeCompileDOFShaders.txt
++++ b/sdk/include/FidelityFX/gpu/dof/CMakeCompileDOFShaders.txt
+@@ -24,9 +24,9 @@ set(DOF_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(DOF_PERMUTATION_ARGS
+-	-DFFX_DOF_OPTION_MAX_RING_MERGE_LOG={0,1}
+-    -DFFX_DOF_OPTION_COMBINE_IN_PLACE={0,1}
+-    -DFFX_DOF_OPTION_REVERSE_DEPTH={0,1})
++	\"-DFFX_DOF_OPTION_MAX_RING_MERGE_LOG={0,1}\"
++    \"-DFFX_DOF_OPTION_COMBINE_IN_PLACE={0,1}\"
++    \"-DFFX_DOF_OPTION_REVERSE_DEPTH={0,1}\")
+ 	
+ set(DOF_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
 diff --git a/sdk/include/FidelityFX/gpu/ffx_core_cpu.h b/sdk/include/FidelityFX/gpu/ffx_core_cpu.h
 index 4b6c41a..b8d3411 100644
 --- a/sdk/include/FidelityFX/gpu/ffx_core_cpu.h
@@ -183,6 +288,172 @@ index 4b6c41a..b8d3411 100644
  /// A define for a true value in a boolean expression.
  ///
  /// @ingroup CPUTypes
+diff --git a/sdk/include/FidelityFX/gpu/frameinterpolation/CMakeCompileFrameinterpolationShaders.txt b/sdk/include/FidelityFX/gpu/frameinterpolation/CMakeCompileFrameinterpolationShaders.txt
+index 9652cb0..dbf9db0 100644
+--- a/sdk/include/FidelityFX/gpu/frameinterpolation/CMakeCompileFrameinterpolationShaders.txt
++++ b/sdk/include/FidelityFX/gpu/frameinterpolation/CMakeCompileFrameinterpolationShaders.txt
+@@ -30,9 +30,9 @@ set(FRAMEINTERPOLATION_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(FRAMEINTERPOLATION_PERMUTATION_ARGS
+-    -DFFX_FRAMEINTERPOLATION_OPTION_LOW_RES_MOTION_VECTORS={0,1}
+-    -DFFX_FRAMEINTERPOLATION_OPTION_JITTER_MOTION_VECTORS={0,1}
+-    -DFFX_FRAMEINTERPOLATION_OPTION_INVERTED_DEPTH={0,1})
++    \"-DFFX_FRAMEINTERPOLATION_OPTION_LOW_RES_MOTION_VECTORS={0,1}\"
++    \"-DFFX_FRAMEINTERPOLATION_OPTION_JITTER_MOTION_VECTORS={0,1}\"
++    \"-DFFX_FRAMEINTERPOLATION_OPTION_INVERTED_DEPTH={0,1}\")
+ 	
+ set(FRAMEINTERPOLATION_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/fsr1/CMakeCompileFSR1Shaders.txt b/sdk/include/FidelityFX/gpu/fsr1/CMakeCompileFSR1Shaders.txt
+index c0b592c..2e3ed15 100644
+--- a/sdk/include/FidelityFX/gpu/fsr1/CMakeCompileFSR1Shaders.txt
++++ b/sdk/include/FidelityFX/gpu/fsr1/CMakeCompileFSR1Shaders.txt
+@@ -25,9 +25,9 @@ set(FSR1_BASE_ARGS
+ 
+ set(FSR1_PERMUTATION_ARGS
+     # Reproject can use either reference lanczos or LUT
+-	-DFFX_FSR1_OPTION_APPLY_RCAS={0,1}
+-    -DFFX_FSR1_OPTION_RCAS_PASSTHROUGH_ALPHA={0,1}
+-	-DFFX_FSR1_OPTION_SRGB_CONVERSIONS={0,1})
++	\"-DFFX_FSR1_OPTION_APPLY_RCAS={0,1}\"
++    \"-DFFX_FSR1_OPTION_RCAS_PASSTHROUGH_ALPHA={0,1}\"
++	\"-DFFX_FSR1_OPTION_SRGB_CONVERSIONS={0,1}\")
+ 
+ set(FSR1_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/fsr2/CMakeCompileFSR2Shaders.txt b/sdk/include/FidelityFX/gpu/fsr2/CMakeCompileFSR2Shaders.txt
+index d86462a..c7a812c 100644
+--- a/sdk/include/FidelityFX/gpu/fsr2/CMakeCompileFSR2Shaders.txt
++++ b/sdk/include/FidelityFX/gpu/fsr2/CMakeCompileFSR2Shaders.txt
+@@ -34,12 +34,12 @@ set(FSR2_BASE_ARGS
+ 
+ set(FSR2_PERMUTATION_ARGS
+     # Reproject can use either reference lanczos or LUT
+-    -DFFX_FSR2_OPTION_REPROJECT_USE_LANCZOS_TYPE={0,1}
+-    -DFFX_FSR2_OPTION_HDR_COLOR_INPUT={0,1}
+-    -DFFX_FSR2_OPTION_LOW_RESOLUTION_MOTION_VECTORS={0,1}
+-    -DFFX_FSR2_OPTION_JITTERED_MOTION_VECTORS={0,1}
+-    -DFFX_FSR2_OPTION_INVERTED_DEPTH={0,1}
+-    -DFFX_FSR2_OPTION_APPLY_SHARPENING={0,1})
++    \"-DFFX_FSR2_OPTION_REPROJECT_USE_LANCZOS_TYPE={0,1}\"
++    \"-DFFX_FSR2_OPTION_HDR_COLOR_INPUT={0,1}\"
++    \"-DFFX_FSR2_OPTION_LOW_RESOLUTION_MOTION_VECTORS={0,1}\"
++    \"-DFFX_FSR2_OPTION_JITTERED_MOTION_VECTORS={0,1}\"
++    \"-DFFX_FSR2_OPTION_INVERTED_DEPTH={0,1}\"
++    \"-DFFX_FSR2_OPTION_APPLY_SHARPENING={0,1}\")
+ 	
+ set(FSR2_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/fsr3upscaler/CMakeCompileFSR3UpscalerShaders.txt b/sdk/include/FidelityFX/gpu/fsr3upscaler/CMakeCompileFSR3UpscalerShaders.txt
+index fcba272..1719cc5 100644
+--- a/sdk/include/FidelityFX/gpu/fsr3upscaler/CMakeCompileFSR3UpscalerShaders.txt
++++ b/sdk/include/FidelityFX/gpu/fsr3upscaler/CMakeCompileFSR3UpscalerShaders.txt
+@@ -34,12 +34,12 @@ set(FSR3UPSCALER_BASE_ARGS
+ 
+ set(FSR3UPSCALER_PERMUTATION_ARGS
+     # Reproject can use either reference lanczos or LUT
+-    -DFFX_FSR3UPSCALER_OPTION_REPROJECT_USE_LANCZOS_TYPE={0,1}
+-    -DFFX_FSR3UPSCALER_OPTION_HDR_COLOR_INPUT={0,1}
+-    -DFFX_FSR3UPSCALER_OPTION_LOW_RESOLUTION_MOTION_VECTORS={0,1}
+-    -DFFX_FSR3UPSCALER_OPTION_JITTERED_MOTION_VECTORS={0,1}
+-    -DFFX_FSR3UPSCALER_OPTION_INVERTED_DEPTH={0,1}
+-    -DFFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING={0,1})
++    \"-DFFX_FSR3UPSCALER_OPTION_REPROJECT_USE_LANCZOS_TYPE={0,1}\"
++    \"-DFFX_FSR3UPSCALER_OPTION_HDR_COLOR_INPUT={0,1}\"
++    \"-DFFX_FSR3UPSCALER_OPTION_LOW_RESOLUTION_MOTION_VECTORS={0,1}\"
++    \"-DFFX_FSR3UPSCALER_OPTION_JITTERED_MOTION_VECTORS={0,1}\"
++    \"-DFFX_FSR3UPSCALER_OPTION_INVERTED_DEPTH={0,1}\"
++    \"-DFFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING={0,1}\")
+ 	
+ set(FSR3UPSCALER_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/lens/CMakeCompileLENSShaders.txt b/sdk/include/FidelityFX/gpu/lens/CMakeCompileLENSShaders.txt
+index fc710d0..7061299 100644
+--- a/sdk/include/FidelityFX/gpu/lens/CMakeCompileLENSShaders.txt
++++ b/sdk/include/FidelityFX/gpu/lens/CMakeCompileLENSShaders.txt
+@@ -24,8 +24,8 @@ set(LENS_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(LENS_PERMUTATION_ARGS
+-	-DFFX_LENS_OPTION_LINEAR_SAMPLE={0,1}
+-    -DFFX_LENS_OPTION_WAVE_INTEROP_LDS={0,1})
++	\"-DFFX_LENS_OPTION_LINEAR_SAMPLE={0,1}\"
++    \"-DFFX_LENS_OPTION_WAVE_INTEROP_LDS={0,1}\")
+ 	
+ set(LENS_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/opticalflow/CMakeCompileOpticalflowShaders.txt b/sdk/include/FidelityFX/gpu/opticalflow/CMakeCompileOpticalflowShaders.txt
+index 5e4c273..b352b22 100644
+--- a/sdk/include/FidelityFX/gpu/opticalflow/CMakeCompileOpticalflowShaders.txt
++++ b/sdk/include/FidelityFX/gpu/opticalflow/CMakeCompileOpticalflowShaders.txt
+@@ -24,7 +24,7 @@ set(OPTICALFLOW_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(OPTICALFLOW_PERMUTATION_ARGS
+-	-DFFX_OPTICALFLOW_OPTION_HDR_COLOR_INPUT={0,1}
++	\"-DFFX_OPTICALFLOW_OPTION_HDR_COLOR_INPUT={0,1}\"
+ 	)
+ 
+ set(OPTICALFLOW_INCLUDE_ARGS
+diff --git a/sdk/include/FidelityFX/gpu/parallelsort/CMakeCompileParallelSortShaders.txt b/sdk/include/FidelityFX/gpu/parallelsort/CMakeCompileParallelSortShaders.txt
+index 28b5401..d3d0055 100644
+--- a/sdk/include/FidelityFX/gpu/parallelsort/CMakeCompileParallelSortShaders.txt
++++ b/sdk/include/FidelityFX/gpu/parallelsort/CMakeCompileParallelSortShaders.txt
+@@ -24,7 +24,7 @@ set(PARALLELSORT_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(PARALLELSORT_PERMUTATION_ARGS
+-	-DFFX_PARALLELSORT_OPTION_HAS_PAYLOAD={0,1})
++	\"-DFFX_PARALLELSORT_OPTION_HAS_PAYLOAD={0,1}\")
+ 	
+ set(PARALLELSORT_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/spd/CMakeCompileSPDShaders.txt b/sdk/include/FidelityFX/gpu/spd/CMakeCompileSPDShaders.txt
+index daeaad4..31357ee 100644
+--- a/sdk/include/FidelityFX/gpu/spd/CMakeCompileSPDShaders.txt
++++ b/sdk/include/FidelityFX/gpu/spd/CMakeCompileSPDShaders.txt
+@@ -24,9 +24,9 @@ set(SPD_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(SPD_PERMUTATION_ARGS
+-	-DFFX_SPD_OPTION_LINEAR_SAMPLE={0,1}
+-    -DFFX_SPD_OPTION_WAVE_INTEROP_LDS={0,1}
+-    -DFFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2})
++	\"-DFFX_SPD_OPTION_LINEAR_SAMPLE={0,1}\"
++    \"-DFFX_SPD_OPTION_WAVE_INTEROP_LDS={0,1}\"
++    \"-DFFX_SPD_OPTION_DOWNSAMPLE_FILTER={0,1,2}\")
+ 	
+ set(SPD_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/sssr/CMakeCompileSSSRShaders.txt b/sdk/include/FidelityFX/gpu/sssr/CMakeCompileSSSRShaders.txt
+index 42935d8..f181d91 100644
+--- a/sdk/include/FidelityFX/gpu/sssr/CMakeCompileSSSRShaders.txt
++++ b/sdk/include/FidelityFX/gpu/sssr/CMakeCompileSSSRShaders.txt
+@@ -24,7 +24,7 @@ set(SSSR_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(SSSR_PERMUTATION_ARGS
+-    -DFFX_SSSR_OPTION_INVERTED_DEPTH={0,1})
++    \"-DFFX_SSSR_OPTION_INVERTED_DEPTH={0,1}\")
+ 
+ set(SSSR_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
+diff --git a/sdk/include/FidelityFX/gpu/vrs/CMakeCompileVRSShaders.txt b/sdk/include/FidelityFX/gpu/vrs/CMakeCompileVRSShaders.txt
+index 825f43e..047f41c 100644
+--- a/sdk/include/FidelityFX/gpu/vrs/CMakeCompileVRSShaders.txt
++++ b/sdk/include/FidelityFX/gpu/vrs/CMakeCompileVRSShaders.txt
+@@ -24,8 +24,8 @@ set(VRS_BASE_ARGS
+     -reflection -deps=gcc -DFFX_GPU=1)
+ 
+ set(VRS_PERMUTATION_ARGS
+-	-DFFX_VRS_OPTION_ADDITIONALSHADINGRATES={0,1}
+-	-DFFX_VARIABLESHADING_TILESIZE={8,16,32})
++	\"-DFFX_VRS_OPTION_ADDITIONALSHADINGRATES={0,1}\"
++	\"-DFFX_VARIABLESHADING_TILESIZE={8,16,32}\")
+ 
+ set(VRS_INCLUDE_ARGS
+ 	"${FFX_GPU_PATH}"
 diff --git a/sdk/include/FidelityFX/host/backends/dx12/d3dx12.h b/sdk/include/FidelityFX/host/backends/dx12/d3dx12.h
 index 56b7f2e..e583bf7 100644
 --- a/sdk/include/FidelityFX/host/backends/dx12/d3dx12.h

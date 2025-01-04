@@ -129,7 +129,7 @@ index febc3eb..bae59bb 100644
      std::shared_ptr<IReflectionData>    reflectionData = nullptr;   ///< Shader permutation <c><i>IReflectionData</i></c> data.
  
 diff --git a/sdk/tools/ffx_shader_compiler/src/ffx_sc.cpp b/sdk/tools/ffx_shader_compiler/src/ffx_sc.cpp
-index c3ec37f..fc3b49f 100644
+index c3ec37f..c65a843 100644
 --- a/sdk/tools/ffx_shader_compiler/src/ffx_sc.cpp
 +++ b/sdk/tools/ffx_shader_compiler/src/ffx_sc.cpp
 @@ -20,52 +20,44 @@
@@ -390,7 +390,7 @@ index c3ec37f..fc3b49f 100644
      // For easier debugging
 -    std::wstring debugOutput = L"FidelityFX_SC.exe Output:";
 -    debugOutput += L"\r\n";
-+    std::string debugOutput = "FidelityFX_SC.exe Output:";
++    std::string debugOutput = "FidelityFX_SC Output:";
 +    debugOutput += "\r\n";
      for (int count = 0; count < argCount; ++count)
      {
@@ -484,7 +484,7 @@ index c3ec37f..fc3b49f 100644
              debugCompile = true;
          else if (args[i][0] == L'-')
          {
-@@ -307,53 +299,53 @@ void LaunchParameters::ParseCommandLine(int argCount, const wchar_t* const* args
+@@ -307,53 +299,21 @@ void LaunchParameters::ParseCommandLine(int argCount, const wchar_t* const* args
      EnsureOutputPathExistsAndMakeCanonical(ouputPath);
  }
  
@@ -524,39 +524,7 @@ index c3ec37f..fc3b49f 100644
 -        inoutOutputPath = canonicalOutputPath;
 -        LocalFree(canonicalOutputPath);
 -    }
-+    // std::replace(inoutOutputPath.begin(), inoutOutputPath.end(), L'/', L'\\');
-+
-+    // PWSTR canonicalOutputPath = NULL;
-+
-+    // // Make the path canonical, convert to long path if needed and add the trailing slash
-+    // HRESULT hr = PathAllocCanonicalize(inoutOutputPath.c_str(), PATHCCH_ALLOW_LONG_PATHS | PATHCCH_ENSURE_TRAILING_SLASH, &canonicalOutputPath);
-+    // if (hr == S_OK)
-+    // {
-+    //     PWSTR componentStart = NULL;
-+
-+    //     // Find the first character after "root" indicator -- which means a folder (path component) or file
-+    //     hr = PathCchSkipRoot(canonicalOutputPath, &componentStart);
-+    //     if (hr == S_OK)
-+    //     {
-+    //         // Try search for the next delimiter
-+    //         char* componentEnd = wcsstr(componentStart, "\\");
-+
-+    //         // If the delimiter is found, make sure the folder is created
-+    //         while (componentEnd != NULL)
-+    //         {
-+    //             // Temporally replace delimiter '\\' with null-terminator, create directory, and restore the delimiter
-+    //             *componentEnd = L'\0';
-+    //             CreateDirectoryW(canonicalOutputPath, NULL);
-+    //             *componentEnd = L'\\';
-+
-+    //             // advance to the next component (file or folder) and try to find the next delimiter (meaning -- it's folder), and repeat the loop.
-+    //             componentStart = componentEnd + 1;
-+    //             componentEnd = wcsstr(componentStart, "\\");
-+    //         }
-+    //     }
-+    //     inoutOutputPath = canonicalOutputPath;
-+    //     LocalFree(canonicalOutputPath);
-+    // }
++    inoutOutputPath = std::filesystem::canonical(inoutOutputPath).string();
  }
  
 -void LaunchParameters::ParsePermutationOption(PermutationOption& outPermutationOption, const std::wstring arg)
@@ -578,7 +546,7 @@ index c3ec37f..fc3b49f 100644
  
      outPermutationOption.isNumeric = true;
  
-@@ -373,17 +365,17 @@ void LaunchParameters::ParsePermutationOption(PermutationOption& outPermutationO
+@@ -373,18 +333,18 @@ void LaunchParameters::ParsePermutationOption(PermutationOption& outPermutationO
      outPermutationOption.numBits = static_cast<uint32_t>(ceilf(log2f(static_cast<float>(outPermutationOption.values.size()))));
  }
  
@@ -587,9 +555,10 @@ index c3ec37f..fc3b49f 100644
  {
 -    std::wstring argStr   = std::wstring(arg);
 -    size_t       equalPos = argStr.find_first_of(L"=", 0);
+-    outCompilerArg        = argStr.substr(equalPos + 1, argStr.length() - equalPos);
 +    std::string argStr   = std::string(arg);
-+    size_t       equalPos = argStr.find_first_of("=", 0);
-     outCompilerArg        = argStr.substr(equalPos + 1, argStr.length() - equalPos);
++    size_t      equalPos = argStr.find_first_of("=", 0);
++    outCompilerArg       = argStr.substr(equalPos + 1, argStr.length() - equalPos);
  }
  
 -void LaunchParameters::ParseNumThreads(int& outNumThreads, const wchar_t* arg)
@@ -597,12 +566,14 @@ index c3ec37f..fc3b49f 100644
  {
 -    std::wstring argStr   = std::wstring(arg);
 -    size_t       equalPos = argStr.find_first_of(L"=", 0);
+-    outNumThreads         = std::stoi(argStr.substr(equalPos + 1, argStr.length() - equalPos));
 +    std::string argStr   = std::string(arg);
-+    size_t       equalPos = argStr.find_first_of("=", 0);
-     outNumThreads         = std::stoi(argStr.substr(equalPos + 1, argStr.length() - equalPos));
++    size_t      equalPos = argStr.find_first_of("=", 0);
++    outNumThreads        = std::stoi(argStr.substr(equalPos + 1, argStr.length() - equalPos));
  }
  
-@@ -406,7 +398,7 @@ void Application::Process()
+ Application::Application(const LaunchParameters& params)
+@@ -406,7 +366,7 @@ void Application::Process()
          m_Params.numThreads = std::thread::hardware_concurrency();
      m_Params.numThreads = std::min(m_Params.numThreads, static_cast<int>(totalPermutations - predictedDuplicates));
  
@@ -611,7 +582,7 @@ index c3ec37f..fc3b49f 100644
  
      for (int i = 0; i < (m_Params.numThreads - 1); i++)
          threads.push_back(std::thread(&Application::ProcessPermutations, this));
-@@ -419,41 +411,31 @@ void Application::Process()
+@@ -419,41 +379,31 @@ void Application::Process()
      WriteShaderPermutationsHeader();
  
      // dump dependencies file if needed
@@ -660,7 +631,7 @@ index c3ec37f..fc3b49f 100644
      // put the permutation options that appear in shaders first.
      std::stable_partition(m_Params.permutationOptions.begin(), m_Params.permutationOptions.end(), [](const PermutationOption& opt) { return opt.foundInShader; });
      GenerateMacroPermutations(temp, permutations, 0, 0);
-@@ -485,12 +467,12 @@ void Application::GenerateMacroPermutations(Permutation current, std::deque<Perm
+@@ -485,12 +435,12 @@ void Application::GenerateMacroPermutations(Permutation current, std::deque<Perm
          {
              if (currentOption.isNumeric)
              {
@@ -676,7 +647,7 @@ index c3ec37f..fc3b49f 100644
                  temp.defines.push_back(currentOption.values[i]);
              }
          }
-@@ -524,11 +506,11 @@ void Application::OpenSourceFile()
+@@ -524,11 +474,11 @@ void Application::OpenSourceFile()
  {
      size_t slashPos     = m_Params.inputFile.find_last_of('/');
  
@@ -690,7 +661,7 @@ index c3ec37f..fc3b49f 100644
              slashPos = 0;
      }
  
-@@ -543,43 +525,43 @@ void Application::OpenSourceFile()
+@@ -543,43 +493,43 @@ void Application::OpenSourceFile()
      else
          m_ShaderName = m_Params.shaderName;
  
@@ -759,7 +730,7 @@ index c3ec37f..fc3b49f 100644
              m_Compiler = std::unique_ptr<GLSLCompiler>(new GLSLCompiler(glslangExe, shaderPath, shaderName, shaderFileName, outputPath, m_Params.disableLogs, m_Params.debugCompile));
          else
              throw std::runtime_error("Unknown compiler requested (valid options: dxc, fxc or glslang)");
-@@ -589,15 +571,15 @@ void Application::OpenSourceFile()
+@@ -589,15 +539,15 @@ void Application::OpenSourceFile()
      for (size_t i = 0; i < m_Params.compilerArgs.size(); i++)
      {
          auto& arg = m_Params.compilerArgs[i];
@@ -778,7 +749,7 @@ index c3ec37f..fc3b49f 100644
          {
              includeSearchPaths.emplace_back(arg.substr(2));
          }
-@@ -712,11 +694,11 @@ void Application::CompilePermutation(Permutation& permutation)
+@@ -712,11 +662,11 @@ void Application::CompilePermutation(Permutation& permutation)
      // ------------------------------------------------------------------------------------------------
      std::vector<std::string> args = {};
  
@@ -794,13 +765,13 @@ index c3ec37f..fc3b49f 100644
  
      // ------------------------------------------------------------------------------------------------
      // Print compiler args if requested.
-@@ -775,14 +757,14 @@ void Application::CompilePermutation(Permutation& permutation)
+@@ -775,14 +725,14 @@ void Application::CompilePermutation(Permutation& permutation)
  
  void Application::WriteShaderBinaryHeader(Permutation& permutation)
  {
 -    std::string  permutationName = WCharToUTF8(m_ShaderName) + "_" + permutation.hashDigest;
 -    std::wstring headerFileName  = UTF8ToWChar(permutationName) + L".h";
-+    std::string  permutationName = m_ShaderName + "_" + permutation.hashDigest;
++    std::string permutationName = m_ShaderName + "_" + permutation.hashDigest;
 +    std::string headerFileName  = permutationName + ".h";
  
      FILE* fp = NULL;
@@ -813,7 +784,7 @@ index c3ec37f..fc3b49f 100644
  
      // ------------------------------------------------------------------------------------------------
      // Write autogen comment
-@@ -797,7 +779,7 @@ void Application::WriteShaderBinaryHeader(Permutation& permutation)
+@@ -797,7 +747,7 @@ void Application::WriteShaderBinaryHeader(Permutation& permutation)
      {
          for (int i = 0; i < m_Params.compilerArgs.size(); i++)
          {
@@ -822,7 +793,7 @@ index c3ec37f..fc3b49f 100644
  
              if (arg[0] == '-')
              {
-@@ -818,7 +800,7 @@ void Application::WriteShaderBinaryHeader(Permutation& permutation)
+@@ -818,7 +768,7 @@ void Application::WriteShaderBinaryHeader(Permutation& permutation)
      {
          for (int32_t i = 0; i < permutation.defines.size(); i++)
          {
@@ -831,7 +802,7 @@ index c3ec37f..fc3b49f 100644
  
              if (arg[0] == '-')
              {
-@@ -874,7 +856,7 @@ void Application::PrintPermutationArguments(Permutation& permutation)
+@@ -874,7 +824,7 @@ void Application::PrintPermutationArguments(Permutation& permutation)
      {
          for (int i = 0; i < m_Params.compilerArgs.size(); i++)
          {
@@ -840,7 +811,7 @@ index c3ec37f..fc3b49f 100644
  
              printf("%s", arg.c_str());
  
-@@ -890,7 +872,7 @@ void Application::PrintPermutationArguments(Permutation& permutation)
+@@ -890,7 +840,7 @@ void Application::PrintPermutationArguments(Permutation& permutation)
      {
          for (int32_t i = 0; i < permutation.defines.size(); i++)
          {
@@ -849,7 +820,7 @@ index c3ec37f..fc3b49f 100644
  
              printf("%s", arg.c_str());
  
-@@ -899,7 +881,7 @@ void Application::PrintPermutationArguments(Permutation& permutation)
+@@ -899,7 +849,7 @@ void Application::PrintPermutationArguments(Permutation& permutation)
          }
      }
  
@@ -858,7 +829,7 @@ index c3ec37f..fc3b49f 100644
  
      printf("-output=%s", outputPath.c_str());
  
-@@ -913,13 +895,13 @@ void Application::WriteShaderPermutationsHeader()
+@@ -913,13 +863,13 @@ void Application::WriteShaderPermutationsHeader()
      if (m_UniquePermutations.empty())
          throw std::runtime_error("No shader permutations generated due to errors!");
  
@@ -875,7 +846,7 @@ index c3ec37f..fc3b49f 100644
  
      // ------------------------------------------------------------------------------------------------
      // Write header includes
-@@ -942,7 +924,7 @@ void Application::WriteShaderPermutationsHeader()
+@@ -942,7 +892,7 @@ void Application::WriteShaderPermutationsHeader()
  
          if (!option.isNumeric)
          {
@@ -884,7 +855,7 @@ index c3ec37f..fc3b49f 100644
  
              fprintf(fp, "typedef enum %s {\n", enumName.c_str());
  
-@@ -950,7 +932,7 @@ void Application::WriteShaderPermutationsHeader()
+@@ -950,7 +900,7 @@ void Application::WriteShaderPermutationsHeader()
              {
                  std::transform(enumName.begin(), enumName.end(), enumName.begin(), ::toupper);
  
@@ -893,7 +864,7 @@ index c3ec37f..fc3b49f 100644
                  std::transform(valueString.begin(), valueString.end(), valueString.begin(), ::toupper);
                  valueString = "OPT_" + enumName + "_" + valueString + " = " + std::to_string(j);
  
-@@ -977,7 +959,7 @@ void Application::WriteShaderPermutationsHeader()
+@@ -977,7 +927,7 @@ void Application::WriteShaderPermutationsHeader()
      {
          const PermutationOption& option = m_Params.permutationOptions[i];
  
@@ -902,7 +873,7 @@ index c3ec37f..fc3b49f 100644
  
          fprintf(fp, "        uint32_t %s : %i;\n", enumName.c_str(), option.numBits);
      }
-@@ -1006,7 +988,7 @@ void Application::WriteShaderPermutationsHeader()
+@@ -1006,7 +956,7 @@ void Application::WriteShaderPermutationsHeader()
      for (const auto& option : m_Params.permutationOptions)
          usedBits += option.numBits;
  
@@ -911,7 +882,7 @@ index c3ec37f..fc3b49f 100644
  
      fprintf(fp, "static const uint32_t g_%s_IndirectionTable[] = {\n", shaderName.c_str());
  
-@@ -1054,16 +1036,16 @@ void Application::DumpDepfileGCC()
+@@ -1054,16 +1004,16 @@ void Application::DumpDepfileGCC()
          totalDependencies.insert(permutation.dependencies.begin(), permutation.dependencies.end());
      }
  
@@ -933,7 +904,7 @@ index c3ec37f..fc3b49f 100644
  
      output = fs::absolute(output);
  
-@@ -1084,7 +1066,7 @@ void Application::DumpDepfileMSVC()
+@@ -1084,7 +1034,7 @@ void Application::DumpDepfileMSVC()
      printf("MSVC depfile not implemented yet.\n");
  }
  
@@ -942,19 +913,8 @@ index c3ec37f..fc3b49f 100644
  {
      try
      {
-@@ -1096,10 +1078,8 @@ int wmain(int argc, wchar_t** argv)
- 
-         LaunchParameters params;
-         params.ParseCommandLine(argc - 1, argv + 1);
--
-         Application app(params);
-         app.Process();
--
-         return 0;
-     }
-     catch (const std::exception& ex)
 diff --git a/sdk/tools/ffx_shader_compiler/src/glsl_compiler.cpp b/sdk/tools/ffx_shader_compiler/src/glsl_compiler.cpp
-index 532b192..0c1c8c2 100644
+index 532b192..6c4a835 100644
 --- a/sdk/tools/ffx_shader_compiler/src/glsl_compiler.cpp
 +++ b/sdk/tools/ffx_shader_compiler/src/glsl_compiler.cpp
 @@ -23,8 +23,8 @@
@@ -977,7 +937,26 @@ index 532b192..0c1c8c2 100644
  {
      fs::create_directory(m_OutputPath + "/" + m_ShaderName + "_temp");
  }
-@@ -265,7 +265,7 @@ bool GLSLCompiler::GLSLCompiler::Compile(Permutation& permutation, const std::ve
+@@ -251,13 +251,15 @@ bool GLSLCompiler::GLSLCompiler::Compile(Permutation& permutation, const std::ve
+                         token.erase(0, end + 2);
+                     }
+                 }
+-                token.pop_back();
+-                errors.push_back(ErrorData{token, lineNumber});
++                errors.push_back(ErrorData{std::move(token), lineNumber});
+             }
+         }
+     };
+ 
+-    tpl::Process process(cmdLine, "", func, func);
++    tpl::Config config{};
++    config.buffer_size = 512 * 1024;
++
++    tpl::Process process(cmdLine, "", func, func, false, config);
+ 
+     bool succeeded = process.get_exit_status() == 0;
+ 
+@@ -265,7 +267,7 @@ bool GLSLCompiler::GLSLCompiler::Compile(Permutation& permutation, const std::ve
      {
          writeMutex.lock();
  

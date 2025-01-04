@@ -11,6 +11,7 @@ vcpkg_from_github(
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}/sdk"
     OPTIONS
+        -DCMAKE_CXX_STANDARD=17
         -DFFX_API_BACKEND=VK_X64
         -DFFX_FSR3=ON
         -DFFX_SSSR=ON
