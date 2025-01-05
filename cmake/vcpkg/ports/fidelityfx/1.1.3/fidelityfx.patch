@@ -1,5 +1,5 @@
 diff --git a/sdk/CMakeLists.txt b/sdk/CMakeLists.txt
-index f271025..609b87f 100644
+index f271025..f9e7c20 100644
 --- a/sdk/CMakeLists.txt
 +++ b/sdk/CMakeLists.txt
 @@ -89,7 +89,8 @@ elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "arm64" OR CMAKE_EXE_LINKER_FLAGS STREQ
@@ -61,7 +61,7 @@ index f271025..609b87f 100644
 +include(GNUInstallDirs)
 +
 +configure_package_config_file(
-+	"${CMAKE_CURRENT_SOURCE_DIR}/FidelityFX-config.cmake.in" 
++	"${CMAKE_CURRENT_SOURCE_DIR}/FidelityFX-config.cmake.in"
 +	"${PROJECT_BINARY_DIR}/fidelityfx-config.cmake"
 +	INSTALL_DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +	NO_SET_AND_CHECK_MACRO
@@ -1407,7 +1407,7 @@ index 1bcd3a5..203d257 100644
  }
  
 diff --git a/sdk/src/backends/vk/CMakeLists.txt b/sdk/src/backends/vk/CMakeLists.txt
-index c19b659..7720ea9 100644
+index c19b659..9e90947 100644
 --- a/sdk/src/backends/vk/CMakeLists.txt
 +++ b/sdk/src/backends/vk/CMakeLists.txt
 @@ -27,17 +27,17 @@ endif()
@@ -1422,17 +1422,18 @@ index c19b659..7720ea9 100644
 -        message(FATAL_ERROR "Vulkan SDK ${vulkan_min_version} or above is required. Found Vulkan SDK ${Vulkan_VERSION}")
 -    endif()
 -endfunction()
+-
+-find_package(Vulkan REQUIRED)
+-CheckVulkanSDKVersion()
 +# function (CheckVulkanSDKVersion)
 +#     # set the desired version
 +#     set(vulkan_min_version "1.3.250")
-+# 
++#
 +#     if (${Vulkan_VERSION} VERSION_LESS ${vulkan_min_version})
 +#         message(FATAL_ERROR "Vulkan SDK ${vulkan_min_version} or above is required. Found Vulkan SDK ${Vulkan_VERSION}")
 +#     endif()
 +# endfunction()
- 
--find_package(Vulkan REQUIRED)
--CheckVulkanSDKVersion()
++
 +find_package(VulkanHeaders CONFIG REQUIRED)
 +# CheckVulkanSDKVersion()
  
@@ -1649,7 +1650,7 @@ index c19b659..7720ea9 100644
  set_target_properties(ffx_shader_permutations_vk PROPERTIES FOLDER Backends)
 +
 +install(TARGETS backend_vk EXPORT backend_vk-targets)
-+install(EXPORT backend_vk-targets 
++install(EXPORT backend_vk-targets
 +	DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +	NAMESPACE fidelityfx::)
 diff --git a/sdk/src/backends/vk/CMakeShadersBLUR.txt b/sdk/src/backends/vk/CMakeShadersBLUR.txt
@@ -2288,7 +2289,7 @@ index 571ceb9..fa7504b 100644
              if (res == VK_SUCCESS && s_uiCompositionDescriptorSets[i] == VK_NULL_HANDLE)
              {
 diff --git a/sdk/src/backends/vk/ffx_vk.cpp b/sdk/src/backends/vk/ffx_vk.cpp
-index ef187c3..3b96499 100644
+index ef187c3..b12473c 100644
 --- a/sdk/src/backends/vk/ffx_vk.cpp
 +++ b/sdk/src/backends/vk/ffx_vk.cpp
 @@ -20,6 +20,8 @@
@@ -2491,7 +2492,28 @@ index ef187c3..3b96499 100644
  
      uint32_t bestCandidate = UINT32_MAX;
  
-@@ -923,7 +935,7 @@ FfxErrorCode allocateDeviceMemory(BackendContext_VK* backendContext, VkMemoryReq
+@@ -419,6 +431,20 @@ uint32_t findMemoryTypeIndex(VkPhysicalDevice physicalDevice, VkMemoryRequiremen
+         }
+     }
+ 
++    // for cases when the required memory was not found
++    if (bestCandidate == UINT32_MAX) {
++        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
++            if ((memRequirements.memoryTypeBits & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & requestedProperties)) {
++                bestCandidate = i;
++                outProperties = memProperties.memoryTypes[i].propertyFlags;
++
++                // if host-visible memory is requested, check for host coherency as well and if available, return immediately
++                if ((requestedProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && (memProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
++                    return bestCandidate;
++            }
++        }
++    }
++
+     return bestCandidate;
+ }
+ 
+@@ -923,7 +949,7 @@ FfxErrorCode allocateDeviceMemory(BackendContext_VK* backendContext, VkMemoryReq
      VkMemoryAllocateInfo allocInfo{};
      allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
      allocInfo.allocationSize = memRequirements.size;
@@ -2500,7 +2522,7 @@ index ef187c3..3b96499 100644
  
      if (allocInfo.memoryTypeIndex == UINT32_MAX) {
          return FFX_ERROR_BACKEND_API_ERROR;
-@@ -944,7 +956,7 @@ FfxErrorCode allocateDeviceMemory(BackendContext_VK* backendContext, VkMemoryReq
+@@ -944,7 +970,7 @@ FfxErrorCode allocateDeviceMemory(BackendContext_VK* backendContext, VkMemoryReq
      return FFX_OK;
  }
  
@@ -2509,7 +2531,7 @@ index ef187c3..3b96499 100644
  {
      VkDebugUtilsObjectNameInfoEXT s{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT, nullptr, objectType, object, name };
  
-@@ -1002,6 +1014,8 @@ VkAccessFlags getVKAccessFlagsFromResourceState(FfxResourceStates state)
+@@ -1002,6 +1028,8 @@ VkAccessFlags getVKAccessFlagsFromResourceState(FfxResourceStates state)
          return VK_ACCESS_NONE;
      case FFX_RESOURCE_STATE_RENDER_TARGET:
          return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
@@ -2518,7 +2540,7 @@ index ef187c3..3b96499 100644
      default:
          FFX_ASSERT_MESSAGE(false, "State flag not yet supported");
          return VK_ACCESS_SHADER_READ_BIT;
-@@ -1028,6 +1042,8 @@ VkPipelineStageFlags getVKPipelineStageFlagsFromResourceState(FfxResourceStates
+@@ -1028,6 +1056,8 @@ VkPipelineStageFlags getVKPipelineStageFlagsFromResourceState(FfxResourceStates
          return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
      case FFX_RESOURCE_STATE_RENDER_TARGET:
          return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -2527,7 +2549,7 @@ index ef187c3..3b96499 100644
      default:
          FFX_ASSERT_MESSAGE(false, "Pipeline stage flag not yet supported");
          return VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-@@ -1056,6 +1072,8 @@ VkImageLayout getVKImageLayoutFromResourceState(FfxResourceStates state)
+@@ -1056,6 +1086,8 @@ VkImageLayout getVKImageLayoutFromResourceState(FfxResourceStates state)
          return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
      case FFX_RESOURCE_STATE_RENDER_TARGET:
          return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -2536,19 +2558,26 @@ index ef187c3..3b96499 100644
      case FFX_RESOURCE_STATE_INDIRECT_ARGUMENT:
          // this case is for buffers
      default:
-@@ -1095,58 +1113,34 @@ void copyResourceState(BackendContext_VK::Resource* backendResource, const FfxRe
+@@ -1095,58 +1127,34 @@ void copyResourceState(BackendContext_VK::Resource* backendResource, const FfxRe
      }
  }
  
 -#ifdef _WIN32
 -void ConvertUTF8ToUTF16(const char* inputName, wchar_t* outputBuffer, size_t outputLen)
+-{
+-    if (MultiByteToWideChar(CP_UTF8, 0, inputName, -1, outputBuffer, static_cast<int>(outputLen)) == 0)
+-    {
+-        memset(outputBuffer, 0, outputLen * sizeof(wchar_t));
+-    }
+-}
+-void ConvertUTF16ToUTF8(const wchar_t* inputName, char* outputBuffer, size_t outputLen)
 +void beginMarkerVK(BackendContext_VK* backendContext, VkCommandBuffer commandBuffer, const char* label)
  {
--    if (MultiByteToWideChar(CP_UTF8, 0, inputName, -1, outputBuffer, static_cast<int>(outputLen)) == 0)
+-    if (WideCharToMultiByte(CP_UTF8, 0, inputName, -1, outputBuffer, static_cast<int>(outputLen * sizeof(char)), NULL, NULL) == 0)
 +#ifndef NDEBUG
 +    if (backendContext->vkFunctionTable.vkCmdBeginDebugUtilsLabelEXT)
      {
--        memset(outputBuffer, 0, outputLen * sizeof(wchar_t));
+-        memset(outputBuffer, 0, outputLen * sizeof(char));
 +        VkDebugUtilsLabelEXT debugLabel = {};
 +        debugLabel.sType                = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
 +        debugLabel.pNext                = nullptr;
@@ -2561,13 +2590,6 @@ index ef187c3..3b96499 100644
 +        debugLabel.color[3] = 1.0f;
 +        backendContext->vkFunctionTable.vkCmdBeginDebugUtilsLabelEXT(commandBuffer, &debugLabel);
      }
--}
--void ConvertUTF16ToUTF8(const wchar_t* inputName, char* outputBuffer, size_t outputLen)
--{
--    if (WideCharToMultiByte(CP_UTF8, 0, inputName, -1, outputBuffer, static_cast<int>(outputLen * sizeof(char)), NULL, NULL) == 0)
--    {
--        memset(outputBuffer, 0, outputLen * sizeof(char));
--    }
 -}
 -#else
 -void ConvertUTF8ToUTF16(const char* inputName, wchar_t* outputBuffer, size_t outputLen)
@@ -2616,7 +2638,7 @@ index ef187c3..3b96499 100644
  }
  
  void addBarrier(BackendContext_VK* backendContext, FfxResourceInternal* resource, FfxResourceStates newState)
-@@ -1243,7 +1237,7 @@ FfxConstantAllocation BackendContext_VK::FallbackConstantAllocator(void* data, F
+@@ -1243,7 +1251,7 @@ FfxConstantAllocation BackendContext_VK::FallbackConstantAllocator(void* data, F
  
          // get alignment
          VkPhysicalDeviceProperties physicalDeviceProperties = {};
@@ -2625,7 +2647,7 @@ index ef187c3..3b96499 100644
          uniformBufferAlignment = physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
  
          uniformBufferSize = FFX_ALIGN_UP(FFX_BUFFER_SIZE, uniformBufferAlignment) * maxEffectContexts * FFX_MAX_PASS_COUNT * FFX_MAX_QUEUED_FRAMES;
-@@ -1271,12 +1265,12 @@ FfxConstantAllocation BackendContext_VK::FallbackConstantAllocator(void* data, F
+@@ -1271,12 +1279,12 @@ FfxConstantAllocation BackendContext_VK::FallbackConstantAllocator(void* data, F
  
              allocInfo.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
              allocInfo.allocationSize  = uniformBufferSize;
@@ -2640,7 +2662,7 @@ index ef187c3..3b96499 100644
  
                  if (allocInfo.memoryTypeIndex == UINT32_MAX)
                      res = VK_ERROR_INITIALIZATION_FAILED;
-@@ -1299,7 +1293,7 @@ FfxConstantAllocation BackendContext_VK::FallbackConstantAllocator(void* data, F
+@@ -1299,7 +1307,7 @@ FfxConstantAllocation BackendContext_VK::FallbackConstantAllocator(void* data, F
  
      FFX_ASSERT(uniformBufferMem);
  
@@ -2649,7 +2671,7 @@ index ef187c3..3b96499 100644
      allocation.handle            = 0;
  
      if (data)
-@@ -1435,8 +1429,12 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
+@@ -1435,8 +1443,12 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
          backendContext->extensionProperties = (VkExtensionProperties*)pMem;
  
          // if vkGetDeviceProcAddr is NULL, use the one from the vulkan header
@@ -2664,7 +2686,7 @@ index ef187c3..3b96499 100644
  
          if (vkDeviceContext->vkDevice != VK_NULL_HANDLE) {
              backendContext->device = vkDeviceContext->vkDevice;
-@@ -1495,11 +1493,17 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
+@@ -1495,11 +1507,17 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
          backendContext->vkFunctionTable.vkCmdWriteBufferMarker2AMD = (PFN_vkCmdWriteBufferMarker2AMD)vkDeviceContext->vkDeviceProcAddr(backendContext->device, "vkCmdWriteBufferMarker2AMD");
          backendContext->vkFunctionTable.vkCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkDeviceContext->vkDeviceProcAddr(backendContext->device, "vkCmdBeginDebugUtilsLabelEXT");
          backendContext->vkFunctionTable.vkCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkDeviceContext->vkDeviceProcAddr(backendContext->device, "vkCmdEndDebugUtilsLabelEXT");
@@ -2684,7 +2706,7 @@ index ef187c3..3b96499 100644
  
          // create a global descriptor pool to hold all descriptors we'll need
          VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
-@@ -1530,7 +1534,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
+@@ -1530,7 +1548,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
          {
              // get alignment
              VkPhysicalDeviceProperties physicalDeviceProperties = {};
@@ -2693,7 +2715,7 @@ index ef187c3..3b96499 100644
              backendContext->uniformBufferAlignment = physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
  
              backendContext->uniformBufferSize =
-@@ -1560,13 +1564,13 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
+@@ -1560,13 +1578,13 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
              allocInfo.sType          = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
              allocInfo.allocationSize = backendContext->uniformBufferSize;
              allocInfo.memoryTypeIndex =
@@ -2709,7 +2731,7 @@ index ef187c3..3b96499 100644
  
                  if (allocInfo.memoryTypeIndex == UINT32_MAX)
                  {
-@@ -1621,7 +1625,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
+@@ -1621,7 +1639,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
              bufferInfo.pQueueFamilyIndices = nullptr;
  
              VkBuffer testBuffer = VK_NULL_HANDLE;
@@ -2718,7 +2740,7 @@ index ef187c3..3b96499 100644
              {
                  FFX_ASSERT_FAIL("Cannot create test Breadcrumbs buffer to find memory requirements!");
                  return FFX_ERROR_BACKEND_API_ERROR;
-@@ -1661,7 +1665,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
+@@ -1661,7 +1679,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
  
              // Find proper memory index for created buffers
              VkPhysicalDeviceMemoryProperties memoryProps = {};
@@ -2727,7 +2749,7 @@ index ef187c3..3b96499 100644
  
              const VkMemoryPropertyFlags requiredMemoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
              VkMemoryPropertyFlags preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-@@ -1778,7 +1782,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
+@@ -1778,7 +1796,7 @@ FfxErrorCode CreateBackendContextVK(FfxInterface* backendInterface, FfxEffect ef
  
                  descriptorPoolCreateInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
                  descriptorPoolCreateInfo.pNext         = nullptr;
@@ -2736,7 +2758,7 @@ index ef187c3..3b96499 100644
                  descriptorPoolCreateInfo.poolSizeCount = poolSizeCount;
                  descriptorPoolCreateInfo.pPoolSizes    = poolSizes;
                  descriptorPoolCreateInfo.maxSets       = poolSizeCount;
-@@ -1986,7 +1990,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
+@@ -1986,7 +2004,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
              VkPhysicalDeviceProperties2 deviceProperties2 = {};
              deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
              deviceProperties2.pNext = &subgroupSizeControlProperties;
@@ -2745,7 +2767,7 @@ index ef187c3..3b96499 100644
  
              deviceCapabilities->waveLaneCountMin = subgroupSizeControlProperties.minSubgroupSize;
              deviceCapabilities->waveLaneCountMax = subgroupSizeControlProperties.maxSubgroupSize;
-@@ -2001,7 +2005,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
+@@ -2001,7 +2019,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
              physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
              physicalDeviceFeatures2.pNext = &shaderFloat18Int8Features;
  
@@ -2754,7 +2776,7 @@ index ef187c3..3b96499 100644
  
              deviceCapabilities->fp16Supported = (bool)shaderFloat18Int8Features.shaderFloat16;
          }
-@@ -2015,7 +2019,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
+@@ -2015,7 +2033,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
              physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
              physicalDeviceFeatures2.pNext = &accelerationStructureFeatures;
  
@@ -2763,7 +2785,7 @@ index ef187c3..3b96499 100644
  
              deviceCapabilities->raytracingSupported = (bool)accelerationStructureFeatures.accelerationStructure;
          }
-@@ -2029,7 +2033,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
+@@ -2029,7 +2047,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
              physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
              physicalDeviceFeatures2.pNext = &coherentMemoryFeatures;
  
@@ -2772,7 +2794,7 @@ index ef187c3..3b96499 100644
  
              deviceCapabilities->deviceCoherentMemorySupported = (bool)coherentMemoryFeatures.deviceCoherentMemory;
          }
-@@ -2053,7 +2057,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
+@@ -2053,7 +2071,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
              physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
              physicalDeviceFeatures2.pNext = &synchronizationFeatures;
  
@@ -2781,7 +2803,7 @@ index ef187c3..3b96499 100644
  
              deviceCapabilities->extendedSynchronizationSupported = (bool)synchronizationFeatures.synchronization2;
          }
-@@ -2067,7 +2071,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
+@@ -2067,7 +2085,7 @@ FfxErrorCode GetDeviceCapabilitiesVK(FfxInterface* backendInterface, FfxDeviceCa
              physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
              physicalDeviceFeatures2.pNext = &descriptorIndexingFeatures;
  
@@ -2790,7 +2812,7 @@ index ef187c3..3b96499 100644
  
              deviceCapabilities->shaderStorageBufferArrayNonUniformIndexing = (bool)descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing;
          }
-@@ -2224,9 +2228,7 @@ FfxErrorCode CreateResourceVK(
+@@ -2224,9 +2242,7 @@ FfxErrorCode CreateResourceVK(
      backendResource->currentState = resourceState;
  
  #ifdef _DEBUG
@@ -2801,7 +2823,7 @@ index ef187c3..3b96499 100644
  #endif
  
      VkMemoryRequirements memRequirements = {};
-@@ -2465,7 +2467,7 @@ FfxErrorCode CreateResourceVK(
+@@ -2465,7 +2481,7 @@ FfxErrorCode CreateResourceVK(
          backendInterface->fpCreateResource(backendInterface, &uploadDesc, effectContextId, &copySrc);
  
          // setup the upload job
@@ -2810,7 +2832,7 @@ index ef187c3..3b96499 100644
          copyJob.copyJobDescriptor.src = copySrc;
          copyJob.copyJobDescriptor.dst = *outResource;
          copyJob.copyJobDescriptor.srcOffset = 0;
-@@ -2660,9 +2662,7 @@ FfxErrorCode RegisterResourceVK(
+@@ -2660,9 +2676,7 @@ FfxErrorCode RegisterResourceVK(
      copyResourceState(backendResource, inFfxResource);
  
  #ifdef _DEBUG
@@ -2821,7 +2843,7 @@ index ef187c3..3b96499 100644
  #endif
  
      // the first call of RegisterResource can be identified because
-@@ -2788,7 +2788,7 @@ FfxResource GetResourceVK(FfxInterface* backendInterface, FfxResourceInternal in
+@@ -2788,7 +2802,7 @@ FfxResource GetResourceVK(FfxInterface* backendInterface, FfxResourceInternal in
  #ifdef _DEBUG
      if (backendContext->pResources[inResource.internalIndex].resourceName)
      {
@@ -2830,7 +2852,7 @@ index ef187c3..3b96499 100644
      }
  #endif
  
-@@ -2908,16 +2908,11 @@ FfxErrorCode registerStaticTextureSrv(BackendContext_VK* backendContext, const F
+@@ -2908,16 +2922,11 @@ FfxErrorCode registerStaticTextureSrv(BackendContext_VK* backendContext, const F
          }
  
  #ifdef _DEBUG
@@ -2848,7 +2870,7 @@ index ef187c3..3b96499 100644
  #endif
  
          VkWriteDescriptorSet  writeDescriptorSet  = {};
-@@ -3059,16 +3054,11 @@ FfxErrorCode registerStaticTextureUav(BackendContext_VK* backendContext, const F
+@@ -3059,16 +3068,11 @@ FfxErrorCode registerStaticTextureUav(BackendContext_VK* backendContext, const F
          }
  
  #ifdef _DEBUG
@@ -2866,7 +2888,7 @@ index ef187c3..3b96499 100644
  #endif
  
          VkWriteDescriptorSet  writeDescriptorSet  = {};
-@@ -3486,7 +3476,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+@@ -3486,7 +3490,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
  
              outPipeline->srvTextureBindings[bindingIndex].slotIndex  = slotIndex;
              outPipeline->srvTextureBindings[bindingIndex].arrayIndex = arrayIndex;
@@ -2875,7 +2897,7 @@ index ef187c3..3b96499 100644
          }
      }
  
-@@ -3506,7 +3496,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+@@ -3506,7 +3510,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
  
              outPipeline->uavTextureBindings[bindingIndex].slotIndex  = slotIndex;
              outPipeline->uavTextureBindings[bindingIndex].arrayIndex = arrayIndex;
@@ -2884,7 +2906,7 @@ index ef187c3..3b96499 100644
          }
      }
  
-@@ -3531,7 +3521,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+@@ -3531,7 +3535,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
  
              outPipeline->srvBufferBindings[bindingIndex].slotIndex  = slotIndex;
              outPipeline->srvBufferBindings[bindingIndex].arrayIndex = arrayIndex;
@@ -2893,7 +2915,7 @@ index ef187c3..3b96499 100644
          }
      }
  
-@@ -3551,7 +3541,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+@@ -3551,7 +3555,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
  
              outPipeline->uavBufferBindings[bindingIndex].slotIndex  = slotIndex;
              outPipeline->uavBufferBindings[bindingIndex].arrayIndex = arrayIndex;
@@ -2902,7 +2924,7 @@ index ef187c3..3b96499 100644
          }
      }
  
-@@ -3562,7 +3552,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+@@ -3562,7 +3566,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
      {
          outPipeline->constantBufferBindings[cbIndex].slotIndex  = shaderBlob.boundConstantBuffers[cbIndex];
          outPipeline->constantBufferBindings[cbIndex].arrayIndex = 1;
@@ -2911,7 +2933,7 @@ index ef187c3..3b96499 100644
      }
  
      outPipeline->constCount = shaderBlob.cbvCount;
-@@ -3625,7 +3615,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+@@ -3625,7 +3629,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
      pipelineCreateInfo.layout = pPipelineLayout->pipelineLayout;
  
      VkPipeline computePipeline = VK_NULL_HANDLE;
@@ -2920,7 +2942,7 @@ index ef187c3..3b96499 100644
          return FFX_ERROR_BACKEND_API_ERROR;
      }
  
-@@ -3636,7 +3626,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
+@@ -3636,7 +3640,7 @@ FfxErrorCode CreatePipelineVK(FfxInterface* backendInterface,
      outPipeline->pipeline = reinterpret_cast<FfxPipeline>(computePipeline);
  
      // Setup the pipeline name
@@ -2929,7 +2951,7 @@ index ef187c3..3b96499 100644
  
      return FFX_OK;
  }
-@@ -3906,7 +3896,7 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_VK*    backendContext,
+@@ -3906,7 +3910,7 @@ static FfxErrorCode executeGpuJobCompute(BackendContext_VK*    backendContext,
              job->computeJobDescriptor.pipeline.constantBufferBindings[currentRootConstantIndex].slotIndex;
          writeDescriptorSets[descriptorWriteIndex].dstArrayElement = 0;
  
@@ -2938,7 +2960,7 @@ index ef187c3..3b96499 100644
          bufferDescriptorInfos[bufferDescriptorIndex].offset = static_cast<VkDeviceSize>(allocation.handle);
          bufferDescriptorInfos[bufferDescriptorIndex].range  = dataSize;
  
-@@ -4335,8 +4325,8 @@ void BreadcrumbsPrintDeviceInfoVK(
+@@ -4335,8 +4339,8 @@ void BreadcrumbsPrintDeviceInfoVK(
  
      VkPhysicalDeviceProperties devProps = {};
      VkPhysicalDeviceFeatures devFeatures = {};
@@ -2950,7 +2972,7 @@ index ef187c3..3b96499 100644
      FFX_BREADCRUMBS_APPEND_STRING(buff, buffSize, "[VkPhysicalDeviceProperties]\n" FFX_BREADCRUMBS_PRINTING_INDENT "apiVersion: ");
      FFX_BREADCRUMBS_APPEND_UINT(buff, buffSize, VK_API_VERSION_MAJOR(devProps.apiVersion));
 diff --git a/sdk/src/components/blur/CMakeLists.txt b/sdk/src/components/blur/CMakeLists.txt
-index 5ed6328..9fad9b7 100644
+index 5ed6328..17875a5 100644
 --- a/sdk/src/components/blur/CMakeLists.txt
 +++ b/sdk/src/components/blur/CMakeLists.txt
 @@ -38,20 +38,28 @@ if (FFX_BLUR OR FFX_ALL)
@@ -2980,9 +3002,9 @@ index 5ed6328..9fad9b7 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_blur_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(blur PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS blur EXPORT blur-targets)
-+	install(EXPORT blur-targets 
++	install(EXPORT blur-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -3186,7 +3208,7 @@ index 40be70a..d64b4eb 100644
      dispatchJob.computeJobDescriptor.cbs[0] = context->blurConstants;
  
 diff --git a/sdk/src/components/breadcrumbs/CMakeLists.txt b/sdk/src/components/breadcrumbs/CMakeLists.txt
-index f32b0bf..5086af7 100644
+index f32b0bf..356e33c 100644
 --- a/sdk/src/components/breadcrumbs/CMakeLists.txt
 +++ b/sdk/src/components/breadcrumbs/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_BREADCRUMBS OR FFX_ALL)
@@ -3215,9 +3237,9 @@ index f32b0bf..5086af7 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_breadcrumbs_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(breadcrumbs PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS breadcrumbs EXPORT breadcrumbs-targets)
-+	install(EXPORT breadcrumbs-targets 
++	install(EXPORT breadcrumbs-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -3235,7 +3257,7 @@ index 54aed31..81330fa 100644
  
  #include <ffx_object_management.h>           
 diff --git a/sdk/src/components/brixelizer/CMakeLists.txt b/sdk/src/components/brixelizer/CMakeLists.txt
-index 719fdfe..a7e7a36 100644
+index 719fdfe..2094c4e 100644
 --- a/sdk/src/components/brixelizer/CMakeLists.txt
 +++ b/sdk/src/components/brixelizer/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_BRIXELIZER OR FFX_ALL)
@@ -3264,9 +3286,9 @@ index 719fdfe..a7e7a36 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_brixelizer_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(brixelizer PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS brixelizer EXPORT brixelizer-targets)
-+	install(EXPORT brixelizer-targets 
++	install(EXPORT brixelizer-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -4016,7 +4038,7 @@ index f52fe1b..90cc161 100644
  
  #define FFX_BRIXELIZER_NUM_UPLOAD_BUFFERS FFX_ARRAY_ELEMENTS(uploadBufferMetaData)
 diff --git a/sdk/src/components/brixelizergi/CMakeLists.txt b/sdk/src/components/brixelizergi/CMakeLists.txt
-index 5dfe2b2..4a921d0 100644
+index 5dfe2b2..83a60dd 100644
 --- a/sdk/src/components/brixelizergi/CMakeLists.txt
 +++ b/sdk/src/components/brixelizergi/CMakeLists.txt
 @@ -41,9 +41,9 @@ if (FFX_BRIXELIZER_GI OR FFX_ALL)
@@ -4048,9 +4070,9 @@ index 5dfe2b2..4a921d0 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_brixelizergi_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(brixelizergi PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS brixelizergi EXPORT brixelizergi-targets)
-+	install(EXPORT brixelizergi-targets 
++	install(EXPORT brixelizergi-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -4849,7 +4871,7 @@ index ae6c1b0..0ada99e 100644
          job.clearJobDescriptor.color[1] = 0.0f;
          job.clearJobDescriptor.color[2] = 0.0f;
 diff --git a/sdk/src/components/cacao/CMakeLists.txt b/sdk/src/components/cacao/CMakeLists.txt
-index 0b02ad7..258581e 100644
+index 0b02ad7..0c92dfe 100644
 --- a/sdk/src/components/cacao/CMakeLists.txt
 +++ b/sdk/src/components/cacao/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_CACAO OR FFX_ALL)
@@ -4878,9 +4900,9 @@ index 0b02ad7..258581e 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_cacao_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(cacao PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS cacao EXPORT cacao-targets)
-+	install(EXPORT cacao-targets 
++	install(EXPORT cacao-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -5218,7 +5240,7 @@ index 537df62..2fcd3db 100644
          memcpy(clearJob.clearJobDescriptor.color, clearValues, sizeof(uint32_t) * FFX_CACAO_ARRAY_SIZE(clearJob.clearJobDescriptor.color));
          clearJob.clearJobDescriptor.target = context->textures[FFX_CACAO_RESOURCE_IDENTIFIER_LOAD_COUNTER_BUFFER];
 diff --git a/sdk/src/components/cas/CMakeLists.txt b/sdk/src/components/cas/CMakeLists.txt
-index b189b78..8abb6a0 100644
+index b189b78..dafcdfd 100644
 --- a/sdk/src/components/cas/CMakeLists.txt
 +++ b/sdk/src/components/cas/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_CAS OR FFX_ALL)
@@ -5247,15 +5269,15 @@ index b189b78..8abb6a0 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_cas_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(cas PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS cas EXPORT cas-targets)
-+	install(EXPORT cas-targets 
++	install(EXPORT cas-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
  endif()
 diff --git a/sdk/src/components/cas/ffx_cas.cpp b/sdk/src/components/cas/ffx_cas.cpp
-index 0ad1b54..bf9e771 100644
+index 0ad1b54..a3549a9 100644
 --- a/sdk/src/components/cas/ffx_cas.cpp
 +++ b/sdk/src/components/cas/ffx_cas.cpp
 @@ -20,8 +20,9 @@
@@ -5265,7 +5287,7 @@ index 0ad1b54..bf9e771 100644
 +#include <array>     // for std::size
  #include <string.h>  // for memset
 -#include <stdlib.h>  // for _countof
-+#include <stdlib.h>  // 
++#include <stdlib.h>  //
  #include <cmath>     // for fabs, abs, sinf, sqrt, etc.
  
  #ifdef __clang__
@@ -5387,7 +5409,7 @@ index 0ad1b54..bf9e771 100644
      dispatchJob.computeJobDescriptor.cbs[0] = context->constantBuffer;
  
 diff --git a/sdk/src/components/classifier/CMakeLists.txt b/sdk/src/components/classifier/CMakeLists.txt
-index b38e350..6b58fd0 100644
+index b38e350..84b9dc6 100644
 --- a/sdk/src/components/classifier/CMakeLists.txt
 +++ b/sdk/src/components/classifier/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_CLASSIFIER OR FFX_ALL)
@@ -5416,12 +5438,12 @@ index b38e350..6b58fd0 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_classifier_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(classifier PROPERTIES FOLDER Components)
- 
++
 +	install(TARGETS classifier EXPORT classifier-targets)
-+	install(EXPORT classifier-targets 
++	install(EXPORT classifier-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
-+	
+ 
  endif()
 diff --git a/sdk/src/components/classifier/ffx_classifier.cpp b/sdk/src/components/classifier/ffx_classifier.cpp
 index d6180ce..ffee656 100644
@@ -5693,7 +5715,7 @@ index d6180ce..ffee656 100644
      context->contextDescription.backendInterface.fpScheduleGpuJob(&context->contextDescription.backendInterface, &dispatchJob);
  }
 diff --git a/sdk/src/components/denoiser/CMakeLists.txt b/sdk/src/components/denoiser/CMakeLists.txt
-index 864efbd..b389576 100644
+index 864efbd..2609184 100644
 --- a/sdk/src/components/denoiser/CMakeLists.txt
 +++ b/sdk/src/components/denoiser/CMakeLists.txt
 @@ -39,9 +39,9 @@ if (FFX_DENOISER OR FFX_ALL)
@@ -5722,15 +5744,15 @@ index 864efbd..b389576 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_denoiser_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(denoiser PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS denoiser EXPORT denoiser-targets)
-+	install(EXPORT denoiser-targets 
++	install(EXPORT denoiser-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
  endif()
 diff --git a/sdk/src/components/denoiser/ffx_denoiser.cpp b/sdk/src/components/denoiser/ffx_denoiser.cpp
-index c0d9fe9..eddd123 100644
+index c0d9fe9..8245b61 100644
 --- a/sdk/src/components/denoiser/ffx_denoiser.cpp
 +++ b/sdk/src/components/denoiser/ffx_denoiser.cpp
 @@ -20,8 +20,9 @@
@@ -5740,7 +5762,7 @@ index c0d9fe9..eddd123 100644
 +#include <array>        // for std::size
  #include <string.h>     // for memset
 -#include <stdlib.h>     // for _countof
-+#include <stdlib.h>     // 
++#include <stdlib.h>     //
  #include <cmath>        // for fabs, abs, sinf, sqrt, etc.
  
  #include <FidelityFX/host/ffx_denoiser.h>
@@ -6238,7 +6260,7 @@ index c0d9fe9..eddd123 100644
                                                                     FFX_RESOURCE_USAGE_UAV,
                                                                     FFX_SURFACE_FORMAT_R16G16B16A16_FLOAT,
 diff --git a/sdk/src/components/dof/CMakeLists.txt b/sdk/src/components/dof/CMakeLists.txt
-index d5318f9..6f18536 100644
+index d5318f9..39e5adf 100644
 --- a/sdk/src/components/dof/CMakeLists.txt
 +++ b/sdk/src/components/dof/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_DOF OR FFX_ALL)
@@ -6267,9 +6289,9 @@ index d5318f9..6f18536 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_dof_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(dof PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS dof EXPORT dof-targets)
-+	install(EXPORT dof-targets 
++	install(EXPORT dof-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -6528,7 +6550,7 @@ index 70aab0e..993ef5a 100644
                                                                          {FFX_RESOURCE_INIT_DATA_TYPE_VALUE, sizeof(uint32_t), 0}};
  
 diff --git a/sdk/src/components/frameinterpolation/CMakeLists.txt b/sdk/src/components/frameinterpolation/CMakeLists.txt
-index 9b92229..ab4529f 100644
+index 9b92229..6f6cebe 100644
 --- a/sdk/src/components/frameinterpolation/CMakeLists.txt
 +++ b/sdk/src/components/frameinterpolation/CMakeLists.txt
 @@ -39,9 +39,9 @@ if (FFX_FI OR FFX_ALL)
@@ -6557,15 +6579,15 @@ index 9b92229..ab4529f 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_frameinterpolation_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(frameinterpolation PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS frameinterpolation EXPORT frameinterpolation-targets)
-+	install(EXPORT frameinterpolation-targets 
++	install(EXPORT frameinterpolation-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
  endif()
 diff --git a/sdk/src/components/frameinterpolation/ffx_frameinterpolation.cpp b/sdk/src/components/frameinterpolation/ffx_frameinterpolation.cpp
-index 66fb0a0..6d7cb42 100644
+index 66fb0a0..e2cc14d 100644
 --- a/sdk/src/components/frameinterpolation/ffx_frameinterpolation.cpp
 +++ b/sdk/src/components/frameinterpolation/ffx_frameinterpolation.cpp
 @@ -23,6 +23,7 @@
@@ -6845,7 +6867,7 @@ index 66fb0a0..6d7cb42 100644
 +        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_RECONSTRUCTED_DEPTH_INTERPOLATED_FRAME, "FI_ReconstructedDepthInterpolatedFrame",  FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV,
              FFX_SURFACE_FORMAT_R32_UINT, contextDescription->maxRenderSize.width, contextDescription->maxRenderSize.height, 1,      FFX_RESOURCE_FLAGS_ALIASABLE, {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
 -        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_GAME_MOTION_VECTOR_FIELD_X,             L"FI_GameMotionVectorFieldX",               FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV, 
-+        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_GAME_MOTION_VECTOR_FIELD_X,             "FI_GameMotionVectorFieldX",               FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV, 
++        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_GAME_MOTION_VECTOR_FIELD_X,             "FI_GameMotionVectorFieldX",               FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV,
              FFX_SURFACE_FORMAT_R32_UINT, contextDescription->maxRenderSize.width, contextDescription->maxRenderSize.height, 1,      FFX_RESOURCE_FLAGS_ALIASABLE, {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
 -        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_GAME_MOTION_VECTOR_FIELD_Y,             L"FI_GameMotionVectorFieldY",               FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV,
 +        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_GAME_MOTION_VECTOR_FIELD_Y,             "FI_GameMotionVectorFieldY",               FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV,
@@ -6869,7 +6891,7 @@ index 66fb0a0..6d7cb42 100644
 +        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_INPAINTING_MASK,                        "FI_InpaintingMask",                       FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV,
              FFX_SURFACE_FORMAT_R8_UNORM, contextDescription->displaySize.width, contextDescription->displaySize.height, 1,          FFX_RESOURCE_FLAGS_ALIASABLE, {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
 -        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_DISOCCLUSION_MASK,                      L"FI_DisocclusionMask",                     FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV, 
-+        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_DISOCCLUSION_MASK,                      "FI_DisocclusionMask",                     FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV, 
++        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_DISOCCLUSION_MASK,                      "FI_DisocclusionMask",                     FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_UAV,
              FFX_SURFACE_FORMAT_R8G8_UNORM, contextDescription->maxRenderSize.width, contextDescription->maxRenderSize.height, 1,    FFX_RESOURCE_FLAGS_ALIASABLE, {FFX_RESOURCE_INIT_DATA_TYPE_UNINITIALIZED}},
 -        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_DEFAULT_DISTORTION_FIELD, L"FI_DefaultDistortionField", FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_READ_ONLY,
 +        {FFX_FRAMEINTERPOLATION_RESOURCE_IDENTIFIER_DEFAULT_DISTORTION_FIELD, "FI_DefaultDistortionField", FFX_RESOURCE_TYPE_TEXTURE2D, FFX_RESOURCE_USAGE_READ_ONLY,
@@ -6984,7 +7006,7 @@ index 66fb0a0..6d7cb42 100644
                  copyJobs[i].copyJobDescriptor.src = copySources[i];
                  copyJobs[i].copyJobDescriptor.dst = destSources[i];
 diff --git a/sdk/src/components/fsr1/CMakeLists.txt b/sdk/src/components/fsr1/CMakeLists.txt
-index 823d3f7..5acd019 100644
+index 823d3f7..764ae6d 100644
 --- a/sdk/src/components/fsr1/CMakeLists.txt
 +++ b/sdk/src/components/fsr1/CMakeLists.txt
 @@ -38,17 +38,17 @@ if (FFX_FSR1 OR FFX_ALL)
@@ -7023,9 +7045,9 @@ index 823d3f7..5acd019 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_fsr1_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(fsr1 PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS fsr1 EXPORT fsr1-targets)
-+	install(EXPORT fsr1-targets 
++	install(EXPORT fsr1-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -7192,7 +7214,7 @@ index 14b306f..8c12b3b 100644
                                                                  FFX_RESOURCE_USAGE_UAV,
                                                                  contextDescription->outputFormat,
 diff --git a/sdk/src/components/fsr2/CMakeLists.txt b/sdk/src/components/fsr2/CMakeLists.txt
-index 11b20a7..8fb26fc 100644
+index 11b20a7..7d1b7c1 100644
 --- a/sdk/src/components/fsr2/CMakeLists.txt
 +++ b/sdk/src/components/fsr2/CMakeLists.txt
 @@ -38,17 +38,17 @@ if (FFX_FSR2 OR FFX_ALL)
@@ -7231,9 +7253,9 @@ index 11b20a7..8fb26fc 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_fsr2_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(fsr2 PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS fsr2 EXPORT fsr2-targets)
-+	install(EXPORT fsr2-targets 
++	install(EXPORT fsr2-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -7995,7 +8017,7 @@ index c27f2f6..3863208 100644
  
      contextPrivate->contextDescription.backendInterface.fpScheduleGpuJob(&contextPrivate->contextDescription.backendInterface, &dispatchJob);
 diff --git a/sdk/src/components/fsr3/CMakeLists.txt b/sdk/src/components/fsr3/CMakeLists.txt
-index 5cff93c..dac8c5f 100644
+index 5cff93c..00cb3bb 100644
 --- a/sdk/src/components/fsr3/CMakeLists.txt
 +++ b/sdk/src/components/fsr3/CMakeLists.txt
 @@ -39,9 +39,9 @@ if (FFX_FSR3 OR FFX_ALL)
@@ -8027,9 +8049,9 @@ index 5cff93c..dac8c5f 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_fsr3_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(fsr3 PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS fsr3 EXPORT fsr3-targets)
-+	install(EXPORT fsr3-targets 
++	install(EXPORT fsr3-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -8075,7 +8097,7 @@ index 38f5220..815238b 100644
              FFX_VALIDATE(contextDescription->backendInterfaceSharedResources.fpCreateResource(
                  &contextDescription->backendInterfaceSharedResources, &recND, contextPrivate->effectContextIdSharedResources, &contextPrivate->sharedResources[FFX_FSR3_RESOURCE_IDENTIFIER_RECONSTRUCTED_PREVIOUS_NEAREST_DEPTH_0 + (i * FFX_FSR3_RESOURCE_IDENTIFIER_UPSCALED_COUNT)]));
 diff --git a/sdk/src/components/fsr3upscaler/CMakeLists.txt b/sdk/src/components/fsr3upscaler/CMakeLists.txt
-index 8afbc2f..b96bf58 100644
+index 8afbc2f..8701599 100644
 --- a/sdk/src/components/fsr3upscaler/CMakeLists.txt
 +++ b/sdk/src/components/fsr3upscaler/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_FSR3UPSCALER OR FFX_ALL)
@@ -8104,9 +8126,9 @@ index 8afbc2f..b96bf58 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_fsr3upscaler_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(fsr3upscaler PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS fsr3upscaler EXPORT fsr3upscaler-targets)
-+	install(EXPORT fsr3upscaler-targets 
++	install(EXPORT fsr3upscaler-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -8771,7 +8793,7 @@ index 03b3849..104d8f1 100644
          jobDescriptor.cbs[currentRootConstantIndex] = contextPrivate->constantBuffers[pipeline->constantBufferBindings[currentRootConstantIndex].resourceIdentifier];
      }
 diff --git a/sdk/src/components/lens/CMakeLists.txt b/sdk/src/components/lens/CMakeLists.txt
-index 91945b1..27f2066 100644
+index 91945b1..dc99f6e 100644
 --- a/sdk/src/components/lens/CMakeLists.txt
 +++ b/sdk/src/components/lens/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_LENS OR FFX_ALL)
@@ -8800,9 +8822,9 @@ index 91945b1..27f2066 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_lens_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(lens PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS lens EXPORT lens-targets)
-+	install(EXPORT lens-targets 
++	install(EXPORT lens-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -8940,7 +8962,7 @@ index 59d86e8..727b48c 100644
      dispatchJob.computeJobDescriptor.cbs[0] = context->constantBuffer;
  
 diff --git a/sdk/src/components/lpm/CMakeLists.txt b/sdk/src/components/lpm/CMakeLists.txt
-index 2faf50a..4bd9df0 100644
+index 2faf50a..a4ea7ce 100644
 --- a/sdk/src/components/lpm/CMakeLists.txt
 +++ b/sdk/src/components/lpm/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_LPM OR FFX_ALL)
@@ -8969,15 +8991,15 @@ index 2faf50a..4bd9df0 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_lpm_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(lpm PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS lpm EXPORT lpm-targets)
-+	install(EXPORT lpm-targets 
++	install(EXPORT lpm-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
  endif()
 diff --git a/sdk/src/components/lpm/ffx_lpm.cpp b/sdk/src/components/lpm/ffx_lpm.cpp
-index a2af2f2..9d96ebb 100644
+index a2af2f2..24094b5 100644
 --- a/sdk/src/components/lpm/ffx_lpm.cpp
 +++ b/sdk/src/components/lpm/ffx_lpm.cpp
 @@ -20,8 +20,9 @@
@@ -8987,7 +9009,7 @@ index a2af2f2..9d96ebb 100644
 +#include <array>     // for std::size
  #include <string.h>  // for memset
 -#include <stdlib.h>  // for _countof
-+#include <stdlib.h>  //  
++#include <stdlib.h>  //
  #include <cmath>     // for fabs, abs, sinf, sqrt, etc.
  
  
@@ -9109,7 +9131,7 @@ index a2af2f2..9d96ebb 100644
      dispatchJob.computeJobDescriptor.cbs[0] = context->constantBuffer;
  
 diff --git a/sdk/src/components/opticalflow/CMakeLists.txt b/sdk/src/components/opticalflow/CMakeLists.txt
-index 02423ad..27ee886 100644
+index 02423ad..f2cd78b 100644
 --- a/sdk/src/components/opticalflow/CMakeLists.txt
 +++ b/sdk/src/components/opticalflow/CMakeLists.txt
 @@ -39,20 +39,28 @@ if (FFX_OF  OR FFX_ALL)
@@ -9139,9 +9161,9 @@ index 02423ad..27ee886 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_opticalflow_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(opticalflow PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS opticalflow EXPORT opticalflow-targets)
-+	install(EXPORT opticalflow-targets 
++	install(EXPORT opticalflow-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -9690,7 +9712,7 @@ index 7b0c84f..8ce90a7 100644
      return FFX_OK;
  }
 diff --git a/sdk/src/components/parallelsort/CMakeLists.txt b/sdk/src/components/parallelsort/CMakeLists.txt
-index 2772089..f34c24f 100644
+index 2772089..39cd37f 100644
 --- a/sdk/src/components/parallelsort/CMakeLists.txt
 +++ b/sdk/src/components/parallelsort/CMakeLists.txt
 @@ -39,9 +39,9 @@ if (FFX_PARALLEL_SORT OR FFX_ALL)
@@ -9719,9 +9741,9 @@ index 2772089..f34c24f 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_parallelsort_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(parallelsort PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS parallelsort EXPORT parallelsort-targets)
-+	install(EXPORT parallelsort-targets 
++	install(EXPORT parallelsort-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
@@ -9973,7 +9995,7 @@ index 1b1af64..47b1f1d 100644
  
      pContext->contextDescription.backendInterface.fpScheduleGpuJob(&pContext->contextDescription.backendInterface, &dispatchJob);
 diff --git a/sdk/src/components/spd/CMakeLists.txt b/sdk/src/components/spd/CMakeLists.txt
-index 06cffe5..bebb608 100644
+index 06cffe5..adf6d35 100644
 --- a/sdk/src/components/spd/CMakeLists.txt
 +++ b/sdk/src/components/spd/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_SPD OR FFX_ALL)
@@ -10002,15 +10024,15 @@ index 06cffe5..bebb608 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_spd_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(spd PROPERTIES FOLDER Components)
-+	
++
 +	install(TARGETS spd EXPORT spd-targets)
-+	install(EXPORT spd-targets 
++	install(EXPORT spd-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
  	
  endif()
 diff --git a/sdk/src/components/spd/ffx_spd.cpp b/sdk/src/components/spd/ffx_spd.cpp
-index 1727755..5bd46dc 100644
+index 1727755..9a6cbb2 100644
 --- a/sdk/src/components/spd/ffx_spd.cpp
 +++ b/sdk/src/components/spd/ffx_spd.cpp
 @@ -20,8 +20,9 @@
@@ -10020,7 +10042,7 @@ index 1727755..5bd46dc 100644
 +#include <array>        // for std::size
  #include <string.h>     // for memset
 -#include <stdlib.h>     // for _countof
-+#include <stdlib.h>     // 
++#include <stdlib.h>     //
  #include <cmath>        // for fabs, abs, sinf, sqrt, etc.
  
  #include <FidelityFX/host/ffx_spd.h>
@@ -10187,7 +10209,7 @@ index 1727755..5bd46dc 100644
                                                                  FFX_RESOURCE_USAGE_UAV,
                                                                  FFX_SURFACE_FORMAT_UNKNOWN,
 diff --git a/sdk/src/components/sssr/CMakeLists.txt b/sdk/src/components/sssr/CMakeLists.txt
-index 77cd284..ed27b2b 100644
+index 77cd284..81c62ef 100644
 --- a/sdk/src/components/sssr/CMakeLists.txt
 +++ b/sdk/src/components/sssr/CMakeLists.txt
 @@ -39,9 +39,9 @@ if (FFX_SSSR OR FFX_ALL)
@@ -10218,17 +10240,17 @@ index 77cd284..ed27b2b 100644
  
  	# Dependencies
 - 	add_dependencies(ffx_sssr_${FFX_PLATFORM_NAME} ffx_denoiser_${FFX_PLATFORM_NAME})
-+ 	add_dependencies(sssr denoiser)
++	add_dependencies(sssr denoiser)
  
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_sssr_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(sssr PROPERTIES FOLDER Components)
- 
++
 +	install(TARGETS sssr EXPORT sssr-targets)
-+	install(EXPORT sssr-targets 
++	install(EXPORT sssr-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
-+	
+ 
  endif()
 diff --git a/sdk/src/components/sssr/ffx_sssr.cpp b/sdk/src/components/sssr/ffx_sssr.cpp
 index 2d5c559..75f91af 100644
@@ -10570,7 +10592,7 @@ index 2d5c559..75f91af 100644
          job.clearJobDescriptor.color[1] = 0.0f;
          job.clearJobDescriptor.color[2] = 0.0f;
 diff --git a/sdk/src/components/vrs/CMakeLists.txt b/sdk/src/components/vrs/CMakeLists.txt
-index 2ec3e8c..439aeea 100644
+index 2ec3e8c..7bdf637 100644
 --- a/sdk/src/components/vrs/CMakeLists.txt
 +++ b/sdk/src/components/vrs/CMakeLists.txt
 @@ -38,9 +38,9 @@ if (FFX_VRS OR FFX_ALL)
@@ -10599,15 +10621,15 @@ index 2ec3e8c..439aeea 100644
  	set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 -	set_target_properties(ffx_vrs_${FFX_PLATFORM_NAME} PROPERTIES FOLDER Components)
 +	set_target_properties(vrs PROPERTIES FOLDER Components)
- 
++
 +	install(TARGETS vrs EXPORT vrs-targets)
-+	install(EXPORT vrs-targets 
++	install(EXPORT vrs-targets
 +		DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
 +		NAMESPACE fidelityfx::)
-+	
+ 
  endif()
 diff --git a/sdk/src/components/vrs/ffx_vrs.cpp b/sdk/src/components/vrs/ffx_vrs.cpp
-index 47fbc76..984cd1d 100644
+index 47fbc76..a77a7ff 100644
 --- a/sdk/src/components/vrs/ffx_vrs.cpp
 +++ b/sdk/src/components/vrs/ffx_vrs.cpp
 @@ -20,8 +20,9 @@
@@ -10617,7 +10639,7 @@ index 47fbc76..984cd1d 100644
 +#include <array>        // for std::size
  #include <string.h>     // for memset
 -#include <stdlib.h>     // for _countof
-+#include <stdlib.h>     // 
++#include <stdlib.h>     //
  #include <cmath>        // for fabs, abs, sinf, sqrt, etc.
  
  #ifdef __clang__
