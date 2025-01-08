@@ -148,6 +148,15 @@ gerium_feature_flags_t VkRenderer::onGetEnabledFeatures() const noexcept {
     if (_device->meshShaderSupported()) {
         result |= GERIUM_FEATURE_MESH_SHADER_BIT;
     }
+    if (_device->samplerFilterMinmaxSupported()) {
+        result |= GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT;
+    }
+    if (_device->is8BitStorageSupported()) {
+        result |= GERIUM_FEATURE_8_BIT_STORAGE_BIT;
+    }
+    if (_device->is16BitStorageSupported()) {
+        result |= GERIUM_FEATURE_16_BIT_STORAGE_BIT;
+    }
     return result;
 }
 

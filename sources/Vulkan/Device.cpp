@@ -1719,9 +1719,13 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     VkPhysicalDeviceFeatures2 features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     features.pNext = &features12;
 
-    features12.samplerFilterMinmax =
-        testFeatures12.samplerFilterMinmax; // TODO: add flag for reduction GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT
-    features12.drawIndirectCount = testFeatures12.drawIndirectCount;
+    _samplerFilterMinmaxSupported =
+        (featureFlags & GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT) == GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT
+            ? testFeatures12.samplerFilterMinmax
+            : false;
+
+    features12.samplerFilterMinmax = _samplerFilterMinmaxSupported ? VK_TRUE : VK_FALSE;
+    features12.drawIndirectCount   = testFeatures12.drawIndirectCount;
     if (_bindlessSupported) {
         features12.shaderSampledImageArrayNonUniformIndexing = testFeatures12.shaderSampledImageArrayNonUniformIndexing;
         features12.descriptorBindingPartiallyBound           = testFeatures12.descriptorBindingPartiallyBound;
@@ -2421,6 +2425,10 @@ std::vector<uint32_t> Device::compile(const char* code,
 
     if (_meshShaderSupported) {
         options.AddMacroDefinition("MESH_SHADER_SUPPORTED"s, "1"s);
+    }
+
+    if (_samplerFilterMinmaxSupported) {
+        options.AddMacroDefinition("SAMPLER_FILTER_MINMAX_SUPPORTED"s, "1"s);
     }
 
     if (_fidelityFXSupported) {

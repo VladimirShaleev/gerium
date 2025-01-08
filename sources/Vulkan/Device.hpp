@@ -138,8 +138,24 @@ public:
         return _bindlessSupported;
     }
 
+    bool fidelityFXSupported() const noexcept {
+        return _fidelityFXSupported;
+    }
+
     bool meshShaderSupported() const noexcept {
         return _meshShaderSupported;
+    }
+
+    bool samplerFilterMinmaxSupported() const noexcept {
+        return _samplerFilterMinmaxSupported;
+    }
+
+    bool is8BitStorageSupported() const noexcept {
+        return _8BitStorageSupported;
+    }
+
+    bool is16BitStorageSupported() const noexcept {
+        return _16BitStorageSupported;
     }
 
     TextureCompressionFlags compressions() const noexcept {
@@ -492,6 +508,7 @@ private:
     bool _bindlessSupported{};
     bool _fidelityFXSupported{};
     bool _meshShaderSupported{};
+    bool _samplerFilterMinmaxSupported{};
     bool _8BitStorageSupported{};
     bool _16BitStorageSupported{};
     TextureCompressionFlags _compressions{};

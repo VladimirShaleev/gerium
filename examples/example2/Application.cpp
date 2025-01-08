@@ -1605,7 +1605,8 @@ void Application::initialize() {
 
     check(gerium_renderer_create(_application,
                                  GERIUM_FEATURE_BINDLESS_BIT | GERIUM_FEATURE_MESH_SHADER_BIT |
-                                     GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT,
+                                     GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT | GERIUM_FEATURE_8_BIT_STORAGE_BIT |
+                                     GERIUM_FEATURE_16_BIT_STORAGE_BIT,
                                  GERIUM_VERSION_ENCODE(1, 0, 0),
                                  debug,
                                  &_renderer));
