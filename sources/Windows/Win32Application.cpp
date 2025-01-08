@@ -542,7 +542,7 @@ void Win32Application::inputThread() noexcept {
     msgClassEx.hIconSm       = nullptr;
 
     if (!RegisterClassExW(&msgClassEx)) {
-        // TODO: error
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 
     auto message = CreateWindowExW(0, _kInputName, nullptr, 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
@@ -560,7 +560,7 @@ void Win32Application::inputThread() noexcept {
     rid[1].hwndTarget  = message;
 
     if (RegisterRawInputDevices(rid, std::size(rid), sizeof(rid[0])) == FALSE) {
-        // TODO: error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 
     DEV_BROADCAST_DEVICEINTERFACE dbh{};
@@ -926,7 +926,7 @@ void Win32Application::createInputThread() {
     HANDLE handles[] = { _readyInputEvent, _inputThread };
 
     if (WaitForMultipleObjects(std::size(handles), handles, FALSE, INFINITE) != WAIT_OBJECT_0) {
-        // TODO: add err
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 }
 

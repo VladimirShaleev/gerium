@@ -40,6 +40,10 @@
     {
       "name": "glslang",
       "version": "15.0.0"
+    },
+    {
+      "name": "ctre",
+      "version": "3.8.1"
     }
   ]
 }

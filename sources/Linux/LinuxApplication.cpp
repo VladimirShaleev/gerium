@@ -68,7 +68,7 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
                                      CWBorderPixel | CWColormap | CWEventMask,
                                      &wa);
     }
-    error(GERIUM_RESULT_ERROR_UNKNOWN, "create X11 window failed", true); // TODO add error
+    error(GERIUM_RESULT_ERROR_APPLICATION_CREATE, "create X11 window failed", true);
 
     _x11.XSaveContext(_display, _window, _context, (XPointer) this);
 
@@ -1221,7 +1221,7 @@ LinuxApplication::X11Table::X11Table() {
         dll = dlopen("libX11-6.so", RTLD_GLOBAL | RTLD_LAZY);
     }
     if (!dll) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 
     XAllocClassHint        = (PFN_XAllocClassHint) dlsym(dll, "XAllocClassHint");
@@ -1293,7 +1293,7 @@ LinuxApplication::X11XCBTable::X11XCBTable() {
         dll = dlopen("libX11-xcb-1.so", RTLD_GLOBAL | RTLD_LAZY);
     }
     if (!dll) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 
     XGetXCBConnection = (PFN_XGetXCBConnection) dlsym(dll, "XGetXCBConnection");
@@ -1313,7 +1313,7 @@ LinuxApplication::XInput2Table::XInput2Table() {
         dll = dlopen("libXi-6.so", RTLD_GLOBAL | RTLD_LAZY);
     }
     if (!dll) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 
     XIQueryVersion = (PFN_XIQueryVersion) dlsym(dll, "XIQueryVersion");
@@ -1328,13 +1328,13 @@ LinuxApplication::XInput2Table::~XInput2Table() {
 
 void LinuxApplication::XInput2Table::setup(X11Table& x11) {
     if (!x11.XQueryExtension(_display, "XInputExtension", &extension, &eventBase, &errorBase)) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 
     major = 2;
     minor = 0;
     if (XIQueryVersion(_display, &major, &minor) != Success) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_APPLICATION_CREATE);
     }
 }
 

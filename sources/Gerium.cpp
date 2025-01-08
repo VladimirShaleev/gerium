@@ -72,17 +72,17 @@ gerium_utf8_t gerium_result_to_string(gerium_result_t result) {
         case GERIUM_RESULT_ERROR_NOT_IMPLEMENTED:
             return "not implemented";
 
-        case GERIUM_RESULT_ERROR_FROM_CALLBACK:
-            return "error from callback";
+        case GERIUM_RESULT_ERROR_FILE_OPEN:
+            return "failed to open file";
 
-        case GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED:
-            return "feature not supported";
+        case GERIUM_RESULT_ERROR_FILE_ALLOCATE:
+            return "failed to allocate file";
 
-        case GERIUM_RESULT_ERROR_INVALID_ARGUMENT:
-            return "invalid argument passed";
+        case GERIUM_RESULT_ERROR_FILE_WRITE:
+            return "error writing to file";
 
-        case GERIUM_RESULT_ERROR_NO_DISPLAY:
-            return "no display";
+        case GERIUM_RESULT_ERROR_APPLICATION_CREATE:
+            return "application create failed";
 
         case GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING:
             return "application already running";
@@ -92,6 +92,63 @@ gerium_utf8_t gerium_result_to_string(gerium_result_t result) {
 
         case GERIUM_RESULT_ERROR_APPLICATION_TERMINATED:
             return "application terminated";
+
+        case GERIUM_RESULT_ERROR_NO_DISPLAY:
+            return "no display";
+
+        case GERIUM_RESULT_ERROR_DEVICE_SELECTION:
+            return "failed device selection";
+
+        case GERIUM_RESULT_ERROR_DEVICE_LOST:
+            return "device lost";
+
+        case GERIUM_RESULT_ERROR_ALREADY_EXISTS:
+            return "already exists";
+
+        case GERIUM_RESULT_ERROR_NOT_FOUND:
+            return "not found";
+
+        case GERIUM_RESULT_ERROR_FROM_CALLBACK:
+            return "error from callback";
+
+        case GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED:
+            return "feature not supported";
+
+        case GERIUM_RESULT_ERROR_FORMAT_NOT_SUPPORTED:
+            return "Format not supported";
+
+        case GERIUM_RESULT_ERROR_FIDELITY_FX_NOT_SUPPORTED:
+            return "FidelityFX not supported";
+
+        case GERIUM_RESULT_ERROR_INVALID_ARGUMENT:
+            return "invalid argument passed";
+
+        case GERIUM_RESULT_ERROR_INVALID_FRAME_GRAPH:
+            return "invalid frame graph";
+
+        case GERIUM_RESULT_ERROR_INVALID_RESOURCE:
+            return "invalid resource";
+
+        case GERIUM_RESULT_ERROR_INVALID_OPERATION:
+            return "invalid operation";
+
+        case GERIUM_RESULT_ERROR_PARSE_SPIRV:
+            return "error parse spirv";
+
+        case GERIUM_RESULT_ERROR_DETECT_SHADER_LANGUAGE:
+            return "detect shader language failed";
+
+        case GERIUM_RESULT_ERROR_COMPILE_SHADER:
+            return "compile shader failed";
+
+        case GERIUM_RESULT_ERROR_BINDING:
+            return "error binding";
+
+        case GERIUM_RESULT_ERROR_DESCRIPTOR:
+            return "error descriptor";
+
+        case GERIUM_RESULT_ERROR_LOAD_TEXTURE:
+            return "error load texture";
 
         case GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE:
             return "failed to change display mode";

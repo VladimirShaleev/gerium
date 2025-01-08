@@ -310,7 +310,8 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
             } else {
                 vmaFlags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
                 if (creation.persistent) {
-                    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+                    _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "Unable to create a memory mapped immutable buffer");
+                    error(GERIUM_RESULT_ERROR_INVALID_ARGUMENT);
                 }
             }
             break;
@@ -692,7 +693,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             } else if (ctre::search<"(SV_\\w+)">((const char*) stage.data)) {
                 lang = GERIUM_SHADER_LANGUAGE_HLSL;
             } else {
-                error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+                error(GERIUM_RESULT_ERROR_DETECT_SHADER_LANGUAGE);
             }
         }
 
@@ -716,12 +717,12 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             shaderInfo.codeSize = spirv.size() * 4;
             shaderInfo.pCode    = spirv.data();
         } else {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            assert(!"unreachable code");
         }
 
         VkPipelineShaderStageCreateInfo& shaderStageInfo = program->shaderStageInfo[program->activeShaders];
         shaderStageInfo.sType                            = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        shaderStageInfo.pName                            = "main";
+        shaderStageInfo.pName                            = stage.entry_point ? stage.entry_point : "main";
         shaderStageInfo.stage                            = stageType;
         check(_vkTable.vkCreateShaderModule(
             _device, &shaderInfo, getAllocCalls(), &program->shaderStageInfo[program->activeShaders].module));
@@ -729,17 +730,17 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
         SpvReflectShaderModule module{};
         if (spvReflectCreateShaderModule(shaderInfo.codeSize, (void*) shaderInfo.pCode, &module) !=
             SPV_REFLECT_RESULT_SUCCESS) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_PARSE_SPIRV);
         }
 
         uint32_t count = 0;
         if (spvReflectEnumerateDescriptorSets(&module, &count, NULL) != SPV_REFLECT_RESULT_SUCCESS) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_PARSE_SPIRV);
         }
 
         std::vector<SpvReflectDescriptorSet*> sets(count);
         if (spvReflectEnumerateDescriptorSets(&module, &count, sets.data()) != SPV_REFLECT_RESULT_SUCCESS) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_PARSE_SPIRV);
         }
 
         for (uint32_t set = 0; set < sets.size(); ++set) {
@@ -774,7 +775,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
 
                         if (layoutBinding.descriptorType != descriptorType ||
                             layoutBinding.descriptorCount != descriptorCount) {
-                            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+                            error(GERIUM_RESULT_ERROR_DESCRIPTOR);
                         }
                     }
                     continue;
@@ -917,11 +918,12 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
                 ++cacheData;
 
                 gerium_shader_t shader;
-                shader.type = type;
-                shader.lang = GERIUM_SHADER_LANGUAGE_SPIRV;
-                shader.name = nullptr;
-                shader.data = (gerium_cdata_t) cacheData;
-                shader.size = spirvSize;
+                shader.type        = type;
+                shader.lang        = GERIUM_SHADER_LANGUAGE_SPIRV;
+                shader.entry_point = nullptr;
+                shader.name        = nullptr;
+                shader.data        = (gerium_cdata_t) cacheData;
+                shader.size        = spirvSize;
                 cacheProgram.addStage(shader);
 
                 cacheData += spirvSize;
@@ -1459,7 +1461,7 @@ void Device::linkTextureSampler(TextureHandle texture, SamplerHandle sampler) no
 
 FfxInterface Device::createFfxInterface(gerium_uint32_t maxContexts) {
     if (!_fidelityFXSupported) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err: not supported FidelityFX
+        error(GERIUM_RESULT_ERROR_FIDELITY_FX_NOT_SUPPORTED);
     }
 
     const size_t scratchBufferSize = ffxGetScratchMemorySizeVK(&_ffxDeviceContext, maxContexts);
@@ -2252,10 +2254,6 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
     for (const auto& [_, item] : descriptorSet.bindings) {
         auto resource = item.handle;
 
-        // if (resource == Undefined) {
-        //     continue;
-        // }
-
         auto it = std::find_if(descriptorSetLayout.data.bindings.cbegin(),
                                descriptorSetLayout.data.bindings.cend(),
                                [b = item.binding](const auto& binding) {
@@ -2263,7 +2261,6 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
         });
 
         if (it == descriptorSetLayout.data.bindings.cend()) {
-            // error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
             continue;
         }
 
@@ -2521,7 +2518,7 @@ std::vector<uint32_t> Device::compile(const char* code,
         while (std::getline(ss, message, '\n')) {
             _logger->print(GERIUM_LOGGER_LEVEL_ERROR, message.c_str());
         }
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add error type;
+        error(GERIUM_RESULT_ERROR_COMPILE_SHADER);
     }
 
     return { result.cbegin(), result.cend() };
@@ -3032,7 +3029,7 @@ VkPhysicalDevice Device::selectPhysicalDevice() {
 
     if (!count) {
         _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "failed to find GPUs with Vulkan API support");
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_DEVICE_SELECTION);
     }
 
     std::vector<VkPhysicalDevice> physicalDevices;
@@ -3051,7 +3048,7 @@ VkPhysicalDevice Device::selectPhysicalDevice() {
     }
 
     _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "failed to find a suitable GPU");
-    error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+    error(GERIUM_RESULT_ERROR_DEVICE_SELECTION);
 
     assert(!"unreachable code");
     return VK_NULL_HANDLE;
@@ -3247,6 +3244,9 @@ gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexc
         for (gerium_uint32_t m = 0; m < stage.macro_count; ++m) {
             const auto& macro = stage.macros[m];
 
+            if (stage.entry_point) {
+                seed = hash(stage.entry_point, seed);
+            }
             seed = hash(macro.name, seed);
             seed = hash(macro.value, seed);
         }

@@ -390,6 +390,7 @@ struct convert<gerium_shader_t> {
         rhs.type        = node["type"].as<gerium_shader_type_t>(GERIUM_SHADER_TYPE_VERTEX);
         rhs.lang        = node["lang"].as<gerium_shader_languge_t>(GERIUM_SHADER_LANGUAGE_UNKNOWN);
         rhs.name        = allocate(node["name"].as<std::string>());
+        rhs.entry_point = allocate(node["entry point"].as<std::string>(""));
         rhs.data        = allocate(node["data"].as<std::string>(""));
         rhs.size        = node["size"].as<gerium_uint32_t>(0);
         rhs.macro_count = (gerium_uint32_t) macros.size();

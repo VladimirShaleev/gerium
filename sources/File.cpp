@@ -21,7 +21,7 @@ void File::write(gerium_cdata_t data, gerium_uint32_t size) {
     if (!_readOnly) {
         onWrite(data, size);
     } else {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_FILE_WRITE);
     }
 }
 

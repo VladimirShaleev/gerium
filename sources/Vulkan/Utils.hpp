@@ -197,7 +197,7 @@ gerium_inline VkShaderStageFlagBits toVkShaderStage(gerium_shader_type_t type) n
         case GERIUM_SHADER_TYPE_MESH:
             return VK_SHADER_STAGE_MESH_BIT_EXT;
         default:
-            assert(!"TODO");
+            assert(!"unreachable code");
             return {};
     }
 }
@@ -217,7 +217,7 @@ gerium_inline gerium_shader_type_t toGerumShaderType(VkShaderStageFlagBits type)
         case VK_SHADER_STAGE_MESH_BIT_EXT:
             return GERIUM_SHADER_TYPE_MESH;
         default:
-            assert(!"TODO");
+            assert(!"unreachable code");
             return {};
     }
 }

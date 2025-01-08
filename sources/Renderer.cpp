@@ -51,7 +51,7 @@ BufferHandle Renderer::createBuffer(const BufferCreation& creation) {
 TextureHandle Renderer::createTexture(const TextureCreation& creation) {
     if (creation.type == GERIUM_TEXTURE_TYPE_CUBE) {
         if (creation.width != creation.height) {
-            error(GERIUM_RESULT_ERROR_INVALID_ARGUMENT); // TODO: err
+            error(GERIUM_RESULT_ERROR_INVALID_ARGUMENT);
         }
     }
     return onCreateTexture(creation);
@@ -86,7 +86,7 @@ TextureHandle Renderer::asyncLoadTexture(gerium_utf8_t filename,
                                          gerium_texture_loaded_func_t callback,
                                          gerium_data_t data) {
     if (!File::existsFile(filename)) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_NOT_FOUND);
     }
 
     auto file     = File::open(filename, true);
@@ -282,7 +282,7 @@ Renderer::Task* Renderer::createLoadTaskKtx2(ObjectPtr<File> file, const std::st
         ktxTexture2_CreateFromMemory((const ktx_uint8_t*) fileData, fileSize, KTX_TEXTURE_CREATE_NO_FLAGS, &texture);
     if (result != KTX_SUCCESS) {
         _logger->print(GERIUM_LOGGER_LEVEL_ERROR, ktxErrorString(result));
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_LOAD_TEXTURE);
     }
 
     auto compressions  = getTextureComperssion();
@@ -306,12 +306,12 @@ Renderer::Task* Renderer::createLoadTaskKtx2(ObjectPtr<File> file, const std::st
             format = GERIUM_FORMAT_BC7_UNORM;
         } else {
             _logger->print(GERIUM_LOGGER_LEVEL_ERROR, "not support transcode target format");
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_FORMAT_NOT_SUPPORTED);
         }
     } else {
         format = toGeriumFormat(ktxTexture2_GetVkFormat(texture));
         if (!isSupportedFormat(format)) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_FORMAT_NOT_SUPPORTED);
         }
     }
 
@@ -330,7 +330,7 @@ Renderer::Task* Renderer::createLoadTaskKtx2(ObjectPtr<File> file, const std::st
                 type = GERIUM_TEXTURE_TYPE_3D;
                 break;
             default:
-                error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+                error(GERIUM_RESULT_ERROR_LOAD_TEXTURE);
         }
     }
 

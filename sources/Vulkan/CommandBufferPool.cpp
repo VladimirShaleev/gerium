@@ -731,7 +731,7 @@ CommandBuffer* CommandBufferPool::getPrimary(gerium_uint32_t frame, bool profile
     auto& commandBuffer = _commandBuffers[poolIndex * _buffersPerFrame + bufferIndex];
 
     if (commandBuffer.isRecording()) {
-        throw Exception(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        throw Exception(GERIUM_RESULT_ERROR_INVALID_OPERATION);
     }
 
     commandBuffer.begin();
@@ -757,7 +757,7 @@ CommandBuffer* CommandBufferPool::getSecondary(gerium_uint32_t frame,
     auto& commandBuffer = _commandBuffers[poolIndex * _buffersPerFrame + bufferIndex];
 
     if (commandBuffer.isRecording()) {
-        throw Exception(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        throw Exception(GERIUM_RESULT_ERROR_INVALID_OPERATION);
     }
 
     commandBuffer.begin(renderPass, framebuffer);

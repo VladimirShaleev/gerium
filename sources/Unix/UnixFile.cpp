@@ -13,7 +13,7 @@ UnixFile::UnixFile(gerium_utf8_t path, gerium_uint64_t size) : File(false), _fil
     _file = ::open(path, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
     if (_file < 0) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_FILE_OPEN);
     }
 
     reserveSpace(size);
@@ -27,7 +27,7 @@ UnixFile::UnixFile(gerium_utf8_t path, bool readOnly) : File(readOnly), _file(-1
     _file = ::open(path, readOnly ? O_RDONLY : (O_RDWR | O_CREAT), S_IRUSR | (readOnly ? 0 : S_IWUSR));
 
     if (_file < 0) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_FILE_OPEN);
     }
 }
 
@@ -58,14 +58,14 @@ void UnixFile::reserveSpace(gerium_uint64_t size) const {
 #ifdef __APPLE__
         fstore_t store = { F_ALLOCATECONTIG, F_PEOFPOSMODE, 0, (off_t) size };
         if (fcntl(_file, F_PREALLOCATE, &store) == -1) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_FILE_ALLOCATE);
         }
         if (ftruncate(_file, (off_t) size) != 0) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_FILE_ALLOCATE);
         }
 #else
         if (::fallocate64(_file, 0, 0, (off64_t) size) != 0) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_FILE_ALLOCATE);
         }
 #endif
     }
@@ -110,7 +110,7 @@ void UnixFile::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept 
 
 void UnixFile::onWrite(gerium_cdata_t data, gerium_uint32_t size) {
     if (::write(_file, (const void*) data, (size_t) size) < 0) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_FILE_WRITE);
     }
 }
 

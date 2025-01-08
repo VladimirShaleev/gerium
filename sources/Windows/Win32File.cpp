@@ -25,13 +25,13 @@ Win32File::Win32File(gerium_utf8_t path, gerium_uint64_t size) :
         CreateFileW(file.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 
     if (_file == INVALID_HANDLE_VALUE) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_FILE_OPEN);
     }
 
     if (size) {
         onSeek(size, GERIUM_FILE_SEEK_BEGIN);
         if (!SetEndOfFile(_file)) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            error(GERIUM_RESULT_ERROR_FILE_ALLOCATE);
         }
         onSeek(0, GERIUM_FILE_SEEK_BEGIN);
     }
@@ -56,7 +56,7 @@ Win32File::Win32File(gerium_utf8_t path, bool readOnly) :
     _file = CreateFileW(file.c_str(), flags, 0, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 
     if (_file == INVALID_HANDLE_VALUE) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_FILE_OPEN);
     }
 }
 
@@ -114,7 +114,7 @@ void Win32File::onSeek(gerium_uint64_t offset, gerium_file_seek_t seek) noexcept
 void Win32File::onWrite(gerium_cdata_t data, gerium_uint32_t size) {
     DWORD writen = 0;
     if (!WriteFile(_file, (LPCVOID) data, (DWORD) size, &writen, nullptr)) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_FILE_WRITE);
     }
 }
 
@@ -124,11 +124,11 @@ gerium_uint32_t Win32File::onRead(gerium_data_t data, gerium_uint32_t size) noex
     return gerium_uint32_t(writen);
 }
 
-gerium_data_t Win32File::onMap() noexcept { // TODO: add errors?..
+gerium_data_t Win32File::onMap() noexcept {
     if (!_data) {
         _map = CreateFileMappingW(_file, NULL, isReadOnly() ? PAGE_READONLY : PAGE_READWRITE, 0, 0, nullptr);
         if (_map == INVALID_HANDLE_VALUE) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+            return nullptr;
         }
 
         DWORD flags = FILE_MAP_READ;
@@ -137,10 +137,6 @@ gerium_data_t Win32File::onMap() noexcept { // TODO: add errors?..
         }
 
         _data = MapViewOfFile(_map, flags, 0, 0, 0);
-
-        if (!_data) {
-            error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
-        }
     }
     return _data;
 }
@@ -151,12 +147,12 @@ std::string Win32File::getTempFileName() {
 
     auto result = GetTempPathW(MAX_PATH, tempPath);
     if (result > MAX_PATH || (result == 0)) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_UNKNOWN);
     }
 
     result = GetTempFileNameW(tempPath, nullptr, 0, tempFile);
     if (result == 0) {
-        error(GERIUM_RESULT_ERROR_UNKNOWN); // TODO: add err
+        error(GERIUM_RESULT_ERROR_UNKNOWN);
     }
 
     return utf8String(tempFile);

@@ -318,7 +318,6 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
         layers = std::max(layers, info.texture.layers);
 
         if (hasDepthOrStencil(toVkFormat(info.texture.format))) {
-            // TODO: check 1 depth/stencil target
             creation.setDepthStencilTexture(info.texture.handles[index]);
         } else {
             creation.addRenderTexture(info.texture.handles[index]);
@@ -351,7 +350,6 @@ FramebufferHandle VkRenderer::onCreateFramebuffer(const FrameGraph& frameGraph,
         layers = std::max(layers, info.texture.layers);
 
         if (hasDepthOrStencil(toVkFormat(info.texture.format))) {
-            // TODO: check 1 depth/stencil target
             creation.setDepthStencilTexture(info.texture.handles[index]);
         } else {
             creation.addRenderTexture(info.texture.handles[index]);

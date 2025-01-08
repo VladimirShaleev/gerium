@@ -35,14 +35,33 @@ typedef enum
     GERIUM_RESULT_ERROR_UNKNOWN                     = 2,
     GERIUM_RESULT_ERROR_OUT_OF_MEMORY               = 3,
     GERIUM_RESULT_ERROR_NOT_IMPLEMENTED             = 4,
-    GERIUM_RESULT_ERROR_FROM_CALLBACK               = 5,
-    GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED       = 6,
-    GERIUM_RESULT_ERROR_INVALID_ARGUMENT            = 7,
-    GERIUM_RESULT_ERROR_NO_DISPLAY                  = 8,
+    GERIUM_RESULT_ERROR_FILE_OPEN                   = 5,
+    GERIUM_RESULT_ERROR_FILE_ALLOCATE               = 6,
+    GERIUM_RESULT_ERROR_FILE_WRITE                  = 7,
+    GERIUM_RESULT_ERROR_APPLICATION_CREATE          = 8,
     GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING = 9,
     GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING     = 10,
     GERIUM_RESULT_ERROR_APPLICATION_TERMINATED      = 11,
-    GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE         = 12,
+    GERIUM_RESULT_ERROR_NO_DISPLAY                  = 12,
+    GERIUM_RESULT_ERROR_DEVICE_SELECTION            = 13,
+    GERIUM_RESULT_ERROR_DEVICE_LOST                 = 14,
+    GERIUM_RESULT_ERROR_ALREADY_EXISTS              = 15,
+    GERIUM_RESULT_ERROR_NOT_FOUND                   = 16,
+    GERIUM_RESULT_ERROR_FROM_CALLBACK               = 17,
+    GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED       = 18,
+    GERIUM_RESULT_ERROR_FORMAT_NOT_SUPPORTED        = 19,
+    GERIUM_RESULT_ERROR_FIDELITY_FX_NOT_SUPPORTED   = 20,
+    GERIUM_RESULT_ERROR_INVALID_ARGUMENT            = 21,
+    GERIUM_RESULT_ERROR_INVALID_FRAME_GRAPH         = 22,
+    GERIUM_RESULT_ERROR_INVALID_RESOURCE            = 23,
+    GERIUM_RESULT_ERROR_INVALID_OPERATION           = 24,
+    GERIUM_RESULT_ERROR_PARSE_SPIRV                 = 25,
+    GERIUM_RESULT_ERROR_DETECT_SHADER_LANGUAGE      = 26,
+    GERIUM_RESULT_ERROR_COMPILE_SHADER              = 27,
+    GERIUM_RESULT_ERROR_BINDING                     = 28,
+    GERIUM_RESULT_ERROR_DESCRIPTOR                  = 29,
+    GERIUM_RESULT_ERROR_LOAD_TEXTURE                = 30,
+    GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE         = 31,
     GERIUM_RESULT_MAX_ENUM                          = 0x7FFFFFFF
 } gerium_result_t;
 
@@ -1134,6 +1153,7 @@ typedef struct
     gerium_shader_type_t             type;
     gerium_shader_languge_t          lang;
     gerium_utf8_t                    name;
+    gerium_utf8_t                    entry_point;
     gerium_cdata_t                   data;
     gerium_uint32_t                  size;
     gerium_uint32_t                  macro_count;
