@@ -128,8 +128,6 @@ public:
         return _swapchainExtent;
     }
 
-    // TextureHandle
-
     const RenderPassOutput& getRenderPassOutput(RenderPassHandle handle) const noexcept {
         return _renderPasses.access(handle)->output;
     }
@@ -172,14 +170,6 @@ public:
         }
     }
 
-    // uint32_t getTransferFamily() const noexcept {
-    //     return _queueFamilies.transfer.value().index;
-    // }
-
-    // uint32_t getGraphicFamily() const noexcept {
-    //     return _queueFamilies.graphic.value().index;
-    // }
-
     void getTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept {
         const auto texture = _textures.access(handle);
 
@@ -209,7 +199,6 @@ public:
         resourceDescription.size  = buffer->size;
         resourceDescription.flags = FFX_RESOURCE_FLAGS_NONE;
         resourceDescription.usage = FFX_RESOURCE_USAGE_READ_ONLY;
-        // resourceDescription.stride = 16;
         if (buffer->vkUsageFlags & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
             resourceDescription.usage = (FfxResourceUsage) (resourceDescription.usage | FFX_RESOURCE_USAGE_UAV);
         }
@@ -217,7 +206,7 @@ public:
         FfxResource resource{};
         resource.resource    = reinterpret_cast<void*>(buffer->vkBuffer);
         resource.description = resourceDescription;
-        resource.state       = FFX_RESOURCE_STATE_UNORDERED_ACCESS; // FFX_RESOURCE_STATE_PIXEL_COMPUTE_READ;
+        resource.state       = FFX_RESOURCE_STATE_UNORDERED_ACCESS;
 
         return resource;
     }
