@@ -719,7 +719,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    auto dir = out.length() ? out : std::filesystem::current_path();
+    auto dir = out.length() ? std::filesystem::path(out) : std::filesystem::current_path();
     std::filesystem::path name;
     if (dir.has_filename() && !std::filesystem::is_directory(dir)) {
         name = dir.filename().replace_extension();
