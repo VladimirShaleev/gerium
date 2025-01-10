@@ -111,7 +111,7 @@ void VkRenderer::sendTextureToGraphic() {
             } else {
                 commandBuffer->addImageBarrier(request.texture, ResourceState::ShaderResource, request.mip, 1);
                 _device->finishLoadTexture(request.texture, request.mip);
-                _device->showViewMips(request.texture);
+                _device->showViewMips(request.texture, request.mip);
             }
             _finishedRequests.push(request);
             _transferToGraphic.pop();
@@ -636,7 +636,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (node->compute) {
                     _device->addInputResource(resource, texture, false);
                 }
-                _device->finishLoadTexture(texture, 0);
+                _device->finishLoadTexture(texture, 0, true);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_BUFFER) {
                 auto buffer = resource->info.buffer.handle;
                 cb->addBufferBarrier(buffer, ResourceState::UnorderedAccess);

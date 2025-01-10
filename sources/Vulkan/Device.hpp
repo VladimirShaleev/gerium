@@ -49,8 +49,8 @@ public:
     void* mapBuffer(BufferHandle handle, uint32_t offset = 0, uint32_t size = 0);
     void unmapBuffer(BufferHandle handle);
 
-    void finishLoadTexture(TextureHandle handle, uint8_t mip);
-    void showViewMips(TextureHandle handle);
+    void finishLoadTexture(TextureHandle handle, uint8_t mip, bool immediately = false);
+    void showViewMips(TextureHandle handle, uint8_t mip);
 
     void bind(DescriptorSetHandle handle,
               gerium_uint16_t binding,
@@ -483,6 +483,7 @@ private:
     std::map<gerium_uint64_t, SamplerHandle> _samplerCache{};
     std::vector<std::pair<VkDescriptorSet, gerium_uint64_t>> _freeDescriptorSetQueue{};
     std::vector<std::pair<gerium_uint32_t, VkImageView>> _unusedImageViews{};
+    std::vector<std::pair<TextureHandle, uint8_t>> _finishedLoadTextures{};
     std::map<gerium_uint64_t, Handle> _currentInputResources{};
 
     VkPhysicalDeviceProperties _deviceProperties{};

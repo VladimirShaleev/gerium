@@ -204,7 +204,7 @@ bool Device::newFrame() {
             _device, _globalDescriptorPool, (uint32_t) freeDescriptorSets.size(), freeDescriptorSets.data()));
     }
     _freeDescriptorSetQueue = std::move(saveDescriptorSets);
-    
+
     auto unusedImageViews = std::move(_unusedImageViews);
     for (auto [frame, view] : unusedImageViews) {
         if (_absoluteFrame - frame >= 2) {
@@ -259,6 +259,11 @@ void Device::present() {
     const auto result = _vkTable.vkQueuePresentKHR(_queuePresent, &presentInfo);
 
     _numQueuedCommandBuffers = 0;
+
+    for (const auto& [handle, mip] : _finishedLoadTextures) {
+        finishLoadTexture(handle, mip, true);
+    }
+    _finishedLoadTextures.clear();
 
     if (_profilerEnabled) {
         _profiler->fetchDataFromGpu();
@@ -1300,16 +1305,20 @@ void Device::unmapBuffer(BufferHandle handle) {
     vmaUnmapMemory(_vmaAllocator, buffer->vmaAllocation);
 }
 
-void Device::finishLoadTexture(TextureHandle handle, uint8_t mip) {
-    auto texture        = _textures.access(handle);
-    texture->loadedMips = texture->mipLevels - mip;
+void Device::finishLoadTexture(TextureHandle handle, uint8_t mip, bool immediately) {
+    if (immediately) {
+        auto texture        = _textures.access(handle);
+        texture->loadedMips = texture->mipLevels - mip;
+    } else {
+        _finishedLoadTextures.emplace_back(handle, mip);
+    }
 }
 
-void Device::showViewMips(TextureHandle handle) {
+void Device::showViewMips(TextureHandle handle, uint8_t mip) {
     auto texture = _textures.access(handle);
     TextureViewCreation vc{};
     vc.setType(texture->type)
-        .setMips(texture->mipLevels - texture->loadedMips, texture->loadedMips)
+        .setMips(mip, texture->mipLevels - mip)
         .setArray(0, texture->layers)
         .setName(texture->name);
     _unusedImageViews.emplace_back(_absoluteFrame, texture->vkImageView);
@@ -2991,7 +3000,7 @@ void Device::uploadTextureData(TextureHandle handle, gerium_cdata_t data) {
     _frameCommandBuffer->generateMipmaps(handle);
     destroyBuffer(stagingBuffer);
 
-    finishLoadTexture(handle, 0);
+    texture->loadedMips = texture->mipLevels;
 }
 
 TextureHandle Device::getDefaultTexture(const DescriptorSetLayout& descriptorSetLayout,
