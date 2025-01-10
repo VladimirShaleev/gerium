@@ -481,10 +481,7 @@ private:
     CommandBuffer* _frameCommandBuffer{};
     gerium_uint32_t _numQueuedCommandBuffers{};
     std::map<gerium_uint64_t, SamplerHandle> _samplerCache{};
-    VkDescriptorSet _freeDescriptorSetQueue[64]{};
-    VkDescriptorSet _freeDescriptorSetQueue2[64]{};
-    gerium_uint32_t _numFreeDescriptorSetQueue{};
-    gerium_uint32_t _numFreeDescriptorSetQueue2{};
+    std::vector<std::pair<VkDescriptorSet, gerium_uint64_t>> _freeDescriptorSetQueue{};
     std::vector<std::pair<gerium_uint32_t, VkImageView>> _unusedImageViews{};
     std::map<gerium_uint64_t, Handle> _currentInputResources{};
 

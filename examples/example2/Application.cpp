@@ -567,6 +567,7 @@ void BSDFPass::registerResources(gerium_frame_graph_t frameGraph, gerium_rendere
 }
 
 void BSDFPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    gerium_renderer_wait_ffx_jobs(renderer);
     if (_brixelizerInstanceIds.size()) {
         ffxBrixelizerDeleteInstances(
             brixelizerContext(), _brixelizerInstanceIds.data(), (uint32_t) _brixelizerInstanceIds.size());
@@ -813,10 +814,12 @@ void SSAOPass::registerResources(gerium_frame_graph_t frameGraph, gerium_rendere
 }
 
 void SSAOPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    gerium_renderer_wait_ffx_jobs(renderer);
     ffxCacaoContextDestroy(&_cacaoContext);
 }
 
 void SSAOPass::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
+    gerium_renderer_wait_ffx_jobs(renderer);
     ffxCacaoContextDestroy(&_cacaoContext);
     createContext();
 }

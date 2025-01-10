@@ -188,16 +188,23 @@ bool Device::newFrame() {
     }
 
     check(_vkTable.vkResetDescriptorPool(_device, _descriptorPools[_currentFrame], {}));
-    if (_numFreeDescriptorSetQueue2) {
+    decltype(_freeDescriptorSetQueue) saveDescriptorSets{};
+    std::vector<VkDescriptorSet> freeDescriptorSets{};
+    saveDescriptorSets.reserve(_freeDescriptorSetQueue.size());
+    freeDescriptorSets.reserve(_freeDescriptorSetQueue.size());
+    for (const auto& [descriptorSet, frame] : _freeDescriptorSetQueue) {
+        if (_absoluteFrame - frame >= kMaxFrames) {
+            freeDescriptorSets.push_back(descriptorSet);
+        } else {
+            saveDescriptorSets.emplace_back(descriptorSet, frame);
+        }
+    }
+    if (!freeDescriptorSets.empty()) {
         check(_vkTable.vkFreeDescriptorSets(
-            _device, _globalDescriptorPool, _numFreeDescriptorSetQueue2, _freeDescriptorSetQueue2));
-        _numFreeDescriptorSetQueue2 = 0;
+            _device, _globalDescriptorPool, (uint32_t) freeDescriptorSets.size(), freeDescriptorSets.data()));
     }
-    if (_numFreeDescriptorSetQueue) {
-        memcpy(_freeDescriptorSetQueue2, _freeDescriptorSetQueue, sizeof(_freeDescriptorSetQueue2));
-        _numFreeDescriptorSetQueue2 = _numFreeDescriptorSetQueue;
-        _numFreeDescriptorSetQueue  = 0;
-    }
+    _freeDescriptorSetQueue = std::move(saveDescriptorSets);
+    
     auto unusedImageViews = std::move(_unusedImageViews);
     for (auto [frame, view] : unusedImageViews) {
         if (_absoluteFrame - frame >= 2) {
@@ -1409,8 +1416,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         }
 
         if (descriptorSet->vkDescriptorSet && descriptorSet->global) {
-            assert(_numFreeDescriptorSetQueue < std::size(_freeDescriptorSetQueue));
-            _freeDescriptorSetQueue[_numFreeDescriptorSetQueue++] = descriptorSet->vkDescriptorSet;
+            _freeDescriptorSetQueue.emplace_back(descriptorSet->vkDescriptorSet, _absoluteFrame);
         }
         uint32_t maxBinding = kBindlessPoolElements - 1;
 
