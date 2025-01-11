@@ -185,9 +185,7 @@ public:
     const glm::mat4& getInverseWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
     const glm::mat4& getPrevWorldMatrix(gerium_uint32_t nodeIndex) const noexcept;
 
-    static Model loadGlTF(gerium_renderer_t renderer,
-                          ResourceManager& resourceManager,
-                          const std::filesystem::path& path);
+    static Model loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManager, const std::string& filename);
 
 private:
     void changeNode(gerium_sint32_t nodeIndex) noexcept;
@@ -200,6 +198,7 @@ private:
     std::vector<glm::mat4> _worldMatrices;
     std::vector<glm::mat4> _inverseWorldMatrices;
     std::vector<glm::mat4> _prevWorldMatrices;
+    std::vector<bool> _matricesInitialized;
     std::vector<bool> _updatedNodes;
     gerium_uint32_t _maxLevel;
 };

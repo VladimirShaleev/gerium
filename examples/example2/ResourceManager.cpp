@@ -34,6 +34,8 @@ void ResourceManager::update(gerium_uint64_t elapsedMs) {
                 }
                 deleteQueue.push_back(it->first);
             }
+        } else {
+            it->second.lastTick = _ticks;
         }
     }
 
@@ -49,7 +51,9 @@ void ResourceManager::update(gerium_uint64_t elapsedMs) {
     }
 }
 
-void ResourceManager::loadFrameGraph(const std::string& path) {
+void ResourceManager::loadFrameGraph(const std::string& filename) {
+    auto path = calcFrameGraphPath(filename);
+
     gerium_file_t file;
     check(gerium_file_open(path.c_str(), true, &file));
     deferred(gerium_file_destroy(file));
@@ -77,18 +81,23 @@ Texture ResourceManager::loadTexture(const std::string& path, gerium_uint64_t re
         return texture;
     }
 
+    auto fullPath = calcTexturePath(path);
+
     gerium_texture_h texture;
-    check(gerium_renderer_async_load_texture(_renderer, path.c_str(), nullptr, nullptr, &texture));
+    check(gerium_renderer_async_load_texture(_renderer, fullPath.c_str(), nullptr, nullptr, &texture));
 
     auto name = std::filesystem::path(path).filename().string();
     addResource(path, name, texture, retentionMs);
     return { this, texture };
 }
 
-Technique ResourceManager::loadTechnique(const std::string& path, gerium_uint64_t retentionMs) {
-    if (auto technique = getTechniqueByPath(path)) {
+Technique ResourceManager::loadTechnique(const std::string& filename, gerium_uint64_t retentionMs) {
+    if (auto technique = getTechniqueByPath(filename)) {
         return technique;
     }
+
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    auto path                    = calcTechniquePath(filename);
 
     gerium_file_t file;
     check(gerium_file_open(path.c_str(), true, &file));
@@ -106,7 +115,7 @@ Technique ResourceManager::loadTechnique(const std::string& path, gerium_uint64_
     check(gerium_renderer_create_technique(
         _renderer, _frameGraph, name.c_str(), (gerium_uint32_t) pipelines.size(), pipelines.data(), &technique));
 
-    addResource(path, name, technique, retentionMs);
+    addResource(filename, name, technique, retentionMs);
     return { this, technique };
 }
 
@@ -169,7 +178,7 @@ Buffer ResourceManager::createBuffer(gerium_buffer_usage_flags_t bufferUsage,
     gerium_buffer_h buffer;
     check(gerium_renderer_create_buffer(_renderer, bufferUsage, dynamic, name.c_str(), data, size, &buffer));
 
-    addResource("", name, buffer, retentionMs);
+    addResource("", name, buffer, dynamic ? 0 : retentionMs);
     return { this, buffer };
 }
 
@@ -193,8 +202,8 @@ Texture ResourceManager::getTextureByName(const std::string& name) {
     return getResourceByName<gerium_texture_h>(name);
 }
 
-Technique ResourceManager::getTechniqueByPath(const std::string& path) {
-    return getResourceByPath<gerium_technique_h>(path);
+Technique ResourceManager::getTechniqueByPath(const std::string& filename) {
+    return getResourceByPath<gerium_technique_h>(filename);
 }
 
 Technique ResourceManager::getTechniqueByName(const std::string& name) {
@@ -218,4 +227,19 @@ gerium_uint64_t ResourceManager::calcKey(const std::string& str, Type type) noex
         return wyhash(str.c_str(), str.length(), (uint64_t) type, _wyp);
     }
     return 0;
+}
+
+std::string ResourceManager::calcFrameGraphPath(const std::string& filename) noexcept {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    return (appDir / "frame-graphs" / (filename + ".yaml")).string();
+}
+
+std::string ResourceManager::calcTexturePath(const std::string& filename) noexcept {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    return (appDir / filename).string();
+}
+
+std::string ResourceManager::calcTechniquePath(const std::string& filename) noexcept {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    return (appDir / "techniques" / (filename + ".yaml")).string();
 }

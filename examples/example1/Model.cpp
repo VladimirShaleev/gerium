@@ -340,6 +340,7 @@ void Model::resizeNodes(gerium_uint32_t numNodes) {
     _localMatrices.resize(numNodes);
     _worldMatrices.resize(numNodes);
     _prevWorldMatrices.resize(numNodes);
+    _matricesInitialized.resize(numNodes);
     _inverseWorldMatrices.resize(numNodes);
     _updatedNodes.resize(numNodes);
 
@@ -367,6 +368,10 @@ void Model::setMatrix(gerium_uint32_t nodeIndex, const glm::mat4& mat) {
 }
 
 bool Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
+    for (gerium_uint32_t i = 0; i < _nodes.size(); ++i) {
+        _prevWorldMatrices[i] = _worldMatrices[i];
+    }
+
     gerium_uint32_t currentLevel = 0;
     bool hasChanges              = false;
     while (currentLevel <= _maxLevel) {
@@ -397,6 +402,13 @@ bool Model::updateMatrices(const glm::mat4& parentMat, bool parentUpdated) {
     }
 
     if (hasChanges) {
+        for (gerium_uint32_t i = 0; i < _nodes.size(); ++i) {
+            if (!_matricesInitialized[i]) {
+                _prevWorldMatrices[i]   = _worldMatrices[i];
+                _matricesInitialized[i] = true;
+            }
+        }
+
         for (auto& mesh : meshes()) {
             const auto& matrix = getWorldMatrix(mesh.getNodeIndex());
             mesh.updateBox(matrix);
@@ -413,7 +425,7 @@ void Model::updateMaterials() {
         MeshData meshData;
         meshData.world        = _worldMatrices[nodeIndex];
         meshData.inverseWorld = _inverseWorldMatrices[nodeIndex];
-        meshData.prevWorld    = _worldMatrices[nodeIndex]; // _prevWorldMatrices[nodeIndex];
+        meshData.prevWorld    = _prevWorldMatrices[nodeIndex];
         material.updateMeshData(meshData);
     }
 }
@@ -550,7 +562,10 @@ static void fillPbrMaterial(gerium_renderer_t renderer,
     pbrMaterial.setFactor(baseColorFactor, metallicRoughnessOcclusionFactor);
 }
 
-Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManager, const std::filesystem::path& path) {
+Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManager, const std::string& filename) {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    std::filesystem::path path = appDir / "models" / filename / (filename + ".gltf");
+
     gltf::glTF glTF{};
     gltf::loadGlTF(glTF, path);
 
@@ -591,8 +606,9 @@ Model Model::loadGlTF(gerium_renderer_t renderer, ResourceManager& resourceManag
     std::vector<Texture> textures;
     for (const auto& image : glTF.images) {
         const auto fullPath = (path.parent_path() / image.uri).string();
+        const auto relative = (std::filesystem::relative(fullPath, appDir)).string();
         if (gerium_file_exists_file(fullPath.c_str())) {
-            textures.push_back(resourceManager.loadTexture(fullPath));
+            textures.push_back(resourceManager.loadTexture(relative));
         } else {
             textures.push_back({});
         }

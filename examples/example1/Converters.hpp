@@ -5,367 +5,378 @@
 
 namespace YAML {
 
+constexpr auto defaultFormat            = GERIUM_FORMAT_R8_UNORM;
+constexpr auto defaultOp                = GERIUM_RENDER_PASS_OP_DONT_CARE;
+constexpr auto defaultPolygonMode       = GERIUM_POLYGON_MODE_FILL;
+constexpr auto defaultTopology          = GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+constexpr auto defualtCullMode          = GERIUM_CULL_MODE_NONE;
+constexpr auto defaultFrontFace         = GERIUM_FRONT_FACE_COUNTER_CLOCKWISE;
+constexpr auto defaultLineWidth         = 1.0f;
+constexpr auto defaultDepthTestEnable   = false;
+constexpr auto defaultDepthWriteEnable  = false;
+constexpr auto defaultStencilTestEnable = false;
+constexpr auto defaultDepthCompareOp    = GERIUM_COMPARE_OP_NEVER;
+
 static gerium_uint8_t buffer[8192]{};
 static gerium_uint32_t offset{};
 
-void resetBuffer() noexcept {
+struct FrameGraphNode {
+    std::string name;
+    gerium_bool_t compute;
+    std::vector<gerium_resource_input_t> inputs;
+    std::vector<gerium_resource_output_t> outputs;
+};
+
+static struct Flags {
+} flags{};
+
+static struct Boolean {
+} boolean{};
+
+inline void resetBuffer() noexcept {
     offset = 0;
 }
 
 template <typename T>
-T* allocate(const T& data) {
-    if (offset + sizeof(T) > std::size(buffer)) {
+T* allocate(size_t n = 1) {
+    static_assert(std::is_trivial_v<T>);
+    auto size = sizeof(T) * n;
+
+    size = (size + 3) & ~3;
+    if (offset + size >= std::size(buffer)) {
         std::bad_alloc();
     }
-    auto result = new (buffer + offset) T();
-    *result     = data;
-    offset += sizeof(T);
+    auto results = new (buffer + offset) T[n]{};
+    offset += size;
+    return results;
+}
+
+template <typename T>
+T* allocate(const T& data) {
+    auto result = allocate<T>();
+
+    *result = data;
     return result;
 }
 
 template <typename T>
 T* allocate(const std::vector<T>& data) {
-    if (offset + sizeof(T) * data.size() > std::size(buffer)) {
-        std::bad_alloc();
+    if (data.empty()) {
+        return nullptr;
     }
-    auto results = new (buffer + offset) T[data.size()];
+    auto results = allocate<T>(data.size());
     for (int i = 0; i < data.size(); ++i) {
         results[i] = data[i];
     }
-    offset += sizeof(T) * data.size();
     return results;
 }
 
-gerium_utf8_t allocate(const std::string& str) {
+inline gerium_utf8_t allocate(const std::string& str) {
     if (str.length() == 0) {
         return nullptr;
     }
-    if (offset + str.length() + 1 > std::size(buffer)) {
-        std::bad_alloc();
-    }
-    auto result = new (buffer + offset) char[str.length() + 1]{};
+    auto result = allocate<char>(str.length() + 1);
     strncpy(result, str.c_str(), str.length());
-    offset += str.length() + 1;
     return result;
 }
 
-template <typename E>
-bool decodeEnum(const Node& node, E& rhs) {
-    static_assert(std::is_enum_v<E>, "E is not enum");
-    auto result = magic_enum::enum_cast<E>(node.as<std::string>());
-    if (result.has_value()) {
-        rhs = result.value();
-        return true;
+template <typename T>
+struct encodeFail {
+    static Node encode(const T& rhs) {
+        throw YAML::Exception(YAML::Mark(), "Not implemented");
     }
-    throw YAML::Exception(node.Mark(), YAML::ErrorMsg::INVALID_NODE);
+};
+
+template <typename E>
+struct convertEnum : encodeFail<E> {
+    static bool decode(const Node& node, E& rhs) {
+        static_assert(std::is_enum_v<E>, "E is not enum");
+        auto result = magic_enum::enum_cast<E>(node.as<std::string>());
+        if (result.has_value()) {
+            rhs = result.value();
+            return true;
+        }
+        throw YAML::Exception(node.Mark(), YAML::ErrorMsg::INVALID_NODE);
+    }
+};
+
+template <>
+struct convert<gerium_polygon_mode_t> : convertEnum<gerium_polygon_mode_t> {};
+
+template <>
+struct convert<gerium_primitive_topology_t> : convertEnum<gerium_primitive_topology_t> {};
+
+template <>
+struct convert<gerium_cull_mode_t> : convertEnum<gerium_cull_mode_t> {};
+
+template <>
+struct convert<gerium_front_face_t> : convertEnum<gerium_front_face_t> {};
+
+template <>
+struct convert<gerium_stencil_op_t> : convertEnum<gerium_stencil_op_t> {};
+
+template <>
+struct convert<gerium_compare_op_t> : convertEnum<gerium_compare_op_t> {};
+
+template <>
+struct convert<gerium_logic_op_t> : convertEnum<gerium_logic_op_t> {};
+
+template <>
+struct convert<gerium_format_t> : convertEnum<gerium_format_t> {};
+
+template <>
+struct convert<gerium_vertex_rate_t> : convertEnum<gerium_vertex_rate_t> {};
+
+template <>
+struct convert<gerium_shader_type_t> : convertEnum<gerium_shader_type_t> {};
+
+template <>
+struct convert<gerium_shader_languge_t> : convertEnum<gerium_shader_languge_t> {};
+
+template <>
+struct convert<gerium_resource_type_t> : convertEnum<gerium_resource_type_t> {};
+
+template <>
+struct convert<gerium_render_pass_op_t> : convertEnum<gerium_render_pass_op_t> {};
+
+template <>
+struct convert<gerium_color_component_flags_t> : convertEnum<gerium_color_component_flags_t> {};
+
+template <>
+struct convert<gerium_blend_factor_t> : convertEnum<gerium_blend_factor_t> {};
+
+template <>
+struct convert<gerium_blend_op_t> : convertEnum<gerium_blend_op_t> {};
+
+template <>
+struct convert<gerium_buffer_usage_flags_t> : convertEnum<gerium_buffer_usage_flags_t> {};
+
+template <typename T>
+T createDefault() noexcept {
+    return T{};
 }
 
 template <>
-struct convert<gerium_polygon_mode_t> {
-    static Node encode(const gerium_polygon_mode_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_polygon_mode_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_primitive_topology_t> {
-    static Node encode(const gerium_primitive_topology_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_primitive_topology_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
+gerium_rasterization_state_t createDefault<gerium_rasterization_state_t>() noexcept {
+    gerium_rasterization_state_t result{};
+    result.polygon_mode       = defaultPolygonMode;
+    result.primitive_topology = defaultTopology;
+    result.cull_mode          = defualtCullMode;
+    result.front_face         = defaultFrontFace;
+    result.line_width         = defaultLineWidth;
+    return result;
+}
 
 template <>
-struct convert<gerium_cull_mode_t> {
-    static Node encode(const gerium_cull_mode_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_cull_mode_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_front_face_t> {
-    static Node encode(const gerium_front_face_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_front_face_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
+gerium_depth_stencil_state_t createDefault<gerium_depth_stencil_state_t>() noexcept {
+    gerium_depth_stencil_state_t result{};
+    result.depth_test_enable        = defaultDepthTestEnable;
+    result.depth_write_enable       = defaultDepthWriteEnable;
+    result.depth_bounds_test_enable = defaultStencilTestEnable;
+    result.depth_compare_op         = defaultDepthCompareOp;
+    result.front                    = createDefault<gerium_stencil_op_state_t>();
+    result.back                     = createDefault<gerium_stencil_op_state_t>();
+    return result;
+}
 
 template <>
-struct convert<gerium_stencil_op_t> {
-    static Node encode(const gerium_stencil_op_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_stencil_op_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
+gerium_vertex_attribute_t createDefault<gerium_vertex_attribute_t>() noexcept {
+    gerium_vertex_attribute_t result{};
+    result.format = GERIUM_FORMAT_R8_UNORM;
+    return result;
+}
 
 template <>
-struct convert<gerium_compare_op_t> {
-    static Node encode(const gerium_compare_op_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_compare_op_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
+gerium_clear_depth_stencil_attachment_state_t createDefault<gerium_clear_depth_stencil_attachment_state_t>() noexcept {
+    gerium_clear_depth_stencil_attachment_state_t result{};
+    result.depth = 1.0f;
+    result.value = 0;
+    return result;
+}
 
 template <>
-struct convert<gerium_logic_op_t> {
-    static Node encode(const gerium_logic_op_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
+gerium_resource_output_t createDefault<gerium_resource_output_t>() noexcept {
+    constexpr auto writeMask = GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT |
+                               GERIUM_COLOR_COMPONENT_B_BIT | GERIUM_COLOR_COMPONENT_A_BIT;
+
+    gerium_resource_output_t result{};
+    result.format                         = defaultFormat;
+    result.width                          = 0;
+    result.height                         = 0;
+    result.depth                          = 1;
+    result.layers                         = 1;
+    result.auto_scale                     = 1.0f;
+    result.render_pass_op                 = defaultOp;
+    result.color_write_mask               = writeMask;
+    result.clear_color_attachment         = { 0.0f, 0.0f, 0.0f, 1.0f };
+    result.clear_depth_stencil_attachment = createDefault<gerium_clear_depth_stencil_attachment_state_t>();
+    result.color_blend_attachment         = createDefault<gerium_color_blend_attachment_state_t>();
+    return result;
+}
+
+// Deserialize a trivial structure
+template <size_t N, typename T>
+void read(const Node& node, const char (&key)[N], T& result) {
+    result = node[key].template as<T>(result);
+}
+
+// Deserialize a trivial structure and store its address
+template <size_t N, typename T>
+void read(const Node& node, const char (&key)[N], T*& result) {
+    using Type        = std::remove_cv_t<T>;
+    auto defaultValue = createDefault<Type>();
+
+    read(node, key, defaultValue);
+    result = allocate(defaultValue);
+}
+
+// Deserialize string
+template <size_t N>
+void read(const Node& node, const char (&key)[N], gerium_utf8_t& result) {
+    result = allocate(node[key].template as<std::string>(result ? result : ""));
+}
+
+// Deserialize byte array
+template <size_t N>
+void read(const Node& node, const char (&key)[N], gerium_cdata_t& result) {
+    result = allocate(node[key].template as<std::string>(""));
+}
+
+// Deserialize a fixed size array
+template <size_t N, typename T, size_t Size>
+void read(const Node& node, const char (&key)[N], T (&results)[Size]) {
+    std::vector<T> defaultValues(Size);
+    for (size_t i = 0; i < Size; ++i) {
+        defaultValues[i] = results[i];
     }
-
-    static bool decode(const Node& node, gerium_logic_op_t& rhs) {
-        return decodeEnum(node, rhs);
+    const auto values = node[key].template as<std::vector<T>>(defaultValues);
+    if (values.size() > 4) {
+        throw YAML::Exception(node.Mark(), YAML::ErrorMsg::INVALID_NODE);
     }
-};
-
-template <>
-struct convert<gerium_format_t> {
-    static Node encode(const gerium_format_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
+    for (size_t i = 0; i < values.size(); ++i) {
+        results[i] = values[i];
     }
+}
 
-    static bool decode(const Node& node, gerium_format_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
+// Deserialize the array and store the size and pointer
+template <size_t N, typename Size, typename T>
+void read(const Node& node, const char (&key)[N], Size& size, T*& results) {
+    using Type  = std::remove_cv_t<T>;
+    auto values = node[key].template as<std::vector<Type>>(std::vector<Type>{});
+    size        = (Size) values.size();
+    results     = allocate(values);
+}
 
-template <>
-struct convert<gerium_vertex_rate_t> {
-    static Node encode(const gerium_vertex_rate_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_vertex_rate_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_shader_type_t> {
-    static Node encode(const gerium_shader_type_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_shader_type_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_shader_languge_t> {
-    static Node encode(const gerium_shader_languge_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_shader_languge_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_resource_type_t> {
-    static Node encode(const gerium_resource_type_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_resource_type_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_render_pass_op_t> {
-    static Node encode(const gerium_render_pass_op_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_render_pass_op_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_color_component_flags_t> {
-    static Node encode(const gerium_color_component_flags_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_color_component_flags_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_blend_factor_t> {
-    static Node encode(const gerium_blend_factor_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_blend_factor_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_blend_op_t> {
-    static Node encode(const gerium_blend_op_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_blend_op_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_buffer_usage_flags_t> {
-    static Node encode(const gerium_buffer_usage_flags_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_buffer_usage_flags_t& rhs) {
-        return decodeEnum(node, rhs);
-    }
-};
-
-template <>
-struct convert<gerium_rasterization_state_t> {
-    static Node encode(const gerium_rasterization_state_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_rasterization_state_t& rhs) {
-        rhs.polygon_mode = node["polygon mode"].as<gerium_polygon_mode_t>(GERIUM_POLYGON_MODE_FILL);
-        rhs.primitive_topology =
-            node["primitive topology"].as<gerium_primitive_topology_t>(GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-        rhs.cull_mode          = node["cull mode"].as<gerium_cull_mode_t>(GERIUM_CULL_MODE_NONE);
-        rhs.front_face         = node["front face"].as<gerium_front_face_t>(GERIUM_FRONT_FACE_COUNTER_CLOCKWISE);
-        rhs.depth_clamp_enable = node["depth clamp enable"].as<bool>(false);
-        rhs.depth_bias_enable  = node["depth bias enable"].as<bool>(false);
-        rhs.depth_bias_constant_factor = node["depth bias constant factor"].as<float>(0.0f);
-        rhs.depth_bias_clamp           = node["depth bias clamp"].as<float>(0.0f);
-        rhs.depth_bias_slope_factor    = node["depth bias slope factor"].as<float>(0.0f);
-        rhs.line_width                 = node["line width"].as<float>(1.0f);
-        return true;
-    }
-};
-
-template <>
-struct convert<gerium_stencil_op_state_t> {
-    static Node encode(const gerium_stencil_op_state_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_stencil_op_state_t& rhs) {
-        rhs.fail_op       = node["fail op"].as<gerium_stencil_op_t>(GERIUM_STENCIL_OP_KEEP);
-        rhs.pass_op       = node["pass op"].as<gerium_stencil_op_t>(GERIUM_STENCIL_OP_KEEP);
-        rhs.depth_fail_op = node["depth fail op"].as<gerium_stencil_op_t>(GERIUM_STENCIL_OP_KEEP);
-        rhs.compare_op    = node["compare op"].as<gerium_compare_op_t>(GERIUM_COMPARE_OP_NEVER);
-        rhs.compare_mask  = node["compare mask"].as<gerium_uint32_t>(0);
-        rhs.write_mask    = node["write mask"].as<gerium_uint32_t>(0);
-        rhs.reference     = node["reference"].as<gerium_uint32_t>(0);
-        return true;
-    }
-};
-
-template <>
-struct convert<gerium_depth_stencil_state_t> {
-    static Node encode(const gerium_depth_stencil_state_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_depth_stencil_state_t& rhs) {
-        rhs.depth_test_enable        = node["depth test enable"].as<bool>(false);
-        rhs.depth_write_enable       = node["depth write enable"].as<bool>(false);
-        rhs.depth_bounds_test_enable = node["depth bounds test enable"].as<bool>(false);
-        rhs.stencil_test_enable      = node["stencil test enable"].as<bool>(false);
-        rhs.depth_compare_op         = node["depth compare op"].as<gerium_compare_op_t>(GERIUM_COMPARE_OP_NEVER);
-        rhs.front                    = node["front"].as<gerium_stencil_op_state_t>(gerium_stencil_op_state_t{});
-        rhs.back                     = node["back"].as<gerium_stencil_op_state_t>(gerium_stencil_op_state_t{});
-        rhs.min_depth_bounds         = node["min depth bounds"].as<float>(0.0f);
-        rhs.max_depth_bounds         = node["max depth bounds"].as<float>(0.0f);
-        return true;
-    }
-};
-
-template <>
-struct convert<gerium_color_blend_state_t> {
-    static Node encode(const gerium_color_blend_state_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
-    static bool decode(const Node& node, gerium_color_blend_state_t& rhs) {
-        const auto blendConstants =
-            node["blend constants"].as<std::vector<float>>(std::vector{ 0.0f, 0.0f, 0.0f, 0.0f });
-
-        rhs.logic_op_enable    = node["logic op enable"].as<bool>(false);
-        rhs.logic_op           = node["logic op"].as<gerium_logic_op_t>(GERIUM_LOGIC_OP_CLEAR);
-        rhs.blend_constants[0] = 0.0f;
-        rhs.blend_constants[1] = 0.0f;
-        rhs.blend_constants[2] = 0.0f;
-        rhs.blend_constants[3] = 0.0f;
-        for (int i = 0; i < blendConstants.size() && i < 4; ++i) {
-            rhs.blend_constants[i] = blendConstants[i];
+// Deserialize enum flags
+template <size_t N, typename T>
+void read(const Node& node, const char (&key)[N], T& result, Flags) {
+    std::vector<T> values{};
+    for (auto value : magic_enum::enum_values<T>()) {
+        if (result & value) {
+            values.push_back(value);
         }
+    }
+    values = node[key].template as<std::vector<T>>(values);
+    result = {};
+    for (auto value : values) {
+        result |= value;
+    }
+}
+
+// Deserialize boolean field
+template <size_t N, typename T>
+void read(const Node& node, const char (&key)[N], T& result, Boolean) {
+    result = (T) node[key].template as<bool>(result);
+}
+
+template <>
+struct convert<gerium_rasterization_state_t> : encodeFail<gerium_rasterization_state_t> {
+    static bool decode(const Node& node, gerium_rasterization_state_t& rhs) {
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "polygon mode", rhs.polygon_mode);
+        read(node, "primitive topology", rhs.primitive_topology);
+        read(node, "cull mode", rhs.cull_mode);
+        read(node, "front face", rhs.front_face);
+        read(node, "depth clamp enable", rhs.depth_clamp_enable, boolean);
+        read(node, "depth bias enable", rhs.depth_bias_enable, boolean);
+        read(node, "depth bias constant factor", rhs.depth_bias_constant_factor);
+        read(node, "depth bias clamp", rhs.depth_bias_clamp);
+        read(node, "depth bias slope factor", rhs.depth_bias_slope_factor);
+        read(node, "line width", rhs.line_width);
         return true;
     }
 };
 
 template <>
-struct convert<gerium_vertex_attribute_t> {
-    static Node encode(const gerium_vertex_attribute_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
+struct convert<gerium_stencil_op_state_t> : encodeFail<gerium_stencil_op_state_t> {
+    static bool decode(const Node& node, gerium_stencil_op_state_t& rhs) {
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "fail op", rhs.fail_op);
+        read(node, "pass op", rhs.pass_op);
+        read(node, "depth fail op", rhs.depth_fail_op);
+        read(node, "compare op", rhs.compare_op);
+        read(node, "compare mask", rhs.compare_mask);
+        read(node, "write mask", rhs.write_mask);
+        read(node, "reference", rhs.reference);
+        return true;
     }
+};
 
+template <>
+struct convert<gerium_depth_stencil_state_t> : encodeFail<gerium_depth_stencil_state_t> {
+    static bool decode(const Node& node, gerium_depth_stencil_state_t& rhs) {
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "depth test enable", rhs.depth_test_enable, boolean);
+        read(node, "depth write enable", rhs.depth_write_enable, boolean);
+        read(node, "depth bounds test enable", rhs.depth_bounds_test_enable, boolean);
+        read(node, "stencil test enable", rhs.stencil_test_enable, boolean);
+        read(node, "depth compare op", rhs.depth_compare_op);
+        read(node, "front", rhs.front);
+        read(node, "back", rhs.back);
+        read(node, "min depth bounds", rhs.min_depth_bounds);
+        read(node, "max depth bounds", rhs.max_depth_bounds);
+        return true;
+    }
+};
+
+template <>
+struct convert<gerium_color_blend_state_t> : encodeFail<gerium_color_blend_state_t> {
+    static bool decode(const Node& node, gerium_color_blend_state_t& rhs) {
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "logic op enable", rhs.logic_op_enable, boolean);
+        read(node, "logic op", rhs.logic_op);
+        read(node, "blend constants", rhs.blend_constants);
+        return true;
+    }
+};
+
+template <>
+struct convert<gerium_vertex_attribute_t> : encodeFail<gerium_vertex_attribute_t> {
     static bool decode(const Node& node, gerium_vertex_attribute_t& rhs) {
-        rhs.location = node["location"].as<gerium_uint16_t>(0);
-        rhs.binding  = node["binding"].as<gerium_uint16_t>(0);
-        rhs.offset   = node["offset"].as<gerium_uint32_t>(0);
-        rhs.format   = node["format"].as<gerium_format_t>(GERIUM_FORMAT_R8_UNORM);
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "location", rhs.location);
+        read(node, "binding", rhs.binding);
+        read(node, "offset", rhs.offset);
+        read(node, "format", rhs.format);
         return true;
     }
 };
 
 template <>
-struct convert<gerium_vertex_binding_t> {
-    static Node encode(const gerium_vertex_binding_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<gerium_vertex_binding_t> : encodeFail<gerium_vertex_binding_t> {
     static bool decode(const Node& node, gerium_vertex_binding_t& rhs) {
-        rhs.binding    = node["binding"].as<gerium_uint16_t>(0);
-        rhs.stride     = node["stride"].as<gerium_uint16_t>(0);
-        rhs.input_rate = node["input rate"].as<gerium_vertex_rate_t>(GERIUM_VERTEX_RATE_PER_VERTEX);
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "binding", rhs.binding);
+        read(node, "stride", rhs.stride);
+        read(node, "input rate", rhs.input_rate);
         return true;
     }
 };
 
 template <>
-struct convert<gerium_macro_definition_t> {
-    static Node encode(const gerium_macro_definition_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<gerium_macro_definition_t> : encodeFail<gerium_macro_definition_t> {
     static bool decode(const Node& node, gerium_macro_definition_t& rhs) {
+        rhs        = createDefault<std::remove_cvref_t<decltype(rhs)>>();
         auto key   = node.begin()->first.as<std::string>();
         auto value = node.begin()->second.IsNull() ? "" : node.begin()->second.as<std::string>();
         strncpy(rhs.name, key.c_str(), std::size(rhs.name));
@@ -378,151 +389,100 @@ struct convert<gerium_macro_definition_t> {
 };
 
 template <>
-struct convert<gerium_shader_t> {
-    static Node encode(const gerium_shader_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<gerium_shader_t> : encodeFail<gerium_shader_t> {
     static bool decode(const Node& node, gerium_shader_t& rhs) {
-        const auto macros =
-            node["macros"].as<std::vector<gerium_macro_definition_t>>(std::vector<gerium_macro_definition_t>{});
-
-        rhs.type        = node["type"].as<gerium_shader_type_t>(GERIUM_SHADER_TYPE_VERTEX);
-        rhs.lang        = node["lang"].as<gerium_shader_languge_t>(GERIUM_SHADER_LANGUAGE_UNKNOWN);
-        rhs.name        = allocate(node["name"].as<std::string>());
-        rhs.entry_point = allocate(node["entry point"].as<std::string>(""));
-        rhs.data        = allocate(node["data"].as<std::string>(""));
-        rhs.size        = node["size"].as<gerium_uint32_t>(0);
-        rhs.macro_count = (gerium_uint32_t) macros.size();
-        rhs.macros      = allocate(macros);
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "type", rhs.type);
+        read(node, "lang", rhs.lang);
+        read(node, "name", rhs.name);
+        read(node, "entry point", rhs.entry_point);
+        read(node, "data", rhs.data);
+        read(node, "size", rhs.size);
+        read(node, "macros", rhs.macro_count, rhs.macros);
         return true;
     }
 };
 
 template <>
-struct convert<gerium_pipeline_t> {
-    static Node encode(const gerium_pipeline_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<gerium_pipeline_t> : encodeFail<gerium_pipeline_t> {
     static bool decode(const Node& node, gerium_pipeline_t& rhs) {
-        const auto vertexAttributes = node["vertex attributes"].as<std::vector<gerium_vertex_attribute_t>>(
-            std::vector<gerium_vertex_attribute_t>{});
-        const auto vertexBindings =
-            node["vertex bindings"].as<std::vector<gerium_vertex_binding_t>>(std::vector<gerium_vertex_binding_t>{});
-        const auto shaders = node["shaders"].as<std::vector<gerium_shader_t>>();
-        gerium_rasterization_state_t defaultRasterization{};
-        defaultRasterization.primitive_topology = GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        defaultRasterization.line_width         = 1.0f;
-
-        rhs.render_pass   = allocate(node["render pass"].as<std::string>());
-        rhs.rasterization = allocate(node["rasterization"].as<gerium_rasterization_state_t>(defaultRasterization));
-        rhs.depth_stencil =
-            allocate(node["depth stencil"].as<gerium_depth_stencil_state_t>(gerium_depth_stencil_state_t{}));
-        rhs.color_blend = allocate(node["color blend"].as<gerium_color_blend_state_t>(gerium_color_blend_state_t{}));
-        rhs.vertex_attribute_count = (gerium_uint32_t) vertexAttributes.size();
-        rhs.vertex_attributes      = allocate(vertexAttributes);
-        rhs.vertex_binding_count   = (gerium_uint32_t) vertexBindings.size();
-        rhs.vertex_bindings        = allocate(vertexBindings);
-        rhs.shader_count           = (gerium_uint32_t) shaders.size();
-        rhs.shaders                = allocate(shaders);
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "render pass", rhs.render_pass);
+        read(node, "rasterization", rhs.rasterization);
+        read(node, "depth stencil", rhs.depth_stencil);
+        read(node, "color blend", rhs.color_blend);
+        read(node, "vertex attributes", rhs.vertex_attribute_count, rhs.vertex_attributes);
+        read(node, "vertex bindings", rhs.vertex_binding_count, rhs.vertex_bindings);
+        read(node, "shaders", rhs.shader_count, rhs.shaders);
         return true;
     }
 };
 
-struct FrameGraphNode {
-    std::string name;
-    gerium_bool_t compute;
-    std::vector<gerium_resource_input_t> inputs;
-    std::vector<gerium_resource_output_t> outputs;
-};
-
 template <>
-struct convert<gerium_color_blend_attachment_state_t> {
-    static Node encode(const gerium_color_blend_attachment_state_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<gerium_color_blend_attachment_state_t> : encodeFail<gerium_color_blend_attachment_state_t> {
     static bool decode(const Node& node, gerium_color_blend_attachment_state_t& rhs) {
-        rhs.blend_enable           = node["blend enable"].as<bool>(false);
-        rhs.src_color_blend_factor = node["src color blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
-        rhs.dst_color_blend_factor = node["dst color blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
-        rhs.color_blend_op         = node["color blend op"].as<gerium_blend_op_t>(GERIUM_BLEND_OP_ADD);
-        rhs.src_alpha_blend_factor = node["src alpha blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
-        rhs.dst_alpha_blend_factor = node["dst alpha blend factor"].as<gerium_blend_factor_t>(GERIUM_BLEND_FACTOR_ZERO);
-        rhs.alpha_blend_op         = node["alpha blend op"].as<gerium_blend_op_t>(GERIUM_BLEND_OP_ADD);
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "blend enable", rhs.blend_enable, boolean);
+        read(node, "src color blend factor", rhs.src_color_blend_factor);
+        read(node, "dst color blend factor", rhs.dst_color_blend_factor);
+        read(node, "color blend op", rhs.color_blend_op);
+        read(node, "src alpha blend factor", rhs.src_alpha_blend_factor);
+        read(node, "dst alpha blend factor", rhs.dst_alpha_blend_factor);
+        read(node, "alpha blend op", rhs.alpha_blend_op);
         return true;
     }
 };
 
 template <>
-struct convert<gerium_resource_input_t> {
-    static Node encode(const gerium_resource_input_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<gerium_resource_input_t> : encodeFail<gerium_resource_input_t> {
     static bool decode(const Node& node, gerium_resource_input_t& rhs) {
-        rhs.type           = node["type"].as<gerium_resource_type_t>();
-        rhs.name           = allocate(node["name"].as<std::string>());
-        rhs.previous_frame = node["previous frame"].as<bool>(false);
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "type", rhs.type);
+        read(node, "name", rhs.name);
+        read(node, "previous frame", rhs.previous_frame, boolean);
         return true;
     }
 };
 
 template <>
-struct convert<gerium_resource_output_t> {
-    static Node encode(const gerium_resource_output_t& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<gerium_resource_output_t> : encodeFail<gerium_resource_output_t> {
     static bool decode(const Node& node, gerium_resource_output_t& rhs) {
-        const auto colorWriteMask = node["color write mask"].as<std::vector<gerium_color_component_flags_t>>(
-            std::vector{ GERIUM_COLOR_COMPONENT_R_BIT,
-                         GERIUM_COLOR_COMPONENT_G_BIT,
-                         GERIUM_COLOR_COMPONENT_B_BIT,
-                         GERIUM_COLOR_COMPONENT_A_BIT });
-        auto clearColorAttachment =
-            node["clear color attachment"].as<std::vector<float>>(std::vector{ 0.0f, 0.0f, 0.0f, 1.0f });
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        gerium_float32_t colors[4]{ rhs.clear_color_attachment.red,
+                                    rhs.clear_color_attachment.green,
+                                    rhs.clear_color_attachment.blue,
+                                    rhs.clear_color_attachment.alpha };
+        read(node, "type", rhs.type);
+        read(node, "name", rhs.name);
+        read(node, "external", rhs.external, boolean);
+        read(node, "format", rhs.format);
+        read(node, "width", rhs.width);
+        read(node, "height", rhs.height);
+        read(node, "depth", rhs.depth);
+        read(node, "layers", rhs.layers);
+        read(node, "auto scale", rhs.auto_scale);
+        read(node, "render pass op", rhs.render_pass_op);
+        read(node, "color write mask", rhs.color_write_mask, flags);
+        read(node, "color blend attachment", rhs.color_blend_attachment);
+        read(node, "clear color attachment", colors);
+        read(node, "size", rhs.size);
+        read(node, "fill value", rhs.fill_value);
+        read(node, "usage", rhs.usage, flags);
+
+        rhs.clear_color_attachment.red   = colors[0];
+        rhs.clear_color_attachment.green = colors[1];
+        rhs.clear_color_attachment.blue  = colors[2];
+        rhs.clear_color_attachment.alpha = colors[3];
+
         auto clearDepthStencilAttachment = node["clear depth stencil attachment"];
-
-        rhs.type             = node["type"].as<gerium_resource_type_t>();
-        rhs.name             = allocate(node["name"].as<std::string>());
-        rhs.external         = node["external"].as<bool>(false);
-        rhs.format           = node["format"].as<gerium_format_t>(GERIUM_FORMAT_R8_UNORM);
-        rhs.width            = node["width"].as<gerium_uint16_t>(0);
-        rhs.height           = node["height"].as<gerium_uint16_t>(0);
-        rhs.depth            = node["depth"].as<gerium_uint16_t>(1);
-        rhs.layers           = node["layers"].as<gerium_uint16_t>(1);
-        rhs.auto_scale       = node["auto scale"].as<float>(1.0f);
-        rhs.render_pass_op   = node["render pass op"].as<gerium_render_pass_op_t>(GERIUM_RENDER_PASS_OP_DONT_CARE);
-        rhs.color_write_mask = {};
-        rhs.color_blend_attachment = node["color blend attachment"].as<gerium_color_blend_attachment_state_t>(
-            gerium_color_blend_attachment_state_t{});
-
-        for (auto mask : colorWriteMask) {
-            rhs.color_write_mask |= mask;
-        }
-
-        rhs.clear_color_attachment.red   = clearColorAttachment.size() > 0 ? clearColorAttachment[0] : 0.0f;
-        rhs.clear_color_attachment.green = clearColorAttachment.size() > 1 ? clearColorAttachment[1] : 0.0f;
-        rhs.clear_color_attachment.blue  = clearColorAttachment.size() > 2 ? clearColorAttachment[2] : 0.0f;
-        rhs.clear_color_attachment.alpha = clearColorAttachment.size() > 3 ? clearColorAttachment[3] : 1.0f;
-
         if (clearDepthStencilAttachment.IsDefined()) {
             if (!clearDepthStencilAttachment.IsSequence()) {
                 throw YAML::Exception(node.Mark(), YAML::ErrorMsg::INVALID_NODE);
             }
-            rhs.clear_depth_stencil_attachment.depth = clearDepthStencilAttachment[0].as<float>(1.0f);
-            rhs.clear_depth_stencil_attachment.value = clearDepthStencilAttachment[1].as<gerium_uint32_t>(0);
-        }
-
-        rhs.size  = node["size"].as<gerium_uint32_t>(0);
-        rhs.usage = GERIUM_BUFFER_USAGE_NONE_BIT;
-        rhs.fill_value = node["fill value"].as<gerium_uint32_t>(0);
-
-        for (const auto& usage :
-             node["usage"].as<std::vector<gerium_buffer_usage_flags_t>>(std::vector<gerium_buffer_usage_flags_t>{})) {
-            rhs.usage |= usage;
+            rhs.clear_depth_stencil_attachment.depth =
+                clearDepthStencilAttachment[0].as<float>(rhs.clear_depth_stencil_attachment.depth);
+            rhs.clear_depth_stencil_attachment.value =
+                clearDepthStencilAttachment[1].as<gerium_uint32_t>(rhs.clear_depth_stencil_attachment.value);
         }
 
         return true;
@@ -530,16 +490,13 @@ struct convert<gerium_resource_output_t> {
 };
 
 template <>
-struct convert<FrameGraphNode> {
-    static Node encode(const FrameGraphNode& rhs) {
-        throw YAML::Exception(YAML::Mark(), "Not implemented");
-    }
-
+struct convert<FrameGraphNode> : encodeFail<FrameGraphNode> {
     static bool decode(const Node& node, FrameGraphNode& rhs) {
-        rhs.name    = node["name"].as<std::string>();
-        rhs.compute = node["compute"].as<bool>(false);
-        rhs.inputs  = node["inputs"].as<decltype(rhs.inputs)>(decltype(rhs.inputs){});
-        rhs.outputs = node["outputs"].as<decltype(rhs.outputs)>(decltype(rhs.outputs){});
+        rhs = createDefault<std::remove_cvref_t<decltype(rhs)>>();
+        read(node, "name", rhs.name);
+        read(node, "compute", rhs.compute, boolean);
+        read(node, "inputs", rhs.inputs);
+        read(node, "outputs", rhs.outputs);
         return true;
     }
 };

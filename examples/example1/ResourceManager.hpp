@@ -77,9 +77,9 @@ public:
     void destroy();
     void update(gerium_uint64_t elapsedMs);
 
-    void loadFrameGraph(const std::string& path);
+    void loadFrameGraph(const std::string& filename);
     Texture loadTexture(const std::string& path, gerium_uint64_t retentionMs = DefaultRetention);
-    Technique loadTechnique(const std::string& path, gerium_uint64_t retentionMs = DefaultRetention);
+    Technique loadTechnique(const std::string& filename, gerium_uint64_t retentionMs = DefaultRetention);
 
     Texture createTexture(const gerium_texture_info_t& info,
                           gerium_cdata_t data,
@@ -107,7 +107,7 @@ public:
 
     Texture getTextureByPath(const std::string& path);
     Texture getTextureByName(const std::string& name);
-    Technique getTechniqueByPath(const std::string& path);
+    Technique getTechniqueByPath(const std::string& filename);
     Technique getTechniqueByName(const std::string& name);
     Buffer getBufferByPath(const std::string& path);
     Buffer getBufferByName(const std::string& name);
@@ -166,15 +166,21 @@ private:
         resource.path        = 0;
         resource.name        = 0;
         resource.lastTick    = _ticks;
-        resource.retentionMs = retentionMs;
+        resource.retentionMs = 0;
 
+        bool hasRetention = false;
         if (auto key = calcKey(path, HandleToType<H>::type)) {
             resource.path = key;
             _pathes[key]  = &resource;
+            hasRetention  = true;
         }
         if (auto key = calcKey(name, HandleToType<H>::type)) {
             resource.name = key;
             _names[key]   = &resource;
+            hasRetention  = true;
+        }
+        if (hasRetention) {
+            resource.retentionMs = retentionMs;
         }
     }
 
@@ -202,6 +208,10 @@ private:
     }
 
     static gerium_uint64_t calcKey(const std::string& str, Type type) noexcept;
+
+    static std::string calcFrameGraphPath(const std::string& filename) noexcept;
+    static std::string calcTexturePath(const std::string& filename) noexcept;
+    static std::string calcTechniquePath(const std::string& filename) noexcept;
 
     gerium_renderer_t _renderer{};
     gerium_frame_graph_t _frameGraph{};

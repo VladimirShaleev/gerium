@@ -50,7 +50,7 @@ void Scene::create(ResourceManager* resourceManger, bool bindlessEnabled) {
     _lightIndices = _resourceManger->createBuffer(
         GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "light_indices", nullptr, sizeof(gerium_uint32_t) * MAX_LIGHTS);
     _lightDataLUT = _resourceManger->createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_lut", nullptr, sizeof(gerium_uint32_t) * LIGHT_Z_BINS);
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "light_lut", nullptr, sizeof(gerium_uint32_t) * MAX_LIGHTS);
     _lightSet = _resourceManger->createDescriptorSet("");
 }
 
@@ -462,7 +462,7 @@ void Scene::clear() {
 void Scene::updateLightTilesSize(gerium_uint16_t width, gerium_uint16_t height) {
     gerium_uint32_t tileXCount      = width / TILE_SIZE;
     gerium_uint32_t tileYCount      = height / TILE_SIZE;
-    gerium_uint32_t tilesEntryCount = tileXCount * tileYCount * NUM_WORDS;
+    gerium_uint32_t tilesEntryCount = (tileXCount + 1) * (tileYCount + 1) * NUM_WORDS;
     gerium_uint32_t bufferSize      = tilesEntryCount * sizeof(gerium_uint32_t);
     _lightTiles                     = nullptr;
     _resourceManger->update(1);

@@ -41,6 +41,10 @@
 
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 
+inline int typeIdSequence = 0;
+template <typename T>
+inline const int typeId = typeIdSequence++;
+
 inline void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
         throw std::runtime_error(gerium_result_to_string(result));

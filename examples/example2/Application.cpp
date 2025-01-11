@@ -871,8 +871,6 @@ void SkyDomeGenPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void SkyDomeGenPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-
     gerium_texture_info_t info{};
     info.width   = kSkySize;
     info.height  = kSkySize;
@@ -884,7 +882,7 @@ void SkyDomeGenPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer
     info.name    = "skydome_env";
 
     _skyDome       = application()->resourceManager().createTexture(info, nullptr);
-    _technique     = application()->resourceManager().loadTechnique((appDir / "techniques" / "skydome.yaml").string());
+    _technique     = application()->resourceManager().loadTechnique("skydome");
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
     _skyData       = application()->resourceManager().createBuffer(
         GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "sky_data", nullptr, sizeof(SkyData));
@@ -943,7 +941,7 @@ void SkyDomePrefilteredPass::initialize(gerium_frame_graph_t frameGraph, gerium_
     info.name    = "skydome_prefiltered_env";
 
     _skyDomePrefiltered = application()->resourceManager().createTexture(info, nullptr);
-    _technique = application()->resourceManager().loadTechnique((appDir / "techniques" / "skydome.yaml").string());
+    _technique = application()->resourceManager().loadTechnique("skydome");
 
     gerium_renderer_texture_sampler(renderer,
                                     _skyDomePrefiltered,
@@ -1027,7 +1025,7 @@ void SkydomePass::render(gerium_frame_graph_t frameGraph,
 void SkydomePass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
-    _technique     = application()->resourceManager().loadTechnique((appDir / "techniques" / "skydome.yaml").string());
+    _technique     = application()->resourceManager().loadTechnique("skydome");
     _descriptorSet = application()->resourceManager().createDescriptorSet("", true);
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "skydome_env", false);
@@ -1469,11 +1467,11 @@ Cluster Application::loadCluster(std::string_view name) {
         auto normalName =
             std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_normal";
         auto baseFullName =
-            (appDir / "models" / "textures" / std::filesystem::path(baseName).replace_extension("ktx2")).string();
+            (std::filesystem::path("models") / "textures" / std::filesystem::path(baseName).replace_extension("ktx2")).string();
         auto metalnessFullName =
-            (appDir / "models" / "textures" / std::filesystem::path(metalnessName).replace_extension("ktx2")).string();
+            (std::filesystem::path("models") / "textures" / std::filesystem::path(metalnessName).replace_extension("ktx2")).string();
         auto normalFullName =
-            (appDir / "models" / "textures" / std::filesystem::path(normalName).replace_extension("ktx2")).string();
+            (std::filesystem::path("models") / "textures" / std::filesystem::path(normalName).replace_extension("ktx2")).string();
 
         _textures.push_back(_resourceManager.loadTexture(baseFullName));
         gerium_renderer_texture_sampler(_renderer,
@@ -1651,22 +1649,21 @@ void Application::initialize() {
         renderPass->registerResources(_frameGraph, _renderer);
     }
 
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-    _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
-    _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "skydome.yaml").string());
+    _resourceManager.loadFrameGraph("main");
+    _resourceManager.loadFrameGraph("skydome");
     check(gerium_frame_graph_compile(_frameGraph));
 
-    _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
+    _baseTechnique = _resourceManager.loadTechnique("base");
 
     for (size_t i = 0; i < _noiseTextures.size(); ++i) {
-        auto fullPath     = appDir / "textures" / "blue_noise" / ("LDR_RG01_" + std::to_string(i) + ".png");
+        auto fullPath     = std::filesystem::path("textures") / "blue_noise" / ("LDR_RG01_" + std::to_string(i) + ".png");
         _noiseTextures[i] = _resourceManager.loadTexture(fullPath.string());
     }
     for (size_t i = 0; i < _blueNoiseTextures.size(); ++i) {
-        auto fullPath         = appDir / "textures" / "blue_noise" / ("LDR_LLL1_" + std::to_string(i) + ".png");
+        auto fullPath         = std::filesystem::path("textures") / "blue_noise" / ("LDR_LLL1_" + std::to_string(i) + ".png");
         _blueNoiseTextures[i] = _resourceManager.loadTexture(fullPath.string());
     }
-    _brdfLut = _resourceManager.loadTexture((appDir / "textures" / "brdf" / "BRDFLut.png").string());
+    _brdfLut = _resourceManager.loadTexture((std::filesystem::path("textures") / "brdf" / "BRDFLut.png").string());
 
     createScene();
 

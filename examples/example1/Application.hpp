@@ -144,7 +144,20 @@ public:
     }
 
 private:
-    void addPass(RenderPass& renderPass);
+    template <typename RP, typename... Args>
+    void addPass(Args&&... args) {
+        static_assert(std::is_base_of_v<RenderPass, RP>);
+
+        auto renderPass = std::make_unique<RP>(std::forward<Args>(args)...);
+        renderPass->setApplication(this);
+
+        gerium_render_pass_t pass{ prepare, resize, render };
+        gerium_frame_graph_add_pass(_frameGraph, renderPass->name().c_str(), &pass, renderPass.get());
+
+        _renderPassesCache[typeId<RP>] = renderPass.get();
+        _renderPasses.push_back(std::move(renderPass));
+    }
+
     void createScene();
 
     void initialize();
@@ -205,11 +218,8 @@ private:
     bool _bindlessSupported{};
 
     Settings _settings{};
-    GBufferPass _gbufferPass{};
-    PresentPass _presentPass{};
-    TAAPass _taaPass{};
-    LightPass _lightPass{};
-    std::vector<RenderPass*> _renderPasses{};
+    std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
+    std::map<int, RenderPass*> _renderPassesCache{};
 
     ResourceManager _resourceManager{};
     Scene _scene{};

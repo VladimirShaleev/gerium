@@ -211,10 +211,7 @@ void TAAPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void PresentPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-    auto techniqueDir            = (appDir / "techniques" / "postprocess.yaml").string();
-
-    _technique     = application()->resourceManager().loadTechnique(techniqueDir);
+    _technique     = application()->resourceManager().loadTechnique("postprocess");
     _descriptorSet = application()->resourceManager().createDescriptorSet("");
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "taa_image", false);
@@ -238,9 +235,6 @@ void GBufferPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_
 }
 
 void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-    auto techniqueDir            = (appDir / "techniques" / "lines.yaml").string();
-
     _descriptorSet = application()->resourceManager().createDescriptorSet("");
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "color", false);
     gerium_renderer_bind_resource(renderer, _descriptorSet, 1, "normal", false);
@@ -250,7 +244,7 @@ void LightPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t re
     _maxPoints = 24 * 1000;
     _vertices  = application()->resourceManager().createBuffer(
         GERIUM_BUFFER_USAGE_VERTEX_BIT, true, "lines_vertices", nullptr, sizeof(glm::vec3) * _maxPoints);
-    _lines = application()->resourceManager().loadTechnique(techniqueDir);
+    _lines = application()->resourceManager().loadTechnique("lines");
 }
 
 void LightPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -264,10 +258,7 @@ void LightPass::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t render
 }
 
 void TAAPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-    auto techniqueDir            = (appDir / "techniques" / "postprocess.yaml").string();
-
-    _technique     = application()->resourceManager().loadTechnique(techniqueDir);
+    _technique     = application()->resourceManager().loadTechnique("postprocess");
     _descriptorSet = application()->resourceManager().createDescriptorSet("");
 
     gerium_renderer_bind_resource(renderer, _descriptorSet, 0, "light", false);
@@ -278,7 +269,7 @@ void TAAPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t rend
 }
 
 void TAAPass::uninitialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
-    _technique = nullptr;
+    _technique     = nullptr;
     _descriptorSet = nullptr;
 }
 
@@ -327,14 +318,6 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
     }
 }
 
-void Application::addPass(RenderPass& renderPass) {
-    renderPass.setApplication(this);
-    _renderPasses.push_back(&renderPass);
-
-    gerium_render_pass_t pass{ prepare, resize, render };
-    gerium_frame_graph_add_pass(_frameGraph, renderPass.name().c_str(), &pass, &renderPass);
-}
-
 float get_random_value(float min, float max) {
     float rnd = (float) rand() / (float) RAND_MAX;
 
@@ -344,13 +327,8 @@ float get_random_value(float min, float max) {
 }
 
 void Application::createScene() {
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-
-    auto sponzaDir       = (appDir / "assets" / "models" / "sponza" / "Sponza.gltf").string();
-    auto flightHelmetDir = (appDir / "assets" / "models" / "flight-helmet" / "FlightHelmet.gltf").string();
-
-    auto modelSponza       = Model::loadGlTF(_renderer, _resourceManager, sponzaDir.c_str());
-    auto modelFlightHelmet = Model::loadGlTF(_renderer, _resourceManager, flightHelmetDir.c_str());
+    auto modelSponza       = Model::loadGlTF(_renderer, _resourceManager, "Sponza");
+    auto modelFlightHelmet = Model::loadGlTF(_renderer, _resourceManager, "FlightHelmet");
 
     auto defaultTransform = Transform{ glm::identity<glm::mat4>() };
     auto sponzaTransform  = Transform{ glm::scale(glm::identity<glm::mat4>(), glm::vec3(0.15f, 0.15f, 0.15f)) };
@@ -423,7 +401,8 @@ void Application::initialize() {
         true;
 #endif
 
-    check(gerium_renderer_create(_application, GERIUM_FEATURE_BINDLESS_BIT, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
+    check(gerium_renderer_create(
+        _application, GERIUM_FEATURE_BINDLESS_BIT, GERIUM_VERSION_ENCODE(1, 0, 0), debug, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
     _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS_BIT;
@@ -433,16 +412,16 @@ void Application::initialize() {
 
     _resourceManager.create(_renderer, _frameGraph);
 
-    addPass(_presentPass);
-    addPass(_gbufferPass);
-    addPass(_taaPass);
-    addPass(_lightPass);
+    addPass<PresentPass>();
+    addPass<GBufferPass>();
+    addPass<TAAPass>();
+    addPass<LightPass>();
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
-    _resourceManager.loadFrameGraph((appDir / "frame-graphs" / "main.yaml").string());
+    _resourceManager.loadFrameGraph("main");
     check(gerium_frame_graph_compile(_frameGraph));
-    
-    _baseTechnique = _resourceManager.loadTechnique((appDir / "techniques" / "base.yaml").string());
+
+    _baseTechnique = _resourceManager.loadTechnique("base");
 
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);
