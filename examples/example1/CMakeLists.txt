@@ -1,5 +1,13 @@
-file(GLOB GERIUM_EXAMPLE "*.hpp" "*.cpp")
+file(GLOB GERIUM_EXAMPLE
+    "*.hpp" "*.cpp"
+    "services/*.hpp" "services/*.cpp"
+    "passes/*.hpp" "passes/*.cpp"
+    "events/*.hpp" "events/*.cpp"
+    "components/*.hpp" "components/*.cpp")
+file(GLOB GERIUM_EXAMPLE_PROTOS "components/*.proto")
+
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example FILES ${GERIUM_EXAMPLE})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example/components FILES ${GERIUM_EXAMPLE_PROTOS})
 
 include (FetchContent)
 get_filename_component(ASSETS "../khronos-assets" REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
@@ -22,17 +30,20 @@ set(ASSETS_SRC "${assets_SOURCE_DIR}" CACHE STRING "Assets dir")
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
+find_package(CapnProto CONFIG REQUIRED)
+find_package(reflectcpp CONFIG REQUIRED)
 
 if(ANDROID)
-    add_library(example1 SHARED ${GERIUM_EXAMPLE})
+    add_library(example1 SHARED ${GERIUM_EXAMPLE} ${PROTO_SRCS} ${PROTO_HDRS})
 else()
-    add_executable(example1 ${GERIUM_EXAMPLE})
+    add_executable(example1 ${GERIUM_EXAMPLE} ${PROTO_SRCS} ${PROTO_HDRS})
 endif()
 target_link_libraries(example1 PRIVATE gerium::gerium)
 target_link_libraries(example1 PRIVATE yaml-cpp::yaml-cpp)
 target_link_libraries(example1 PRIVATE glm::glm-header-only)
 target_link_libraries(example1 PRIVATE magic_enum::magic_enum)
 target_link_libraries(example1 PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(example1 PRIVATE reflectcpp::reflectcpp)
 target_include_directories(example1 PRIVATE ${Stb_INCLUDE_DIR})
 target_include_directories(example1 PRIVATE ${WYHASH_INCLUDE_DIRS})
 
@@ -59,13 +70,13 @@ elseif(APPLE)
         MACOSX_RPATH ON
         MACOSX_BUNDLE_BUNDLE_NAME "example1"
         MACOSX_BUNDLE_BUNDLE_VERSION 1
-        MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.vladimirshaleev.gerium"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.github.vladimirshaleev.gerium.example1"
         MACOSX_BUNDLE_INFO_STRING "Example 1"
         MACOSX_BUNDLE_LONG_VERSION_STRING "1.0.0"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
         XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@loader_path/Libraries"
         XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
-        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.github.vladimirshaleev.gerium")
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.github.vladimirshaleev.gerium.example1")
 elseif(NOT APPLE)
     target_compile_options(example1 PUBLIC -fno-rtti)
 endif()

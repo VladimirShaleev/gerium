@@ -579,6 +579,9 @@ void LinuxApplication::onExit() noexcept {
     _x11.XSendEvent(_display, _window, False, NoEventMask, &reply);
 }
 
+void LinuxApplication::onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+}
+
 bool LinuxApplication::onIsRunning() const noexcept {
     return _running;
 }
@@ -849,7 +852,6 @@ void LinuxApplication::handleEvent(XEvent& event) {
 
         case GenericEvent:
             if (event.xcookie.extension == _xinput.extension) {
-                auto& io = ImGui::GetIO();
                 switch (event.xcookie.evtype) {
                     case XI_KeyPress:
                     case XI_KeyRelease:
@@ -953,7 +955,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                 }
 
                                 setKeyState(scancode, press);
-                                if (!imguiHandleEvent(e) && !io.WantCaptureKeyboard) {
+                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) && !ImGui::GetIO().WantCaptureKeyboard) {
                                     addEvent(e);
                                 }
                             }
@@ -1019,7 +1021,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
 
                             if (e.mouse.buttons != prevPointer.buttions || e.mouse.wheel_vertical != 0.0f ||
                                 e.mouse.wheel_horizontal != 0.0f) {
-                                if (!imguiHandleEvent(e) && !io.WantCaptureMouse) {
+                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) && !ImGui::GetIO().WantCaptureMouse) {
                                     addEvent(e);
                                 }
                             }
@@ -1055,7 +1057,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                             _x11.XFreeEventData(_display, &event.xcookie);
 
                             if (e.mouse.delta_x != 0 || e.mouse.delta_y != 0) {
-                                if (!imguiHandleEvent(e) && !io.WantCaptureMouse) {
+                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) && !ImGui::GetIO().WantCaptureMouse) {
                                     addEvent(e);
                                 }
                             }
@@ -1114,7 +1116,7 @@ void LinuxApplication::waitActive() {
 bool LinuxApplication::imguiHandleEvent(const gerium_event_t& event) const {
     auto& io = ImGui::GetIO();
 
-    if (ImGui::GetCurrentContext() && !isShowCursor() && !io.WantCaptureMouse) {
+    if (!isShowCursor() && !io.WantCaptureMouse) {
         ImGui::GetIO().AddFocusEvent(false);
     }
 

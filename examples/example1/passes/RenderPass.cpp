@@ -1,5 +1,5 @@
 #include "RenderPass.hpp"
-#include "Application.hpp"
+#include "../services/RenderService.hpp"
 
 RenderPass::RenderPass(const std::string& name) : _name(name) {
 }
@@ -19,16 +19,12 @@ gerium_uint32_t RenderPass::prepare(gerium_frame_graph_t frameGraph,
 void RenderPass::resize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
 }
 
-void RenderPass::setApplication(Application* application) noexcept {
-    _application = application;
+void RenderPass::setRenderService(RenderService* service) noexcept {
+    _service = service;
 }
 
-Application* RenderPass::application() const noexcept {
-    return _application;
-}
-
-Settings& RenderPass::settings() noexcept {
-    return _application->settings();
+RenderService& RenderPass::renderService() noexcept {
+    return *_service;
 }
 
 const std::string& RenderPass::name() const noexcept {

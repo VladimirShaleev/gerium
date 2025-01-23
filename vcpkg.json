@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "gerium",
   "version": "1.0.0",
-  "builtin-baseline": "80d54ff62d528339c626a6fbc3489a7f25956ade",
+  "builtin-baseline": "01be99fec01f777c4113ceea192a45115c69cdb7",
   "dependencies": [
     "mimalloc",
     "cmakerc",
@@ -22,7 +22,7 @@
         "vulkan"
       ]
     },
-
+    
     "nlohmann-json",
     "yaml-cpp",
     "glm",
@@ -30,7 +30,14 @@
     "meshoptimizer",
     "argparse",
     "assimp",
-    "gli"
+    "gli",
+    "capnproto",
+    {
+      "name": "reflectcpp",
+      "features": [
+        "capnproto"
+      ]
+    }
   ],
   "overrides": [
     {

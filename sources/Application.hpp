@@ -52,6 +52,8 @@ public:
 
     void execute(gerium_application_executor_func_t callback, gerium_data_t data) noexcept;
 
+    void showMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept;
+
     bool isRunning() const noexcept;
 
     gerium_uint32_t workerThreadCount() const noexcept;
@@ -95,6 +97,8 @@ private:
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;
+
+    virtual void onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept = 0;
 
     virtual bool onIsRunning() const noexcept = 0;
 

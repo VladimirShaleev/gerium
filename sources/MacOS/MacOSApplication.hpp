@@ -74,6 +74,8 @@ private:
     void onRun() override;
     void onExit() noexcept override;
 
+    void onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept override;
+
     bool onIsRunning() const noexcept override;
 
     void onInitImGui() override;

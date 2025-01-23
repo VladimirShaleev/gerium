@@ -168,6 +168,10 @@ void Application::execute(gerium_application_executor_func_t callback, gerium_da
     });
 }
 
+void Application::showMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+    onShowMessage(title ? title : "Gerium", message ? message : "Unknown message");
+}
+
 bool Application::isRunning() const noexcept {
     return onIsRunning();
 }
@@ -428,4 +432,9 @@ void gerium_application_execute(gerium_application_t application,
     assert(application);
     assert(callback);
     return alias_cast<Application*>(application)->execute(callback, data);
+}
+
+void gerium_application_show_message(gerium_application_t application, gerium_utf8_t title, gerium_utf8_t message) {
+    assert(application);
+    return alias_cast<Application*>(application)->showMessage(title, message);
 }

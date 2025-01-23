@@ -1454,6 +1454,11 @@ gerium_application_execute(gerium_application_t application,
                            gerium_application_executor_func_t callback,
                            gerium_data_t data);
 
+gerium_public void
+gerium_application_show_message(gerium_application_t application,
+                                gerium_utf8_t title,
+                                gerium_utf8_t message);
+
 gerium_public gerium_result_t
 gerium_renderer_create(gerium_application_t application,
                        gerium_feature_flags_t features,

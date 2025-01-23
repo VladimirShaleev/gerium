@@ -888,6 +888,9 @@ void MacOSApplication::onExit() noexcept {
     _exited = true;
 }
 
+void MacOSApplication::onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+}
+
 bool MacOSApplication::onIsRunning() const noexcept {
     return _running;
 }

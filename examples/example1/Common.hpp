@@ -13,6 +13,7 @@
 #include <limits>
 #include <memory>
 #include <queue>
+#include <span>
 #include <string_view>
 
 #include <nlohmann/json.hpp>
@@ -29,12 +30,14 @@
 #define GLM_DEPRECATED [[deprecated]]
 #include <glm/ext.hpp>
 
-#include <stb_image.h>
-
 #include <wyhash.h>
 
 #define MAGIC_ENUM_RANGE_MAX 255
 #include <magic_enum/magic_enum.hpp>
+
+#include <rfl.hpp>
+#include <rfl/capnproto.hpp>
+#include <rfl/json.hpp>
 
 #include "Finally.hpp"
 #include "shaders/common/types.h"
@@ -44,6 +47,13 @@ static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_ui
 inline int typeIdSequence = 0;
 template <typename T>
 inline const int typeId = typeIdSequence++;
+
+constexpr auto debugBuild =
+#ifdef NDEBUG
+    false;
+#else
+    true;
+#endif
 
 inline void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
@@ -104,5 +114,29 @@ inline gerium_float32_t radicalInverseBase2(gerium_uint32_t bits) noexcept {
 inline glm::vec2 hammersley(gerium_sint32_t index, gerium_sint32_t numSamples) noexcept {
     return { gerium_float32_t(index) / numSamples, radicalInverseBase2(gerium_uint32_t(index)) };
 }
+
+class NonCopyable {
+public:
+    constexpr NonCopyable() = default;
+    ~NonCopyable()          = default;
+
+protected:
+    NonCopyable(NonCopyable&&)            = default;
+    NonCopyable& operator=(NonCopyable&&) = default;
+
+private:
+    NonCopyable(const NonCopyable&)      = delete;
+    NonCopyable& operator=(NonCopyable&) = delete;
+};
+
+class NonMovable : NonCopyable {
+protected:
+    constexpr NonMovable() = default;
+    ~NonMovable()          = default;
+
+private:
+    NonMovable(NonMovable&&)            = delete;
+    NonMovable& operator=(NonMovable&&) = delete;
+};
 
 #endif

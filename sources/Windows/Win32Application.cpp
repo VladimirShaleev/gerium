@@ -420,6 +420,12 @@ void Win32Application::onExit() noexcept {
     }
 }
 
+void Win32Application::onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+    auto wTitle   = wideString(title);
+    auto wMessage = wideString(message);
+    MessageBoxW(_hWnd, wMessage.c_str(), wTitle.c_str(), MB_OK);
+}
+
 bool Win32Application::onIsRunning() const noexcept {
     return _running;
 }
@@ -608,7 +614,7 @@ void Win32Application::inputThread() noexcept {
 }
 
 void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
-    auto& io = ImGui::GetIO();
+    auto io = ImGui::GetCurrentContext() ? &ImGui::GetIO() : nullptr;
 
     wchar_t keyName[5] = {};
     BYTE keyState[256]{};
@@ -703,7 +709,7 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
 
                         setKeyState(scanCode, !keyUp);
 
-                        if (!io.WantCaptureKeyboard || !isShowCursor()) {
+                        if ((io && !io->WantCaptureKeyboard) || !isShowCursor()) {
                             addEvent(event);
                         }
                     }
@@ -801,7 +807,7 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                     hasChanges = true;
                 }
 
-                if (hasChanges && (!io.WantCaptureMouse || !isShowCursor())) {
+                if (hasChanges && ((io && !io->WantCaptureMouse) || !isShowCursor())) {
                     addEvent(event);
                 }
             }

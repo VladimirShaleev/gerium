@@ -291,6 +291,9 @@ void AndroidApplication::onExit() noexcept {
     ANativeActivity_finish(_application->activity);
 }
 
+void AndroidApplication::onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+}
+
 bool AndroidApplication::onIsRunning() const noexcept {
     return _initialized;
 }

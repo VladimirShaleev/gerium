@@ -1,12 +1,12 @@
 #ifndef RENDER_PASS_HPP
 #define RENDER_PASS_HPP
 
-#include "Common.hpp"
+#include "../Common.hpp"
+#include "../services/RenderService.hpp"
 
-class Application;
-class Settings;
+class RenderService;
 
-class RenderPass {
+class RenderPass : NonMovable {
 public:
     explicit RenderPass(const std::string& name);
 
@@ -25,14 +25,13 @@ public:
                         gerium_uint32_t worker,
                         gerium_uint32_t totalWorkers) = 0;
 
-    void setApplication(Application* application) noexcept;
-    Application* application() const noexcept;
-    Settings& settings() noexcept;
+    void setRenderService(RenderService* service) noexcept;
+    RenderService& renderService() noexcept;
 
     const std::string& name() const noexcept;
 
 private:
-    Application* _application{};
+    RenderService* _service{};
     const std::string _name;
 };
 
