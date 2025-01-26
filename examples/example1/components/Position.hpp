@@ -4,10 +4,7 @@
 #include "../Common.hpp"
 
 struct Position {
-    float x;
-    float y;
-    float z;
-    float w;
+    float x, y, z, w;
 };
 
 #endif

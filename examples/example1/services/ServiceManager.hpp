@@ -2,6 +2,7 @@
 #define SERVICE_MANAGER_HPP
 
 #include "../Common.hpp"
+#include "../components/ECS.hpp"
 #include "../events/EventManager.hpp"
 
 class Application;
@@ -19,6 +20,9 @@ public:
 
     EventManager& eventManager() noexcept;
     const EventManager& eventManager() const noexcept;
+
+    EntityManager& entityManager() noexcept;
+    const EntityManager& entityManager() const noexcept;
 
     bool isStopped() const noexcept;
 

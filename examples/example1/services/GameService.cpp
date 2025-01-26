@@ -2,33 +2,28 @@
 #include "../Application.hpp"
 #include "../components/Position.hpp"
 
-GameObject* GameService::createObject(std::string name) {
-    if (_objects.contains(name)) {
-        throw std::runtime_error("GameObject with name \"" + name + "\" already exists");
-    }
-    auto obj       = std::make_unique<GameObject>(std::move(name), &application());
-    auto result    = obj.get();
-    _objects[name] = std::move(obj);
-    return result;
-}
-
 void GameService::start() {
-    auto obj = createObject("test");
+    auto obj1 = entityManager().createEntity("test1");
+    auto obj2 = entityManager().createEntity("test2");
 
-    obj->addComponent<Position>();
+    auto& pos = entityManager().addComponent<Position>(obj2);
+    pos.x     = 2.0f;
+    pos.y     = 3.0f;
+    pos.z     = 0.0f;
+    pos.w     = 1.0f;
 
-    auto& pos = obj->getComponent<Position>();
+    auto data = entityManager().serialize();
 
-    pos.x = 2.0f;
-    pos.y = 3.0f;
-    pos.w = 1.0f;
+    entityManager().destroyEntity(obj2);
+    entityManager().destroyEntity(obj1);
 
-    const std::string result = rfl::json::write(pos);
-    const std::vector<char> bytes = rfl::capnproto::write(pos);
+    entityManager().deserialize(data);
 
-    auto test = rfl::capnproto::read<Position>(bytes).value();
+    obj1 = entityManager().getEntity("test1");
+    obj2 = entityManager().getEntity("test2");
 
-    gerium_logger_print(application().logger(), GERIUM_LOGGER_LEVEL_INFO, result.c_str());
+    auto& p1 = entityManager().getComponent<Position>(obj2);
+    auto a   = p1;
 }
 
 void GameService::stop() {

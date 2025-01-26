@@ -1,4 +1,5 @@
 #include "Application.hpp"
+#include "components/Position.hpp"
 #include "events/WindowStateEvent.hpp"
 #include "services/GameService.hpp"
 #include "services/InputService.hpp"
@@ -47,6 +48,7 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
 }
 
 void Application::initialize() {
+    _entityManager.registerComponent<Position>();
     _serviceManager.create(this);
     _serviceManager.addService<TimeService>();
     _serviceManager.addService<InputService>();

@@ -48,7 +48,7 @@ CMRC_DECLARE(gerium::resources);
 #define CTRE_STRING_IS_UTF8
 #include <absl/container/flat_hash_map.h>
 #include <ctre.hpp>
-#include <wyhash.h>
+#include <rapidhash.h>
 
 // Vulkan
 #if defined(GERIUM_PLATFORM_WINDOWS)
@@ -153,21 +153,21 @@ gerium_inline AliasedType alias_cast(Type ptr) noexcept {
     return result;
 }
 
-gerium_inline gerium_uint64_t hash(std::string_view str, gerium_uint64_t seed = 0) noexcept {
-    return wyhash(str.data(), str.length(), seed, _wyp);
+gerium_inline gerium_uint64_t hash(std::string_view str, gerium_uint64_t seed = RAPID_SEED) noexcept {
+    return rapidhash_withSeed(str.data(), str.length(), seed);
 }
 
-gerium_inline gerium_uint64_t hash(gerium_utf8_t str, gerium_uint64_t seed = 0) noexcept {
-    return wyhash(str, strlen(str), seed, _wyp);
+gerium_inline gerium_uint64_t hash(gerium_utf8_t str, gerium_uint64_t seed = RAPID_SEED) noexcept {
+    return rapidhash_withSeed(str, strlen(str), seed);
 }
 
 template <typename T>
-gerium_inline gerium_uint64_t hash(const T& data, gerium_uint64_t seed = 0) noexcept {
-    return wyhash(&data, sizeof(T), seed, _wyp);
+gerium_inline gerium_uint64_t hash(const T& data, gerium_uint64_t seed = RAPID_SEED) noexcept {
+    return rapidhash_withSeed(&data, sizeof(T), seed);
 }
 
-gerium_inline gerium_uint64_t hash(gerium_cdata_t data, gerium_uint32_t size, gerium_uint64_t seed = 0) noexcept {
-    return wyhash(data, size, seed, _wyp);
+gerium_inline gerium_uint64_t hash(gerium_cdata_t data, gerium_uint32_t size, gerium_uint64_t seed = RAPID_SEED) noexcept {
+    return rapidhash_withSeed(data, size, seed);
 }
 
 gerium_inline gerium_uint32_t align(gerium_uint32_t size, gerium_uint32_t alignment) noexcept {

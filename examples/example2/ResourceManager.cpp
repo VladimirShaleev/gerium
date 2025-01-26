@@ -224,7 +224,7 @@ DescriptorSet ResourceManager::getDescriptorSetByName(const std::string& name) {
 
 gerium_uint64_t ResourceManager::calcKey(const std::string& str, Type type) noexcept {
     if (str.length()) {
-        return wyhash(str.c_str(), str.length(), (uint64_t) type, _wyp);
+        return rapidhash_withSeed(str.c_str(), str.length(), (uint64_t) type);
     }
     return 0;
 }

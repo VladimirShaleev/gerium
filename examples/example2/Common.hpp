@@ -29,7 +29,7 @@
 #include <glm/ext.hpp>
 #include <glm/gtc/type_precision.hpp>
 
-#include <wyhash.h>
+#include <rapidhash.h>
 
 #define MAGIC_ENUM_RANGE_MAX 255
 #include <magic_enum/magic_enum.hpp>

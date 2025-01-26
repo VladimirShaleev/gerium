@@ -17,7 +17,7 @@ void ResourceManager::update(gerium_uint64_t elapsedMs) {
 
     std::vector<gerium_uint64_t> deleteQueue;
     for (auto it = _resources.begin(); it != _resources.end(); ++it) {
-        if (it->second.reference == 0) {
+        if (it->second.references == 0) {
             if (_ticks - it->second.lastTick >= it->second.retentionMs) {
                 switch (it->second.type) {
                     case TextureType:
@@ -224,7 +224,7 @@ DescriptorSet ResourceManager::getDescriptorSetByName(const std::string& name) {
 
 gerium_uint64_t ResourceManager::calcKey(const std::string& str, Type type) noexcept {
     if (str.length()) {
-        return wyhash(str.c_str(), str.length(), (uint64_t) type, _wyp);
+        return rapidhash_withSeed(str.c_str(), str.length(), (uint64_t) type);
     }
     return 0;
 }

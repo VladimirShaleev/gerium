@@ -25,6 +25,14 @@ const EventManager& Service::eventManager() const noexcept {
     return application().eventManager();
 }
 
+EntityManager& Service::entityManager() noexcept {
+    return application().entityManager();
+}
+
+const EntityManager& Service::entityManager() const noexcept {
+    return application().entityManager();
+}
+
 bool Service::isStopped() const noexcept {
     return _started == 0;
 }

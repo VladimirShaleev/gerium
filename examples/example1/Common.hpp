@@ -30,7 +30,7 @@
 #define GLM_DEPRECATED [[deprecated]]
 #include <glm/ext.hpp>
 
-#include <wyhash.h>
+#include <rapidhash.h>
 
 #define MAGIC_ENUM_RANGE_MAX 255
 #include <magic_enum/magic_enum.hpp>
@@ -48,7 +48,7 @@ inline int typeIdSequence = 0;
 template <typename T>
 inline const int typeId = typeIdSequence++;
 
-constexpr auto debugBuild =
+static constexpr auto debugBuild =
 #ifdef NDEBUG
     false;
 #else

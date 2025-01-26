@@ -125,10 +125,10 @@ private:
     template <typename T>
     friend class Resource;
 
-    struct Resource {
+    struct ResourceData {
         Type type;
         gerium_uint16_t handle;
-        gerium_uint16_t reference;
+        gerium_uint16_t references;
         gerium_uint64_t path;
         gerium_uint64_t name;
         gerium_uint64_t lastTick;
@@ -136,7 +136,7 @@ private:
     };
 
     template <typename H>
-    ::Resource<H> getResourceByPath(const std::string& path) noexcept {
+    Resource<H> getResourceByPath(const std::string& path) noexcept {
         if (path.length()) {
             if (auto it = _pathes.find(calcKey(path, HandleToType<H>::type)); it != _pathes.end()) {
                 return { this, H{ it->second->handle } };
@@ -146,7 +146,7 @@ private:
     }
 
     template <typename H>
-    ::Resource<H> getResourceByName(const std::string& name) noexcept {
+    Resource<H> getResourceByName(const std::string& name) noexcept {
         if (name.length()) {
             if (auto it = _names.find(calcKey(name, HandleToType<H>::type)); it != _names.end()) {
                 return { this, H{ it->second->handle } };
@@ -162,7 +162,7 @@ private:
         auto& resource       = _resources[key];
         resource.type        = HandleToType<H>::type;
         resource.handle      = handle.index;
-        resource.reference   = 0;
+        resource.references  = 0;
         resource.path        = 0;
         resource.name        = 0;
         resource.lastTick    = _ticks;
@@ -185,18 +185,18 @@ private:
     }
 
     template <typename H>
-    void reference(const ::Resource<H>& ref) noexcept {
+    void reference(const Resource<H>& ref) noexcept {
         const H handle = ref;
         if (auto it = _resources.find(calcHandleKey(handle)); it != _resources.end()) {
-            ++it->second.reference;
+            ++it->second.references;
         }
     }
 
     template <typename H>
-    void destroy(const ::Resource<H>& ref) noexcept {
+    void destroy(const Resource<H>& ref) noexcept {
         const H handle = ref;
         if (auto it = _resources.find(calcHandleKey(handle)); it != _resources.end()) {
-            --it->second.reference;
+            --it->second.references;
             it->second.lastTick = _ticks;
         }
     }
@@ -216,9 +216,9 @@ private:
     gerium_renderer_t _renderer{};
     gerium_frame_graph_t _frameGraph{};
     gerium_uint64_t _ticks{};
-    std::map<gerium_uint32_t, Resource> _resources;
-    std::map<gerium_uint64_t, Resource*> _pathes;
-    std::map<gerium_uint64_t, Resource*> _names;
+    std::map<gerium_uint32_t, ResourceData> _resources;
+    std::map<gerium_uint64_t, ResourceData*> _pathes;
+    std::map<gerium_uint64_t, ResourceData*> _names;
 };
 
 template <typename T>
