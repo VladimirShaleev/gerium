@@ -1245,7 +1245,7 @@ void LinuxApplication::calcDensity() {
 
     _dpi           = scale * 96.0f;
     _density       = scale;
-    _scaledDensity = scaledDensity;
+    _scaledDensity = scale * scaledDensity;
 }
 
 void LinuxApplication::error(gerium_result_t error, const std::string_view message, bool throwError) {
