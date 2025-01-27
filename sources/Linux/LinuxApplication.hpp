@@ -47,8 +47,9 @@ private:
 
     void onShowCursor(bool show) noexcept override;
 
+    gerium_float32_t onGetDPI() const noexcept override;
     gerium_float32_t onGetDensity() const noexcept override;
-    gerium_float32_t onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept override;
+    gerium_float32_t onGetScaledDensity() const noexcept override;
 
     void onRun() override;
     void onExit() noexcept override;

@@ -124,7 +124,23 @@ gerium_float32_t Application::getDensity() const noexcept {
 }
 
 gerium_float32_t Application::getDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept {
-    return onGetDimension(unit, value);
+    switch (unit) {
+        case GERIUM_DIMENSION_UNIT_PX:
+            return value;
+        case GERIUM_DIMENSION_UNIT_MM:
+            return value * onGetDPI() * kInchesPerMm;
+        case GERIUM_DIMENSION_UNIT_DIP:
+            return value * onGetDensity();
+        case GERIUM_DIMENSION_UNIT_SP:
+            return value * onGetScaledDensity();
+        case GERIUM_DIMENSION_UNIT_PT:
+            return value * onGetDPI() * kInchesPerPt;
+        case GERIUM_DIMENSION_UNIT_IN:
+            return value * onGetDPI();
+        default:
+            assert(!"unreachable code");
+            return 0.0f;
+    }
 }
 
 void Application::run() {

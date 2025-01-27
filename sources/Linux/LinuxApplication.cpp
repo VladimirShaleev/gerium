@@ -529,28 +529,16 @@ void LinuxApplication::onShowCursor(bool show) noexcept {
     }
 }
 
+gerium_float32_t LinuxApplication::onGetDPI() const noexcept {
+    return _dpi;
+}
+
 gerium_float32_t LinuxApplication::onGetDensity() const noexcept {
     return _density;
 }
 
-gerium_float32_t LinuxApplication::onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept {
-    switch (unit) {
-        case GERIUM_DIMENSION_UNIT_PX:
-            return value;
-        case GERIUM_DIMENSION_UNIT_MM:
-            return value * _dpi * kInchesPerMm;
-        case GERIUM_DIMENSION_UNIT_DIP:
-            return value * _density;
-        case GERIUM_DIMENSION_UNIT_SP:
-            return value * _scaledDensity;
-        case GERIUM_DIMENSION_UNIT_PT:
-            return value * _dpi * kInchesPerPt;
-        case GERIUM_DIMENSION_UNIT_IN:
-            return value * _dpi;
-        default:
-            assert(!"unreachable code");
-            return 0.0f;
-    }
+gerium_float32_t LinuxApplication::onGetScaledDensity() const noexcept {
+    return _scaledDensity;
 }
 
 void LinuxApplication::onRun() {
