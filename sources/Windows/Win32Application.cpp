@@ -374,28 +374,61 @@ void Win32Application::onShowCursor(bool show) noexcept {
     captureCursor(!show);
 }
 
-gerium_float32_t Win32Application::onGetDensity() const noexcept {
-    return dpi() / USER_DEFAULT_SCREEN_DPI;
+gerium_float32_t Win32Application::onGetDPI() const noexcept {
+    if (_needUpdateDPI) {
+        int dpi{};
+        typedef decltype(&::GetDpiForMonitor) PFN_GetDpiForMonitor;
+
+        static auto shcore = LoadLibraryW(L"shcore.dll");
+        static auto GetDpiForMonitorPtr =
+            shcore ? (PFN_GetDpiForMonitor) GetProcAddress(shcore, "GetDpiForMonitor") : nullptr;
+
+        UINT dpiX, dpiY;
+        if (GetDpiForMonitorPtr) {
+            auto monitor = _hMonitor ? _hMonitor : MonitorFromWindow(_hWnd, MONITOR_DEFAULTTONEAREST);
+            auto dpiType = onIsFullscreen() ? MDT_RAW_DPI : MDT_EFFECTIVE_DPI;
+            if (GetDpiForMonitorPtr(monitor, dpiType, &dpiX, &dpiY) == S_OK) {
+                dpi = (int) dpiX;
+            }
+        }
+        if (dpi == 0) {
+            auto hdc = GetDC(nullptr);
+
+            dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+            ReleaseDC(nullptr, hdc);
+        }
+        _dpi           = gerium_float32_t(dpi);
+        _needUpdateDPI = false;
+    }
+    return _dpi;
 }
 
-gerium_float32_t Win32Application::onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept {
-    switch (unit) {
-        case GERIUM_DIMENSION_UNIT_PX:
-            return value;
-        case GERIUM_DIMENSION_UNIT_MM:
-            return value * dpi() * kInchesPerMm;
-        case GERIUM_DIMENSION_UNIT_DIP:
-            return value * onGetDensity();
-        case GERIUM_DIMENSION_UNIT_SP:
-            return value * scaledDensity();
-        case GERIUM_DIMENSION_UNIT_PT:
-            return value * dpi() * kInchesPerPt;
-        case GERIUM_DIMENSION_UNIT_IN:
-            return value * dpi();
-        default:
-            assert(!"unreachable code");
-            return 0.0f;
+gerium_float32_t Win32Application::onGetDensity() const noexcept {
+    return onGetDPI() / USER_DEFAULT_SCREEN_DPI;
+}
+
+gerium_float32_t Win32Application::onGetScaledDensity() const noexcept {
+    constexpr auto standardHeight = 12;
+
+    if (_needUpdateScaledDensity) {
+        auto scale = 1.0f;
+        HKEY hKey;
+        const auto subkey    = L"Software\\Microsoft\\Accessibility";
+        const auto valueName = L"TextScaleFactor";
+        if (RegOpenKeyEx(HKEY_CURRENT_USER, subkey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            DWORD data;
+            DWORD dataSize = sizeof(data);
+            if (RegQueryValueEx(hKey, valueName, nullptr, nullptr, reinterpret_cast<BYTE*>(&data), &dataSize) ==
+                ERROR_SUCCESS) {
+                scale = gerium_float32_t(data) / 100.0f;
+            }
+            RegCloseKey(hKey);
+        }
+
+        _scaledDensity           = onGetDensity() * scale;
+        _needUpdateScaledDensity = false;
     }
+    return _scaledDensity;
 }
 
 void Win32Application::onRun() {
@@ -1047,59 +1080,6 @@ void Win32Application::captureCursor(bool capture) noexcept {
         ClipCursor(nullptr);
         ReleaseCapture();
     }
-}
-
-gerium_float32_t Win32Application::dpi() const noexcept {
-    if (_needUpdateDPI) {
-        int dpi{};
-        typedef decltype(&::GetDpiForMonitor) PFN_GetDpiForMonitor;
-
-        static auto shcore = LoadLibraryW(L"shcore.dll");
-        static auto GetDpiForMonitorPtr =
-            shcore ? (PFN_GetDpiForMonitor) GetProcAddress(shcore, "GetDpiForMonitor") : nullptr;
-
-        UINT dpiX, dpiY;
-        if (GetDpiForMonitorPtr) {
-            auto monitor = _hMonitor ? _hMonitor : MonitorFromWindow(_hWnd, MONITOR_DEFAULTTONEAREST);
-            auto dpiType = onIsFullscreen() ? MDT_RAW_DPI : MDT_EFFECTIVE_DPI;
-            if (GetDpiForMonitorPtr(monitor, dpiType, &dpiX, &dpiY) == S_OK) {
-                dpi = (int) dpiX;
-            }
-        }
-        if (dpi == 0) {
-            auto hdc = GetDC(nullptr);
-
-            dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-            ReleaseDC(nullptr, hdc);
-        }
-        _dpi           = gerium_float32_t(dpi);
-        _needUpdateDPI = false;
-    }
-    return _dpi;
-}
-
-gerium_float32_t Win32Application::scaledDensity() const noexcept {
-    constexpr auto standardHeight = 12;
-
-    if (_needUpdateScaledDensity) {
-        auto scale = 1.0f;
-        HKEY hKey;
-        const auto subkey    = L"Software\\Microsoft\\Accessibility";
-        const auto valueName = L"TextScaleFactor";
-        if (RegOpenKeyEx(HKEY_CURRENT_USER, subkey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-            DWORD data;
-            DWORD dataSize = sizeof(data);
-            if (RegQueryValueEx(hKey, valueName, nullptr, nullptr, reinterpret_cast<BYTE*>(&data), &dataSize) ==
-                ERROR_SUCCESS) {
-                scale = gerium_float32_t(data) / 100.0f;
-            }
-            RegCloseKey(hKey);
-        }
-
-        _scaledDensity           = onGetDensity() * scale;
-        _needUpdateScaledDensity = false;
-    }
-    return _scaledDensity;
 }
 
 bool Win32Application::waitInBackground(LPMSG pMsg) {

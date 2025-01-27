@@ -43,8 +43,9 @@ private:
 
     void onShowCursor(bool show) noexcept override;
 
-    gerium_float32_t onGetDensity() const noexcept override;
-    gerium_float32_t onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept override;
+    virtual gerium_float32_t onGetDPI() const noexcept override;
+    virtual gerium_float32_t onGetDensity() const noexcept override;
+    virtual gerium_float32_t onGetScaledDensity() const noexcept override;
 
     void onRun() override;
     void onExit() noexcept override;
@@ -76,8 +77,6 @@ private:
     void closeInputThread();
 
     void captureCursor(bool capture) noexcept;
-    gerium_float32_t dpi() const noexcept;
-    gerium_float32_t scaledDensity() const noexcept;
 
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);
