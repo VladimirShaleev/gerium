@@ -71,6 +71,10 @@ private:
 
     void onShowCursor(bool show) noexcept override;
 
+    gerium_float32_t onGetDPI() const noexcept override;
+    gerium_float32_t onGetDensity() const noexcept override;
+    gerium_float32_t onGetScaledDensity() const noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
@@ -97,6 +101,7 @@ private:
     bool _startFullscreen                      = false;
     gerium_uint32_t _display                   = std::numeric_limits<gerium_uint32_t>::max();
     std::optional<gerium_display_mode_t> _mode = {};
+    float _dpi                                 = 72.0f;
     float _scale                               = 1.0f;
     float _invScale                            = 1.0f;
     gerium_uint16_t _newMinWidth               = std::numeric_limits<gerium_uint16_t>::max();

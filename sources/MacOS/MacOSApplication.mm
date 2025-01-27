@@ -532,6 +532,7 @@ MacOSApplication::MacOSApplication(gerium_utf8_t title, gerium_uint32_t width, g
 
         viewController.window = window;
         _scale                = window.backingScaleFactor;
+        _dpi                  = _scale * 72.0f;
         _invScale             = 1.0f / _scale;
         _viewController       = CFRetain((__bridge void*) viewController);
         _view                 = CFRetain((__bridge void*) view);
@@ -724,6 +725,14 @@ void MacOSApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
                         }
                     }
                 }
+                
+                auto screen = [NSScreen mainScreen];
+                auto description = [screen deviceDescription];
+                auto displayPixelSize = [[description objectForKey:NSDeviceSize] sizeValue];
+                auto displayPhysicalSize = CGDisplayScreenSize([[description objectForKey:@"NSScreenNumber"] unsignedIntValue]);
+                _dpi = displayPixelSize.width / displayPhysicalSize.width * 25.4f;
+            } else {
+                _dpi = _scale * 72.0f;
             }
             [controller.window toggleFullScreen:controller];
         }
@@ -858,6 +867,18 @@ void MacOSApplication::onShowCursor(bool show) noexcept {
     } else {
         [NSCursor hide];
     }
+}
+
+gerium_float32_t MacOSApplication::onGetDPI() const noexcept {
+    return _dpi;
+}
+
+gerium_float32_t MacOSApplication::onGetDensity() const noexcept {
+    return _scale;
+}
+
+gerium_float32_t MacOSApplication::onGetScaledDensity() const noexcept {
+    return _scale;
 }
 
 void MacOSApplication::onRun() {

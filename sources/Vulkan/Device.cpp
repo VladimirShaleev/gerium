@@ -2117,13 +2117,20 @@ void Device::createImGui(Application* application) {
     auto fs       = cmrc::gerium::resources::get_filesystem();
     auto font     = fs.open("resources/OpenSans-Regular.ttf");
     auto fontSize = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 16.0f);
+    auto scale    = application->getDensity();
+    
+#ifdef GERIUM_PLATFORM_MAC_OS
+    auto fontScale = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 1.0f) / application->getDimension(GERIUM_DIMENSION_UNIT_DIP, 1.0f);
+    fontSize = 16.0f * fontScale;
+    scale    = 1.0f;
+#endif
 
     auto dataFont = IM_ALLOC(font.size());
     memcpy(dataFont, (void*) font.begin(), font.size());
     ImFontConfig config{};
     config.RasterizerDensity = application->getDensity();
     io.Fonts->AddFontFromMemoryTTF(dataFont, (int) font.size(), fontSize, &config);
-    ImGui::GetStyle().ScaleAllSizes(application->getDensity());
+    ImGui::GetStyle().ScaleAllSizes(scale);
     ImGui_ImplVulkan_CreateFontsTexture();
 }
 
