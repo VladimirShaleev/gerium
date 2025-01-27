@@ -205,6 +205,10 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                     draw_list->AddText({ x + 12, y }, 0xffffffff, buf);
 
                     y += fontSize;
+
+                    if (y > cursor_pos.y + widget_height) {
+                        break;
+                    }
                 }
             }
 
