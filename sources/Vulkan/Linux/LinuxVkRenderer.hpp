@@ -11,7 +11,7 @@ public:
     explicit LinuxVkRenderer(gerium::Application* application);
 
 protected:
-    void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) override;
+    void onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) override;
 };
 
 } // namespace gerium::vulkan::linux

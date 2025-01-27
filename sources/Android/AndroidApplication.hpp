@@ -16,9 +16,6 @@ public:
     static android_app* instance() noexcept;
 
 private:
-    static constexpr gerium_float32_t kInchesPerMm = 1.0f / 25.4f;
-    static constexpr gerium_float32_t kInchesPerPt = 1.0f / 72.0f;
-
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
     void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const override;

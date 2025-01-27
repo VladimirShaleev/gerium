@@ -180,6 +180,8 @@ LinuxApplication::LinuxApplication(gerium_utf8_t title, gerium_uint32_t width, g
 
     _xinput.XISelectEvents(_display, _window, &xiMask, 1);
     _x11.XSync(_display, False);
+
+    calcDensity();
 }
 
 LinuxApplication::~LinuxApplication() {
@@ -353,7 +355,7 @@ void LinuxApplication::onFullscreen(bool fullscreen, gerium_uint32_t displayId, 
 
         _x11.XFlush(_display);
         // TODO:
-        //   It is not yet clear how to correctly switch from full-screen mode to 
+        //   It is not yet clear how to correctly switch from full-screen mode to
         //   windowed mode with the restoration of window decoders without this
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         onSetStyle(_styles);
@@ -524,6 +526,30 @@ void LinuxApplication::onShowCursor(bool show) noexcept {
                           _window,
                           None,
                           CurrentTime);
+    }
+}
+
+gerium_float32_t LinuxApplication::onGetDensity() const noexcept {
+    return _density;
+}
+
+gerium_float32_t LinuxApplication::onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept {
+    switch (unit) {
+        case GERIUM_DIMENSION_UNIT_PX:
+            return value;
+        case GERIUM_DIMENSION_UNIT_MM:
+            return value * _dpi * kInchesPerMm;
+        case GERIUM_DIMENSION_UNIT_DIP:
+            return value * _density;
+        case GERIUM_DIMENSION_UNIT_SP:
+            return value * _scaledDensity;
+        case GERIUM_DIMENSION_UNIT_PT:
+            return value * _dpi * kInchesPerPt;
+        case GERIUM_DIMENSION_UNIT_IN:
+            return value * _dpi;
+        default:
+            assert(!"unreachable code");
+            return 0.0f;
     }
 }
 
@@ -955,7 +981,8 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                 }
 
                                 setKeyState(scancode, press);
-                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) && !ImGui::GetIO().WantCaptureKeyboard) {
+                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) &&
+                                    !ImGui::GetIO().WantCaptureKeyboard) {
                                     addEvent(e);
                                 }
                             }
@@ -1021,7 +1048,8 @@ void LinuxApplication::handleEvent(XEvent& event) {
 
                             if (e.mouse.buttons != prevPointer.buttions || e.mouse.wheel_vertical != 0.0f ||
                                 e.mouse.wheel_horizontal != 0.0f) {
-                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) && !ImGui::GetIO().WantCaptureMouse) {
+                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) &&
+                                    !ImGui::GetIO().WantCaptureMouse) {
                                     addEvent(e);
                                 }
                             }
@@ -1057,7 +1085,8 @@ void LinuxApplication::handleEvent(XEvent& event) {
                             _x11.XFreeEventData(_display, &event.xcookie);
 
                             if (e.mouse.delta_x != 0 || e.mouse.delta_y != 0) {
-                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) && !ImGui::GetIO().WantCaptureMouse) {
+                                if (ImGui::GetCurrentContext() && !imguiHandleEvent(e) &&
+                                    !ImGui::GetIO().WantCaptureMouse) {
                                     addEvent(e);
                                 }
                             }
@@ -1173,6 +1202,52 @@ bool LinuxApplication::imguiHandleEvent(const gerium_event_t& event) const {
     return false;
 }
 
+void LinuxApplication::calcDensity() {
+    gerium_float32_t scale         = 0.0f;
+    gerium_float32_t scaledDensity = 1.0f;
+    if (auto sdlScale = getenv("SDL_VIDEO_X11_SCALING_FACTOR")) {
+        auto value = std::atof(sdlScale);
+        if (value >= 1.0f && value <= 10.0f) {
+            scale = value;
+        }
+    }
+    if (scale == 0.0f) {
+        _x11.XrmInitialize();
+        if (auto resourceManager = _x11.XResourceManagerString(_display)) {
+            XrmValue value;
+            char* type;
+            auto db = _x11.XrmGetStringDatabase(resourceManager);
+            if (_x11.XrmGetResource(db, "Xft.dpi", "String", &type, &value)) {
+                if (value.addr && type && strcmp(type, "String") == 0) {
+                    auto dpi = gerium_float32_t(std::atoi(value.addr));
+                    scale    = dpi / 96.0f;
+                }
+            }
+            _x11.XrmDestroyDatabase(db);
+        }
+    }
+    if (scale == 0.0f) {
+        if (auto gdkScale = getenv("GDK_SCALE")) {
+            auto value = std::atof(gdkScale);
+            if (value >= 1.0f && value <= 10.0f) {
+                scale = value;
+            }
+        }
+    }
+    if (scale == 0.0f) {
+        scale = 1.0f;
+    }
+
+    if (auto gdkScaledDensity = getenv("GDK_DPI_SCALE")) {
+        auto value    = std::atof(gdkScaledDensity);
+        scaledDensity = value;
+    }
+
+    _dpi           = scale * 96.0f;
+    _density       = scale;
+    _scaledDensity = scaledDensity;
+}
+
 void LinuxApplication::error(gerium_result_t error, const std::string_view message, bool throwError) {
     if (_errorCode != Success) {
         char buffer[512];
@@ -1264,6 +1339,11 @@ LinuxApplication::X11Table::X11Table() {
     XQueryExtension        = (PFN_XQueryExtension) dlsym(dll, "XQueryExtension");
     XRaiseWindow           = (PFN_XRaiseWindow) dlsym(dll, "XRaiseWindow");
     XResizeWindow          = (PFN_XResizeWindow) dlsym(dll, "XResizeWindow");
+    XResourceManagerString = (PFN_XResourceManagerString) dlsym(dll, "XResourceManagerString");
+    XrmDestroyDatabase     = (PFN_XrmDestroyDatabase) dlsym(dll, "XrmDestroyDatabase");
+    XrmGetResource         = (PFN_XrmGetResource) dlsym(dll, "XrmGetResource");
+    XrmGetStringDatabase   = (PFN_XrmGetStringDatabase) dlsym(dll, "XrmGetStringDatabase");
+    XrmInitialize          = (PFN_XrmInitialize) dlsym(dll, "XrmInitialize");
     XrmUniqueQuark         = (PFN_XrmUniqueQuark) dlsym(dll, "XrmUniqueQuark");
     XSaveContext           = (PFN_XSaveContext) dlsym(dll, "XSaveContext");
     XSelectInput           = (PFN_XSelectInput) dlsym(dll, "XSelectInput");

@@ -66,6 +66,9 @@ public:
     void newFrameImGui();
 
 protected:
+    static constexpr gerium_float32_t kInchesPerMm = 1.0f / 25.4f;
+    static constexpr gerium_float32_t kInchesPerPt = 1.0f / 72.0f;
+    
     gerium_application_state_t currentState() const noexcept;
     gerium_bool_t callbackStateFailed() const noexcept;
     void changeState(gerium_application_state_t newState, bool noThrow = false);

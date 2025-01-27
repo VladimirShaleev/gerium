@@ -47,6 +47,9 @@ private:
 
     void onShowCursor(bool show) noexcept override;
 
+    gerium_float32_t onGetDensity() const noexcept override;
+    gerium_float32_t onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept override;
+
     void onRun() override;
     void onExit() noexcept override;
 
@@ -108,6 +111,8 @@ private:
     void waitActive();
 
     bool imguiHandleEvent(const gerium_event_t& event) const;
+
+    void calcDensity();
 
     void error(gerium_result_t error, const std::string_view message, bool throwError = false);
 
@@ -175,6 +180,11 @@ private:
         typedef decltype(&::XQueryExtension) PFN_XQueryExtension;
         typedef decltype(&::XRaiseWindow) PFN_XRaiseWindow;
         typedef decltype(&::XResizeWindow) PFN_XResizeWindow;
+        typedef decltype(&::XResourceManagerString) PFN_XResourceManagerString;
+        typedef decltype(&::XrmDestroyDatabase) PFN_XrmDestroyDatabase;
+        typedef decltype(&::XrmGetResource) PFN_XrmGetResource;
+        typedef decltype(&::XrmGetStringDatabase) PFN_XrmGetStringDatabase;
+        typedef decltype(&::XrmInitialize) PFN_XrmInitialize;
         typedef decltype(&::XrmUniqueQuark) PFN_XrmUniqueQuark;
         typedef decltype(&::XSaveContext) PFN_XSaveContext;
         typedef decltype(&::XSelectInput) PFN_XSelectInput;
@@ -232,6 +242,11 @@ private:
         PFN_XQueryExtension XQueryExtension;
         PFN_XRaiseWindow XRaiseWindow;
         PFN_XResizeWindow XResizeWindow;
+        PFN_XResourceManagerString XResourceManagerString;
+        PFN_XrmDestroyDatabase XrmDestroyDatabase;
+        PFN_XrmGetResource XrmGetResource;
+        PFN_XrmGetStringDatabase XrmGetStringDatabase;
+        PFN_XrmInitialize XrmInitialize;
         PFN_XrmUniqueQuark XrmUniqueQuark;
         PFN_XSaveContext XSaveContext;
         PFN_XSelectInput XSelectInput;
@@ -399,6 +414,9 @@ private:
     gerium_uint32_t _displayId{};
     std::optional<gerium_display_mode_t> _displayMode{};
     std::string _title{};
+    gerium_float32_t _dpi{};
+    gerium_float32_t _density{};
+    gerium_float32_t _scaledDensity{};
     bool _running{};
     bool _active{};
     bool _resizing{};

@@ -15,9 +15,6 @@ public:
     HWND hWnd() const noexcept;
 
 private:
-    static constexpr gerium_float32_t kInchesPerMm = 1.0f / 25.4f;
-    static constexpr gerium_float32_t kInchesPerPt = 1.0f / 72.0f;
-
     enum class MouseEventSource {
         Mouse,
         Touch,
