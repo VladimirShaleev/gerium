@@ -10,9 +10,14 @@ gerium_technique_h RenderService::baseTechnique() const noexcept {
 
 void RenderService::start() {
     gerium_renderer_options_t options{};
-    options.debug_mode        = true;
     options.app_version       = GERIUM_VERSION_ENCODE(1, 0, 0);
     options.dynamic_ssbo_size = 64 * 1024 * 1024;
+
+#ifdef NDEBUG
+    options.debug_mode = false;
+#else
+    options.debug_mode = true;
+#endif
 
     check(gerium_renderer_create(application().handle(), GERIUM_FEATURE_BINDLESS_BIT, &options, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);

@@ -941,7 +941,7 @@ void SkyDomePrefilteredPass::initialize(gerium_frame_graph_t frameGraph, gerium_
     info.name    = "skydome_prefiltered_env";
 
     _skyDomePrefiltered = application()->resourceManager().createTexture(info, nullptr);
-    _technique = application()->resourceManager().loadTechnique("skydome");
+    _technique          = application()->resourceManager().loadTechnique("skydome");
 
     gerium_renderer_texture_sampler(renderer,
                                     _skyDomePrefiltered,
@@ -1467,11 +1467,14 @@ Cluster Application::loadCluster(std::string_view name) {
         auto normalName =
             std::string(name.data(), name.length()) + '_' + std::to_string(instance.baseTexture) + "_normal";
         auto baseFullName =
-            (std::filesystem::path("models") / "textures" / std::filesystem::path(baseName).replace_extension("ktx2")).string();
-        auto metalnessFullName =
-            (std::filesystem::path("models") / "textures" / std::filesystem::path(metalnessName).replace_extension("ktx2")).string();
+            (std::filesystem::path("models") / "textures" / std::filesystem::path(baseName).replace_extension("ktx2"))
+                .string();
+        auto metalnessFullName = (std::filesystem::path("models") / "textures" /
+                                  std::filesystem::path(metalnessName).replace_extension("ktx2"))
+                                     .string();
         auto normalFullName =
-            (std::filesystem::path("models") / "textures" / std::filesystem::path(normalName).replace_extension("ktx2")).string();
+            (std::filesystem::path("models") / "textures" / std::filesystem::path(normalName).replace_extension("ktx2"))
+                .string();
 
         _textures.push_back(_resourceManager.loadTexture(baseFullName));
         gerium_renderer_texture_sampler(_renderer,
@@ -1591,25 +1594,25 @@ Cluster Application::loadCluster(std::string_view name) {
 }
 
 void Application::initialize() {
-    constexpr auto debug =
-#ifdef NDEBUG
-        false;
-#else
-        true;
-#endif
-
     gerium_application_get_size(_application, &_width, &_height);
     _prevWidth  = _width;
     _prevHeight = _height;
     _invWidth   = 1.0f / _width;
     _invHeight  = 1.0f / _height;
 
+    gerium_renderer_options_t options{};
+    options.app_version = GERIUM_VERSION_ENCODE(1, 0, 0);
+#ifdef NDEBUG
+    options.debug_mode = false;
+#else
+    options.debug_mode = true;
+#endif
+
     check(gerium_renderer_create(_application,
                                  GERIUM_FEATURE_BINDLESS_BIT | GERIUM_FEATURE_MESH_SHADER_BIT |
                                      GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT | GERIUM_FEATURE_8_BIT_STORAGE_BIT |
                                      GERIUM_FEATURE_16_BIT_STORAGE_BIT,
-                                 GERIUM_VERSION_ENCODE(1, 0, 0),
-                                 debug,
+                                 &options,
                                  &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
 
@@ -1656,11 +1659,11 @@ void Application::initialize() {
     _baseTechnique = _resourceManager.loadTechnique("base");
 
     for (size_t i = 0; i < _noiseTextures.size(); ++i) {
-        auto fullPath     = std::filesystem::path("textures") / "blue_noise" / ("LDR_RG01_" + std::to_string(i) + ".png");
+        auto fullPath = std::filesystem::path("textures") / "blue_noise" / ("LDR_RG01_" + std::to_string(i) + ".png");
         _noiseTextures[i] = _resourceManager.loadTexture(fullPath.string());
     }
     for (size_t i = 0; i < _blueNoiseTextures.size(); ++i) {
-        auto fullPath         = std::filesystem::path("textures") / "blue_noise" / ("LDR_LLL1_" + std::to_string(i) + ".png");
+        auto fullPath = std::filesystem::path("textures") / "blue_noise" / ("LDR_LLL1_" + std::to_string(i) + ".png");
         _blueNoiseTextures[i] = _resourceManager.loadTexture(fullPath.string());
     }
     _brdfLut = _resourceManager.loadTexture((std::filesystem::path("textures") / "brdf" / "BRDFLut.png").string());
