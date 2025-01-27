@@ -2117,7 +2117,7 @@ void Device::createImGui(Application* application) {
 
     auto fs       = cmrc::gerium::resources::get_filesystem();
     auto font     = fs.open("resources/OpenSans-Regular.ttf");
-    auto fontSize = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 15.0f);
+    auto fontSize = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 16.0f);
 
     auto dataFont = IM_ALLOC(font.size());
     memcpy(dataFont, (void*) font.begin(), font.size());

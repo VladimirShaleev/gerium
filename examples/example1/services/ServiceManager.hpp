@@ -12,19 +12,19 @@ class Service {
 public:
     virtual ~Service() = default;
 
-    ServiceManager& manager() noexcept;
-    const ServiceManager& manager() const noexcept;
+    [[nodiscard]] ServiceManager& manager() noexcept;
+    [[nodiscard]] const ServiceManager& manager() const noexcept;
 
-    Application& application() noexcept;
-    const Application& application() const noexcept;
+    [[nodiscard]] Application& application() noexcept;
+    [[nodiscard]] const Application& application() const noexcept;
 
-    EventManager& eventManager() noexcept;
-    const EventManager& eventManager() const noexcept;
+    [[nodiscard]] EventManager& eventManager() noexcept;
+    [[nodiscard]] const EventManager& eventManager() const noexcept;
 
-    EntityManager& entityManager() noexcept;
-    const EntityManager& entityManager() const noexcept;
+    [[nodiscard]] EntityManager& entityManager() noexcept;
+    [[nodiscard]] const EntityManager& entityManager() const noexcept;
 
-    bool isStopped() const noexcept;
+    [[nodiscard]] bool isStopped() const noexcept;
 
 protected:
     virtual void start();
@@ -50,11 +50,11 @@ public:
 
     void update(gerium_uint64_t elapsedMs);
 
-    Application& application() noexcept;
-    const Application& application() const noexcept;
+    [[nodiscard]] Application& application() noexcept;
+    [[nodiscard]] const Application& application() const noexcept;
 
-    gerium_uint64_t elapsedMs() const noexcept;
-    gerium_uint64_t absoluteMs() const noexcept;
+    [[nodiscard]] gerium_uint64_t elapsedMs() const noexcept;
+    [[nodiscard]] gerium_uint64_t absoluteMs() const noexcept;
 
     template <typename T>
     [[nodiscard]] T* getService() noexcept {

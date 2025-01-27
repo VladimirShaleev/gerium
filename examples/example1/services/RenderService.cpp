@@ -1,4 +1,6 @@
 #include "RenderService.hpp"
+
+#include <ranges>
 #include "../Application.hpp"
 #include "../passes/PresentPass.hpp"
 
@@ -8,12 +10,9 @@ gerium_technique_h RenderService::baseTechnique() const noexcept {
 
 void RenderService::start() {
     check(gerium_renderer_create(
-        application().handle(), GERIUM_FEATURE_BINDLESS_BIT, GERIUM_VERSION_ENCODE(1, 0, 0), debugBuild, &_renderer));
-
-    if constexpr (debugBuild) {
-        gerium_renderer_set_profiler_enable(_renderer, true);
-        check(gerium_profiler_create(_renderer, &_profiler));
-    }
+        application().handle(), GERIUM_FEATURE_BINDLESS_BIT, GERIUM_VERSION_ENCODE(1, 0, 0), true, &_renderer));
+    gerium_renderer_set_profiler_enable(_renderer, true);
+    check(gerium_profiler_create(_renderer, &_profiler));
 
     _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS_BIT;
 
@@ -35,8 +34,8 @@ void RenderService::start() {
 
 void RenderService::stop() {
     if (_renderer) {
-        for (auto it = _renderPasses.rbegin(); it != _renderPasses.rend(); ++it) {
-            (*it)->uninitialize(_frameGraph, _renderer);
+        for (auto& _renderPasse : std::ranges::reverse_view(_renderPasses)) {
+            _renderPasse->uninitialize(_frameGraph, _renderer);
         }
 
         _baseTechnique = nullptr;

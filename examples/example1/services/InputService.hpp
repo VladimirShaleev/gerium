@@ -5,7 +5,7 @@
 
 class InputService : public Service {
 public:
-    bool isPressScancode(gerium_scancode_t scancode) const noexcept;
+    [[nodiscard]] bool isPressScancode(gerium_scancode_t scancode) const noexcept;
 
 protected:
     void start() override;

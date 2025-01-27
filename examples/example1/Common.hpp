@@ -36,7 +36,7 @@
 #include <magic_enum/magic_enum.hpp>
 
 #include <rfl.hpp>
-#include <rfl/capnproto.hpp>
+// #include <rfl/capnproto.hpp>
 #include <rfl/json.hpp>
 
 #include "Finally.hpp"
@@ -47,13 +47,6 @@ static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_ui
 inline int typeIdSequence = 0;
 template <typename T>
 inline const int typeId = typeIdSequence++;
-
-static constexpr auto debugBuild =
-#ifdef NDEBUG
-    false;
-#else
-    true;
-#endif
 
 inline void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {

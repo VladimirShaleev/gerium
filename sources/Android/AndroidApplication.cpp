@@ -13,6 +13,9 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
     _activated(false),
     _focused(false),
     _exit(false),
+    _density(0.0f),
+    _scaledDensity(0.0f),
+    _xdpi(0.0f),
     _isInMultiWindowMode(nullptr) {
     assert(_application);
     _application->userData     = alias_cast<void*>(this);
@@ -73,6 +76,27 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
 
         _getTitle = env->GetMethodID(activityClass, "getTitle", "()Ljava/lang/CharSequence;");
         _setTitle = env->GetMethodID(activityClass, "setTitle", "(Ljava/lang/CharSequence;)V");
+
+        auto resourcesClass = env->FindClass("android/content/res/Resources");
+        auto displayMetricsClass = env->FindClass("android/util/DisplayMetrics");
+
+        auto getResources = env->GetMethodID(activityClass, "getResources", "()Landroid/content/res/Resources;");
+        auto getDisplayMetrics = env->GetMethodID(resourcesClass, "getDisplayMetrics", "()Landroid/util/DisplayMetrics;");
+        auto densityField =  env->GetFieldID(displayMetricsClass, "density", "F");
+        auto scaledDensityField = env->GetFieldID(displayMetricsClass, "scaledDensity", "F");
+        auto xdpiField = env->GetFieldID(displayMetricsClass, "xdpi", "F");
+
+        auto resources = env->CallObjectMethod(activityClazz, getResources);
+        auto displayMetrics = env->CallObjectMethod(resources, getDisplayMetrics);
+
+        _density       = env->GetFloatField(displayMetrics, densityField);
+        _scaledDensity = env->GetFloatField(displayMetrics, scaledDensityField);
+        _xdpi          = env->GetFloatField(displayMetrics, xdpiField);
+
+        env->DeleteLocalRef(displayMetrics);
+        env->DeleteLocalRef(resources);
+        env->DeleteLocalRef(displayMetricsClass);
+        env->DeleteLocalRef(resourcesClass);
 
         activity->vm->DetachCurrentThread();
     }
@@ -229,6 +253,30 @@ void AndroidApplication::onSetTitle(gerium_utf8_t title) noexcept {
 }
 
 void AndroidApplication::onShowCursor(bool show) noexcept {
+}
+
+gerium_float32_t AndroidApplication::onGetDensity() const noexcept {
+    return _density;
+}
+
+gerium_float32_t AndroidApplication::onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept {
+    switch (unit) {
+        case GERIUM_DIMENSION_UNIT_PX:
+            return value;
+        case GERIUM_DIMENSION_UNIT_MM:
+            return value * _xdpi * kInchesPerMm;
+        case GERIUM_DIMENSION_UNIT_DIP:
+            return value * _density;
+        case GERIUM_DIMENSION_UNIT_SP:
+            return value * _scaledDensity;
+        case GERIUM_DIMENSION_UNIT_PT:
+            return value * _xdpi * kInchesPerPt;
+        case GERIUM_DIMENSION_UNIT_IN:
+            return value * _xdpi;
+        default:
+            assert(!"unreachable code");
+            return 0.0f;
+    }
 }
 
 void AndroidApplication::onRun() {

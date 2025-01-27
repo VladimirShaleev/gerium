@@ -8,7 +8,7 @@ class RenderPass;
 
 class RenderService : public Service {
 public:
-    gerium_technique_h baseTechnique() const noexcept;
+    [[nodiscard]] gerium_technique_h baseTechnique() const noexcept;
 
 protected:
     void start() override;

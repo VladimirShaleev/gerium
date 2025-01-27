@@ -16,6 +16,9 @@ public:
     static android_app* instance() noexcept;
 
 private:
+    static constexpr gerium_float32_t kInchesPerMm = 1.0f / 25.4f;
+    static constexpr gerium_float32_t kInchesPerPt = 1.0f / 72.0f;
+
     gerium_runtime_platform_t onGetPlatform() const noexcept override;
 
     void onGetDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const override;
@@ -37,6 +40,9 @@ private:
     void onSetTitle(gerium_utf8_t title) noexcept override;
 
     void onShowCursor(bool show) noexcept override;
+
+    gerium_float32_t onGetDensity() const noexcept override;
+    gerium_float32_t onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept override;
 
     void onRun() override;
     void onExit() noexcept override;
@@ -71,6 +77,9 @@ private:
     bool _activated;
     bool _focused;
     bool _exit;
+    gerium_float32_t _density;
+    gerium_float32_t _scaledDensity;
+    gerium_float32_t _xdpi;
     mutable std::string _title;
     mutable std::vector<std::string> _names;
     mutable std::vector<gerium_display_mode_t> _modes;

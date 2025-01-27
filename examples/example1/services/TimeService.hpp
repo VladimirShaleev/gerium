@@ -6,12 +6,12 @@
 class TimeService : public Service {
 public:
     void setMultiply(gerium_float64_t multiply) noexcept;
-    gerium_float64_t multiply() const noexcept;
+    [[nodiscard]] gerium_float64_t multiply() const noexcept;
 
-    gerium_uint64_t elapsedMs() const noexcept;
-    gerium_uint64_t absoluteMs() const noexcept;
-    gerium_float64_t elapsed() const noexcept;
-    gerium_float64_t absolute() const noexcept;
+    [[nodiscard]] gerium_uint64_t elapsedMs() const noexcept;
+    [[nodiscard]] gerium_uint64_t absoluteMs() const noexcept;
+    [[nodiscard]] gerium_float64_t elapsed() const noexcept;
+    [[nodiscard]] gerium_float64_t absolute() const noexcept;
 
 protected:
     void start() override;

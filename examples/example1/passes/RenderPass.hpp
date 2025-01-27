@@ -28,7 +28,7 @@ public:
     void setRenderService(RenderService* service) noexcept;
     RenderService& renderService() noexcept;
 
-    const std::string& name() const noexcept;
+    [[nodiscard]] const std::string& name() const noexcept;
 
 private:
     RenderService* _service{};

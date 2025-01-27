@@ -22,9 +22,7 @@ Application::~Application() {
 }
 
 void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) noexcept {
-    if constexpr (debugBuild) {
-        gerium_logger_set_level_by_tag("gerium", GERIUM_LOGGER_LEVEL_ERROR);
-    }
+    gerium_logger_set_level_by_tag("gerium", GERIUM_LOGGER_LEVEL_VERBOSE);
 
     try {
         check(gerium_application_create(title, width, height, &_application));
@@ -95,7 +93,7 @@ void Application::state(gerium_application_state_t state) {
     }
 }
 
-gerium_bool_t Application::frame(gerium_application_t application, gerium_data_t data, gerium_uint64_t elapsedMs) {
+gerium_bool_t Application::frame(gerium_application_t /* application */, gerium_data_t data, gerium_uint64_t elapsedMs) {
     auto app = (Application*) data;
     try {
         app->frame(elapsedMs);
@@ -107,7 +105,7 @@ gerium_bool_t Application::frame(gerium_application_t application, gerium_data_t
     return true;
 }
 
-gerium_bool_t Application::state(gerium_application_t application,
+gerium_bool_t Application::state(gerium_application_t /* application */,
                                  gerium_data_t data,
                                  gerium_application_state_t state) {
     auto app = (Application*) data;

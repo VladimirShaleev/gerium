@@ -14,27 +14,27 @@ public:
 
     void run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) noexcept;
 
-    gerium_application_t handle() const noexcept {
+    [[nodiscard]] gerium_application_t handle() const noexcept {
         return _application;
     }
 
-    gerium_logger_t logger() const noexcept {
+    [[nodiscard]] gerium_logger_t logger() const noexcept {
         return _logger;
     }
 
-    EventManager& eventManager() noexcept {
+    [[nodiscard]] EventManager& eventManager() noexcept {
         return _eventManager;
     }
 
-    const EventManager& eventManager() const noexcept {
+    [[nodiscard]] const EventManager& eventManager() const noexcept {
         return _eventManager;
     }
 
-    EntityManager& entityManager() noexcept {
+    [[nodiscard]] EntityManager& entityManager() noexcept {
         return _entityManager;
     }
 
-    const EntityManager& entityManager() const noexcept {
+    [[nodiscard]] const EntityManager& entityManager() const noexcept {
         return _entityManager;
     }
 

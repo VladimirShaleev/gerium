@@ -51,7 +51,9 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
         prevPaused = true;
     }
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 320));
+    auto fontSize = ImGui::GetFont()->ConfigData->SizePixels;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(20 * fontSize, 14 * fontSize));
     if (ImGui::Begin("GPU Profiler", show)) {
         ImGui::Text("GPU Memory Total %uMB", totalMemoryUsed);
 
@@ -65,9 +67,9 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
             ImVec2 cursor_pos     = ImGui::GetCursorScreenPos();
             ImVec2 canvas_size    = ImGui::GetContentRegionAvail();
-            float widget_height   = canvas_size.y - 120;
+            float widget_height   = canvas_size.y - fontSize * 5;
 
-            float legend_width  = 270;
+            float legend_width  = 11 * fontSize;
             float graph_width   = fabsf(canvas_size.x - legend_width);
             uint32_t rect_width = std::ceil(graph_width / maxFrames);
             int32_t rect_x      = std::ceil(graph_width - rect_width);
@@ -169,11 +171,11 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
             ImGui::SetCursorPosX(cursor_pos.x + graph_width);
             // Default to last frame if nothing is selected.
 
-            int32_t frame_pos = int32_t(currentFrame) - 1;
-            if (frame_pos < 0) {
-                frame_pos = maxFrames + frame_pos;
+            int32_t framePos = int32_t(currentFrame) - 1;
+            if (framePos < 0) {
+                framePos = maxFrames + framePos;
             }
-            int32_t frame_index = (frame_pos) % maxFrames;
+            int32_t frame_index = (framePos) % maxFrames;
             selected_frame      = selected_frame == -1 ? frame_index : selected_frame;
             if (selected_frame >= 0) {
                 auto* frame_timestamps = &timestamps[selected_frame * 32];
@@ -186,7 +188,8 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                     const auto& timestamp = frame_timestamps[j];
                     const auto& color     = frame_colors[j];
 
-                    draw_list->AddRectFilled({ x, y + 4 }, { x + 8, y + 12 }, color);
+                    const auto centerY = fontSize / 2;
+                    draw_list->AddRectFilled({ x, y + centerY - 2 }, { x + 8, y + centerY + 6 }, color);
 
                     char spaces[33]{};
                     auto depth = timestamp.depth;
@@ -201,7 +204,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                     snprintf(buf, 128, "%s%s: %2.4f", spaces, timestamp.name, timestamp.elapsed);
                     draw_list->AddText({ x + 12, y }, 0xffffffff, buf);
 
-                    y += 16;
+                    y += fontSize;
                 }
             }
 

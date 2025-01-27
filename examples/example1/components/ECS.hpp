@@ -15,7 +15,7 @@ public:
 
     virtual bool remove(Entity entity) = 0;
 
-    virtual std::vector<char> serialize() const = 0;
+    [[nodiscard]] virtual std::vector<char> serialize() const = 0;
 
     virtual void deserialize(const std::vector<char>& data) = 0;
 };
@@ -55,41 +55,42 @@ public:
         return _pool[_entityIndices[entity]];
     }
 
-    const T& get(Entity entity) const noexcept {
+    [[nodiscard]] const T& get(Entity entity) const noexcept {
         assert(_entityIndices.count(entity) && "Component not found");
-        return _pool[_entityIndices[entity]];
+        return _pool[_entityIndices.at(entity)];
     }
 
-    std::span<T> getAll() noexcept {
+    [[nodiscard]] std::span<T> getAll() noexcept {
         return std::span{ _pool.data(), _pool.size() };
     }
 
-    std::span<const T> getAll() const noexcept {
+    [[nodiscard]] std::span<const T> getAll() const noexcept {
         return std::span{ _pool.data(), _pool.size() };
     }
 
-    std::vector<char> serialize() const override {
-        Data data{ _pool };
-        data.map.reserve(_entityIndices.size());
-        for (const auto& [entity, index] : _entityIndices) {
-            data.map.emplace_back(entity, (uint32_t) index);
-        }
+    [[nodiscard]] std::vector<char> serialize() const override {
+        // Data data{ _pool };
+        // data.map.reserve(_entityIndices.size());
+        // for (const auto& [entity, index] : _entityIndices) {
+        //     data.map.emplace_back(entity, (uint32_t) index);
+        // }
 
-        return rfl::capnproto::write(data);
+        // return rfl::capnproto::write(data);
+        return {};
     }
 
     void deserialize(const std::vector<char>& data) override {
-        _pool.clear();
-        _entityIndices.clear();
-        _indexEntities.clear();
+        // _pool.clear();
+        // _entityIndices.clear();
+        // _indexEntities.clear();
 
-        auto components = rfl::capnproto::read<Data>(data).value();
+        // auto components = rfl::capnproto::read<Data>(data).value();
 
-        _pool = std::move(components.pool);
-        for (const auto& entry : components.map) {
-            _entityIndices[entry.entity] = entry.index;
-            _indexEntities[entry.index]  = entry.entity;
-        }
+        // _pool = std::move(components.pool);
+        // for (const auto& entry : components.map) {
+        //     _entityIndices[entry.entity] = entry.index;
+        //     _indexEntities[entry.index]  = entry.entity;
+        // }
     }
 
 private:
@@ -101,7 +102,7 @@ private:
     struct Data {
         std::vector<T> pool;
         std::vector<Entry> map;
-    } data{ _pool };
+    };
 
     std::vector<T> _pool{};
     std::map<Entity, size_t> _entityIndices{};
@@ -113,7 +114,7 @@ public:
     struct Data {
         std::vector<std::vector<char>> pools;
         std::vector<uint64_t> bits;
-    } data;
+    };
 
     template <typename... Args>
     void registerTypes() {
@@ -145,33 +146,33 @@ public:
     }
 
     template <typename T>
-    bool has(Entity entity) const noexcept {
+    [[nodiscard]] bool has(Entity entity) const noexcept {
         return bits(entity) & (1 << componentId<T>);
     }
 
     template <typename T>
-    T& get(Entity entity) noexcept {
+    [[nodiscard]] T& get(Entity entity) noexcept {
         assert(has<T>(entity) && "Component not found");
         return getPool<T>()->get(entity);
     }
 
     template <typename T>
-    const T& get(Entity entity) const noexcept {
+    [[nodiscard]] const T& get(Entity entity) const noexcept {
         assert(has<T>(entity) && "Component not found");
         return getPool<T>()->get(entity);
     }
 
     template <typename T>
-    std::span<T> getAll() noexcept {
+    [[nodiscard]] std::span<T> getAll() noexcept {
         return getPool<T>()->getAll();
     }
 
     template <typename T>
-    std::span<const T> getAll() const noexcept {
+    [[nodiscard]] std::span<const T> getAll() const noexcept {
         return getPool<T>()->getAll();
     }
 
-    Data serialize() const {
+    [[nodiscard]] Data serialize() const {
         Data data;
         for (auto& [_, pool] : _pools) {
             data.pools.push_back(std::move(pool->serialize()));
@@ -182,7 +183,7 @@ public:
 
     void deserialize(Data&& data) {
         _componentBits.clear();
-        for (size_t i = 0; i < data.pools.size(); ++i) {
+        for (int i = 0; i < data.pools.size(); ++i) {
             _pools[i]->deserialize(data.pools[i]);
         }
         _componentBits = std::move(data.bits);
@@ -212,7 +213,7 @@ private:
     }
 
     void removeEmptyBits() noexcept {
-        while (_componentBits.size() && _componentBits.back() == 0) {
+        while (!_componentBits.empty() && _componentBits.back() == 0) {
             _componentBits.pop_back();
         }
     }
@@ -228,7 +229,7 @@ public:
     }
 
     [[nodiscard]] Entity createEntity(const std::string& name = "") {
-        if (name.length() && _mapEntities.contains(name)) {
+        if (!name.empty() && _mapEntities.contains(name)) {
             throw std::runtime_error("entity with name '" + name + "' already exists");
         }
 
@@ -242,7 +243,7 @@ public:
         auto entity = _freeEntities[_entities.size()];
         _entities.insert(entity);
 
-        if (name.length()) {
+        if (!name.empty()) {
             addComponent<Name>(entity).name = name;
             _mapEntities[name]              = entity;
         }
@@ -263,14 +264,14 @@ public:
         _freeEntities[_entities.size()] = entity;
     }
 
-    Entity getEntity(const std::string& name) const {
+    [[nodiscard]] Entity getEntity(const std::string& name) const {
         if (auto it = _mapEntities.find(name); it != _mapEntities.end()) {
             return it->second;
         }
         throw std::runtime_error("entity with name '" + name + "' not found");
     }
 
-    const std::set<Entity>& entities() noexcept {
+    [[nodiscard]] const std::set<Entity>& entities() noexcept {
         return _entities;
     }
 
@@ -290,19 +291,19 @@ public:
     }
 
     template <typename T>
-    bool hasComponent(Entity entity) const noexcept {
+    [[nodiscard]] bool hasComponent(Entity entity) const noexcept {
         return _componentManager.has<T>(entity);
     }
 
     template <typename T>
-    T& getComponent(Entity entity, bool addIfNotExist = false) {
+    [[nodiscard]] T& getComponent(Entity entity, bool addIfNotExist = false) {
         return hasComponent<T>(entity) ? _componentManager.get<T>(entity)
                                        : (addIfNotExist ? _componentManager.add<T>(entity)
                                                         : throw std::invalid_argument("Component not found"));
     }
 
     template <typename T>
-    const T& getComponent(Entity entity, bool addIfNotExist = false) const noexcept {
+    [[nodiscard]] const T& getComponent(Entity entity, bool addIfNotExist = false) const noexcept {
         auto manager = const_cast<ComponentManager*>(&_componentManager);
         return hasComponent<T>(entity)
                    ? _componentManager.get<T>(entity)
@@ -310,36 +311,37 @@ public:
     }
 
     template <typename T>
-    std::span<T> getAllComponents() noexcept {
+    [[nodiscard]] std::span<T> getAllComponents() noexcept {
         return _componentManager.getAll<T>();
     }
 
     template <typename T>
-    std::span<const T> getAllComponents() const noexcept {
+    [[nodiscard]] std::span<const T> getAllComponents() const noexcept {
         return _componentManager.getAll<T>();
     }
 
-    std::vector<char> serialize() const {
-        Data data{ _freeEntities, _entities, _componentManager.serialize() };
-        return rfl::capnproto::write(data);
+    [[nodiscard]] std::vector<char> serialize() const {
+        // Data data{ _freeEntities, _entities, _componentManager.serialize() };
+        // return rfl::capnproto::write(data);
+        return {};
     }
 
     void deserialize(const std::vector<char>& data) {
-        _freeEntities.clear();
-        _entities.clear();
-        _mapEntities.clear();
-        auto entities = rfl::capnproto::read<Data>(data).value();
+        // _freeEntities.clear();
+        // _entities.clear();
+        // _mapEntities.clear();
+        // auto entities = rfl::capnproto::read<Data>(data).value();
 
-        _freeEntities = std::move(entities.freeEntities);
-        _entities     = std::move(entities.entities);
-        _componentManager.deserialize(std::move(entities.components.get()));
+        // _freeEntities = std::move(entities.freeEntities);
+        // _entities     = std::move(entities.entities);
+        // _componentManager.deserialize(std::move(entities.components.get()));
 
-        for (auto entity : _entities) {
-            if (hasComponent<Name>(entity)) {
-                const auto& name   = getComponent<Name>(entity).name;
-                _mapEntities[name] = entity;
-            }
-        }
+        // for (auto entity : _entities) {
+        //     if (hasComponent<Name>(entity)) {
+        //         const auto& name   = getComponent<Name>(entity).name;
+        //         _mapEntities[name] = entity;
+        //     }
+        // }
     }
 
 private:
