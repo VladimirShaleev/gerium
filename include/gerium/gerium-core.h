@@ -500,6 +500,17 @@ GERIUM_FLAGS(gerium_mouse_button_flags_t)
 
 typedef enum
 {
+    GERIUM_DIMENSION_UNIT_PX       = 0,
+    GERIUM_DIMENSION_UNIT_MM       = 1,
+    GERIUM_DIMENSION_UNIT_DIP      = 2,
+    GERIUM_DIMENSION_UNIT_SP       = 3,
+    GERIUM_DIMENSION_UNIT_PT       = 4,
+    GERIUM_DIMENSION_UNIT_IN       = 5,
+    GERIUM_DIMENSION_UNIT_MAX_ENUM = 0x7FFFFFFF
+} gerium_dimension_unit_t;
+
+typedef enum
+{
     GERIUM_FEATURE_NONE_BIT                  = 0,
     GERIUM_FEATURE_BINDLESS_BIT              = 1,
     GERIUM_FEATURE_MESH_SHADER_BIT           = 2,
@@ -1434,6 +1445,14 @@ gerium_application_is_show_cursor(gerium_application_t application);
 gerium_public void
 gerium_application_show_cursor(gerium_application_t application,
                                gerium_bool_t show);
+
+gerium_public gerium_float32_t
+gerium_application_get_density(gerium_application_t application);
+
+gerium_public gerium_float32_t
+gerium_application_get_dimension(gerium_application_t application,
+                                 gerium_dimension_unit_t unit,
+                                 gerium_float32_t value);
 
 gerium_public gerium_result_t
 gerium_application_run(gerium_application_t application);

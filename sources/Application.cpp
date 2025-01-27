@@ -119,6 +119,14 @@ void Application::showCursor(bool show) noexcept {
     }
 }
 
+gerium_float32_t Application::getDensity() const noexcept {
+    return onGetDensity();
+}
+
+gerium_float32_t Application::getDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept {
+    return onGetDimension(unit, value);
+}
+
 void Application::run() {
     _workerThreadCount = (gerium_uint32_t) marl::Thread::numLogicalCPUs();
 
@@ -401,6 +409,18 @@ gerium_bool_t gerium_application_is_show_cursor(gerium_application_t application
 void gerium_application_show_cursor(gerium_application_t application, gerium_bool_t show) {
     assert(application);
     alias_cast<Application*>(application)->showCursor(show);
+}
+
+gerium_float32_t gerium_application_get_density(gerium_application_t application) {
+    assert(application);
+    return alias_cast<Application*>(application)->getDensity();
+}
+
+gerium_float32_t gerium_application_get_dimension(gerium_application_t application,
+                                                  gerium_dimension_unit_t unit,
+                                                  gerium_float32_t value) {
+    assert(application);
+    return alias_cast<Application*>(application)->getDimension(unit, value);
 }
 
 gerium_result_t gerium_application_run(gerium_application_t application) {

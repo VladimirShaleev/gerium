@@ -15,6 +15,9 @@ public:
     HWND hWnd() const noexcept;
 
 private:
+    static constexpr gerium_float32_t kInchesPerMm = 1.0f / 25.4f;
+    static constexpr gerium_float32_t kInchesPerPt = 1.0f / 72.0f;
+
     enum class MouseEventSource {
         Mouse,
         Touch,
@@ -42,6 +45,9 @@ private:
     void onSetTitle(gerium_utf8_t title) noexcept override;
 
     void onShowCursor(bool show) noexcept override;
+
+    gerium_float32_t onGetDensity() const noexcept override;
+    gerium_float32_t onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept override;
 
     void onRun() override;
     void onExit() noexcept override;
@@ -73,6 +79,8 @@ private:
     void closeInputThread();
 
     void captureCursor(bool capture) noexcept;
+    gerium_float32_t dpi() const noexcept;
+    gerium_float32_t scaledDensity() const noexcept;
 
     static bool waitInBackground(LPMSG pMsg);
     static std::wstring wideString(gerium_utf8_t utf8);
@@ -89,10 +97,15 @@ private:
 
     HINSTANCE _hInstance;
     HWND _hWnd;
+    HMONITOR _hMonitor;
     mutable std::string _title;
     std::atomic_bool _running;
     bool _resizing;
     bool _visibility;
+    mutable bool _needUpdateDPI;
+    mutable bool _needUpdateScaledDensity;
+    mutable gerium_float32_t _dpi;
+    mutable gerium_float32_t _scaledDensity;
     WINDOWPLACEMENT _windowPlacement;
     LONG _styleEx;
     gerium_application_style_flags_t _styleFlags;

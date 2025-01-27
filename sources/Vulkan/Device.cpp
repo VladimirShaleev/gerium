@@ -2115,30 +2115,16 @@ void Device::createImGui(Application* application) {
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.DisplaySize = ImVec2{ float(_swapchainExtent.width), float(_swapchainExtent.height) };
 
-    auto fs   = cmrc::gerium::resources::get_filesystem();
-    auto font = fs.open("resources/OpenSans-Regular.ttf");
-
-    // Add API to obtain DPI and other metrics
-    // TODO: add calc density
-    auto density  = 1.0f;
-    auto fontSize = 24.0f;
-    auto fontD    = 1.5f;
-#ifdef GERIUM_PLATFORM_ANDROID
-    density  = 1.5f;
-    fontSize = 12.0f;
-    fontD    = 1.4f;
-#elif defined(GERIUM_PLATFORM_MAC_OS)
-    density  = 1.0f;
-    fontSize = 16.0f;
-    fontD    = 2.0f;
-#endif
+    auto fs       = cmrc::gerium::resources::get_filesystem();
+    auto font     = fs.open("resources/OpenSans-Regular.ttf");
+    auto fontSize = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 15.0f);
 
     auto dataFont = IM_ALLOC(font.size());
     memcpy(dataFont, (void*) font.begin(), font.size());
     ImFontConfig config{};
-    config.RasterizerDensity = fontD;
-    io.Fonts->AddFontFromMemoryTTF(dataFont, (int) font.size(), fontSize * density, &config);
-    ImGui::GetStyle().ScaleAllSizes(density);
+    config.RasterizerDensity = application->getDensity();
+    io.Fonts->AddFontFromMemoryTTF(dataFont, (int) font.size(), fontSize, &config);
+    ImGui::GetStyle().ScaleAllSizes(application->getDensity());
     ImGui_ImplVulkan_CreateFontsTexture();
 }
 

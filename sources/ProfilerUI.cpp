@@ -52,7 +52,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(500, 320));
-    if (ImGui::Begin("GPU Profiler", show, ImGuiWindowFlags_NoScrollbar)) {
+    if (ImGui::Begin("GPU Profiler", show)) {
         ImGui::Text("GPU Memory Total %uMB", totalMemoryUsed);
 
         ImGui::Separator();
@@ -65,7 +65,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
             ImVec2 cursor_pos     = ImGui::GetCursorScreenPos();
             ImVec2 canvas_size    = ImGui::GetContentRegionAvail();
-            float widget_height   = canvas_size.y - 100;
+            float widget_height   = canvas_size.y - 120;
 
             float legend_width  = 270;
             float graph_width   = fabsf(canvas_size.x - legend_width);

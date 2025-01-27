@@ -44,6 +44,9 @@ public:
     bool isShowCursor() const noexcept;
     void showCursor(bool show) noexcept;
 
+    gerium_float32_t getDensity() const noexcept;
+    gerium_float32_t getDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept;
+
     void run();
     void exit() noexcept;
 
@@ -94,6 +97,9 @@ private:
     virtual void onSetTitle(gerium_utf8_t title) noexcept = 0;
 
     virtual void onShowCursor(bool show) noexcept = 0;
+
+    virtual gerium_float32_t onGetDensity() const noexcept                                                       = 0;
+    virtual gerium_float32_t onGetDimension(gerium_dimension_unit_t unit, gerium_float32_t value) const noexcept = 0;
 
     virtual void onRun()           = 0;
     virtual void onExit() noexcept = 0;
