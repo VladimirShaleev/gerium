@@ -16,10 +16,7 @@ class Device : public Object {
 public:
     virtual ~Device();
 
-    void create(Application* application,
-                gerium_feature_flags_t features,
-                gerium_uint32_t version,
-                bool enableValidations);
+    void create(Application* application, gerium_feature_flags_t features, const gerium_renderer_options_t& options);
 
     bool newFrame();
     void submit(CommandBuffer* commandBuffer);
@@ -237,6 +234,9 @@ public:
                 resourceDescription.type  = FFX_RESOURCE_TYPE_TEXTURE_CUBE;
                 resourceDescription.depth = texture->layers;
                 break;
+            default:
+                assert(!"unreachable code");
+                break;
         }
 
         resourceDescription.usage = FFX_RESOURCE_USAGE_READ_ONLY;
@@ -340,7 +340,7 @@ private:
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
     void createDescriptorPools();
     void createVmaAllocator();
-    void createDynamicBuffers();
+    void createDynamicBuffers(const gerium_renderer_options_t& options);
     void createDefaultSampler();
     void createDefaultTexture();
     void createSynchronizations();

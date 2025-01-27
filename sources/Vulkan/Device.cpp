@@ -113,23 +113,22 @@ Device::~Device() {
 
 void Device::create(Application* application,
                     gerium_feature_flags_t features,
-                    gerium_uint32_t version,
-                    bool enableValidations) {
-    _enableValidations = enableValidations;
-    _enableDebugNames  = enableValidations;
+                    const gerium_renderer_options_t& options) {
+    _enableValidations = options.debug_mode;
+    _enableDebugNames  = options.debug_mode;
     _application       = application;
     _logger            = Logger::create("gerium:renderer:vulkan");
-    _logger->setLevel(enableValidations ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
+    _logger->setLevel(options.debug_mode ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
     _application->getSize(&_appWidth, &_appHeight);
 
-    createInstance(application->getTitle(), version);
+    createInstance(application->getTitle(), options.app_version);
     createSurface(application);
     createPhysicalDevice();
     createDevice(application->workerThreadCount(), features);
     createProfiler(64);
     createDescriptorPools();
     createVmaAllocator();
-    createDynamicBuffers();
+    createDynamicBuffers(options);
     createDefaultSampler();
     createDefaultTexture();
     createSynchronizations();
@@ -1886,8 +1885,8 @@ void Device::createVmaAllocator() {
     check(vmaCreateAllocator(&createInfo, &_vmaAllocator));
 }
 
-void Device::createDynamicBuffers() {
-    const auto maxUBO = std::min((int) _deviceProperties.limits.maxUniformBufferRange, 65536);
+void Device::createDynamicBuffers(const gerium_renderer_options_t& options) {
+    const auto maxUBO = std::min(_deviceProperties.limits.maxUniformBufferRange, options.dynamic_ubo_size);
     _dynamicUBOSize   = align(maxUBO, _alignment);
 
     BufferCreation bcUBO;
@@ -1901,7 +1900,7 @@ void Device::createDynamicBuffers() {
     _dynamicUBO       = createBuffer(bcUBO);
     _dynamicUBOMapped = (uint8_t*) _buffers.access(_dynamicUBO)->mappedData;
 
-    _dynamicSSBOSize = align(1024 * 1024 * 256, _alignment);
+    _dynamicSSBOSize = align(options.dynamic_ssbo_size, _alignment);
 
     BufferCreation bcSSBO;
     bcSSBO

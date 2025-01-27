@@ -17,7 +17,7 @@ public:
     Renderer() noexcept;
     ~Renderer() override;
 
-    void initialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug);
+    void initialize(gerium_feature_flags_t features, const gerium_renderer_options_t* options);
 
     gerium_feature_flags_t getEnabledFeatures() const noexcept;
     TextureCompressionFlags getTextureComperssion() const noexcept;
@@ -96,7 +96,7 @@ public:
     void getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept;
 
 protected:
-    virtual void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) = 0;
+    virtual void onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) = 0;
 
     void closeLoadThread();
 

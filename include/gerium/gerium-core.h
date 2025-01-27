@@ -1044,6 +1044,14 @@ typedef struct
 
 typedef struct
 {
+    gerium_bool_t   debug_mode;
+    gerium_uint32_t app_version;
+    gerium_uint32_t dynamic_ubo_size;
+    gerium_uint32_t dynamic_ssbo_size;
+} gerium_renderer_options_t;
+
+typedef struct
+{
     gerium_uint16_t       width;
     gerium_uint16_t       height;
     gerium_uint16_t       depth;
@@ -1481,8 +1489,7 @@ gerium_application_show_message(gerium_application_t application,
 gerium_public gerium_result_t
 gerium_renderer_create(gerium_application_t application,
                        gerium_feature_flags_t features,
-                       gerium_uint32_t version,
-                       gerium_bool_t debug,
+                       const gerium_renderer_options_t* options,
                        gerium_renderer_t* renderer);
 
 gerium_public gerium_renderer_t

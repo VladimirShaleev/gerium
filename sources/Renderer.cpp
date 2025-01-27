@@ -9,7 +9,7 @@ Renderer::Renderer() noexcept : _shutdownSignal(marl::Event::Mode::Manual), _wai
 Renderer::~Renderer() {
 }
 
-void Renderer::initialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) {
+void Renderer::initialize(gerium_feature_flags_t features, const gerium_renderer_options_t* options) {
     _logger     = Logger::create("gerium:renderer");
     _loadThread = std::thread([this, scheduler = marl::Scheduler::get()]() {
         scheduler->bind();
@@ -17,7 +17,14 @@ void Renderer::initialize(gerium_feature_flags_t features, gerium_uint32_t versi
         loadThread();
     });
 
-    onInitialize(features, version, debug);
+    auto newOptions = options ? *options : gerium_renderer_options_t{};
+    if (newOptions.dynamic_ubo_size == 0) {
+        newOptions.dynamic_ubo_size = 65536;
+    }
+    if (newOptions.dynamic_ssbo_size == 0) {
+        newOptions.dynamic_ssbo_size = 1024 * 1024 * 256;
+    }
+    onInitialize(features, newOptions);
 }
 
 gerium_feature_flags_t Renderer::getEnabledFeatures() const noexcept {

@@ -15,7 +15,7 @@ void MacOSVkRenderer::onInitialize(gerium_feature_flags_t features, gerium_uint3
 gerium_result_t gerium_renderer_create(gerium_application_t application,
                                        gerium_feature_flags_t features,
                                        gerium_uint32_t version,
-                                       gerium_bool_t debug,
+                                       const gerium_renderer_options_t* options,
                                        gerium_renderer_t* renderer) {
     using namespace gerium;
     using namespace gerium::macos;

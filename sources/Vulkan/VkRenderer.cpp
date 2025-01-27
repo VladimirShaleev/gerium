@@ -44,8 +44,8 @@ PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
     return it != technique->passes + technique->passCount ? it->pipeline : Undefined;
 }
 
-void VkRenderer::onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) {
-    _device->create(application(), features, version, debug);
+void VkRenderer::onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) {
+    _device->create(application(), features, options);
     _isSupportedTransferQueue = _device->isSupportedTransferQueue();
     createTransferBuffer();
 }

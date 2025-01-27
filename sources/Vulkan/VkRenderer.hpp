@@ -17,7 +17,7 @@ public:
     PipelineHandle getPipeline(TechniqueHandle handle) const noexcept;
 
 protected:
-    void onInitialize(gerium_feature_flags_t features, gerium_uint32_t version, bool debug) override;
+    void onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) override;
 
     Application* application() noexcept;
 
