@@ -13,6 +13,9 @@ private:
     std::vector<const char*> onGetInstanceExtensions() const noexcept override;
     std::vector<const char*> onGetDeviceExtensions() const noexcept override;
     bool onNeedPostAcquireResize() const noexcept override;
+    void onImGuiGetScaleAndFontSize(Application* application,
+                                    gerium_float32_t& scale,
+                                    gerium_float32_t& fontSize) const noexcept override;
     VkSurfaceKHR onCreateSurface(Application* application) const override;
 };
 

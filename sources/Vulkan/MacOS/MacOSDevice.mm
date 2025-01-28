@@ -36,6 +36,13 @@ bool MacOSDevice::onNeedPostAcquireResize() const noexcept {
     return true;
 }
 
+void MacOSDevice::onImGuiGetScaleAndFontSize(Application* application, gerium_float32_t& scale, gerium_float32_t& fontSize) const noexcept {
+    auto fontScale = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 1.0f) /
+                     application->getDimension(GERIUM_DIMENSION_UNIT_DIP, 1.0f);
+    fontSize = 16.0f * fontScale;
+    scale    = 1.0f;
+}
+
 VkSurfaceKHR MacOSDevice::onCreateSurface(Application* application) const {
     auto macosApp = alias_cast<gerium::macos::MacOSApplication*>(application);
 

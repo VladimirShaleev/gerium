@@ -2116,17 +2116,11 @@ void Device::createImGui() {
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
     io.DisplaySize = ImVec2{ float(_swapchainExtent.width), float(_swapchainExtent.height) };
 
-    auto fs       = cmrc::gerium::resources::get_filesystem();
-    auto font     = fs.open("resources/OpenSans-Regular.ttf");
-    auto fontSize = _application->getDimension(GERIUM_DIMENSION_UNIT_SP, 16.0f);
-    auto scale    = _application->getDensity();
+    auto fs   = cmrc::gerium::resources::get_filesystem();
+    auto font = fs.open("resources/OpenSans-Regular.ttf");
 
-#ifdef GERIUM_PLATFORM_MAC_OS
-    auto fontScale = _application->getDimension(GERIUM_DIMENSION_UNIT_SP, 1.0f) /
-                     _application->getDimension(GERIUM_DIMENSION_UNIT_DIP, 1.0f);
-    fontSize = 16.0f * fontScale;
-    scale    = 1.0f;
-#endif
+    gerium_float32_t scale, fontSize;
+    onImGuiGetScaleAndFontSize(_application, scale, fontSize);
 
     auto dataFont = IM_ALLOC(font.size());
     memcpy(dataFont, (void*) font.begin(), font.size());
@@ -3324,6 +3318,13 @@ std::vector<const char*> Device::onGetDeviceExtensions() const noexcept {
 
 bool Device::onNeedPostAcquireResize() const noexcept {
     return false;
+}
+
+void Device::onImGuiGetScaleAndFontSize(Application* application,
+                                        gerium_float32_t& scale,
+                                        gerium_float32_t& fontSize) const noexcept {
+    scale    = _application->getDensity();
+    fontSize = _application->getDimension(GERIUM_DIMENSION_UNIT_SP, 16.0f);
 }
 
 } // namespace gerium::vulkan

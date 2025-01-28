@@ -422,6 +422,9 @@ private:
     virtual std::vector<const char*> onGetInstanceExtensions() const noexcept;
     virtual std::vector<const char*> onGetDeviceExtensions() const noexcept;
     virtual bool onNeedPostAcquireResize() const noexcept;
+    virtual void onImGuiGetScaleAndFontSize(Application* application,
+                                            gerium_float32_t& scale,
+                                            gerium_float32_t& fontSize) const noexcept;
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
     bool _enableValidations{};
