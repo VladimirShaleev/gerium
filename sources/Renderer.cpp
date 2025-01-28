@@ -51,6 +51,14 @@ void Renderer::getTextureInfo(TextureHandle handle, gerium_texture_info_t& info)
     onGetTextureInfo(handle, info);
 }
 
+bool Renderer::isAutoRotate() const noexcept {
+    return onIsAutoRotate();
+}
+
+int Renderer::getRotate() const noexcept {
+    return onGetRotate();
+}
+
 BufferHandle Renderer::createBuffer(const BufferCreation& creation) {
     return onCreateBuffer(creation);
 }
@@ -242,6 +250,10 @@ void Renderer::getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height)
     onGetSwapchainSize(width, height);
 }
 
+gerium_format_t Renderer::getSwapchainFormat() const noexcept {
+    return onGetSwapchainFormat();
+}
+
 void Renderer::closeLoadThread() {
     _shutdownSignal.signal();
     _waitTaskSignal.signal();
@@ -258,6 +270,14 @@ void Renderer::closeLoadThread() {
         delete task;
         _tasks.pop();
     }
+}
+
+bool Renderer::onIsAutoRotate() const noexcept {
+    return false;
+}
+
+int Renderer::onGetRotate() const noexcept {
+    return 0;
 }
 
 Renderer::Task* Renderer::createLoadTask(ObjectPtr<File> file, const std::string& name) {

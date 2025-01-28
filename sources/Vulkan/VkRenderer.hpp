@@ -45,6 +45,8 @@ private:
     bool onIsSupportedFormat(gerium_format_t format) noexcept override;
     void onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept override;
 
+    int onGetRotate() const noexcept override;
+
     BufferHandle onCreateBuffer(const BufferCreation& creation) override;
     TextureHandle onCreateTexture(const TextureCreation& creation) override;
     TextureHandle onCreateTextureView(const TextureViewCreation& creation) override;
@@ -110,6 +112,7 @@ private:
 
     Profiler* onGetProfiler() noexcept override;
     void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept override;
+    gerium_format_t onGetSwapchainFormat() const noexcept override;
 
     void loadThread() noexcept;
 

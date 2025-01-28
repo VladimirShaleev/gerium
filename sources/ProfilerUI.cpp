@@ -79,6 +79,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
             ImGuiIO& io = ImGui::GetIO();
 
             static char buf[128];
+            static char imguibuf[128];
 
             const ImVec2 mouse_pos = io.MousePos;
 
@@ -124,18 +125,25 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                 // drawList->AddRectFilled( { frame_x, cursor_pos.y + rect_height }, { frame_x + rect_width,
                 // cursor_pos.y }, 0xffffffff );
 
+                std::map<float, std::tuple<uint32_t, ImVec2, ImVec2>, std::greater<float>> rects;
+
                 for (uint32_t j = 0; j < perFrameActive[frame_index]; ++j) {
                     const auto& timestamp = frame_timestamps[j];
                     const auto& color     = frame_colors[j];
 
-                    /*if ( timestamp.depth != 1 ) {
-                        continue;
-                    }*/
-
                     rect_height = (float) timestamp.elapsed / maxDuration * widget_height;
-                    draw_list->AddRectFilled({ frame_x, std::max(cursor_pos.y + widget_height - rect_height, cursor_pos.y) },
-                                             { frame_x + rect_width, cursor_pos.y + widget_height },
-                                             color);
+
+                    rects.insert({
+                        rect_height,
+                        { color,
+                          ImVec2{ frame_x, std::max(cursor_pos.y + widget_height - rect_height, cursor_pos.y) },
+                          ImVec2{ frame_x + rect_width, cursor_pos.y + widget_height } }
+                    });
+                }
+
+                for (const auto& [_, rect] : rects) {
+                    const auto& [color, minPoint, maxPoint] = rect;
+                    draw_list->AddRectFilled(minPoint, maxPoint, color);
                 }
 
                 if (mouse_pos.x >= frame_x && mouse_pos.x < frame_x + rect_width && mouse_pos.y >= cursor_pos.y &&
@@ -184,6 +192,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                 float x = cursor_pos.x + graph_width;
                 float y = cursor_pos.y;
 
+                uint32_t imguiColor = 0;
                 for (uint32_t j = 0; j < perFrameActive[selected_frame]; ++j) {
                     const auto& timestamp = frame_timestamps[j];
                     const auto& color     = frame_colors[j];
@@ -197,11 +206,18 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                         depth = 1;
                     }
                     for (int s = 0; s < depth; ++s) {
-                        spaces[s] = '-';
+                        spaces[s]     = '-';
                         spaces[s + 1] = ' ';
                     }
 
                     snprintf(buf, 128, "%s%s: %2.4f", spaces, timestamp.name, timestamp.elapsed);
+
+                    if (strcmp(timestamp.name, "imgui") == 0) {
+                        strcpy(imguibuf, buf);
+                        imguiColor = color;
+                        continue;
+                    }
+
                     draw_list->AddText({ x + 12, y }, 0xffffffff, buf);
 
                     y += fontSize;
@@ -209,6 +225,12 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                     if (y > cursor_pos.y + widget_height) {
                         break;
                     }
+                }
+
+                if (y < cursor_pos.y + widget_height) {
+                    const auto centerY = fontSize / 2;
+                    draw_list->AddRectFilled({ x, y + centerY - 2 }, { x + 8, y + centerY + 6 }, imguiColor);
+                    draw_list->AddText({ x + 12, y }, 0xffffffff, imguibuf);
                 }
             }
 

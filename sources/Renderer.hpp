@@ -28,6 +28,9 @@ public:
     bool isSupportedFormat(gerium_format_t format) noexcept;
     void getTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept;
 
+    bool isAutoRotate() const noexcept;
+    int getRotate() const noexcept;
+
     BufferHandle createBuffer(const BufferCreation& creation);
     TextureHandle createTexture(const TextureCreation& creation);
     TextureHandle createTextureView(const TextureViewCreation& creation);
@@ -94,6 +97,7 @@ public:
 
     Profiler* getProfiler() noexcept;
     void getSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept;
+    gerium_format_t getSwapchainFormat() const noexcept;
 
 protected:
     virtual void onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) = 0;
@@ -127,6 +131,9 @@ private:
 
     virtual bool onIsSupportedFormat(gerium_format_t format) noexcept                         = 0;
     virtual void onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept = 0;
+
+    virtual bool onIsAutoRotate() const noexcept;
+    virtual int onGetRotate() const noexcept;
 
     virtual BufferHandle onCreateBuffer(const BufferCreation& creation)                                   = 0;
     virtual TextureHandle onCreateTexture(const TextureCreation& creation)                                = 0;
@@ -195,6 +202,7 @@ private:
 
     virtual Profiler* onGetProfiler() noexcept                                                      = 0;
     virtual void onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& height) const noexcept = 0;
+    virtual gerium_format_t onGetSwapchainFormat() const noexcept                                   = 0;
 
     Task* createLoadTask(ObjectPtr<File> file, const std::string& name);
     Task* createLoadTaskKtx2(ObjectPtr<File> file, const std::string& name);

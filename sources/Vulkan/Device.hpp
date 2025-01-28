@@ -16,7 +16,10 @@ class Device : public Object {
 public:
     virtual ~Device();
 
-    void create(Application* application, gerium_feature_flags_t features, const gerium_renderer_options_t& options);
+    void create(Application* application,
+                gerium_feature_flags_t features,
+                const gerium_renderer_options_t& options,
+                bool autoRotation);
 
     bool newFrame();
     void submit(CommandBuffer* commandBuffer);
@@ -123,6 +126,14 @@ public:
 
     const VkExtent2D& getSwapchainExtent() const noexcept {
         return _swapchainExtent;
+    }
+
+    gerium_format_t getSwapchainFormat() const noexcept {
+        return toGeriumFormat(_swapchainFormat.format);
+    }
+
+    VkSurfaceTransformFlagBitsKHR getSwapchainTransform() const noexcept {
+        return _currentTransform;
     }
 
     const RenderPassOutput& getRenderPassOutput(RenderPassHandle handle) const noexcept {
@@ -334,7 +345,7 @@ private:
     };
 
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
-    void createSurface(Application* application);
+    void createSurface();
     void createPhysicalDevice();
     void createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags);
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
@@ -344,8 +355,8 @@ private:
     void createDefaultSampler();
     void createDefaultTexture();
     void createSynchronizations();
-    void createSwapchain(Application* application);
-    void createImGui(Application* application);
+    void createSwapchain();
+    void createImGui();
     void createFidelityFX();
     void resizeSwapchain();
 
@@ -382,7 +393,7 @@ private:
     VkPhysicalDevice selectPhysicalDevice();
     VkSurfaceFormatKHR selectSwapchainFormat(const std::vector<VkSurfaceFormatKHR>& formats);
     VkPresentModeKHR selectSwapchainPresentMode(const std::vector<VkPresentModeKHR>& presentModes);
-    VkExtent2D selectSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, Application* application);
+    VkExtent2D selectSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
     std::vector<const char*> checkValidationLayers(const std::vector<const char*>& layers);
     std::vector<const char*> checkExtensions(const std::vector<std::pair<const char*, bool>>& extensions);
@@ -441,8 +452,11 @@ private:
     VkFence _inFlightFences[kMaxFrames]{};
     VkSwapchainKHR _swapchain{};
     VkSurfaceFormatKHR _swapchainFormat{};
+    VkSurfaceTransformFlagBitsKHR _currentTransform{};
     VkExtent2D _swapchainExtent{};
+    VkExtent2D _swapchainIdentityExtent{};
     RenderPassHandle _swapchainRenderPass{ Undefined };
+    RenderPassHandle _swapchainRotateRenderPass{ Undefined };
     std::vector<FramebufferHandle> _swapchainFramebuffers{};
     std::set<TextureHandle> _swapchainImages{};
     gerium_uint32_t _swapchainImageIndex{};
@@ -489,6 +503,7 @@ private:
     VkPhysicalDeviceProperties _deviceProperties{};
     VkPhysicalDeviceMemoryProperties _deviceMemProperties{};
     uint32_t _alignment{};
+    bool _autoRotation{};
     bool _profilerSupported{};
     bool _profilerEnabled{};
     bool _memoryBudgetSupported{};

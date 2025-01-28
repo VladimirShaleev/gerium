@@ -13,6 +13,8 @@ public:
 
 protected:
     void onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) override;
+
+    bool onIsAutoRotate() const noexcept override;
 };
 
 } // namespace gerium::vulkan::android

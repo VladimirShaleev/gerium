@@ -113,7 +113,9 @@ Device::~Device() {
 
 void Device::create(Application* application,
                     gerium_feature_flags_t features,
-                    const gerium_renderer_options_t& options) {
+                    const gerium_renderer_options_t& options,
+                    bool autoRotation) {
+    _autoRotation      = autoRotation;
     _enableValidations = options.debug_mode;
     _enableDebugNames  = options.debug_mode;
     _application       = application;
@@ -122,7 +124,7 @@ void Device::create(Application* application,
     _application->getSize(&_appWidth, &_appHeight);
 
     createInstance(application->getTitle(), options.app_version);
-    createSurface(application);
+    createSurface();
     createPhysicalDevice();
     createDevice(application->workerThreadCount(), features);
     createProfiler(64);
@@ -132,8 +134,8 @@ void Device::create(Application* application,
     createDefaultSampler();
     createDefaultTexture();
     createSynchronizations();
-    createSwapchain(application);
-    createImGui(application);
+    createSwapchain();
+    createImGui();
     createFidelityFX();
 }
 
@@ -1037,23 +1039,9 @@ PipelineHandle Device::createPipeline(const PipelineCreation& creation) {
         inputAssembly.topology               = toVkPrimitiveTopology(pc.rasterization->primitive_topology);
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-        VkViewport viewport = {};
-        viewport.x          = 0.0f;
-        viewport.y          = 0.0f;
-        viewport.width      = (float) _swapchainExtent.width;
-        viewport.height     = (float) _swapchainExtent.height;
-        viewport.minDepth   = 0.0f;
-        viewport.maxDepth   = 1.0f;
-
-        VkRect2D scissor = {};
-        scissor.offset   = { 0, 0 };
-        scissor.extent   = { _swapchainExtent.width, _swapchainExtent.height };
-
         VkPipelineViewportStateCreateInfo viewportState{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
         viewportState.viewportCount = 1;
-        viewportState.pViewports    = &viewport;
         viewportState.scissorCount  = 1;
-        viewportState.pScissors     = &scissor;
 
         VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
         rasterizer.depthClampEnable        = pc.rasterization->depth_clamp_enable;
@@ -1615,8 +1603,8 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     _vkTable.init(_instance, _vkTable.vkGetInstanceProcAddr);
 }
 
-void Device::createSurface(Application* application) {
-    _surface = onCreateSurface(application);
+void Device::createSurface() {
+    _surface = onCreateSurface(_application);
 }
 
 void Device::createPhysicalDevice() {
@@ -1951,11 +1939,11 @@ void Device::createSynchronizations() {
     }
 }
 
-void Device::createSwapchain(Application* application) {
+void Device::createSwapchain() {
     const auto swapchain   = getSwapchain();
     const auto format      = selectSwapchainFormat(swapchain.formats);
     const auto presentMode = selectSwapchainPresentMode(swapchain.presentModes);
-    const auto extent      = selectSwapchainExtent(swapchain.capabilities, application);
+    const auto extent      = selectSwapchainExtent(swapchain.capabilities);
 
     const auto imageCount =
         std::clamp(3U,
@@ -1970,12 +1958,22 @@ void Device::createSwapchain(Application* application) {
 
     auto sharingMode = families.empty() ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT;
 
+    _swapchainFormat         = format;
+    _currentTransform        = swapchain.capabilities.currentTransform;
+    _swapchainExtent         = extent;
+    _swapchainIdentityExtent = _swapchainExtent;
+
+    if (_currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR ||
+        _currentTransform & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
+        std::swap(_swapchainIdentityExtent.width, _swapchainIdentityExtent.height);
+    }
+
     VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     createInfo.surface               = _surface;
     createInfo.minImageCount         = imageCount;
     createInfo.imageFormat           = format.format;
     createInfo.imageColorSpace       = format.colorSpace;
-    createInfo.imageExtent           = extent;
+    createInfo.imageExtent           = _swapchainIdentityExtent;
     createInfo.imageArrayLayers      = 1;
     createInfo.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     createInfo.imageSharingMode      = sharingMode;
@@ -1989,9 +1987,6 @@ void Device::createSwapchain(Application* application) {
 
     check(_vkTable.vkCreateSwapchainKHR(_device, &createInfo, getAllocCalls(), &_swapchain));
 
-    _swapchainFormat = format;
-    _swapchainExtent = extent;
-
     if (_swapchainRenderPass == Undefined) {
         RenderPassCreation rc{};
         rc.setName("SwapchainRenderPass");
@@ -1999,6 +1994,12 @@ void Device::createSwapchain(Application* application) {
         rc.output.depth(VK_FORMAT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         rc.output.setDepthStencilOperations(RenderPassOp::Clear, RenderPassOp::Clear);
         _swapchainRenderPass = createRenderPass(rc);
+        if (_autoRotation) {
+            rc.setName("RotateRenderPass");
+            rc.output.numColorFormats = 0;
+            rc.output.color(_swapchainFormat.format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, RenderPassOp::DontCare);
+            _swapchainRotateRenderPass = createRenderPass(rc);
+        }
     }
 
     uint32_t swapchainImages = 0;
@@ -2040,7 +2041,7 @@ void Device::createSwapchain(Application* application) {
 
         // TextureCreation depthCreation{};
         // depthCreation.setName("SwapchainDepthStencilTexture");
-        // depthCreation.setSize(_swapchainExtent.width, _swapchainExtent.height, 1);
+        // depthCreation.setSize(_swapchainIdentityExtent.width, _swapchainIdentityExtent.height, 1);
         // depthCreation.setFlags(1, false, false);
         // depthCreation.setFormat(GERIUM_FORMAT_D32_SFLOAT, GERIUM_TEXTURE_TYPE_2D);
 
@@ -2054,8 +2055,8 @@ void Device::createSwapchain(Application* application) {
         fc.setScaling(1.0f, 1.0f, 0);
         fc.addRenderTexture(colorHandle);
         // fc.setDepthStencilTexture(depthHandle);
-        fc.width      = _swapchainExtent.width;
-        fc.height     = _swapchainExtent.height;
+        fc.width      = _swapchainIdentityExtent.width;
+        fc.height     = _swapchainIdentityExtent.height;
         fc.renderPass = _swapchainRenderPass;
 
         _swapchainFramebuffers[i] = createFramebuffer(fc);
@@ -2069,8 +2070,9 @@ void Device::createSwapchain(Application* application) {
     commandBuffer->submit(QueueType::Graphics);
 }
 
-void Device::createImGui(Application* application) {
-    auto renderPass = _renderPasses.access(_swapchainRenderPass)->vkRenderPass;
+void Device::createImGui() {
+    auto renderPass =
+        _renderPasses.access(_autoRotation ? _swapchainRotateRenderPass : _swapchainRenderPass)->vkRenderPass;
 
     VkDescriptorPoolSize poolSizes[] = {
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 }
@@ -2087,7 +2089,7 @@ void Device::createImGui(Application* application) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
-    application->initImGui();
+    _application->initImGui();
 
     ImGui_ImplVulkan_LoadFunctions(imguiLoaderFunc, this);
 
@@ -2116,11 +2118,12 @@ void Device::createImGui(Application* application) {
 
     auto fs       = cmrc::gerium::resources::get_filesystem();
     auto font     = fs.open("resources/OpenSans-Regular.ttf");
-    auto fontSize = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 16.0f);
-    auto scale    = application->getDensity();
-    
+    auto fontSize = _application->getDimension(GERIUM_DIMENSION_UNIT_SP, 16.0f);
+    auto scale    = _application->getDensity();
+
 #ifdef GERIUM_PLATFORM_MAC_OS
-    auto fontScale = application->getDimension(GERIUM_DIMENSION_UNIT_SP, 1.0f) / application->getDimension(GERIUM_DIMENSION_UNIT_DIP, 1.0f);
+    auto fontScale = _application->getDimension(GERIUM_DIMENSION_UNIT_SP, 1.0f) /
+                     _application->getDimension(GERIUM_DIMENSION_UNIT_DIP, 1.0f);
     fontSize = 16.0f * fontScale;
     scale    = 1.0f;
 #endif
@@ -2128,7 +2131,7 @@ void Device::createImGui(Application* application) {
     auto dataFont = IM_ALLOC(font.size());
     memcpy(dataFont, (void*) font.begin(), font.size());
     ImFontConfig config{};
-    config.RasterizerDensity = application->getDensity();
+    config.RasterizerDensity = _application->getDensity();
     io.Fonts->AddFontFromMemoryTTF(dataFont, (int) font.size(), fontSize, &config);
     ImGui::GetStyle().ScaleAllSizes(scale);
     ImGui_ImplVulkan_CreateFontsTexture();
@@ -2146,7 +2149,7 @@ void Device::resizeSwapchain() {
     _vkTable.vkDeviceWaitIdle(_device);
 
     auto oldSwapchain = _swapchain;
-    createSwapchain(_application);
+    createSwapchain();
 
     if (oldSwapchain) {
         _vkTable.vkDestroySwapchainKHR(_device, oldSwapchain, getAllocCalls());
@@ -3089,12 +3092,12 @@ VkPresentModeKHR Device::selectSwapchainPresentMode(const std::vector<VkPresentM
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D Device::selectSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, Application* application) {
+VkExtent2D Device::selectSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
         gerium_uint16_t width, height;
-        application->getSize(&width, &height);
+        _application->getSize(&width, &height);
 
         VkExtent2D extent = { (uint32_t) width, (uint32_t) height };
 

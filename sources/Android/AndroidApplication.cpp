@@ -466,6 +466,8 @@ void AndroidApplication::onAppCmd(int32_t cmd) noexcept {
             break;
 
         case APP_CMD_WINDOW_RESIZED:
+            changeState(GERIUM_APPLICATION_STATE_RESIZE, true);
+            changeState(GERIUM_APPLICATION_STATE_RESIZED, true);
             break;
 
         case APP_CMD_WINDOW_REDRAW_NEEDED:

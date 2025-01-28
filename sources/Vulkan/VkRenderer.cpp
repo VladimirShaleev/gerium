@@ -45,7 +45,7 @@ PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
 }
 
 void VkRenderer::onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) {
-    _device->create(application(), features, options);
+    _device->create(application(), features, options, isAutoRotate());
     _isSupportedTransferQueue = _device->isSupportedTransferQueue();
     createTransferBuffer();
 }
@@ -178,6 +178,19 @@ bool VkRenderer::onIsSupportedFormat(gerium_format_t format) noexcept {
 
 void VkRenderer::onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept {
     _device->getTextureInfo(handle, info);
+}
+
+int VkRenderer::onGetRotate() const noexcept {
+    switch (_device->getSwapchainTransform()) {
+        case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
+            return 90;
+        case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
+            return 180;
+        case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
+            return 270;
+        default:
+            return 0;
+    }
 }
 
 BufferHandle VkRenderer::onCreateBuffer(const BufferCreation& creation) {
@@ -532,7 +545,8 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
 
     std::set<TextureHandle> depths;
 
-    auto cb = _device->getPrimaryCommandBuffer();
+    auto imguiRendered = false;
+    auto cb            = _device->getPrimaryCommandBuffer();
     cb->bindRenderer(this);
     cb->pushMarker("total");
 
@@ -547,8 +561,9 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         cb->pushLabel(node->name);
         cb->pushMarker(node->name);
 
-        gerium_uint16_t width;
-        gerium_uint16_t height;
+        bool hasOutput = false;
+        gerium_uint16_t width{};
+        gerium_uint16_t height{};
 
         _device->clearInputResources();
         for (gerium_uint32_t i = 0; i < node->inputCount; ++i) {
@@ -575,6 +590,8 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 }
                 _device->addInputResource(resource, texture, resource->saveForNextFrame);
             } else if (resource->info.type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                hasOutput = true;
+
                 width  = resource->info.texture.width;
                 height = resource->info.texture.height;
 
@@ -652,11 +669,17 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
         auto framebuffer  = node->framebuffers[framebufferIndex];
         auto useWorkers   = totalWorkers != 1;
 
-        if (!node->outputCount) {
+        if (!node->outputCount && !hasOutput) {
+            const bool isRotate = !node->compute && isAutoRotate() && (getRotate() == 90 || getRotate() == 270);
+
             width       = _device->getSwapchainExtent().width;
             height      = _device->getSwapchainExtent().height;
             renderPass  = _device->getSwapchainPass();
             framebuffer = _device->getSwapchainFramebuffer();
+
+            if (isRotate) {
+                std::swap(width, height);
+            }
         }
 
         cb->setFrameGraph(&frameGraph);
@@ -700,7 +723,10 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 }
             }
 
-            if (!node->outputCount) {
+            auto isRotateOutput = !node->compute && node->outputCount == 1 && isAutoRotate() &&
+                                  strcmp(frameGraph.getResource(node->outputs[0])->name, FrameGraph::kRotateImage) == 0;
+
+            if (!imguiRendered && (!node->outputCount || isRotateOutput)) {
                 auto imguiCb = useWorkers ? _device->getSecondaryCommandBuffer(
                                                 0, _device->getSwapchainPass(), _device->getSwapchainFramebuffer())
                                           : cb;
@@ -719,6 +745,7 @@ void VkRenderer::onRender(FrameGraph& frameGraph) {
                 if (useWorkers) {
                     cb->execute(1, &imguiCb);
                 }
+                imguiRendered = true;
             }
 
             cb->endCurrentRenderPass();
@@ -786,6 +813,10 @@ void VkRenderer::onGetSwapchainSize(gerium_uint16_t& width, gerium_uint16_t& hei
     const auto& size = _device->getSwapchainExtent();
     width            = size.width;
     height           = size.height;
+}
+
+gerium_format_t VkRenderer::onGetSwapchainFormat() const noexcept {
+    return _device->getSwapchainFormat();
 }
 
 void VkRenderer::loadThread() noexcept {

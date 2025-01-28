@@ -92,11 +92,17 @@ struct FrameGraphExternalResource {
 class FrameGraph : public _gerium_frame_graph {
 public:
     ~FrameGraph() override;
-    FrameGraph(Renderer* renderer);
+    explicit FrameGraph(Renderer* renderer);
 
     void addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t data);
     void removePass(gerium_utf8_t name);
 
+    void addNodeAndModify(gerium_utf8_t name,
+                          bool compute,
+                          gerium_uint32_t inputCount,
+                          const gerium_resource_input_t* inputs,
+                          gerium_uint32_t outputCount,
+                          const gerium_resource_output_t* outputs);
     void addNode(gerium_utf8_t name,
                  bool compute,
                  gerium_uint32_t inputCount,
@@ -126,6 +132,9 @@ public:
     const FrameGraphNode* getNode(FrameGraphNodeHandle handle) const noexcept;
     const FrameGraphRenderPass* getPass(FrameGraphRenderPassHandle handle) const noexcept;
 
+    static const gerium_utf8_t kRotatePass;
+    static const gerium_utf8_t kRotateImage;
+
 private:
     using NodeHashMap       = absl::flat_hash_map<gerium_uint64_t, FrameGraphNodeHandle>;
     using ResourceHashMap   = absl::flat_hash_map<gerium_uint64_t, FrameGraphResourceHandle>;
@@ -138,6 +147,8 @@ private:
     void computeEdges(FrameGraphNode* node);
 
     void calcFramebufferSize(FrameGraphResourceInfo& info) const noexcept;
+
+    void addRotateNode();
 
     ObjectPtr<Logger> _logger;
     Renderer* _renderer;
@@ -162,6 +173,8 @@ private:
     std::array<uint8_t, kMaxNodes> _visited;
     std::array<FrameGraphNodeHandle, kMaxNodes> _allocations;
     std::set<TextureHandle> _freeList;
+
+    TechniqueHandle _rotateTechnique;
 };
 
 } // namespace gerium

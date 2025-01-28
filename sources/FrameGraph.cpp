@@ -12,7 +12,8 @@ FrameGraph::FrameGraph(Renderer* renderer) :
     _renderer(renderer),
     _hasChanges(false),
     _nodeGraphCount(0),
-    _sortedNodeGraphCount(0) {
+    _sortedNodeGraphCount(0),
+    _rotateTechnique(Undefined) {
 }
 
 void FrameGraph::addPass(gerium_utf8_t name, const gerium_render_pass_t* renderPass, gerium_data_t data) {
@@ -49,6 +50,52 @@ void FrameGraph::removePass(gerium_utf8_t name) {
     }
 
     _hasChanges = true;
+}
+
+void FrameGraph::addNodeAndModify(gerium_utf8_t name,
+                                  bool compute,
+                                  gerium_uint32_t inputCount,
+                                  const gerium_resource_input_t* inputs,
+                                  gerium_uint32_t outputCount,
+                                  const gerium_resource_output_t* outputs) {
+    bool addRotatiton = false;
+    if (!compute && _renderer->isAutoRotate() && outputCount == 0) {
+        addRotatiton = true;
+        for (gerium_uint32_t i = 0; i < inputCount; ++i) {
+            if (inputs[i].type == GERIUM_RESOURCE_TYPE_ATTACHMENT) {
+                addRotatiton = false;
+                break;
+            }
+        }
+    }
+
+    gerium_resource_output_t rotateOutput{};
+    if (addRotatiton) {
+        constexpr auto writeMask = GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT |
+                                   GERIUM_COLOR_COMPONENT_B_BIT | GERIUM_COLOR_COMPONENT_A_BIT;
+
+        gerium_uint16_t width, height;
+        _renderer->getSwapchainSize(width, height);
+        rotateOutput.type             = GERIUM_RESOURCE_TYPE_ATTACHMENT;
+        rotateOutput.name             = kRotateImage;
+        rotateOutput.format           = _renderer->getSwapchainFormat();
+        rotateOutput.width            = width;
+        rotateOutput.height           = height;
+        rotateOutput.depth            = 1;
+        rotateOutput.layers           = 1;
+        rotateOutput.auto_scale       = 1.0f;
+        rotateOutput.render_pass_op   = GERIUM_RENDER_PASS_OP_DONT_CARE;
+        rotateOutput.color_write_mask = writeMask;
+
+        outputCount = 1;
+        outputs     = &rotateOutput;
+    }
+
+    addNode(name, compute, inputCount, inputs, outputCount, outputs);
+
+    if (addRotatiton) {
+        addRotateNode();
+    }
 }
 
 void FrameGraph::addNode(gerium_utf8_t name,
@@ -125,6 +172,11 @@ void FrameGraph::addTexture(gerium_utf8_t name, TextureHandle handle) {
 
 void FrameGraph::clear() {
     _hasChanges = false;
+
+    if (_rotateTechnique != Undefined) {
+        _renderer->destroyTechnique(_rotateTechnique);
+        _rotateTechnique = Undefined;
+    }
 
     for (gerium_uint32_t i = 0; i < _nodeGraphCount; ++i) {
         auto node = _nodes.access(_nodeGraph[i]);
@@ -675,6 +727,85 @@ void FrameGraph::calcFramebufferSize(FrameGraphResourceInfo& info) const noexcep
     }
 }
 
+void FrameGraph::addRotateNode() {
+    gerium_resource_input_t input{};
+    input.type = GERIUM_RESOURCE_TYPE_TEXTURE;
+    input.name = kRotateImage;
+
+    auto fs         = cmrc::gerium::resources::get_filesystem();
+    auto rotateVert = fs.open("resources/rotate.vert.glsl");
+    auto rotateFrag = fs.open("resources/rotate.frag.glsl");
+
+    gerium_rasterization_state_t rasterization{};
+    rasterization.polygon_mode       = GERIUM_POLYGON_MODE_FILL;
+    rasterization.primitive_topology = GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    rasterization.cull_mode          = GERIUM_CULL_MODE_NONE;
+    rasterization.front_face         = GERIUM_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterization.line_width         = 1.0f;
+
+    gerium_depth_stencil_state_t depthStencil{};
+    gerium_color_blend_state_t colorBlend{};
+
+    std::array<gerium_shader_t, 2> rotateShaders{};
+    rotateShaders[0].type        = GERIUM_SHADER_TYPE_VERTEX;
+    rotateShaders[0].lang        = GERIUM_SHADER_LANGUAGE_GLSL;
+    rotateShaders[0].name        = "rotate.vert.glsl";
+    rotateShaders[0].entry_point = "main";
+    rotateShaders[0].data        = rotateVert.begin();
+    rotateShaders[0].size        = gerium_uint32_t(rotateVert.size());
+    rotateShaders[1].type        = GERIUM_SHADER_TYPE_FRAGMENT;
+    rotateShaders[1].lang        = GERIUM_SHADER_LANGUAGE_GLSL;
+    rotateShaders[1].name        = "rotate.frag.glsl";
+    rotateShaders[1].entry_point = "main";
+    rotateShaders[1].data        = rotateFrag.begin();
+    rotateShaders[1].size        = gerium_uint32_t(rotateFrag.size());
+
+    gerium_pipeline_t rotatePipeline{};
+    rotatePipeline.render_pass   = kRotatePass;
+    rotatePipeline.rasterization = &rasterization;
+    rotatePipeline.depth_stencil = &depthStencil;
+    rotatePipeline.color_blend   = &colorBlend;
+    rotatePipeline.shader_count  = gerium_uint32_t(rotateShaders.size());
+    rotatePipeline.shaders       = rotateShaders.data();
+
+    gerium_render_pass_t pass{};
+    pass.render = [](auto frameGraph, auto renderer, auto commandBuffer, auto, auto, auto data) -> gerium_bool_t {
+        auto graph = alias_cast<FrameGraph*>(frameGraph);
+
+        auto rotateMat    = glm::mat4(1.0f);
+        auto rotationAxis = glm::vec3(0.0f, 0.0f, 1.0f);
+        rotateMat         = glm::rotate(rotateMat, -glm::radians((float) graph->_renderer->getRotate()), rotationAxis);
+
+        constexpr auto usage = GERIUM_BUFFER_USAGE_UNIFORM_BIT;
+        gerium_buffer_h buffer{};
+        gerium_renderer_create_buffer(renderer, usage, true, "rotation", nullptr, sizeof(glm::mat4), &buffer);
+        auto rotate = (glm::mat4*) gerium_renderer_map_buffer(renderer, buffer, 0, sizeof(glm::mat4));
+        *rotate     = rotateMat;
+        gerium_renderer_unmap_buffer(renderer, buffer);
+
+        gerium_descriptor_set_h ds{};
+        gerium_renderer_create_descriptor_set(renderer, false, &ds);
+        gerium_renderer_bind_buffer(renderer, ds, 0, buffer);
+        gerium_renderer_bind_resource(renderer, ds, 1, kRotateImage, false);
+
+        gerium_command_buffer_bind_technique(commandBuffer, graph->_rotateTechnique);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
+        gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
+
+        gerium_renderer_destroy_descriptor_set(renderer, ds);
+        gerium_renderer_destroy_buffer(renderer, buffer);
+        return true;
+    };
+
+    addNode(kRotatePass, false, 1, &input, 0, nullptr);
+    addPass(kRotatePass, &pass, nullptr);
+
+    _rotateTechnique = _renderer->createTechnique(*this, "rotation_technique", 1, &rotatePipeline);
+}
+
+const gerium_utf8_t FrameGraph::kRotatePass  = "rotate_pass";
+const gerium_utf8_t FrameGraph::kRotateImage = "rotate_image";
+
 } // namespace gerium
 
 using namespace gerium;
@@ -729,7 +860,8 @@ gerium_result_t gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
     GERIUM_ASSERT_ARG(input_count == 0 || (input_count > 0 && inputs));
     GERIUM_ASSERT_ARG(output_count == 0 || (output_count > 0 && outputs));
     GERIUM_BEGIN_SAFE_BLOCK
-        alias_cast<FrameGraph*>(frame_graph)->addNode(name, compute, input_count, inputs, output_count, outputs);
+        alias_cast<FrameGraph*>(frame_graph)
+            ->addNodeAndModify(name, compute, input_count, inputs, output_count, outputs);
     GERIUM_END_SAFE_BLOCK
 }
 

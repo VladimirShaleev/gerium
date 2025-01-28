@@ -10,6 +10,10 @@ void AndroidVkRenderer::onInitialize(gerium_feature_flags_t features, const geri
     VkRenderer::onInitialize(features, options);
 }
 
+bool AndroidVkRenderer::onIsAutoRotate() const noexcept {
+    return true;
+}
+
 } // namespace gerium::vulkan::android
 
 gerium_result_t gerium_renderer_create(gerium_application_t application,
