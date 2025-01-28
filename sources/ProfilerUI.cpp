@@ -237,10 +237,10 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
             ImGui::Dummy({ canvas_size.x, widget_height });
         }
 
-        ImGui::SetNextItemWidth(140.f);
+        ImGui::SetNextItemWidth(5.5f * fontSize);
         ImGui::LabelText("", "Max %3.4fms", maxTime);
         ImGui::SameLine();
-        ImGui::SetNextItemWidth(140.f);
+        ImGui::SetNextItemWidth(5.5f * fontSize);
         ImGui::LabelText("", "Min %3.4fms", minTime);
         ImGui::SameLine();
         ImGui::LabelText("", "Ave %3.4fms", averageTime);
