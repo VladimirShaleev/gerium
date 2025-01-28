@@ -234,7 +234,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                 }
             }
 
-            ImGui::Dummy({ canvas_size.x, widget_height });
+            ImGui::Dummy({ canvas_size.x, widget_height - 4 });
         }
 
         ImGui::SetNextItemWidth(5.5f * fontSize);
