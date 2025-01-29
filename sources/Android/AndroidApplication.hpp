@@ -75,6 +75,7 @@ private:
     bool _activated;
     bool _focused;
     bool _exit;
+    bool _interrupted;
     gerium_float32_t _density;
     gerium_float32_t _scaledDensity;
     gerium_float32_t _xdpi;
@@ -85,7 +86,8 @@ private:
     jmethodID _isInMultiWindowMode;
     std::chrono::high_resolution_clock::time_point _prevTime;
     mutable std::unordered_map<gerium_uint64_t, gerium_uint32_t> _symbols;
-    std::unordered_map<gerium_sint32_t, std::tuple<gerium_sint16_t, gerium_sint16_t, gerium_mouse_button_flags_t>> _pointers;
+    std::unordered_map<gerium_sint32_t, std::tuple<gerium_sint16_t, gerium_sint16_t, gerium_mouse_button_flags_t>>
+        _pointers;
 
     jclass _keyEventClass;
     jmethodID _keyEventCtor;
@@ -110,6 +112,8 @@ private:
 
     jmethodID _getTitle;
     jmethodID _setTitle;
+
+    jmethodID _showMessage;
 };
 
 } // namespace gerium::android

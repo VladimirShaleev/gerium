@@ -13,6 +13,7 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
     _activated(false),
     _focused(false),
     _exit(false),
+    _interrupted(false),
     _density(0.0f),
     _scaledDensity(0.0f),
     _xdpi(0.0f),
@@ -78,16 +79,17 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         _getTitle = env->GetMethodID(activityClass, "getTitle", "()Ljava/lang/CharSequence;");
         _setTitle = env->GetMethodID(activityClass, "setTitle", "(Ljava/lang/CharSequence;)V");
 
-        auto resourcesClass = env->FindClass("android/content/res/Resources");
+        auto resourcesClass      = env->FindClass("android/content/res/Resources");
         auto displayMetricsClass = env->FindClass("android/util/DisplayMetrics");
 
         auto getResources = env->GetMethodID(activityClass, "getResources", "()Landroid/content/res/Resources;");
-        auto getDisplayMetrics = env->GetMethodID(resourcesClass, "getDisplayMetrics", "()Landroid/util/DisplayMetrics;");
-        auto densityField =  env->GetFieldID(displayMetricsClass, "density", "F");
+        auto getDisplayMetrics =
+            env->GetMethodID(resourcesClass, "getDisplayMetrics", "()Landroid/util/DisplayMetrics;");
+        auto densityField       = env->GetFieldID(displayMetricsClass, "density", "F");
         auto scaledDensityField = env->GetFieldID(displayMetricsClass, "scaledDensity", "F");
-        auto xdpiField = env->GetFieldID(displayMetricsClass, "xdpi", "F");
+        auto xdpiField          = env->GetFieldID(displayMetricsClass, "xdpi", "F");
 
-        auto resources = env->CallObjectMethod(activityClazz, getResources);
+        auto resources      = env->CallObjectMethod(activityClazz, getResources);
         auto displayMetrics = env->CallObjectMethod(resources, getDisplayMetrics);
 
         _density       = env->GetFloatField(displayMetrics, densityField);
@@ -100,8 +102,8 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         env->DeleteLocalRef(resourcesClass);
 
         auto versionClass = env->FindClass("android/os/Build$VERSION");
-        auto sdkIntField = env->GetStaticFieldID(versionClass, "SDK_INT", "I");
-        _sdkInt = env->GetStaticIntField(versionClass, sdkIntField);
+        auto sdkIntField  = env->GetStaticFieldID(versionClass, "SDK_INT", "I");
+        _sdkInt           = env->GetStaticIntField(versionClass, sdkIntField);
         env->DeleteLocalRef(versionClass);
 
         auto window    = env->CallObjectMethod(activityClazz, _getWindowMethod);
@@ -110,7 +112,8 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         if (_sdkInt >= 28) {
             auto layoutParamsClass = env->FindClass("android/view/WindowManager$LayoutParams");
 
-            auto getAttributesMethod = env->GetMethodID(windowClass, "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+            auto getAttributesMethod =
+                env->GetMethodID(windowClass, "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
             auto layoutInDisplayCutoutModeField = env->GetFieldID(layoutParamsClass, "layoutInDisplayCutoutMode", "I");
             auto alwaysField = env->GetStaticFieldID(layoutParamsClass, "LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS", "I");
 
@@ -119,7 +122,7 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
             }
 
             auto layoutParams = env->CallObjectMethod(window, getAttributesMethod);
-            auto always = alwaysField ? env->GetStaticIntField(layoutParamsClass, alwaysField) : 3;
+            auto always       = alwaysField ? env->GetStaticIntField(layoutParamsClass, alwaysField) : 3;
             env->SetIntField(layoutParams, layoutInDisplayCutoutModeField, always);
 
             env->DeleteLocalRef(layoutParams);
@@ -128,14 +131,14 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
 
         auto setSystemUiVisibilityMethod = env->GetMethodID(viewClass, "setSystemUiVisibility", "(I)V");
         auto getSystemUiVisibilityMethod = env->GetMethodID(viewClass, "getSystemUiVisibility", "()I");
-        auto statusBarsField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
-        auto navigationBarsField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I");
-        auto immersiveField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_IMMERSIVE", "I");
-        auto immersiveStickyField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
-        auto statusBars = env->GetStaticIntField(viewClass, statusBarsField);
-        auto navigationBars = env->GetStaticIntField(viewClass, navigationBarsField);
-        auto immersive = env->GetStaticIntField(viewClass, immersiveField);
-        auto immersiveSticky = env->GetStaticIntField(viewClass, immersiveStickyField);
+        auto statusBarsField             = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
+        auto navigationBarsField         = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I");
+        auto immersiveField              = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_IMMERSIVE", "I");
+        auto immersiveStickyField        = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
+        auto statusBars                  = env->GetStaticIntField(viewClass, statusBarsField);
+        auto navigationBars              = env->GetStaticIntField(viewClass, navigationBarsField);
+        auto immersive                   = env->GetStaticIntField(viewClass, immersiveField);
+        auto immersiveSticky             = env->GetStaticIntField(viewClass, immersiveStickyField);
 
         auto unsetSystemUiFlag = [=](gerium_sint32_t systemUiFlag) {
             auto flags = env->CallIntMethod(decorView, getSystemUiVisibilityMethod);
@@ -152,6 +155,11 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
 
         env->DeleteLocalRef(decorView);
         env->DeleteLocalRef(window);
+
+        _showMessage = env->GetMethodID(activityClass, "showMessage", "(Ljava/lang/String;Ljava/lang/String;)V");
+        if (!_showMessage) {
+            env->ExceptionClear();
+        }
 
         activity->vm->DetachCurrentThread();
     }
@@ -334,48 +342,58 @@ void AndroidApplication::onRun() {
 
     ANativeActivity_setWindowFormat(_application->activity, WINDOW_FORMAT_RGBX_8888);
 
-    changeState(GERIUM_APPLICATION_STATE_CREATE, true);
+    try {
+        changeState(GERIUM_APPLICATION_STATE_CREATE, true);
 
-    if (callbackStateFailed()) {
-        onExit();
-        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
-    }
-
-    int result;
-    android_poll_source* source = nullptr;
-
-    _prevTime = getCurrentTime();
-
-    while (!_application->destroyRequested) {
-        do {
-            result = ALooper_pollOnce(isPause() ? -1 : 0, nullptr, nullptr, alias_cast<void**>(&source));
-            if (result >= 0 && source != nullptr) {
-                source->process(_application, source);
+        if (callbackStateFailed()) {
+            if (!_showMessage) {
+                onExit();
             }
+            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+        }
 
-            if (_application->destroyRequested) {
-                if (callbackStateFailed()) {
+        int result;
+        android_poll_source* source = nullptr;
+
+        _prevTime = getCurrentTime();
+
+        while (!_application->destroyRequested) {
+            do {
+                result = ALooper_pollOnce(isPause() ? -1 : 0, nullptr, nullptr, alias_cast<void**>(&source));
+                if (result >= 0 && source != nullptr) {
+                    source->process(_application, source);
+                }
+
+                if (_application->destroyRequested) {
+                    if (callbackStateFailed()) {
+                        error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+                    }
+                    return;
+                }
+            } while (result == ALOOPER_POLL_CALLBACK);
+
+            if (!isPause() && _initialized && !_exit) {
+                auto currentTime = getCurrentTime();
+
+                const auto elapsed =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - _prevTime).count();
+
+                if (elapsed == 0) {
+                    continue;
+                }
+                _prevTime = currentTime;
+
+                if (!callFrameFunc(elapsed)) {
+                    if (!_showMessage) {
+                        onExit();
+                    }
                     error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
                 }
-                return;
-            }
-        } while (result == ALOOPER_POLL_CALLBACK);
-
-        if (!isPause() && _initialized && !_exit) {
-            auto currentTime = getCurrentTime();
-
-            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - _prevTime).count();
-
-            if (elapsed == 0) {
-                continue;
-            }
-            _prevTime = currentTime;
-
-            if (!callFrameFunc(elapsed)) {
-                onExit();
-                error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
             }
         }
+    } catch (...) {
+        _interrupted = true;
+        throw;
     }
 }
 
@@ -385,6 +403,84 @@ void AndroidApplication::onExit() noexcept {
 }
 
 void AndroidApplication::onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+    if (_showMessage) {
+        auto activity = _application->activity;
+        if (JNIEnv * env; activity->vm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
+            auto jTitle   = env->NewStringUTF(title);
+            auto jMessage = env->NewStringUTF(message);
+            env->CallVoidMethod(activity->clazz, _showMessage, jTitle, jMessage);
+            env->DeleteLocalRef(jMessage);
+            env->DeleteLocalRef(jTitle);
+            activity->vm->DetachCurrentThread();
+        }
+    } else {
+        auto logger = Logger::create("gerium:application:android");
+        logger->print(GERIUM_LOGGER_LEVEL_DEBUG,
+                      R"(To show a message dialog in Android, you need to use the UI thread.
+So, you need to implement showMessage method it on the java/kotlin side in your activity. For example:
+
+class MainActivity : NativeActivity() {
+    @Suppress("UNUSED")
+    fun showMessage(title: String, message: String) {
+        val mutex = Semaphore(0)
+        runOnUiThread {
+            val builder = AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setNeutralButton("OK") { _, _ ->
+                }.setOnDismissListener {
+                    mutex.release()
+                }
+            builder.create().show()
+        }
+        mutex.acquire()
+    }
+})");
+
+        logger->print(GERIUM_LOGGER_LEVEL_DEBUG,
+                      R"(Also, don't forget to specify it activity in the AndroidManifest.xml manifest:
+
+<activity
+    android:name=".MainActivity"
+    android:configChanges="screenSize|orientation|keyboardHidden"
+    android:exported="true"
+    android:launchMode="singleTask"
+    android:resizeableActivity="true"
+    android:supportsPictureInPicture="false">
+    <meta-data
+        android:name="android.app.lib_name"
+        android:value="example" />
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity>)");
+
+        logger->print(GERIUM_LOGGER_LEVEL_DEBUG,
+                      R"(also if you haven't used dex code, now you need to enable it (android:hasCode="true"):
+
+<application
+    android:hasCode="true"
+    ...>
+    <activity>
+        ...
+    </activity>
+</application>
+)");
+    }
+    if (_interrupted) {
+        onExit();
+        while (!_application->destroyRequested) {
+            int result;
+            android_poll_source* source = nullptr;
+            do {
+                result = ALooper_pollOnce(0, nullptr, nullptr, alias_cast<void**>(&source));
+                if (result >= 0 && source != nullptr) {
+                    source->process(_application, source);
+                }
+            } while (result == ALOOPER_POLL_CALLBACK);
+        }
+    }
 }
 
 bool AndroidApplication::onIsRunning() const noexcept {
@@ -572,7 +668,7 @@ void AndroidApplication::onAppCmd(int32_t cmd) noexcept {
             break;
     }
 
-    if (callbackStateFailed()) {
+    if (callbackStateFailed() && !_showMessage) {
         onExit();
     }
 }
