@@ -202,21 +202,12 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
 
                     char spaces[33]{};
                     auto depth = timestamp.depth;
-                    if (strcmp(timestamp.name, "imgui") == 0) {
-                        depth = 1;
-                    }
                     for (int s = 0; s < depth; ++s) {
                         spaces[s]     = '-';
                         spaces[s + 1] = ' ';
                     }
 
                     snprintf(buf, 128, "%s%s: %2.4f", spaces, timestamp.name, timestamp.elapsed);
-
-                    if (strcmp(timestamp.name, "imgui") == 0) {
-                        strcpy(imguibuf, buf);
-                        imguiColor = color;
-                        continue;
-                    }
 
                     draw_list->AddText({ x + 12, y }, 0xffffffff, buf);
 
@@ -225,12 +216,6 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
                     if (y > cursor_pos.y + widget_height) {
                         break;
                     }
-                }
-
-                if (y < cursor_pos.y + widget_height) {
-                    const auto centerY = fontSize / 2;
-                    draw_list->AddRectFilled({ x, y + centerY - 2 }, { x + 8, y + centerY + 6 }, imguiColor);
-                    draw_list->AddText({ x + 12, y }, 0xffffffff, imguibuf);
                 }
             }
 
