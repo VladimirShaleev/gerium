@@ -574,7 +574,7 @@ void LinuxApplication::onRun() {
 
         if (_running && _window && !callFrameFunc(elapsed)) {
             frameError = true;
-            _running   = false;
+            onExit();
         }
     }
 
@@ -594,6 +594,223 @@ void LinuxApplication::onExit() noexcept {
 }
 
 void LinuxApplication::onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+    static constexpr auto lineSpacing  = 5;
+    static constexpr auto barHeight    = 50;
+    static constexpr auto padUp        = 30;
+    static constexpr auto padDown      = 10;
+    static constexpr auto padLeft      = 30;
+    static constexpr auto padRight     = 30;
+    static constexpr auto wMinWidth    = 400;
+    static constexpr auto wMinHeight   = 100;
+    static constexpr auto btMinWidth   = 75;
+    static constexpr auto btMinHeight  = 25;
+    static constexpr auto btLateralPad = 8;
+    static constexpr wchar_t OK[]      = L"OK";
+    static constexpr auto lenOK        = std::size(OK) - 1;
+
+    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+    std::wstring str = converter.from_bytes(message);
+
+    wchar_t* last = nullptr;
+    wchar_t* data = (wchar_t*) str.c_str();
+    std::vector<std::wstring> texts;
+    for (auto tok = wcstok(data, L"\n", &last); tok; tok = wcstok(nullptr, L"\n", &last)) {
+        texts.push_back(tok);
+    }
+
+    Window dialog = _x11.XCreateSimpleWindow(
+        _display, _root, 0, 0, wMinWidth, wMinHeight, 1, BlackPixel(_display, _screen), WhitePixel(_display, _screen));
+
+    constexpr auto eventMask =
+        ExposureMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask | KeyPressMask | KeyReleaseMask;
+    _x11.XSelectInput(_display, dialog, eventMask);
+    _x11.XSetWMProtocols(_display, dialog, &WM_DELETE_WINDOW, 1);
+
+    XGCValues gcValues{};
+    gcValues.font       = _x11.XLoadFont(_display, "*");
+    gcValues.foreground = BlackPixel(_display, 0);
+
+    GC textGC = _x11.XCreateGC(_display, dialog, GCFont + GCForeground, &gcValues);
+
+    char** missingCharsetList = nullptr;
+    int missingCharsetCount   = 0;
+
+    XFontSet fs = _x11.XCreateFontSet(_display, "*", &missingCharsetList, &missingCharsetCount, nullptr);
+    if (missingCharsetCount) {
+        _x11.XFreeStringList(missingCharsetList);
+        missingCharsetList = nullptr;
+    }
+    _x11.XFlush(_display);
+
+    Colormap cmap = DefaultColormap(_display, _screen);
+
+    const auto [textW, textH] = calcTextSize(fs, texts, lineSpacing);
+
+    const auto winW = std::max(wMinWidth, textW + padLeft + padRight);
+    const auto winH = std::max(wMinHeight, textH + padUp + padDown + barHeight);
+
+    unsigned long decorators[5] = { 3, 36, 10, 0, 0 };
+    _x11.XChangeProperty(_display,
+                         dialog,
+                         MOTIF_WM_HINTS,
+                         MOTIF_WM_HINTS,
+                         32,
+                         PropModeReplace,
+                         (unsigned char*) &decorators,
+                         std::size(decorators));
+
+    XSizeHints* hints = _x11.XAllocSizeHints();
+    hints->flags      = PSize | PMinSize | PMaxSize;
+    hints->min_width = hints->max_width = hints->base_width = winW;
+    hints->min_height = hints->max_height = hints->base_height = winH;
+    _x11.XSetWMNormalHints(_display, dialog, hints);
+    _x11.XFree(hints);
+
+    _x11.XResizeWindow(_display, dialog, winW, winH);
+    _x11.XFlush(_display);
+
+    _x11.XChangeProperty(_display,
+                         dialog,
+                         NET_WM_NAME,
+                         UTF8_STRING,
+                         8,
+                         PropModeReplace,
+                         (unsigned char*) _title.data(),
+                         _title.length());
+    _x11.XChangeProperty(_display,
+                         dialog,
+                         NET_WM_ICON_NAME,
+                         UTF8_STRING,
+                         8,
+                         PropModeReplace,
+                         (unsigned char*) _title.data(),
+                         _title.length());
+    _x11.XFlush(_display);
+
+    GC barGC         = createGC(cmap, dialog, 242, 242, 242);
+    GC buttonGC      = createGC(cmap, dialog, 202, 202, 202);
+    GC buttonOverGC  = createGC(cmap, dialog, 182, 182, 182);
+    GC buttonPressGC = createGC(cmap, dialog, 142, 142, 142);
+
+    XRectangle btTextDim;
+    _x11.XwcTextExtents(fs, OK, lenOK, &btTextDim, NULL);
+
+    GC btGC = buttonGC;
+    XRectangle btRect;
+    btRect.width  = std::max(btMinWidth, btTextDim.width + 2 * btLateralPad);
+    btRect.height = btMinHeight;
+    btRect.x      = winW - padLeft - btRect.width;
+    btRect.y      = textH + padUp + padDown + ((barHeight - btMinHeight) / 2);
+
+    auto closeDialogCalled = false;
+
+    auto closeDialog = [this, dialog, &closeDialogCalled]() {
+        if (!closeDialogCalled) {
+            XEvent reply               = { ClientMessage };
+            reply.xclient.window       = dialog;
+            reply.xclient.message_type = WM_PROTOCOLS;
+            reply.xclient.format       = 32;
+            reply.xclient.data.l[0]    = WM_DELETE_WINDOW;
+            reply.xclient.data.l[1]    = CurrentTime;
+            _x11.XSendEvent(_display, dialog, False, NoEventMask, &reply);
+            closeDialogCalled = true;
+        }
+    };
+
+    auto isHit = [&btRect](int x, int y) {
+        return x >= btRect.x && x <= btRect.x + btRect.width && y >= btRect.y && y <= btRect.y + btRect.height;
+    };
+
+    auto draw = [this, dialog, fs, textH, winW, &btTextDim, &btRect, textGC, barGC, &btGC, &texts]() {
+        for (int i = 0; i < (int) texts.size(); ++i) {
+            _x11.XwcDrawString(_display,
+                               dialog,
+                               fs,
+                               textGC,
+                               padLeft,
+                               padUp + i * (lineSpacing + 18),
+                               texts[i].c_str(),
+                               (int) texts[i].length());
+        }
+        _x11.XFillRectangle(_display, dialog, barGC, 0, textH + padUp + padDown, winW, barHeight);
+        _x11.XFillRectangle(_display, dialog, btGC, btRect.x, btRect.y, btRect.width, btRect.height);
+        _x11.XwcDrawString(_display,
+                           dialog,
+                           fs,
+                           textGC,
+                           btRect.x + (btRect.width - btTextDim.width) / 2,
+                           btRect.y + (btRect.height + btTextDim.height) / 2,
+                           OK,
+                           lenOK);
+        _x11.XFlush(_display);
+    };
+
+    _x11.XMapWindow(_display, dialog);
+
+    bool finished = false;
+    while (!finished) {
+        XEvent event;
+        _x11.XNextEvent(_display, &event);
+
+        switch (event.type) {
+            case KeyRelease:
+                if (event.xkey.keycode == (unsigned int) ScanCode::Escape ||
+                    event.xkey.keycode == (unsigned int) ScanCode::Enter) {
+                    closeDialog();
+                }
+                break;
+
+            case KeyPress:
+                if (event.xkey.keycode == (unsigned int) ScanCode::Enter) {
+                    btGC = buttonPressGC;
+                }
+                draw();
+                break;
+
+            case MotionNotify:
+            case ButtonPress:
+            case ButtonRelease:
+                btGC = buttonGC;
+                if (isHit(event.xmotion.x, event.xmotion.y)) {
+                    btGC = buttonOverGC;
+                    if (event.type == ButtonPress && event.xbutton.button == Button1) {
+                        btGC = buttonPressGC;
+                    } else if (event.type == ButtonRelease && event.xbutton.button == Button1) {
+                        closeDialog();
+                    }
+                }
+                draw();
+                break;
+
+            case Expose:
+                draw();
+                break;
+
+            case ClientMessage:
+                if (event.xclient.message_type == WM_PROTOCOLS) {
+                    auto protocol = event.xclient.data.l[0];
+                    if (protocol == WM_DELETE_WINDOW) {
+                        finished = true;
+                    }
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    if (missingCharsetList) {
+        _x11.XFreeStringList(missingCharsetList);
+    }
+    _x11.XDestroyWindow(_display, dialog);
+    _x11.XFreeFontSet(_display, fs);
+    _x11.XFreeGC(_display, textGC);
+    _x11.XFreeGC(_display, barGC);
+    _x11.XFreeGC(_display, buttonGC);
+    _x11.XFreeGC(_display, buttonOverGC);
+    _x11.XFreeGC(_display, buttonPressGC);
+    _x11.XFreeColormap(_display, cmap);
 }
 
 bool LinuxApplication::onIsRunning() const noexcept {
@@ -798,7 +1015,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
         case ClientMessage:
             if (event.xclient.message_type == WM_PROTOCOLS) {
                 auto protocol = event.xclient.data.l[0];
-                if (protocol == WM_DELETE_WINDOW) {
+                if (protocol == WM_DELETE_WINDOW && _running) {
                     changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
                     changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
                     changeState(GERIUM_APPLICATION_STATE_DESTROY);
@@ -1261,6 +1478,38 @@ void LinuxApplication::releaseErrorHandler() {
     _errorHandler = nullptr;
 }
 
+std::pair<int, int> LinuxApplication::calcTextSize(XFontSet fontSet,
+                                                   const std::vector<std::wstring>& texts,
+                                                   int interval) {
+    int w = 0;
+    int h = 0;
+    int y = 0;
+
+    XRectangle rect = {};
+    for (const auto& text : texts) {
+        _x11.XwcTextExtents(fontSet, text.c_str(), (int) text.length(), &rect, nullptr);
+        y = std::abs(rect.y);
+        w = std::max(w, (int) rect.width);
+        h += rect.height + y + interval;
+        fflush(stdin);
+    }
+    return { w, h - y - interval };
+}
+
+GC LinuxApplication::createGC(Colormap cmap, Window window, uint8_t red, uint8_t green, uint8_t blue) {
+    auto coloratio = float(65535) / 255;
+    XColor color;
+    auto gc = _x11.XCreateGC(_display, window, 0, 0);
+    memset(&color, 0, sizeof(color));
+    color.red   = (unsigned short) (coloratio * red);
+    color.green = (unsigned short) (coloratio * green);
+    color.blue  = (unsigned short) (coloratio * blue);
+    color.flags = DoRed | DoGreen | DoBlue;
+    _x11.XAllocColor(_display, cmap, &color);
+    _x11.XSetForeground(_display, gc, color.pixel);
+    return gc;
+}
+
 int LinuxApplication::errorHandler(Display* display, XErrorEvent* event) {
     if (_display == display) {
         _errorCode = event->error_code;
@@ -1290,6 +1539,7 @@ LinuxApplication::X11Table::X11Table() {
     }
 
     XAllocClassHint        = (PFN_XAllocClassHint) dlsym(dll, "XAllocClassHint");
+    XAllocColor            = (PFN_XAllocColor) dlsym(dll, "XAllocColor");
     XAllocSizeHints        = (PFN_XAllocSizeHints) dlsym(dll, "XAllocSizeHints");
     XAllocWMHints          = (PFN_XAllocWMHints) dlsym(dll, "XAllocWMHints");
     XChangeProperty        = (PFN_XChangeProperty) dlsym(dll, "XChangeProperty");
@@ -1297,17 +1547,24 @@ LinuxApplication::X11Table::X11Table() {
     XCloseDisplay          = (PFN_XCloseDisplay) dlsym(dll, "XCloseDisplay");
     XCloseIM               = (PFN_XCloseIM) dlsym(dll, "XCloseIM");
     XCreateColormap        = (PFN_XCreateColormap) dlsym(dll, "XCreateColormap");
+    XCreateFontSet         = (PFN_XCreateFontSet) dlsym(dll, "XCreateFontSet");
+    XCreateGC              = (PFN_XCreateGC) dlsym(dll, "XCreateGC");
     XCreateIC              = (PFN_XCreateIC) dlsym(dll, "XCreateIC");
+    XCreateSimpleWindow    = (PFN_XCreateSimpleWindow) dlsym(dll, "XCreateSimpleWindow");
     XCreateWindow          = (PFN_XCreateWindow) dlsym(dll, "XCreateWindow");
     XDeleteContext         = (PFN_XDeleteContext) dlsym(dll, "XDeleteContext");
     XDeleteProperty        = (PFN_XDeleteProperty) dlsym(dll, "XDeleteProperty");
     XDestroyIC             = (PFN_XDestroyIC) dlsym(dll, "XDestroyIC");
     XDestroyWindow         = (PFN_XDestroyWindow) dlsym(dll, "XDestroyWindow");
+    XFillRectangle         = (PFN_XFillRectangle) dlsym(dll, "XFillRectangle");
     XFindContext           = (PFN_XFindContext) dlsym(dll, "XFindContext");
     XFlush                 = (PFN_XFlush) dlsym(dll, "XFlush");
     XFree                  = (PFN_XFree) dlsym(dll, "XFree");
     XFreeColormap          = (PFN_XFreeColormap) dlsym(dll, "XFreeColormap");
     XFreeEventData         = (PFN_XFreeEventData) dlsym(dll, "XFreeEventData");
+    XFreeFontSet           = (PFN_XFreeFontSet) dlsym(dll, "XFreeFontSet");
+    XFreeGC                = (PFN_XFreeGC) dlsym(dll, "XFreeGC");
+    XFreeStringList        = (PFN_XFreeStringList) dlsym(dll, "XFreeStringList");
     XGetErrorText          = (PFN_XGetErrorText) dlsym(dll, "XGetErrorText");
     XGetEventData          = (PFN_XGetEventData) dlsym(dll, "XGetEventData");
     XGetICValues           = (PFN_XGetICValues) dlsym(dll, "XGetICValues");
@@ -1317,6 +1574,7 @@ LinuxApplication::X11Table::X11Table() {
     XGetWMNormalHints      = (PFN_XGetWMNormalHints) dlsym(dll, "XGetWMNormalHints");
     XGrabPointer           = (PFN_XGrabPointer) dlsym(dll, "XGrabPointer");
     XInternAtom            = (PFN_XInternAtom) dlsym(dll, "XInternAtom");
+    XLoadFont              = (PFN_XLoadFont) dlsym(dll, "XLoadFont");
     XLookupString          = (PFN_XLookupString) dlsym(dll, "XLookupString");
     XMapRaised             = (PFN_XMapRaised) dlsym(dll, "XMapRaised");
     XMapWindow             = (PFN_XMapWindow) dlsym(dll, "XMapWindow");
@@ -1338,6 +1596,7 @@ LinuxApplication::X11Table::X11Table() {
     XSendEvent             = (PFN_XSendEvent) dlsym(dll, "XSendEvent");
     XSetClassHint          = (PFN_XSetClassHint) dlsym(dll, "XSetClassHint");
     XSetErrorHandler       = (PFN_XSetErrorHandler) dlsym(dll, "XSetErrorHandler");
+    XSetForeground         = (PFN_XSetForeground) dlsym(dll, "XSetForeground");
     XSetIMValues           = (PFN_XSetIMValues) dlsym(dll, "XSetIMValues");
     XSetInputFocus         = (PFN_XSetInputFocus) dlsym(dll, "XSetInputFocus");
     XSetWMHints            = (PFN_XSetWMHints) dlsym(dll, "XSetWMHints");
@@ -1347,6 +1606,8 @@ LinuxApplication::X11Table::X11Table() {
     XUngrabPointer         = (PFN_XUngrabPointer) dlsym(dll, "XUngrabPointer");
     XUnmapWindow           = (PFN_XUnmapWindow) dlsym(dll, "XUnmapWindow");
     Xutf8LookupString      = (PFN_Xutf8LookupString) dlsym(dll, "Xutf8LookupString");
+    XwcDrawString          = (PFN_XwcDrawString) dlsym(dll, "XwcDrawString");
+    XwcTextExtents         = (PFN_XwcTextExtents) dlsym(dll, "XwcTextExtents");
 }
 
 LinuxApplication::X11Table::~X11Table() {

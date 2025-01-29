@@ -120,6 +120,9 @@ private:
     void acquirereErrorHandler();
     void releaseErrorHandler();
 
+    std::pair<int, int> calcTextSize(XFontSet fontSet, const std::vector<std::wstring>& texts, int interval);
+    GC createGC(Colormap cmap, Window window, uint8_t red, uint8_t green, uint8_t blue);
+
     static int errorHandler(Display* display, XErrorEvent* event);
     static void destroyIm(XIM im, XPointer clientData, XPointer callData);
     static void destroyIc(XIM im, XPointer clientData, XPointer callData);
@@ -144,6 +147,7 @@ private:
 
     struct X11Table {
         typedef decltype(&::XAllocClassHint) PFN_XAllocClassHint;
+        typedef decltype(&::XAllocColor) PFN_XAllocColor;
         typedef decltype(&::XAllocSizeHints) PFN_XAllocSizeHints;
         typedef decltype(&::XAllocWMHints) PFN_XAllocWMHints;
         typedef decltype(&::XChangeProperty) PFN_XChangeProperty;
@@ -151,17 +155,24 @@ private:
         typedef decltype(&::XCloseDisplay) PFN_XCloseDisplay;
         typedef decltype(&::XCloseIM) PFN_XCloseIM;
         typedef decltype(&::XCreateColormap) PFN_XCreateColormap;
+        typedef decltype(&::XCreateFontSet) PFN_XCreateFontSet;
+        typedef decltype(&::XCreateGC) PFN_XCreateGC;
         typedef decltype(&::XCreateIC) PFN_XCreateIC;
+        typedef decltype(&::XCreateSimpleWindow) PFN_XCreateSimpleWindow;
         typedef decltype(&::XCreateWindow) PFN_XCreateWindow;
         typedef decltype(&::XDeleteContext) PFN_XDeleteContext;
         typedef decltype(&::XDeleteProperty) PFN_XDeleteProperty;
         typedef decltype(&::XDestroyIC) PFN_XDestroyIC;
         typedef decltype(&::XDestroyWindow) PFN_XDestroyWindow;
+        typedef decltype(&::XFillRectangle) PFN_XFillRectangle;
         typedef decltype(&::XFindContext) PFN_XFindContext;
         typedef decltype(&::XFlush) PFN_XFlush;
         typedef decltype(&::XFree) PFN_XFree;
         typedef decltype(&::XFreeColormap) PFN_XFreeColormap;
         typedef decltype(&::XFreeEventData) PFN_XFreeEventData;
+        typedef decltype(&::XFreeFontSet) PFN_XFreeFontSet;
+        typedef decltype(&::XFreeGC) PFN_XFreeGC;
+        typedef decltype(&::XFreeStringList) PFN_XFreeStringList;
         typedef decltype(&::XGetErrorText) PFN_XGetErrorText;
         typedef decltype(&::XGetEventData) PFN_XGetEventData;
         typedef decltype(&::XGetICValues) PFN_XGetICValues;
@@ -171,6 +182,7 @@ private:
         typedef decltype(&::XGetWMNormalHints) PFN_XGetWMNormalHints;
         typedef decltype(&::XGrabPointer) PFN_XGrabPointer;
         typedef decltype(&::XInternAtom) PFN_XInternAtom;
+        typedef decltype(&::XLoadFont) PFN_XLoadFont;
         typedef decltype(&::XLookupString) PFN_XLookupString;
         typedef decltype(&::XMapRaised) PFN_XMapRaised;
         typedef decltype(&::XMapWindow) PFN_XMapWindow;
@@ -192,6 +204,7 @@ private:
         typedef decltype(&::XSendEvent) PFN_XSendEvent;
         typedef decltype(&::XSetClassHint) PFN_XSetClassHint;
         typedef decltype(&::XSetErrorHandler) PFN_XSetErrorHandler;
+        typedef decltype(&::XSetForeground) PFN_XSetForeground;
         typedef decltype(&::XSetIMValues) PFN_XSetIMValues;
         typedef decltype(&::XSetInputFocus) PFN_XSetInputFocus;
         typedef decltype(&::XSetWMHints) PFN_XSetWMHints;
@@ -201,11 +214,14 @@ private:
         typedef decltype(&::XUngrabPointer) PFN_XUngrabPointer;
         typedef decltype(&::XUnmapWindow) PFN_XUnmapWindow;
         typedef decltype(&::Xutf8LookupString) PFN_Xutf8LookupString;
+        typedef decltype(&::XwcDrawString) PFN_XwcDrawString;
+        typedef decltype(&::XwcTextExtents) PFN_XwcTextExtents;
 
         X11Table();
         ~X11Table();
 
         PFN_XAllocClassHint XAllocClassHint;
+        PFN_XAllocColor XAllocColor;
         PFN_XAllocSizeHints XAllocSizeHints;
         PFN_XAllocWMHints XAllocWMHints;
         PFN_XChangeProperty XChangeProperty;
@@ -213,17 +229,24 @@ private:
         PFN_XCloseDisplay XCloseDisplay;
         PFN_XCloseIM XCloseIM;
         PFN_XCreateColormap XCreateColormap;
+        PFN_XCreateFontSet XCreateFontSet;
+        PFN_XCreateGC XCreateGC;
         PFN_XCreateIC XCreateIC;
+        PFN_XCreateSimpleWindow XCreateSimpleWindow;
         PFN_XCreateWindow XCreateWindow;
         PFN_XDeleteContext XDeleteContext;
         PFN_XDeleteProperty XDeleteProperty;
         PFN_XDestroyIC XDestroyIC;
         PFN_XDestroyWindow XDestroyWindow;
+        PFN_XFillRectangle XFillRectangle;
         PFN_XFindContext XFindContext;
         PFN_XFlush XFlush;
         PFN_XFree XFree;
         PFN_XFreeColormap XFreeColormap;
         PFN_XFreeEventData XFreeEventData;
+        PFN_XFreeFontSet XFreeFontSet;
+        PFN_XFreeGC XFreeGC;
+        PFN_XFreeStringList XFreeStringList;
         PFN_XGetErrorText XGetErrorText;
         PFN_XGetEventData XGetEventData;
         PFN_XGetICValues XGetICValues;
@@ -233,6 +256,7 @@ private:
         PFN_XGetWMNormalHints XGetWMNormalHints;
         PFN_XGrabPointer XGrabPointer;
         PFN_XInternAtom XInternAtom;
+        PFN_XLoadFont XLoadFont;
         PFN_XLookupString XLookupString;
         PFN_XMapRaised XMapRaised;
         PFN_XMapWindow XMapWindow;
@@ -254,6 +278,7 @@ private:
         PFN_XSendEvent XSendEvent;
         PFN_XSetClassHint XSetClassHint;
         PFN_XSetErrorHandler XSetErrorHandler;
+        PFN_XSetForeground XSetForeground;
         PFN_XSetIMValues XSetIMValues;
         PFN_XSetInputFocus XSetInputFocus;
         PFN_XSetWMHints XSetWMHints;
@@ -263,6 +288,8 @@ private:
         PFN_XUngrabPointer XUngrabPointer;
         PFN_XUnmapWindow XUnmapWindow;
         PFN_Xutf8LookupString Xutf8LookupString;
+        PFN_XwcDrawString XwcDrawString;
+        PFN_XwcTextExtents XwcTextExtents;
 
         void* dll{};
     };
