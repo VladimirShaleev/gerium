@@ -78,6 +78,7 @@ private:
     gerium_float32_t _density;
     gerium_float32_t _scaledDensity;
     gerium_float32_t _xdpi;
+    gerium_sint32_t _sdkInt;
     mutable std::string _title;
     mutable std::vector<std::string> _names;
     mutable std::vector<gerium_display_mode_t> _modes;

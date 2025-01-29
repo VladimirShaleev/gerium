@@ -16,6 +16,7 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
     _density(0.0f),
     _scaledDensity(0.0f),
     _xdpi(0.0f),
+    _sdkInt(0),
     _isInMultiWindowMode(nullptr) {
     assert(_application);
     _application->userData     = alias_cast<void*>(this);
@@ -98,8 +99,64 @@ AndroidApplication::AndroidApplication(gerium_utf8_t title, gerium_uint32_t widt
         env->DeleteLocalRef(displayMetricsClass);
         env->DeleteLocalRef(resourcesClass);
 
+        auto versionClass = env->FindClass("android/os/Build$VERSION");
+        auto sdkIntField = env->GetStaticFieldID(versionClass, "SDK_INT", "I");
+        _sdkInt = env->GetStaticIntField(versionClass, sdkIntField);
+        env->DeleteLocalRef(versionClass);
+
+        auto window    = env->CallObjectMethod(activityClazz, _getWindowMethod);
+        auto decorView = env->CallObjectMethod(window, _getDecorViewMethod);
+
+        if (_sdkInt >= 28) {
+            auto layoutParamsClass = env->FindClass("android/view/WindowManager$LayoutParams");
+
+            auto getAttributesMethod = env->GetMethodID(windowClass, "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+            auto layoutInDisplayCutoutModeField = env->GetFieldID(layoutParamsClass, "layoutInDisplayCutoutMode", "I");
+            auto alwaysField = env->GetStaticFieldID(layoutParamsClass, "LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS", "I");
+
+            if (alwaysField == nullptr) {
+                env->ExceptionClear();
+            }
+
+            auto layoutParams = env->CallObjectMethod(window, getAttributesMethod);
+            auto always = alwaysField ? env->GetStaticIntField(layoutParamsClass, alwaysField) : 3;
+            env->SetIntField(layoutParams, layoutInDisplayCutoutModeField, always);
+
+            env->DeleteLocalRef(layoutParams);
+            env->DeleteLocalRef(layoutParamsClass);
+        }
+
+        auto setSystemUiVisibilityMethod = env->GetMethodID(viewClass, "setSystemUiVisibility", "(I)V");
+        auto getSystemUiVisibilityMethod = env->GetMethodID(viewClass, "getSystemUiVisibility", "()I");
+        auto statusBarsField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
+        auto navigationBarsField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I");
+        auto immersiveField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_IMMERSIVE", "I");
+        auto immersiveStickyField = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
+        auto statusBars = env->GetStaticIntField(viewClass, statusBarsField);
+        auto navigationBars = env->GetStaticIntField(viewClass, navigationBarsField);
+        auto immersive = env->GetStaticIntField(viewClass, immersiveField);
+        auto immersiveSticky = env->GetStaticIntField(viewClass, immersiveStickyField);
+
+        auto unsetSystemUiFlag = [=](gerium_sint32_t systemUiFlag) {
+            auto flags = env->CallIntMethod(decorView, getSystemUiVisibilityMethod);
+            env->CallVoidMethod(decorView, setSystemUiVisibilityMethod, flags & ~systemUiFlag);
+        };
+        auto setSystemUiFlag = [=](gerium_sint32_t systemUiFlag) {
+            auto flags = env->CallIntMethod(decorView, getSystemUiVisibilityMethod);
+            env->CallVoidMethod(decorView, setSystemUiVisibilityMethod, flags | systemUiFlag);
+        };
+        unsetSystemUiFlag(immersive);
+        setSystemUiFlag(statusBars);
+        setSystemUiFlag(navigationBars);
+        setSystemUiFlag(immersiveSticky);
+
+        env->DeleteLocalRef(decorView);
+        env->DeleteLocalRef(window);
+
         activity->vm->DetachCurrentThread();
     }
+
+    setTitle(title);
 }
 
 ANativeWindow* AndroidApplication::nativeWindow() noexcept {
@@ -532,7 +589,7 @@ int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
     auto imguiResult = ImGui_ImplAndroid_HandleInputEvent(event);
 
     if (ImGui::GetCurrentContext() && !isShowCursor() && !io.WantCaptureMouse) {
-        ImGui::GetIO().AddFocusEvent(false);
+        io.AddFocusEvent(false);
     }
 
     if (io.WantTextInput && eventType == AINPUT_EVENT_TYPE_KEY && eventAction == AKEY_EVENT_ACTION_UP) {
