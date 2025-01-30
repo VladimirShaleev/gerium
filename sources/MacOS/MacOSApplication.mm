@@ -52,78 +52,131 @@
 @synthesize modifiers;
 
 - (void)mtkView:(nonnull MTKView*)view drawableSizeWillChange:(CGSize)size {
-    application->changeState(GERIUM_APPLICATION_STATE_RESIZE);
-
-    auto frame = [view frame];
-    frame.size = size;
-
-    NSTrackingArea* newArea = [[NSTrackingArea alloc]
-        initWithRect:frame
-             options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
-               owner:view
-            userInfo:nil];
-
-    [view removeTrackingArea:self.area];
-    [view addTrackingArea:newArea];
-
-    self.area = newArea;
+    if (application->isInterrupted()) {
+        return;
+    }
+    @try {
+        application->changeState(GERIUM_APPLICATION_STATE_RESIZE);
+        
+        auto frame = [view frame];
+        frame.size = size;
+        
+        NSTrackingArea* newArea = [[NSTrackingArea alloc]
+                                   initWithRect:frame
+                                   options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveInKeyWindow
+                                   owner:view
+                                   userInfo:nil];
+        
+        [view removeTrackingArea:self.area];
+        [view addTrackingArea:newArea];
+        
+        self.area = newArea;
+    } @catch (...) {
+        application->interrupt();
+    }
 }
 
 - (void)drawInMTKView:(nonnull MTKView*)view {
-    if (auto& io = ImGui::GetIO(); io.WantCaptureKeyboard && !self.imguiFoucus) {
-        self.imguiFoucus = true;
-        application->clearEvents();
-    } else if (!io.WantCaptureKeyboard && self.imguiFoucus) {
-        self.imguiFoucus = false;
+    application->showAllMessages();
+    if (application->isInterrupted() || application->isVisibleModals()) {
+        return;
     }
-    application->frame();
+    @try {
+        if (ImGui::GetCurrentContext()) {
+            if (auto& io = ImGui::GetIO(); io.WantCaptureKeyboard && !self.imguiFoucus) {
+                self.imguiFoucus = true;
+                application->clearEvents();
+            } else if (!io.WantCaptureKeyboard && self.imguiFoucus) {
+                self.imguiFoucus = false;
+            }
+        }
+        application->frame();
+    } @catch (...) {
+        application->interrupt();
+    }
+}
+
+- (void)applicationWillFinishLaunching:(NSNotification*)notification {
+    application->showAllMessages();
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_CREATE);
-    application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
-    if (application->isStartedFullscreen()) {
-        application->fullscreen(true);
+    @try {
+        if(application->isInterrupted()) {
+            return;
+        }
+        application->changeState(GERIUM_APPLICATION_STATE_CREATE);
+        application->changeState(GERIUM_APPLICATION_STATE_INITIALIZE);
+        if (application->isStartedFullscreen()) {
+            application->fullscreen(true);
+        }
+        if (!application->isFullscreen()) {
+            application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
+        }
+        
+        self.imguiFoucus    = false;
+        self.lastMouseEvent = {};
+        
+        [self initializeDevices];
+    } @catch (...) {
+        application->interrupt();
     }
-    if (!application->isFullscreen()) {
-        application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
-    }
-
-    self.imguiFoucus    = false;
-    self.lastMouseEvent = {};
-
-    [self initializeDevices];
 }
 
 - (void)applicationWillTerminate:(NSNotification*)notification {
-    if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
-        application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+    @try {
+        if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
+            application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+        }
+        application->changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
+        application->changeState(GERIUM_APPLICATION_STATE_DESTROY);
+    } @catch (...) {
+        application->interrupt();
     }
-    application->changeState(GERIUM_APPLICATION_STATE_UNINITIALIZE);
-    application->changeState(GERIUM_APPLICATION_STATE_DESTROY);
 }
 
 - (void)applicationDidBecomeActive:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
-
-    MTKView* view = ((__bridge MTKView*) application->getView());
-    view.paused   = NO;
+    if(application->isInterrupted()) {
+        return;
+    }
+    @try {
+        application->changeState(GERIUM_APPLICATION_STATE_GOT_FOCUS);
+        
+        MTKView* view = ((__bridge MTKView*) application->getView());
+        view.paused   = NO;
+    } @catch (...) {
+        application->interrupt();
+    }
 }
 
 - (void)applicationDidResignActive:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS);
-
-    if (application->getBackgroundWait()) {
-        MTKView* view = ((__bridge MTKView*) application->getView());
-        view.paused   = YES;
+    if(application->isInterrupted()) {
+        return;
+    }
+    @try {
+        application->changeState(GERIUM_APPLICATION_STATE_LOST_FOCUS);
+        
+        if (application->getBackgroundWait()) {
+            MTKView* view = ((__bridge MTKView*) application->getView());
+            view.paused   = YES;
+        }
+    } @catch (...) {
+        application->interrupt();
     }
 }
 
 - (void)applicationDidChangeOcclusionState:(NSNotification*)notification {
-    if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
-        application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
-    } else {
-        application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+    if(application->isInterrupted()) {
+        return;
+    }
+    @try {
+        if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
+            application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
+        } else {
+            application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+        }
+    } @catch (...) {
+        application->interrupt();
     }
 }
 
@@ -132,27 +185,62 @@
 }
 
 - (void)windowDidEndLiveResize:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_RESIZED);
+    @try {
+        if(application->isInterrupted()) {
+            return;
+        }
+        application->changeState(GERIUM_APPLICATION_STATE_RESIZED);
+    } @catch (...) {
+        application->interrupt();
+    }
 }
 
 - (void)windowDidMiniaturize:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_MINIMIZE);
-    application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+    if(application->isInterrupted()) {
+        return;
+    }
+    @try {
+        application->changeState(GERIUM_APPLICATION_STATE_MINIMIZE);
+        application->changeState(GERIUM_APPLICATION_STATE_INVISIBLE);
+    } @catch (...) {
+        application->interrupt();
+    }
 }
 
 - (void)windowDidDeminiaturize:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
-    if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
-        application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
+    if(application->isInterrupted()) {
+        return;
+    }
+    @try {
+        application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
+        if ([NSApp occlusionState] & NSApplicationOcclusionStateVisible) {
+            application->changeState(GERIUM_APPLICATION_STATE_VISIBLE);
+        }
+    } @catch (...) {
+        application->interrupt();
     }
 }
 
 - (void)windowDidEnterFullScreen:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_FULLSCREEN);
+    if(application->isInterrupted()) {
+        return;
+    }
+    @try {
+        application->changeState(GERIUM_APPLICATION_STATE_FULLSCREEN);
+    } @catch (...) {
+        application->interrupt();
+    }
 }
 
 - (void)windowDidExitFullScreen:(NSNotification*)notification {
-    application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
+    if(application->isInterrupted()) {
+        return;
+    }
+    @try {
+        application->changeState(GERIUM_APPLICATION_STATE_NORMAL);
+    } @catch (...) {
+        application->interrupt();
+    }
 }
 
 - (void)keyDown:(NSEvent*)event {
@@ -264,9 +352,7 @@
 }
 
 - (void)addMouseEvent:(NSEvent*)event {
-    auto& io = ImGui::GetIO();
-
-    if (io.WantCaptureMouse) {
+    if (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse) {
         return;
     }
 
@@ -639,7 +725,7 @@ void MacOSApplication::sendEvent(const gerium_event_t& event) noexcept {
         }
         setKeyState(event.keyboard.scancode, pressed);
     }
-    if (auto& io = ImGui::GetIO(); !io.WantCaptureKeyboard) {
+    if (ImGui::GetCurrentContext() && !ImGui::GetIO().WantCaptureKeyboard) {
         addEvent(event);
     }
 }
@@ -650,6 +736,39 @@ void MacOSApplication::clearEvents() noexcept {
 
 float MacOSApplication::scale() const noexcept {
     return _scale;
+}
+
+void MacOSApplication::interrupt() {
+    try {
+        std::rethrow_exception(std::current_exception());
+    } catch (const Exception& exc) {
+        _error = exc.result();
+    } catch (...) {
+        _error = GERIUM_RESULT_ERROR_UNKNOWN;
+    }
+    [NSApp stop:nil];
+}
+
+bool MacOSApplication::isInterrupted() const noexcept {
+    return _error != GERIUM_RESULT_SUCCESS;
+}
+
+void MacOSApplication::showAllMessages() noexcept {
+    if (!_messages.empty()) {
+        _visibleModalRefs++;
+        auto messages = std::move(_messages);
+        for (const auto& message : messages) {
+            showMessage(nullptr, message.c_str());
+        }
+        _visibleModalRefs--;
+        if (isInterrupted()) {
+            exit();
+        }
+    }
+}
+
+bool MacOSApplication::isVisibleModals() const noexcept {
+    return _visibleModalRefs != 0;
 }
 
 gerium_uint64_t MacOSApplication::ticks() noexcept {
@@ -896,8 +1015,12 @@ void MacOSApplication::onRun() {
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         [NSApp activateIgnoringOtherApps:YES];
         [NSApp run];
-    } @catch (NSException*) {
+    } @catch (...) {
         error(GERIUM_RESULT_ERROR_UNKNOWN);
+    }
+    
+    if (_error) {
+        error(_error);
     }
 }
 
@@ -910,6 +1033,19 @@ void MacOSApplication::onExit() noexcept {
 }
 
 void MacOSApplication::onShowMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept {
+    if (NSApp.isRunning) {
+        _visibleModalRefs++;
+        NSAlert *alert = [NSAlert new];
+        [alert setMessageText:[NSString stringWithUTF8String:message]];
+        [alert addButtonWithTitle:@"OK"];
+        [alert runModal];
+        _visibleModalRefs--;
+    } else {
+        _messages.push_back(message);
+        if (isRunning()) {
+            [NSApp run];
+        }
+    }
 }
 
 bool MacOSApplication::onIsRunning() const noexcept {
@@ -924,6 +1060,18 @@ void MacOSApplication::onInitImGui() {
 }
 
 void MacOSApplication::onShutdownImGui() {
+    struct ImGui_ImplOSX_Data {
+        CFTimeInterval Time;
+        NSCursor* MouseCursors[ImGuiMouseCursor_COUNT];
+        bool MouseCursorHidden;
+        NSObject* Observer;
+    };
+    
+    NSObject* observer = reinterpret_cast<ImGui_ImplOSX_Data*>(ImGui::GetIO().BackendPlatformUserData)->Observer;
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:observer name:NSApplicationDidBecomeActiveNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:observer name:NSApplicationDidResignActiveNotification object:nil];
+    
     ImGui_ImplOSX_Shutdown();
 }
 

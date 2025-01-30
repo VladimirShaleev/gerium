@@ -45,6 +45,11 @@ public:
     void clearEvents() noexcept;
 
     float scale() const noexcept;
+    
+    void interrupt();
+    bool isInterrupted() const noexcept;
+    void showAllMessages() noexcept;
+    bool isVisibleModals() const noexcept;
 
     static gerium_uint64_t ticks() noexcept;
 
@@ -99,6 +104,9 @@ private:
     bool _running                              = false;
     bool _exited                               = false;
     bool _startFullscreen                      = false;
+    gerium_result_t _error                     = GERIUM_RESULT_SUCCESS;
+    std::vector<std::string> _messages         = {};
+    gerium_uint32_t _visibleModalRefs          = {};
     gerium_uint32_t _display                   = std::numeric_limits<gerium_uint32_t>::max();
     std::optional<gerium_display_mode_t> _mode = {};
     float _dpi                                 = 72.0f;
