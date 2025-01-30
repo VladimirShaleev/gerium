@@ -455,10 +455,12 @@ void Win32Application::onRun() {
 
     createInputThread();
 
+    gerium_result_t result = GERIUM_RESULT_SUCCESS;
     MSG msg{};
     while (msg.message != WM_QUIT) {
         if (callbackStateFailed()) {
-            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            result = GERIUM_RESULT_ERROR_FROM_CALLBACK;
+            onExit();
         }
 
         if (PeekMessage(&msg, nullptr, 0, 0, PM_NOREMOVE)) {
@@ -497,11 +499,16 @@ void Win32Application::onRun() {
         _needUpdateScaledDensity = true;
 
         if (_running && !callFrameFunc(elapsedMs)) {
-            error(GERIUM_RESULT_ERROR_FROM_CALLBACK);
+            result = GERIUM_RESULT_ERROR_FROM_CALLBACK;
+            onExit();
         }
     }
 
     UnregisterClassW(_kClassName, _hInstance);
+
+    if (result != GERIUM_RESULT_SUCCESS) {
+        error(result);
+    }
 }
 
 void Win32Application::onExit() noexcept {
