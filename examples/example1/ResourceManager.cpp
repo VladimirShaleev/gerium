@@ -1,5 +1,6 @@
 #include "ResourceManager.hpp"
 #include "Converters.hpp"
+#include "Model.hpp"
 
 void ResourceManager::create(gerium_renderer_t renderer, gerium_frame_graph_t frameGraph) {
     _renderer   = renderer;
@@ -48,6 +49,18 @@ void ResourceManager::update(gerium_uint64_t elapsedMs) {
             _names.erase(it->second.name);
         }
         _resources.erase(it);
+    }
+
+    for (auto it = _models.begin(); it != _models.end();) {
+        auto lastTick    = it->second.lastTick;
+        auto retentionMs = it->second.retentionMs;
+
+        if (_ticks - lastTick >= retentionMs) {
+            delete it->second.model;
+            it = _models.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 
@@ -117,6 +130,211 @@ Technique ResourceManager::loadTechnique(const std::string& filename, gerium_uin
 
     addResource(filename, name, technique, retentionMs);
     return { this, technique };
+}
+
+const Model* ResourceManager::loadModel(const std::string& filename, gerium_uint64_t retentionMs) {
+    if (auto it = _models.find(filename); it != _models.end()) {
+        it->second.lastTick = _ticks;
+        return it->second.model;
+    }
+
+    auto path = calcModelPath(filename);
+
+    std::string err, warn;
+    tinygltf::Model gltfModel;
+
+    tinygltf::TinyGLTF gltfLoader{};
+    gltfLoader.SetImageLoader(
+        [](tinygltf::Image* image,
+           const int imageIdx,
+           std::string* err,
+           std::string* warn,
+           int reqWidth,
+           int reqHeight,
+           const unsigned char* bytes,
+           int size,
+           void* userData) {
+        auto path = (std::filesystem::path("models") / image->uri).string();
+
+        auto manager = (ResourceManager*) userData;
+        auto texture = manager->loadTexture(path);
+
+        return true;
+    },
+        this);
+
+    auto result = gltfLoader.LoadASCIIFromFile(&gltfModel, &err, &warn, path);
+
+    if (!err.empty()) {
+        throw std::runtime_error(err);
+    }
+
+    if (!warn.empty()) {
+        throw std::runtime_error(warn);
+    }
+
+    if (!result) {
+        throw std::runtime_error("Failed to parse glTF: " + filename);
+    }
+
+    std::vector<Buffer> buffers(gltfModel.bufferViews.size());
+
+    for (int i = 0; i < gltfModel.bufferViews.size(); ++i) {
+        auto view  = gltfModel.bufferViews[i];
+        auto data  = (gerium_cdata_t) &gltfModel.buffers[view.buffer].data[view.byteOffset];
+        auto name  = "_gltf_" + filename + '_' + (view.name.empty() ? std::to_string(i) : view.name);
+        auto usage = view.target == TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER ? GERIUM_BUFFER_USAGE_INDEX_BIT
+                                                                         : GERIUM_BUFFER_USAGE_VERTEX_BIT;
+
+        buffers[i] = createBuffer(usage, false, name.c_str(), data, view.byteLength);
+    }
+
+    const auto& root = gltfModel.scenes[gltfModel.defaultScene];
+    auto numNodes    = root.nodes.size();
+
+    std::queue<gerium_uint32_t> nodesToVisit;
+    for (const auto& node : root.nodes) {
+        nodesToVisit.push(node);
+    }
+
+    while (!nodesToVisit.empty()) {
+        auto nodeIndex = nodesToVisit.front();
+        nodesToVisit.pop();
+
+        auto& node = gltfModel.nodes[nodeIndex];
+        for (const auto& child : node.children) {
+            nodesToVisit.push(child);
+        }
+        numNodes += node.children.size();
+    }
+
+    auto& resource       = _models[filename];
+    resource.model       = new Model(numNodes);
+    resource.lastTick    = _ticks;
+    resource.retentionMs = retentionMs;
+
+    auto model = resource.model;
+
+    for (const auto& node : root.nodes) {
+        nodesToVisit.push(node);
+    }
+
+    while (!nodesToVisit.empty()) {
+        auto nodeIndex = nodesToVisit.front();
+        nodesToVisit.pop();
+
+        auto& node = gltfModel.nodes[nodeIndex];
+
+        if (node.matrix.empty()) {
+            auto scale = node.scale.empty()
+                             ? glm::vec3(1.0f)
+                             : glm::vec3(float(node.scale[0]), float(node.scale[1]), float(node.scale[2]));
+            auto translate =
+                node.translation.empty()
+                    ? glm::vec3()
+                    : glm::vec3(float(node.translation[0]), float(node.translation[1]), float(node.translation[2]));
+            auto rotation = node.rotation.empty() ? glm::quat(1.0f, 0.0f, 0.0f, 0.0f)
+                                                  : glm::quat(float(node.rotation[0]),
+                                                              float(node.rotation[1]),
+                                                              float(node.rotation[2]),
+                                                              float(node.rotation[3]));
+
+            auto matS = glm::scale(glm::identity<glm::mat4>(), scale);
+            auto matT = glm::translate(glm::identity<glm::mat4>(), translate);
+            auto matR = glm::mat4_cast(rotation);
+            auto mat  = matS * matR * matT;
+            model->setMatrix(nodeIndex, mat);
+        } else {
+            auto data = node.matrix.data();
+            auto mat  = glm::mat4(float(data[0]),
+                                 float(data[1]),
+                                 float(data[2]),
+                                 float(data[3]),
+                                 float(data[4]),
+                                 float(data[5]),
+                                 float(data[6]),
+                                 float(data[7]),
+                                 float(data[8]),
+                                 float(data[9]),
+                                 float(data[10]),
+                                 float(data[11]),
+                                 float(data[12]),
+                                 float(data[13]),
+                                 float(data[14]),
+                                 float(data[15]));
+
+            model->setMatrix(nodeIndex, mat);
+        }
+
+        model->setNodeName(nodeIndex, node.name);
+        if (node.children.size()) {
+            const auto& nodeLevel = model->nodeLevel(nodeIndex);
+            for (const auto& childIndex : node.children) {
+                model->setHierarchy(childIndex, nodeIndex, nodeLevel + 1);
+                nodesToVisit.push(childIndex);
+            }
+        }
+
+        if (node.mesh < 0) {
+            continue;
+        }
+
+        const auto mesh = gltfModel.meshes[node.mesh];
+
+        for (const auto& primitive : mesh.primitives) {
+            const auto positionAccessorIndex = primitive.attributes.at("POSITION");
+            const auto tangentAccessorIndex  = primitive.attributes.at("TANGENT");
+            const auto normalAccessorIndex   = primitive.attributes.at("NORMAL");
+            const auto texcoordAccessorIndex = primitive.attributes.at("TEXCOORD_0");
+
+            auto& positionAccessor = gltfModel.accessors[positionAccessorIndex];
+            auto& tangentAccessor  = gltfModel.accessors[tangentAccessorIndex];
+            auto& normalAccessor   = gltfModel.accessors[normalAccessorIndex];
+            auto& texcoordAccessor = gltfModel.accessors[texcoordAccessorIndex];
+            auto& indicesAccessor  = gltfModel.accessors[primitive.indices];
+            auto& positionBuffer   = buffers[positionAccessor.bufferView];
+            auto& tangentBuffer    = buffers[tangentAccessor.bufferView];
+            auto& normalBuffer     = buffers[normalAccessor.bufferView];
+            auto& texcoordBuffer   = buffers[texcoordAccessor.bufferView];
+            auto& indicesBuffer    = buffers[indicesAccessor.bufferView];
+            auto positionOffset    = positionAccessor.byteOffset;
+            auto tangentOffset     = tangentAccessor.byteOffset;
+            auto normalOffset      = normalAccessor.byteOffset;
+            auto texcoordOffset    = texcoordAccessor.byteOffset;
+            auto indexOffset       = indicesAccessor.byteOffset;
+            auto primitiveCount    = indicesAccessor.count;
+            auto indexType         = indicesAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT
+                                         ? GERIUM_INDEX_TYPE_UINT16
+                                         : GERIUM_INDEX_TYPE_UINT32;
+
+            auto min = glm::vec3(float(positionAccessor.minValues[0]),
+                                 float(positionAccessor.minValues[1]),
+                                 float(positionAccessor.minValues[2]));
+            auto max = glm::vec3(float(positionAccessor.maxValues[0]),
+                                 float(positionAccessor.maxValues[1]),
+                                 float(positionAccessor.maxValues[2]));
+
+            Mesh mesh{};
+            mesh.indices   = indicesBuffer;
+            mesh.positions = positionBuffer;
+            mesh.texcoords = texcoordBuffer;
+            mesh.normals   = normalBuffer;
+            mesh.tangents  = tangentBuffer;
+
+            mesh.indexType       = indexType;
+            mesh.primitiveCount  = primitiveCount;
+            mesh.indicesOffset   = indexOffset;
+            mesh.positionsOffset = positionOffset;
+            mesh.texcoordsOffset = texcoordOffset;
+            mesh.normalsOffset   = normalOffset;
+            mesh.tangentsOffset  = tangentOffset;
+            mesh.bbox            = BoundingBox(min, max);
+
+            model->addMesh(mesh);
+        }
+    }
+
+    return model;
 }
 
 Texture ResourceManager::createTexture(const gerium_texture_info_t& info,
@@ -242,4 +460,9 @@ std::string ResourceManager::calcTexturePath(const std::string& filename) noexce
 std::string ResourceManager::calcTechniquePath(const std::string& filename) noexcept {
     std::filesystem::path appDir = gerium_file_get_app_dir();
     return (appDir / "techniques" / (filename + ".yaml")).string();
+}
+
+std::string ResourceManager::calcModelPath(const std::string& filename) noexcept {
+    std::filesystem::path appDir = gerium_file_get_app_dir();
+    return (appDir / "models" / (filename + ".gltf")).string();
 }

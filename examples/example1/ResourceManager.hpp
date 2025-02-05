@@ -4,6 +4,7 @@
 #include "Common.hpp"
 
 class ResourceManager;
+class Model;
 
 template <typename T>
 class Resource final {
@@ -80,6 +81,7 @@ public:
     void loadFrameGraph(const std::string& filename);
     Texture loadTexture(const std::string& path, gerium_uint64_t retentionMs = DefaultRetention);
     Technique loadTechnique(const std::string& filename, gerium_uint64_t retentionMs = DefaultRetention);
+    const Model* loadModel(const std::string& filename, gerium_uint64_t retentionMs = DefaultRetention);
 
     Texture createTexture(const gerium_texture_info_t& info,
                           gerium_cdata_t data,
@@ -131,6 +133,12 @@ private:
         gerium_uint16_t references;
         gerium_uint64_t path;
         gerium_uint64_t name;
+        gerium_uint64_t lastTick;
+        gerium_uint64_t retentionMs;
+    };
+
+    struct ResourceModel {
+        Model* model;
         gerium_uint64_t lastTick;
         gerium_uint64_t retentionMs;
     };
@@ -212,6 +220,7 @@ private:
     static std::string calcFrameGraphPath(const std::string& filename) noexcept;
     static std::string calcTexturePath(const std::string& filename) noexcept;
     static std::string calcTechniquePath(const std::string& filename) noexcept;
+    static std::string calcModelPath(const std::string& filename) noexcept;
 
     gerium_renderer_t _renderer{};
     gerium_frame_graph_t _frameGraph{};
@@ -219,6 +228,7 @@ private:
     std::map<gerium_uint32_t, ResourceData> _resources;
     std::map<gerium_uint64_t, ResourceData*> _pathes;
     std::map<gerium_uint64_t, ResourceData*> _names;
+    std::map<std::string, ResourceModel> _models;
 };
 
 template <typename T>

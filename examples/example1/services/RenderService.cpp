@@ -1,6 +1,7 @@
 #include "RenderService.hpp"
 
 #include "../Application.hpp"
+#include "../Model.hpp"
 #include "../passes/PresentPass.hpp"
 #include <ranges>
 
@@ -39,6 +40,9 @@ void RenderService::start() {
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);
     }
+
+    auto model = _resourceManager.loadModel("truck");
+    auto b     = model;
 }
 
 void RenderService::stop() {
@@ -68,6 +72,8 @@ void RenderService::update() {
     if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return;
     }
+
+    _resourceManager.update(manager().elapsedMs());
 
     gerium_renderer_render(_renderer, _frameGraph);
     gerium_renderer_present(_renderer);

@@ -31,6 +31,7 @@
     "argparse",
     "assimp",
     "gli",
+    "tinygltf",
     "capnproto",
     {
       "name": "reflectcpp",
