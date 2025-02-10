@@ -8,14 +8,6 @@ layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneUBO {
     SceneData scene;
 };
 
-layout(std430, binding = 0, set = CLUSTER_DATA_SET) readonly buffer VerticesSSBO {
-    Vertex vertices[];
-};
-
-layout(std430, binding = 1, set = CLUSTER_DATA_SET) readonly buffer IndicesSSBO {
-    uint indices[];
-};
-
 layout(std430, binding = 2, set = CLUSTER_DATA_SET) readonly buffer MeshesSSBO {
     Mesh meshes[];
 };
@@ -43,13 +35,36 @@ void main() {
         return;
     }
     
-    uint count = atomicAdd(commandCount, 1);
-    
     MeshInstance instance = instances[index];
-    MeshLod mesh = meshes[instance.mesh].lods[0];
+    uint meshIndex = instance.mesh;
     
-    commands[count].vertexCount   = mesh.primitiveCount;
-    commands[count].instanceCount = 1;
-    commands[count].firstVertex   = 0;
-    commands[count].firstInstance = index;
+    vec3 center = (scene.view * instance.world * vec4(meshes[meshIndex].center[0], meshes[meshIndex].center[1], meshes[meshIndex].center[2], 1.0)).xyz;
+    float radius = instance.scale * float(meshes[meshIndex].radius);
+
+    bool visible = true;
+    visible = visible && center.z * scene.frustum.y - abs(center.x) * scene.frustum.x > -radius;
+    visible = visible && center.z * scene.frustum.w - abs(center.y) * scene.frustum.z > -radius;
+    visible = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
+
+    if (visible) {
+        uint lodCount = uint(meshes[meshIndex].lodCount);
+        uint lodIndex = 0;
+
+        float distance = max(length(center) - radius, 0);
+        float threshold = distance * scene.lodTarget / instance.scale;
+
+        for (uint i = 1; i < lodCount; ++i) {
+            if (meshes[meshIndex].lods[i].lodError < threshold) {
+                lodIndex = i;
+            }
+        }
+
+        uint count = atomicAdd(commandCount, 1);
+        
+        commands[count].vertexCount   = meshes[meshIndex].lods[lodIndex].primitiveCount;
+        commands[count].instanceCount = 1;
+        commands[count].firstVertex   = 0;
+        commands[count].firstInstance = index;
+        commands[count].lodIndex      = lodIndex;
+    }
 }

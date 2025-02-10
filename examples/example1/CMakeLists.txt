@@ -4,28 +4,33 @@ file(GLOB GERIUM_EXAMPLE
     "passes/*.hpp" "passes/*.cpp"
     "events/*.hpp" "events/*.cpp"
     "components/*.hpp" "components/*.cpp")
-file(GLOB GERIUM_EXAMPLE_PROTOS "components/*.proto")
+
+file(GLOB GERIUM_GRAPH_RESOURCES "frame-graphs/*.yaml")
+file(GLOB GERIUM_TECH_RESOURCES "techniques/*.yaml")
+file(GLOB GERIUM_MODEL_RESOURCES "models/*.gltf")
+
+set(LIST_IDS "")
+macro(gen_ids)
+    cmake_parse_arguments(gen_ids_args "" "" "RESOURCES;PREFIX" ${ARGN})
+    if(NOT gen_ids_args_RESOURCES)
+        message(FATAL_ERROR "RESOURCES not present")
+    endif()
+    if(NOT gen_ids_args_PREFIX)
+        message(FATAL_ERROR "PREFIX not present")
+    endif()
+    foreach(resource IN LISTS gen_ids_args_RESOURCES)
+        get_filename_component(NAME ${resource} NAME_WE)
+        string(TOUPPER ${NAME} UPPER_NAME)
+        set(LIST_IDS "${LIST_IDS}constexpr entt::hashed_string ${gen_ids_args_PREFIX}_${UPPER_NAME}_ID = \"${NAME}\";\n")
+    endforeach()
+endmacro()
+
+gen_ids(RESOURCES ${GERIUM_GRAPH_RESOURCES} PREFIX GRAPH)
+gen_ids(RESOURCES ${GERIUM_TECH_RESOURCES} PREFIX TECH)
+gen_ids(RESOURCES ${GERIUM_MODEL_RESOURCES} PREFIX MODEL)
+configure_file(Resources.hpp.in Resources.hpp @ONLY)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example FILES ${GERIUM_EXAMPLE})
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example/components FILES ${GERIUM_EXAMPLE_PROTOS})
-
-include (FetchContent)
-get_filename_component(ASSETS "../khronos-assets" REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
-set(FETCHCONTENT_QUIET OFF)
-set(FETCHCONTENT_BASE_DIR ${ASSETS})
-
-FetchContent_Declare(
-    assets
-    GIT_REPOSITORY https://github.com/KhronosGroup/glTF-Sample-Assets.git
-    GIT_TAG        52c9f0e473a523057135281b19d12b768e2f7eb7
-    GIT_PROGRESS   TRUE
-)
-
-FetchContent_GetProperties(assets)
-if(NOT assets_POPULATED)
-    FetchContent_Populate(assets)
-endif()
-set(ASSETS_SRC "${assets_SOURCE_DIR}" CACHE STRING "Assets dir")
 
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
@@ -37,9 +42,9 @@ find_package(reflectcpp CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
 if(ANDROID)
-    add_library(example1 SHARED ${GERIUM_EXAMPLE} ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(example1 SHARED ${GERIUM_EXAMPLE})
 else()
-    add_executable(example1 ${GERIUM_EXAMPLE} ${PROTO_SRCS} ${PROTO_HDRS})
+    add_executable(example1 ${GERIUM_EXAMPLE})
 endif()
 target_link_libraries(example1 PRIVATE gerium::gerium)
 target_link_libraries(example1 PRIVATE yaml-cpp::yaml-cpp)
@@ -52,6 +57,7 @@ target_link_libraries(example1 PRIVATE reflectcpp::reflectcpp)
 target_link_libraries(example1 PRIVATE assimp::assimp)
 target_include_directories(example1 PRIVATE ${Stb_INCLUDE_DIR})
 target_include_directories(example1 PRIVATE ${WYHASH_INCLUDE_DIRS})
+target_include_directories(example1 PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_compile_features(example1 PRIVATE cxx_std_20)
 set_target_properties(example1 PROPERTIES

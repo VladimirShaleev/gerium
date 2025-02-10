@@ -1,5 +1,7 @@
 #version 450
 
+#extension GL_ARB_shader_draw_parameters : require
+
 #include "common/types.h"
 
 layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneUBO {
@@ -22,10 +24,16 @@ layout(std430, binding = 0, set = INSTANCES_DATA_SET) readonly buffer InstancesS
     MeshInstance instances[];
 };
 
+layout(std430, binding = 1, set = INSTANCES_DATA_SET) readonly buffer CommandsSSBO {
+    IndirectDraw commands[];
+};
+
 void main() {
     MeshInstance instance = instances[gl_InstanceIndex];
 
-    MeshLod mesh = meshes[instance.mesh].lods[0];
+    uint lodIndex = commands[gl_DrawIDARB].lodIndex;
+
+    MeshLod mesh = meshes[instance.mesh].lods[lodIndex];
 
     uint index    = indices[mesh.primitiveOffset + gl_VertexIndex];
     uint vertex   = meshes[instance.mesh].vertexOffset + index;

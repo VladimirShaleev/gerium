@@ -46,6 +46,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
 
     auto ds = resourceManager().createDescriptorSet("");
     gerium_renderer_bind_buffer(renderer, ds, 0, renderService().instancesBuffer());
+    gerium_renderer_bind_resource(renderer, ds, 1, "commands", false);
 
     const auto count = renderService().instanceCount();
 

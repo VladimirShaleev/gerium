@@ -82,6 +82,7 @@ struct IndirectDraw {
     uint instanceCount;
     uint firstVertex;
     uint firstInstance;
+    uint lodIndex;
 };
 
 #endif

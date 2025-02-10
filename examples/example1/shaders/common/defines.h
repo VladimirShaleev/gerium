@@ -25,8 +25,8 @@ using namespace glm;
 #endif
 
 #if defined(SHADER_8BIT_STORAGE_SUPPORTED) && defined(SHADER_16BIT_STORAGE_SUPPORTED)
-#extension GL_EXT_shader_16bit_storage: require
-#extension GL_EXT_shader_8bit_storage: require
+#extension GL_EXT_shader_16bit_storage : require
+#extension GL_EXT_shader_8bit_storage : require
 #define USE_COMPRESSED_TYPES
 #elif defined(__cplusplus)
 #define USE_COMPRESSED_TYPES

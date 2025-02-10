@@ -19,8 +19,6 @@
 #include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
 
-#include <entt/entt.hpp>
-
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -48,6 +46,7 @@
 #include <rfl/json.hpp>
 
 #include "Finally.hpp"
+#include "Resources.hpp"
 #include "shaders/common/types.h"
 
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();

@@ -236,10 +236,10 @@ void RenderService::start() {
     addPass<GBufferPass>();
     addPass<CullingPass>();
 
-    _resourceManager.loadFrameGraph("main");
+    _resourceManager.loadFrameGraph(GRAPH_MAIN_ID);
     check(gerium_frame_graph_compile(_frameGraph));
 
-    _baseTechnique = _resourceManager.loadTechnique("base");
+    _baseTechnique = _resourceManager.loadTechnique(TECH_BASE_ID);
 
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);

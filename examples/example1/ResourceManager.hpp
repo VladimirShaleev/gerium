@@ -4,7 +4,6 @@
 #include "Common.hpp"
 
 class ResourceManager;
-class Model;
 
 template <typename T>
 class Resource final {
@@ -78,15 +77,14 @@ public:
     void destroy();
     void update(gerium_uint64_t elapsedMs);
 
-    void loadFrameGraph(const std::string& filename);
-    Texture loadTexture(const std::string& path, gerium_uint64_t retentionMs = DefaultRetention);
-    Technique loadTechnique(const std::string& filename, gerium_uint64_t retentionMs = DefaultRetention);
-    const Model* loadModel(const std::string& filename, gerium_uint64_t retentionMs = DefaultRetention);
+    void loadFrameGraph(const entt::hashed_string& name);
+    Texture loadTexture(const entt::hashed_string& path, gerium_uint64_t retentionMs = DefaultRetention);
+    Technique loadTechnique(const entt::hashed_string& name, gerium_uint64_t retentionMs = DefaultRetention);
 
     Texture createTexture(const gerium_texture_info_t& info,
                           gerium_cdata_t data,
                           gerium_uint64_t retentionMs = DefaultRetention);
-    Texture createTextureView(const std::string& name,
+    Texture createTextureView(const entt::hashed_string& name,
                               const Texture& texture,
                               gerium_texture_type_t type,
                               gerium_uint16_t mipBaseLevel,
@@ -94,26 +92,26 @@ public:
                               gerium_uint16_t layerBase   = 0,
                               gerium_uint16_t layerCount  = 1,
                               gerium_uint64_t retentionMs = DefaultRetention);
-    Technique createTechnique(const std::string& name,
+    Technique createTechnique(const entt::hashed_string& name,
                               const std::vector<gerium_pipeline_t>& pipelines,
                               gerium_uint64_t retentionMs = DefaultRetention);
     Buffer createBuffer(gerium_buffer_usage_flags_t bufferUsage,
                         gerium_bool_t dynamic,
-                        const std::string& name,
+                        const entt::hashed_string& name,
                         gerium_cdata_t data,
                         gerium_uint32_t size,
                         gerium_uint64_t retentionMs = DefaultRetention);
-    DescriptorSet createDescriptorSet(const std::string& name,
+    DescriptorSet createDescriptorSet(const entt::hashed_string& name,
                                       bool global                 = false,
                                       gerium_uint64_t retentionMs = NoRetention);
 
-    Texture getTextureByPath(const std::string& path);
-    Texture getTextureByName(const std::string& name);
-    Technique getTechniqueByPath(const std::string& filename);
-    Technique getTechniqueByName(const std::string& name);
-    Buffer getBufferByPath(const std::string& path);
-    Buffer getBufferByName(const std::string& name);
-    DescriptorSet getDescriptorSetByName(const std::string& name);
+    Texture getTextureByPath(const entt::hashed_string& path);
+    Texture getTextureByName(const entt::hashed_string& name);
+    Technique getTechniqueByPath(const entt::hashed_string& name);
+    Technique getTechniqueByName(const entt::hashed_string& name);
+    Buffer getBufferByPath(const entt::hashed_string& path);
+    Buffer getBufferByName(const entt::hashed_string& name);
+    DescriptorSet getDescriptorSetByName(const entt::hashed_string& name);
 
     gerium_renderer_t renderer() noexcept {
         return _renderer;
@@ -137,15 +135,9 @@ private:
         gerium_uint64_t retentionMs;
     };
 
-    struct ResourceModel {
-        Model* model;
-        gerium_uint64_t lastTick;
-        gerium_uint64_t retentionMs;
-    };
-
     template <typename H>
-    Resource<H> getResourceByPath(const std::string& path) noexcept {
-        if (path.length()) {
+    Resource<H> getResourceByPath(const entt::hashed_string& path) noexcept {
+        if (path.size()) {
             if (auto it = _pathes.find(calcKey(path, HandleToType<H>::type)); it != _pathes.end()) {
                 return { this, H{ it->second->handle } };
             }
@@ -154,8 +146,8 @@ private:
     }
 
     template <typename H>
-    Resource<H> getResourceByName(const std::string& name) noexcept {
-        if (name.length()) {
+    Resource<H> getResourceByName(const entt::hashed_string& name) noexcept {
+        if (name.size()) {
             if (auto it = _names.find(calcKey(name, HandleToType<H>::type)); it != _names.end()) {
                 return { this, H{ it->second->handle } };
             }
@@ -164,7 +156,7 @@ private:
     }
 
     template <typename H>
-    void addResource(const std::string& path, const std::string& name, H handle, gerium_uint64_t retentionMs) {
+    void addResource(const entt::hashed_string& path, const entt::hashed_string& name, H handle, gerium_uint64_t retentionMs) {
         auto key = calcHandleKey(handle);
 
         auto& resource       = _resources[key];
@@ -215,12 +207,11 @@ private:
         return type | gerium_uint32_t(handle.index);
     }
 
-    static gerium_uint64_t calcKey(const std::string& str, Type type) noexcept;
+    static gerium_uint64_t calcKey(const entt::hashed_string& str, Type type) noexcept;
 
-    static std::string calcFrameGraphPath(const std::string& filename) noexcept;
-    static std::string calcTexturePath(const std::string& filename) noexcept;
-    static std::string calcTechniquePath(const std::string& filename) noexcept;
-    static std::string calcModelPath(const std::string& filename) noexcept;
+    static std::string calcFrameGraphPath(const entt::hashed_string& name) noexcept;
+    static std::string calcTexturePath(const entt::hashed_string& filename) noexcept;
+    static std::string calcTechniquePath(const entt::hashed_string& filename) noexcept;
 
     gerium_renderer_t _renderer{};
     gerium_frame_graph_t _frameGraph{};
@@ -228,7 +219,6 @@ private:
     std::map<gerium_uint32_t, ResourceData> _resources;
     std::map<gerium_uint64_t, ResourceData*> _pathes;
     std::map<gerium_uint64_t, ResourceData*> _names;
-    std::map<std::string, ResourceModel> _models;
 };
 
 template <typename T>
