@@ -26,16 +26,17 @@
     "nlohmann-json",
     "yaml-cpp",
     "glm",
+    "entt",
     "magic-enum",
     "meshoptimizer",
     "argparse",
     "assimp",
     "gli",
-    "tinygltf",
     "capnproto",
     {
       "name": "reflectcpp",
       "features": [
+        "capnproto"
       ]
     }
   ],

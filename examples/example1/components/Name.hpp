@@ -1,10 +1,10 @@
-#ifndef NAME_HPP
-#define NAME_HPP
+#ifndef COMPONENTS_NAME_HPP
+#define COMPONENTS_NAME_HPP
 
 #include "../Common.hpp"
 
 struct Name {
-    std::string name;
+    entt::hashed_string name;
 };
 
 #endif

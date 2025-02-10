@@ -27,6 +27,14 @@ RenderService& RenderPass::renderService() noexcept {
     return *_service;
 }
 
+ResourceManager& RenderPass::resourceManager() noexcept {
+    return renderService().resourceManager();
+}
+
+const entt::registry& RenderPass::entityRegistry() const noexcept {
+    return _service->entityRegistry();
+}
+
 const std::string& RenderPass::name() const noexcept {
     return _name;
 }

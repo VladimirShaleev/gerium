@@ -1,10 +1,24 @@
 #include "Application.hpp"
-#include "components/Position.hpp"
-#include "events/WindowStateEvent.hpp"
 #include "services/GameService.hpp"
 #include "services/InputService.hpp"
+#include "services/PhysicsService.hpp"
 #include "services/RenderService.hpp"
+#include "services/SceneService.hpp"
 #include "services/TimeService.hpp"
+
+#include "components/Camera.hpp"
+#include "components/Children.hpp"
+#include "components/Collider.hpp"
+#include "components/LocalTransform.hpp"
+#include "components/MeshIndices.hpp"
+#include "components/Name.hpp"
+#include "components/Parent.hpp"
+#include "components/RigidBody.hpp"
+#include "components/WorldTransform.hpp"
+
+#include "Model.hpp"
+
+using namespace entt::literals;
 
 Application::Application() {
     check(gerium_logger_create("example1", &_logger));
@@ -45,21 +59,139 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
     }
 }
 
+void addModel(entt::registry& registry, entt::entity parent, const Model& model, const glm::vec3 position) {
+    auto root = registry.create();
+    registry.emplace<Children>(root);
+    auto& transform = registry.emplace<WorldTransform>(root);
+
+    transform.matrix = glm::translate(glm::identity<glm::mat4>(), position);
+
+    struct Hierarchy {
+        gerium_sint32_t nodeIndex;
+        gerium_sint32_t childLevel;
+        entt::entity parent;
+        glm::mat4 parentMatrix;
+    };
+
+    std::queue<Hierarchy> nodesToVisit;
+
+    for (gerium_sint32_t i = 0; i < (gerium_sint32_t) model.nodes.size(); ++i) {
+        if (model.nodes[i].parent < 0) {
+            nodesToVisit.emplace(i, model.nodes[i].level + 1, root, transform.matrix);
+        }
+    }
+
+    while (!nodesToVisit.empty()) {
+        const auto [nodeIndex, childLevel, parent, parentMatrix] = nodesToVisit.front();
+        nodesToVisit.pop();
+
+        const glm::vec3& scale     = model.nodes[nodeIndex].scale;
+        const glm::vec3& translate = model.nodes[nodeIndex].position;
+        const glm::quat& rotation  = model.nodes[nodeIndex].rotation;
+
+        auto matS = glm::scale(glm::identity<glm::mat4>(), scale);
+        auto matT = glm::translate(glm::identity<glm::mat4>(), translate);
+        auto matR = glm::mat4_cast(rotation);
+        auto mat  = matT * matR * matS;
+
+        auto worldMatrix = parentMatrix * mat;
+
+        auto node        = registry.create();
+        auto& transform  = registry.emplace<WorldTransform>(node);
+        transform.matrix = worldMatrix;
+        transform.scale  = glm::max(glm::max(scale.x, scale.y), scale.z);
+
+        registry.emplace<Parent>(node).parent = parent;
+
+        for (const auto& mesh : model.meshes) {
+            if (mesh.nodeIndex == nodeIndex) {
+                auto& meshIndices = registry.get_or_emplace<MeshIndices>(node);
+                meshIndices.meshes.push_back(mesh.meshIndex);
+            }
+        }
+
+        auto& childs = registry.get_or_emplace<Children>(parent);
+        childs.childs.push_back(node);
+
+        for (gerium_sint32_t i = 0; i < (gerium_sint32_t) model.nodes.size(); ++i) {
+            if (model.nodes[i].level == childLevel && model.nodes[i].parent == nodeIndex) {
+                nodesToVisit.emplace(i, model.nodes[i].level + 1, node, worldMatrix);
+            }
+        }
+    }
+
+    registry.get_or_emplace<Children>(parent).childs.push_back(root);
+}
+
 void Application::initialize() {
-    _entityManager.registerComponent<Position>();
+    Cluster cluster{};
+    auto model1 = loadModel(cluster, "model1");
+    auto model2 = loadModel(cluster, "model2");
+    auto model3 = loadModel(cluster, "truck");
+
     _serviceManager.create(this);
     _serviceManager.addService<TimeService>();
     _serviceManager.addService<InputService>();
     _serviceManager.addService<GameService>();
+    _serviceManager.addService<PhysicsService>();
+    _serviceManager.addService<SceneService>();
     _serviceManager.addService<RenderService>();
+
+    _serviceManager.getService<RenderService>()->createCluster(cluster);
+    cluster = {};
+
+    auto root = _entityRegistry.create();
+
+    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, 0.0f));
+    addModel(_entityRegistry, root, model3, glm::vec3(-2.0f, 0.0f, 0.0f));
+    // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 0.0f));
+    // addModel(_entityRegistry, root, model2, glm::vec3(0.0f, 0.0f, 1.0f));
+    // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 4.0f));
+
+    _serviceManager.getService<RenderService>()->createStaticInstances();
+
+    auto& camera = _entityRegistry.emplace<Camera>(_entityRegistry.create());
+
+    camera.active        = true;
+    camera.movementSpeed = 2.0f;
+    camera.rotationSpeed = 0.001f;
+    camera.position      = { -3.0f, 0.0f, 0.0f };
+    camera.yaw           = 0.0f;
+    camera.pitch         = 0.0f;
+    camera.nearPlane     = 0.01f;
+    camera.farPlane      = 1000.0f;
+    camera.fov           = glm::radians(60.0f);
+
+    // auto truck = _entityRegistry.create();
+
+    // _entityRegistry.emplace<Name>(truck).name = "truck"_hs;
+    // _entityRegistry.emplace<LocalTransform>(truck);
+    // _entityRegistry.emplace<WorldTransform>(truck);
+    // auto wheels = _entityRegistry.emplace<Children>(truck);
+
+    // for (int i = 0; i < 4; ++i) {
+    //     auto wheel = _entityRegistry.create();
+
+    //     auto name = "wheel_" + std::to_string(i);
+
+    //     _entityRegistry.emplace<Name>(wheel).name = entt::hashed_string{ name.c_str(), name.length() };
+    //     _entityRegistry.emplace<LocalTransform>(wheel);
+    //     _entityRegistry.emplace<WorldTransform>(wheel);
+    //     _entityRegistry.emplace<RigidBody>(wheel);
+    //     _entityRegistry.emplace<Collider>(wheel);
+    //     _entityRegistry.emplace<Parent>(wheel).parent = truck;
+
+    //     wheels.childs.push_back(wheel);
+    // }
 }
 
 void Application::uninitialize() {
     _serviceManager.destroy();
+    _entityRegistry.clear();
 }
 
 void Application::frame(gerium_uint64_t elapsedMs) {
-    _eventManager.dispatch();
+    // _eventManager.dispatch();
     _serviceManager.update(elapsedMs);
 }
 
@@ -86,14 +218,16 @@ void Application::state(gerium_application_state_t state) {
         case GERIUM_APPLICATION_STATE_MAXIMIZE:
         case GERIUM_APPLICATION_STATE_FULLSCREEN:
         case GERIUM_APPLICATION_STATE_RESIZED:
-            _eventManager.send<WindowStateEvent>(state, width, height);
+            // _eventManager.send<WindowStateEvent>(state, width, height);
             break;
         default:
             break;
     }
 }
 
-gerium_bool_t Application::frame(gerium_application_t /* application */, gerium_data_t data, gerium_uint64_t elapsedMs) {
+gerium_bool_t Application::frame(gerium_application_t /* application */,
+                                 gerium_data_t data,
+                                 gerium_uint64_t elapsedMs) {
     auto app = (Application*) data;
     try {
         app->frame(elapsedMs);

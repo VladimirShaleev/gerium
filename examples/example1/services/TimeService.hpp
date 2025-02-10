@@ -16,7 +16,7 @@ public:
 protected:
     void start() override;
     void stop() override;
-    void update() override;
+    void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
 private:
     gerium_float64_t _multiply{ 1.0 };

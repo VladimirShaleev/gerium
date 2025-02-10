@@ -2,8 +2,6 @@
 #define APPLICATION_HPP
 
 #include "ResourceManager.hpp"
-#include "components/ECS.hpp"
-#include "events/EventManager.hpp"
 #include "passes/RenderPass.hpp"
 #include "services/ServiceManager.hpp"
 
@@ -22,20 +20,12 @@ public:
         return _logger;
     }
 
-    [[nodiscard]] EventManager& eventManager() noexcept {
-        return _eventManager;
+    [[nodiscard]] entt::registry& entityRegistry() noexcept {
+        return _entityRegistry;
     }
 
-    [[nodiscard]] const EventManager& eventManager() const noexcept {
-        return _eventManager;
-    }
-
-    [[nodiscard]] EntityManager& entityManager() noexcept {
-        return _entityManager;
-    }
-
-    [[nodiscard]] const EntityManager& entityManager() const noexcept {
-        return _entityManager;
+    [[nodiscard]] const entt::registry& entityRegistry() const noexcept {
+        return _entityRegistry;
     }
 
 private:
@@ -52,8 +42,7 @@ private:
     gerium_logger_t _logger{};
     gerium_application_t _application{};
     ServiceManager _serviceManager{};
-    EventManager _eventManager{};
-    EntityManager _entityManager{};
+    entt::registry _entityRegistry{};
 };
 
 #endif

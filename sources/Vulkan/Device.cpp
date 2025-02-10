@@ -126,9 +126,9 @@ void Device::create(Application* application,
     createInstance(application->getTitle(), options.app_version);
     createSurface();
     createPhysicalDevice();
-    createDevice(application->workerThreadCount(), features);
+    createDevice(application->workerThreadCount(), options.command_buffers_per_frame, features);
     createProfiler(64);
-    createDescriptorPools();
+    createDescriptorPools(options);
     createVmaAllocator();
     createDynamicBuffers(options);
     createDefaultSampler();
@@ -1628,7 +1628,9 @@ void Device::createPhysicalDevice() {
     }
 }
 
-void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags) {
+void Device::createDevice(gerium_uint32_t threadCount,
+                          gerium_uint32_t numBuffersPerFrame,
+                          gerium_feature_flags_t featureFlags) {
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
     const auto extensions    = selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT);
@@ -1801,7 +1803,7 @@ void Device::createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t fe
     _vkTable.vkGetDeviceQueue(_device, present.index, present.queue, &_queuePresent);
     _vkTable.vkGetDeviceQueue(_device, transfer.index, transfer.queue, &_queueTransfer);
 
-    _commandBufferPool.create(*this, threadCount, 10, QueueType::Graphics);
+    _commandBufferPool.create(*this, threadCount, numBuffersPerFrame, QueueType::Graphics);
     _frameCommandBuffer = getPrimaryCommandBuffer(false);
 }
 
@@ -1822,19 +1824,21 @@ void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
     }
 }
 
-void Device::createDescriptorPools() {
+void Device::createDescriptorPools(const gerium_renderer_options_t& options) {
+    const auto poolElements = options.descriptor_pool_elements;
+
     VkDescriptorPoolSize poolSizes[] = {
         // { VK_DESCRIPTOR_TYPE_SAMPLER,                kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kGlobalPoolElements * 2 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, poolElements * 2 },
         // { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          kGlobalPoolElements     },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          poolElements     },
         //{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   kGlobalPoolElements     },
         //{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   kGlobalPoolElements     },
         // { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         kGlobalPoolElements     },
         // { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       kGlobalPoolElements     }
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, poolElements     },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, poolElements     },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       poolElements     }
     };
 
     VkDescriptorPoolCreateFlags flags = {};
@@ -1844,7 +1848,7 @@ void Device::createDescriptorPools() {
 
     VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
     poolInfo.flags         = flags;
-    poolInfo.maxSets       = kDescriptorSetsPoolSize;
+    poolInfo.maxSets       = options.descriptor_sets_pool_size;
     poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(poolSizes[0]);
     poolInfo.pPoolSizes    = poolSizes;
 
@@ -2075,13 +2079,13 @@ void Device::createImGui() {
         _renderPasses.access(_autoRotation ? _swapchainRotateRenderPass : _swapchainRenderPass)->vkRenderPass;
 
     VkDescriptorPoolSize poolSizes[] = {
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128 }
     };
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.flags                      = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    poolInfo.maxSets                    = 1000;
+    poolInfo.maxSets                    = 128;
     poolInfo.poolSizeCount              = std::size(poolSizes);
     poolInfo.pPoolSizes                 = poolSizes;
     check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &_imguiPool));

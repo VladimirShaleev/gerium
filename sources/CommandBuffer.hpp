@@ -30,6 +30,12 @@ public:
               gerium_uint32_t vertexCount,
               gerium_uint32_t firstInstance,
               gerium_uint32_t instanceCount) noexcept;
+    void drawIndirect(BufferHandle handle,
+                      gerium_uint32_t offset,
+                      BufferHandle drawCountHandle,
+                      gerium_uint32_t drawCountOffset,
+                      gerium_uint32_t drawCount,
+                      gerium_uint32_t stride) noexcept;
     void drawIndexed(gerium_uint32_t firstIndex,
                      gerium_uint32_t indexCount,
                      gerium_uint32_t vertexOffset,
@@ -80,6 +86,13 @@ private:
                         gerium_uint32_t vertexCount,
                         gerium_uint32_t firstInstance,
                         gerium_uint32_t instanceCount) noexcept = 0;
+
+    virtual void onDrawIndirect(BufferHandle handle,
+                                gerium_uint32_t offset,
+                                BufferHandle drawCountHandle,
+                                gerium_uint32_t drawCountOffset,
+                                gerium_uint32_t drawCount,
+                                gerium_uint32_t stride) noexcept = 0;
 
     virtual void onDrawIndexed(gerium_uint32_t firstIndex,
                                gerium_uint32_t indexCount,

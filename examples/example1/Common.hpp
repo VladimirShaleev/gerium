@@ -19,12 +19,13 @@
 #include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
 
-#define TINYGLTF_NO_STB_IMAGE
-#define TINYGLTF_NO_STB_IMAGE_WRITE
-#define TINYGLTF_NO_INCLUDE_STB_IMAGE
-#define TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE
-#define TINYGLTF_USE_CPP14
-#include <tiny_gltf.h>
+#include <entt/entt.hpp>
+
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
+#include <meshoptimizer.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -43,7 +44,7 @@
 #include <magic_enum/magic_enum.hpp>
 
 #include <rfl.hpp>
-// #include <rfl/capnproto.hpp>
+#include <rfl/capnproto.hpp>
 #include <rfl/json.hpp>
 
 #include "Finally.hpp"
@@ -51,14 +52,15 @@
 
 static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
 
-inline int typeIdSequence = 0;
-template <typename T>
-inline const int typeId = typeIdSequence++;
-
 inline void check(gerium_result_t result) {
     if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
         throw std::runtime_error(gerium_result_to_string(result));
     }
+}
+
+template <typename T>
+inline T getGroupCount(T threadCount, T localSize) noexcept {
+    return (threadCount + localSize - 1) / localSize;
 }
 
 template <typename T>

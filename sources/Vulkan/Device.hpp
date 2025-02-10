@@ -347,9 +347,11 @@ private:
     void createInstance(gerium_utf8_t appName, gerium_uint32_t version);
     void createSurface();
     void createPhysicalDevice();
-    void createDevice(gerium_uint32_t threadCount, gerium_feature_flags_t featureFlags);
+    void createDevice(gerium_uint32_t threadCount,
+                      gerium_uint32_t numBuffersPerFrame,
+                      gerium_feature_flags_t featureFlags);
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
-    void createDescriptorPools();
+    void createDescriptorPools(const gerium_renderer_options_t& options);
     void createVmaAllocator();
     void createDynamicBuffers(const gerium_renderer_options_t& options);
     void createDefaultSampler();

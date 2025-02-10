@@ -51,6 +51,15 @@ void CommandBuffer::draw(gerium_uint32_t firstVertex,
     onDraw(firstVertex, vertexCount, firstInstance, instanceCount);
 }
 
+void CommandBuffer::drawIndirect(BufferHandle handle,
+                                 gerium_uint32_t offset,
+                                 BufferHandle drawCountHandle,
+                                 gerium_uint32_t drawCountOffset,
+                                 gerium_uint32_t drawCount,
+                                 gerium_uint32_t stride) noexcept {
+    onDrawIndirect(handle, offset, drawCountHandle, drawCountOffset, drawCount, stride);
+}
+
 void CommandBuffer::drawIndexed(gerium_uint32_t firstIndex,
                                 gerium_uint32_t indexCount,
                                 gerium_uint32_t vertexOffset,
@@ -182,6 +191,18 @@ void gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                                 gerium_uint32_t instance_count) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->draw(first_vertex, vertex_count, first_instance, instance_count);
+}
+
+void gerium_command_buffer_draw_indirect(gerium_command_buffer_t command_buffer,
+                                         gerium_buffer_h handle,
+                                         gerium_uint32_t offset,
+                                         gerium_buffer_h draw_count_handle,
+                                         gerium_uint32_t draw_count_offset,
+                                         gerium_uint32_t draw_count,
+                                         gerium_uint32_t stride) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)
+        ->drawIndirect({ handle.index }, offset, { draw_count_handle.index }, draw_count_offset, draw_count, stride);
 }
 
 void gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,

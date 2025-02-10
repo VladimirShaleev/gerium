@@ -18,6 +18,15 @@ void Renderer::initialize(gerium_feature_flags_t features, const gerium_renderer
     });
 
     auto newOptions = options ? *options : gerium_renderer_options_t{};
+    if (newOptions.command_buffers_per_frame == 0) {
+        newOptions.command_buffers_per_frame = 10;
+    }
+    if (newOptions.descriptor_sets_pool_size == 0) {
+        newOptions.descriptor_sets_pool_size = 4096;
+    }
+    if (newOptions.descriptor_pool_elements == 0) {
+        newOptions.descriptor_pool_elements = 4096;
+    }
     if (newOptions.dynamic_ubo_size == 0) {
         newOptions.dynamic_ubo_size = 65536;
     }

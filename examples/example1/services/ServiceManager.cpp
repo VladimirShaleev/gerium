@@ -17,20 +17,12 @@ const Application& Service::application() const noexcept {
     return _manager->application();
 }
 
-EventManager& Service::eventManager() noexcept {
-    return application().eventManager();
+entt::registry& Service::entityRegistry() noexcept {
+    return application().entityRegistry();
 }
 
-const EventManager& Service::eventManager() const noexcept {
-    return application().eventManager();
-}
-
-EntityManager& Service::entityManager() noexcept {
-    return application().entityManager();
-}
-
-const EntityManager& Service::entityManager() const noexcept {
-    return application().entityManager();
+const entt::registry& Service::entityRegistry() const noexcept {
+    return application().entityRegistry();
 }
 
 bool Service::isStopped() const noexcept {
@@ -43,10 +35,7 @@ void Service::start() {
 void Service::stop() {
 }
 
-void Service::update() {
-}
-
-void Service::setManager(ServiceManager* manager, int id) noexcept {
+void Service::setManager(ServiceManager* manager, uint32_t id) noexcept {
     _manager = manager;
     _id      = id;
 }
@@ -61,7 +50,7 @@ void Service::setStopped(bool stop) {
     }
 }
 
-int Service::serviceId() const noexcept {
+uint32_t Service::serviceId() const noexcept {
     return _id;
 }
 
@@ -71,7 +60,7 @@ void ServiceManager::create(Application* application) {
 }
 
 void ServiceManager::destroy() noexcept {
-    for (auto it = _services.begin(); it != _services.end(); ++it) {
+    for (auto it = _services.rbegin(); it != _services.rend(); ++it) {
         auto service = it->get();
         service->setStopped(true);
     }
@@ -80,13 +69,15 @@ void ServiceManager::destroy() noexcept {
 }
 
 void ServiceManager::update(gerium_uint64_t elapsedMs) {
-    _elapsedMs = elapsedMs;
     _absoluteMs += elapsedMs;
+    _elapsedMs = elapsedMs;
+    _absolute  = _absoluteMs * 0.001;
+    _elapsed   = _elapsedMs * 0.001;
 
     for (auto it = _services.begin(); it != _services.end(); ++it) {
         auto service = it->get();
         if (!service->isStopped()) {
-            service->update();
+            service->update(_elapsedMs, _elapsed);
         }
     }
 }
@@ -105,4 +96,12 @@ gerium_uint64_t ServiceManager::elapsedMs() const noexcept {
 
 gerium_uint64_t ServiceManager::absoluteMs() const noexcept {
     return _absoluteMs;
+}
+
+gerium_float64_t ServiceManager::elapsed() const noexcept {
+    return _elapsed;
+}
+
+gerium_float64_t ServiceManager::absolute() const noexcept {
+    return _absolute;
 }

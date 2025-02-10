@@ -10,7 +10,7 @@ public:
 protected:
     void start() override;
     void stop() override;
-    void update() override;
+    void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
 private:
     std::vector<gerium_event_t> _events{};

@@ -1046,6 +1046,9 @@ typedef struct
 {
     gerium_bool_t   debug_mode;
     gerium_uint32_t app_version;
+    gerium_uint32_t command_buffers_per_frame;
+    gerium_uint32_t descriptor_sets_pool_size;
+    gerium_uint32_t descriptor_pool_elements;
     gerium_uint32_t dynamic_ubo_size;
     gerium_uint32_t dynamic_ssbo_size;
 } gerium_renderer_options_t;
@@ -1697,6 +1700,15 @@ gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                            gerium_uint32_t vertex_count,
                            gerium_uint32_t first_instance,
                            gerium_uint32_t instance_count);
+
+gerium_public void
+gerium_command_buffer_draw_indirect(gerium_command_buffer_t command_buffer,
+                                    gerium_buffer_h handle,
+                                    gerium_uint32_t offset,
+                                    gerium_buffer_h draw_count_handle,
+                                    gerium_uint32_t draw_count_offset,
+                                    gerium_uint32_t draw_count,
+                                    gerium_uint32_t stride);
 
 gerium_public void
 gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
