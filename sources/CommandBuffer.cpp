@@ -83,9 +83,11 @@ void CommandBuffer::drawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY
 
 void CommandBuffer::drawMeshTasksIndirect(BufferHandle handle,
                                           gerium_uint32_t offset,
+                                          BufferHandle drawCountHandle,
+                                          gerium_uint32_t drawCountOffset,
                                           gerium_uint32_t drawCount,
                                           gerium_uint32_t stride) noexcept {
-    onDrawMeshTasksIndirect(handle, offset, drawCount, stride);
+    onDrawMeshTasksIndirect(handle, offset, drawCountHandle, drawCountOffset, drawCount, stride);
 }
 
 void CommandBuffer::drawProfiler(bool* show) noexcept {
@@ -240,10 +242,14 @@ void gerium_command_buffer_draw_mesh_tasks(gerium_command_buffer_t command_buffe
 void gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_buffer,
                                                     gerium_buffer_h handle,
                                                     gerium_uint32_t offset,
+                                                    gerium_buffer_h draw_count_handle,
+                                                    gerium_uint32_t draw_count_offset,
                                                     gerium_uint32_t draw_count,
                                                     gerium_uint32_t stride) {
     assert(command_buffer);
-    alias_cast<CommandBuffer*>(command_buffer)->drawMeshTasksIndirect({ handle.index }, offset, draw_count, stride);
+    alias_cast<CommandBuffer*>(command_buffer)
+        ->drawMeshTasksIndirect(
+            { handle.index }, offset, { draw_count_handle.index }, draw_count_offset, draw_count, stride);
 }
 
 void gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer, gerium_bool_t* show) {

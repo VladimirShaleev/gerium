@@ -81,10 +81,7 @@ void RenderService::loadModel(const std::string& filename) {
 }
 
 void RenderService::createCluster(const Cluster& cluster) {
-    bool has8BitStorage  = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_8_BIT_STORAGE_BIT;
-    bool has16BitStorage = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_16_BIT_STORAGE_BIT;
-
-    if (!has8BitStorage || !has16BitStorage) {
+    if (!_8and16BitStorageSupported) {
         throw std::runtime_error("Support for 8-bit and 16-bit storage is currently mandatory");
     }
 
@@ -219,14 +216,24 @@ void RenderService::start() {
     options.debug_mode = true;
 #endif
 
-    constexpr auto features =
-        GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT | GERIUM_FEATURE_BINDLESS_BIT;
+    constexpr auto features = GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT |
+                              GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
+                              GERIUM_FEATURE_BINDLESS_BIT;
 
     check(gerium_renderer_create(application().handle(), features, &options, &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);
     check(gerium_profiler_create(_renderer, &_profiler));
 
-    _bindlessSupported = gerium_renderer_get_enabled_features(_renderer) & GERIUM_FEATURE_BINDLESS_BIT;
+    const auto supportedFeatures = gerium_renderer_get_enabled_features(_renderer);
+    _bindlessSupported           = supportedFeatures & GERIUM_FEATURE_BINDLESS_BIT;
+    _drawIndirectSupported       = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_BIT;
+    _drawIndirectCountSupported  = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT;
+    _8and16BitStorageSupported   = (supportedFeatures & GERIUM_FEATURE_8_BIT_STORAGE_BIT) &&
+                                 (supportedFeatures & GERIUM_FEATURE_16_BIT_STORAGE_BIT);
+
+    if (!_drawIndirectSupported || !_drawIndirectCountSupported) {
+        throw std::runtime_error("Support draw indirect and draw indirect count is currently mandatory");
+    }
 
     check(gerium_frame_graph_create(_renderer, &_frameGraph));
 
@@ -240,6 +247,7 @@ void RenderService::start() {
     check(gerium_frame_graph_compile(_frameGraph));
 
     _baseTechnique = _resourceManager.loadTechnique(TECH_BASE_ID);
+    _resourceManager.loadTechnique(TECH_OTHER_ID);
 
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);

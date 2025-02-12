@@ -513,10 +513,13 @@ typedef enum
 {
     GERIUM_FEATURE_NONE_BIT                  = 0,
     GERIUM_FEATURE_BINDLESS_BIT              = 1,
-    GERIUM_FEATURE_MESH_SHADER_BIT           = 2,
-    GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT = 4,
-    GERIUM_FEATURE_8_BIT_STORAGE_BIT         = 8,
-    GERIUM_FEATURE_16_BIT_STORAGE_BIT        = 16,
+    GERIUM_FEATURE_GEOMETRY_SHADER_BIT       = 2,
+    GERIUM_FEATURE_MESH_SHADER_BIT           = 4,
+    GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT = 8,
+    GERIUM_FEATURE_DRAW_INDIRECT_BIT         = 16,
+    GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT   = 32,
+    GERIUM_FEATURE_8_BIT_STORAGE_BIT         = 64,
+    GERIUM_FEATURE_16_BIT_STORAGE_BIT        = 128,
     GERIUM_FEATURE_MAX_ENUM                  = 0x7FFFFFFF
 } gerium_feature_flags_t;
 GERIUM_FLAGS(gerium_feature_flags_t)
@@ -1737,6 +1740,8 @@ gerium_public void
 gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_buffer,
                                                gerium_buffer_h handle,
                                                gerium_uint32_t offset,
+                                               gerium_buffer_h draw_count_handle,
+                                               gerium_uint32_t draw_count_offset,
                                                gerium_uint32_t draw_count,
                                                gerium_uint32_t stride);
 

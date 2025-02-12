@@ -1701,6 +1701,9 @@ void Device::createDevice(gerium_uint32_t threadCount,
                          testFeatures12.descriptorBindingSampledImageUpdateAfterBind;
     _fidelityFXSupported = _fidelityFXSupported && testFeatures12.shaderStorageBufferArrayNonUniformIndexing &&
                            testFeatures12.shaderFloat16 && deviceFeatures.features.shaderImageGatherExtended;
+    _geometryShaderSupported =
+        (featureFlags & GERIUM_FEATURE_GEOMETRY_SHADER_BIT) == GERIUM_FEATURE_GEOMETRY_SHADER_BIT &&
+        deviceFeatures.features.geometryShader;
     _meshShaderSupported  = _meshShaderSupported && meshShaderFeatures.meshShader && meshShaderFeatures.taskShader;
     _8BitStorageSupported = _8BitStorageSupported && testFeatures12.storageBuffer8BitAccess &&
                             testFeatures12.uniformAndStorageBuffer8BitAccess && testFeatures12.shaderInt8;
@@ -1728,8 +1731,18 @@ void Device::createDevice(gerium_uint32_t threadCount,
             ? testFeatures12.samplerFilterMinmax
             : false;
 
+    _multiDrawIndirectSupported = deviceFeatures.features.multiDrawIndirect;
+
+    _drawIndirectSupported = (featureFlags & GERIUM_FEATURE_DRAW_INDIRECT_BIT) == GERIUM_FEATURE_DRAW_INDIRECT_BIT
+                                 ? deviceFeatures.features.drawIndirectFirstInstance
+                                 : false;
+
+    _drawIndirectCountSupported =
+        (featureFlags & GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT) == GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT
+            ? deviceFeatures.features.multiDrawIndirect && testFeatures12.drawIndirectCount
+            : false;
+
     features12.samplerFilterMinmax = _samplerFilterMinmaxSupported ? VK_TRUE : VK_FALSE;
-    features12.drawIndirectCount   = testFeatures12.drawIndirectCount;
     if (_bindlessSupported) {
         features12.shaderSampledImageArrayNonUniformIndexing = testFeatures12.shaderSampledImageArrayNonUniformIndexing;
         features12.descriptorBindingPartiallyBound           = testFeatures12.descriptorBindingPartiallyBound;
@@ -1743,14 +1756,16 @@ void Device::createDevice(gerium_uint32_t threadCount,
         features12.shaderStorageBufferArrayNonUniformIndexing =
             testFeatures12.shaderStorageBufferArrayNonUniformIndexing;
     }
+    if (_drawIndirectCountSupported) {
+        features12.drawIndirectCount = testFeatures12.drawIndirectCount;
+    }
     if (_8BitStorageSupported) {
         features12.storageBuffer8BitAccess           = testFeatures12.storageBuffer8BitAccess;
         features12.uniformAndStorageBuffer8BitAccess = testFeatures12.uniformAndStorageBuffer8BitAccess;
         features12.shaderInt8                        = testFeatures12.shaderInt8;
     }
 
-    features.features.imageCubeArray             = deviceFeatures.features.imageCubeArray;
-    features.features.geometryShader             = deviceFeatures.features.geometryShader;
+    features.features.geometryShader             = _geometryShaderSupported ? VK_TRUE : VK_FALSE;
     features.features.logicOp                    = deviceFeatures.features.logicOp;
     features.features.multiDrawIndirect          = deviceFeatures.features.multiDrawIndirect;
     features.features.drawIndirectFirstInstance  = deviceFeatures.features.drawIndirectFirstInstance;
@@ -1766,7 +1781,7 @@ void Device::createDevice(gerium_uint32_t threadCount,
     features.features.textureCompressionETC2     = deviceFeatures.features.textureCompressionETC2;
     features.features.textureCompressionASTC_LDR = deviceFeatures.features.textureCompressionASTC_LDR;
     features.features.textureCompressionBC       = deviceFeatures.features.textureCompressionBC;
-    features.features.shaderInt16                = deviceFeatures.features.shaderInt16;
+    features.features.shaderInt16                = _16BitStorageSupported ? VK_TRUE : VK_FALSE;
 
     if (features.features.textureCompressionETC2) {
         _compressions |= TextureCompressionFlags::ETC2;
@@ -2431,12 +2446,24 @@ std::vector<uint32_t> Device::compile(const char* code,
         options.AddMacroDefinition("BINDLESS_SUPPORTED"s, "1"s);
     }
 
+    if (_geometryShaderSupported) {
+        options.AddMacroDefinition("GEOMETRY_SHADER_SUPPORTED"s, "1"s);
+    }
+
     if (_meshShaderSupported) {
         options.AddMacroDefinition("MESH_SHADER_SUPPORTED"s, "1"s);
     }
 
     if (_samplerFilterMinmaxSupported) {
         options.AddMacroDefinition("SAMPLER_FILTER_MINMAX_SUPPORTED"s, "1"s);
+    }
+
+    if (_drawIndirectSupported) {
+        options.AddMacroDefinition("DRAW_INDIRECT_SUPPORTED"s, "1"s);
+    }
+
+    if (_drawIndirectCountSupported) {
+        options.AddMacroDefinition("DRAW_INDIRECT_COUNT_SUPPORTED"s, "1"s);
     }
 
     if (_fidelityFXSupported) {

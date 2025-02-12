@@ -1,7 +1,7 @@
-#ifndef PRIMITIVES_HPP
-#define PRIMITIVES_HPP
+#ifndef UTILS_PRIMITIVES_HPP
+#define UTILS_PRIMITIVES_HPP
 
-#include "Common.hpp"
+#include "../Common.hpp"
 
 enum class Axis {
     X,
@@ -101,4 +101,4 @@ private:
                     std::numeric_limits<float>::min() };
 };
 
-#endif
+#endif // UTILS_PRIMITIVES_HPP

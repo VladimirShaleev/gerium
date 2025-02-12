@@ -1,0 +1,30 @@
+name: other
+pipelines:
+  - render pass: gbuffer_pass
+    rasterization:
+      polygon mode: GERIUM_POLYGON_MODE_FILL
+      cull mode: GERIUM_CULL_MODE_FRONT
+      front face: GERIUM_FRONT_FACE_COUNTER_CLOCKWISE
+      depth clamp enable: 0
+      depth bias enable: 0
+      depth bias constant factor: 0.0
+      depth bias clamp: 0.0
+      depth bias slope factor: 0.0
+      line width: 1.0
+    depth stencil:
+      depth test enable: true
+      depth write enable: true
+      depth compare op: GERIUM_COMPARE_OP_LESS_OR_EQUAL
+    color blend:
+      logic op enable: false
+      logic op: GERIUM_LOGIC_OP_CLEAR
+      blend constants: [0.0, 0.0, 0.0, 0.0]
+    shaders:
+      - type: GERIUM_SHADER_TYPE_VERTEX
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.vert.glsl
+      - type: GERIUM_SHADER_TYPE_FRAGMENT
+        lang: GERIUM_SHADER_LANGUAGE_GLSL
+        name: shaders/gbuffer.frag.glsl
+        macros:
+          - COLOR: vec4(1.0, 0.0, 0.0, 1.0)

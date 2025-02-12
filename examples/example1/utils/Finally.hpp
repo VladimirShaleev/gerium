@@ -1,5 +1,5 @@
-#ifndef FINALLY_HPP
-#define FINALLY_HPP
+#ifndef UTILS_FINALLY_HPP
+#define UTILS_FINALLY_HPP
 
 #include <utility>
 
@@ -44,4 +44,4 @@ inline Finally<F> makeFinally(F&& f) {
         x;                                                      \
     })
 
-#endif
+#endif // UTILS_FINALLY_HPP

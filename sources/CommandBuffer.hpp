@@ -50,6 +50,8 @@ public:
     void drawMeshTasks(gerium_uint32_t groupX, gerium_uint32_t groupY, gerium_uint32_t groupZ) noexcept;
     void drawMeshTasksIndirect(BufferHandle handle,
                                gerium_uint32_t offset,
+                               BufferHandle drawCountHandle,
+                               gerium_uint32_t drawCountOffset,
                                gerium_uint32_t drawCount,
                                gerium_uint32_t stride) noexcept;
     void drawProfiler(bool* show) noexcept;
@@ -109,6 +111,8 @@ private:
 
     virtual void onDrawMeshTasksIndirect(BufferHandle handle,
                                          gerium_uint32_t offset,
+                                         BufferHandle drawCountHandle,
+                                         gerium_uint32_t drawCountOffset,
                                          gerium_uint32_t drawCount,
                                          gerium_uint32_t stride) noexcept = 0;
 

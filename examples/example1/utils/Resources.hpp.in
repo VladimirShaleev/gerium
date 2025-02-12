@@ -1,0 +1,10 @@
+// This file was generated automatically, do not change it manually
+// @GEN_DATETIME@
+
+#ifndef UTILS_RESOURCES_HPP
+#define UTILS_RESOURCES_HPP
+
+#include <entt/entt.hpp>
+
+@LIST_IDS@
+#endif

@@ -156,9 +156,9 @@ void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
 
         camera.fov   = std::clamp(camera.fov, glm::radians(30.0f), glm::radians(120.0f));
         camera.pitch = std::clamp(camera.pitch, glm::radians(-89.99f), glm::radians(89.99f));
-        camera.yaw   = std::fmod(camera.yaw, M_PI * 2.0);
+        camera.yaw   = std::fmod(camera.yaw, glm::two_pi<gerium_float32_t>());
         if (camera.yaw < 0.0f) {
-            camera.yaw += M_PI * 2.0;
+            camera.yaw += glm::two_pi<gerium_float32_t>();
         }
 
         camera.front.x = cos(camera.yaw) * cos(camera.pitch);

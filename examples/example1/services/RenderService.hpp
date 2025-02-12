@@ -71,6 +71,9 @@ private:
     gerium_profiler_t _profiler{};
     gerium_frame_graph_t _frameGraph{};
     bool _bindlessSupported{};
+    bool _drawIndirectSupported{};
+    bool _drawIndirectCountSupported{};
+    bool _8and16BitStorageSupported{};
     ResourceManager _resourceManager{};
     Technique _baseTechnique{};
     ClusterData _cluster{};

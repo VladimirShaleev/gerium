@@ -1,5 +1,7 @@
 file(GLOB GERIUM_EXAMPLE
     "*.hpp" "*.cpp"
+    "utils/*.hpp" "utils/*.cpp"
+    "shaders/common/*.h"
     "services/*.hpp" "services/*.cpp"
     "passes/*.hpp" "passes/*.cpp"
     "events/*.hpp" "events/*.cpp"
@@ -10,6 +12,7 @@ file(GLOB GERIUM_TECH_RESOURCES "techniques/*.yaml")
 file(GLOB GERIUM_MODEL_RESOURCES "models/*.gltf")
 
 set(LIST_IDS "")
+string(TIMESTAMP GEN_DATETIME %Y-%m-%dT%H:%M:%SZ UTC)
 macro(gen_ids)
     cmake_parse_arguments(gen_ids_args "" "" "RESOURCES;PREFIX" ${ARGN})
     if(NOT gen_ids_args_RESOURCES)
@@ -28,11 +31,10 @@ endmacro()
 gen_ids(RESOURCES ${GERIUM_GRAPH_RESOURCES} PREFIX GRAPH)
 gen_ids(RESOURCES ${GERIUM_TECH_RESOURCES} PREFIX TECH)
 gen_ids(RESOURCES ${GERIUM_MODEL_RESOURCES} PREFIX MODEL)
-configure_file(Resources.hpp.in Resources.hpp @ONLY)
+configure_file(utils/Resources.hpp.in Resources.hpp @ONLY)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example FILES ${GERIUM_EXAMPLE})
 
-find_package(nlohmann_json CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
@@ -52,7 +54,6 @@ target_link_libraries(example1 PRIVATE EnTT::EnTT)
 target_link_libraries(example1 PRIVATE glm::glm-header-only)
 target_link_libraries(example1 PRIVATE magic_enum::magic_enum)
 target_link_libraries(example1 PRIVATE meshoptimizer::meshoptimizer)
-target_link_libraries(example1 PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(example1 PRIVATE reflectcpp::reflectcpp)
 target_link_libraries(example1 PRIVATE assimp::assimp)
 target_include_directories(example1 PRIVATE ${Stb_INCLUDE_DIR})

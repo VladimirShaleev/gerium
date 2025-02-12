@@ -148,12 +148,24 @@ public:
         return _fidelityFXSupported;
     }
 
+    bool geometryShaderSupported() const noexcept {
+        return _geometryShaderSupported;
+    }
+
     bool meshShaderSupported() const noexcept {
         return _meshShaderSupported;
     }
 
     bool samplerFilterMinmaxSupported() const noexcept {
         return _samplerFilterMinmaxSupported;
+    }
+
+    bool drawIndirectSupported() const noexcept {
+        return _drawIndirectSupported;
+    }
+
+    bool drawIndirectCountSupported() const noexcept {
+        return _drawIndirectCountSupported;
     }
 
     bool is8BitStorageSupported() const noexcept {
@@ -514,8 +526,12 @@ private:
     bool _memoryBudgetSupported{};
     bool _bindlessSupported{};
     bool _fidelityFXSupported{};
+    bool _geometryShaderSupported{};
     bool _meshShaderSupported{};
     bool _samplerFilterMinmaxSupported{};
+    bool _multiDrawIndirectSupported{};
+    bool _drawIndirectSupported{};
+    bool _drawIndirectCountSupported{};
     bool _8BitStorageSupported{};
     bool _16BitStorageSupported{};
     TextureCompressionFlags _compressions{};

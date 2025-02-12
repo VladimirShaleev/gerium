@@ -1,5 +1,4 @@
 #include "ResourceManager.hpp"
-#include "Converters.hpp"
 
 using namespace std::string_literals;
 

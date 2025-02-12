@@ -1,7 +1,7 @@
-#ifndef CONVERTERS_HPP
-#define CONVERTERS_HPP
+#ifndef UTILS_YAML_CONVERTERS_HPP
+#define UTILS_YAML_CONVERTERS_HPP
 
-#include "Common.hpp"
+#include "../Common.hpp"
 
 namespace YAML {
 
@@ -17,8 +17,8 @@ constexpr auto defaultDepthWriteEnable  = false;
 constexpr auto defaultStencilTestEnable = false;
 constexpr auto defaultDepthCompareOp    = GERIUM_COMPARE_OP_NEVER;
 
-static gerium_uint8_t buffer[8192]{};
-static gerium_uint32_t offset{};
+inline gerium_uint8_t buffer[8192]{};
+inline gerium_uint32_t offset{};
 
 struct FrameGraphNode {
     std::string name;
@@ -27,10 +27,10 @@ struct FrameGraphNode {
     std::vector<gerium_resource_output_t> outputs;
 };
 
-static struct Flags {
+inline struct Flags {
 } flags{};
 
-static struct Boolean {
+inline struct Boolean {
 } boolean{};
 
 inline void resetBuffer() noexcept {
@@ -38,7 +38,7 @@ inline void resetBuffer() noexcept {
 }
 
 template <typename T>
-T* allocate(size_t n = 1) {
+inline T* allocate(size_t n = 1) {
     static_assert(std::is_trivial_v<T>);
     auto size = sizeof(T) * n;
 
@@ -52,7 +52,7 @@ T* allocate(size_t n = 1) {
 }
 
 template <typename T>
-T* allocate(const T& data) {
+inline T* allocate(const T& data) {
     auto result = allocate<T>();
 
     *result = data;
@@ -60,7 +60,7 @@ T* allocate(const T& data) {
 }
 
 template <typename T>
-T* allocate(const std::vector<T>& data) {
+inline T* allocate(const std::vector<T>& data) {
     if (data.empty()) {
         return nullptr;
     }
@@ -152,12 +152,12 @@ template <>
 struct convert<gerium_buffer_usage_flags_t> : convertEnum<gerium_buffer_usage_flags_t> {};
 
 template <typename T>
-T createDefault() noexcept {
+inline T createDefault() noexcept {
     return T{};
 }
 
 template <>
-gerium_rasterization_state_t createDefault<gerium_rasterization_state_t>() noexcept {
+inline gerium_rasterization_state_t createDefault<gerium_rasterization_state_t>() noexcept {
     gerium_rasterization_state_t result{};
     result.polygon_mode       = defaultPolygonMode;
     result.primitive_topology = defaultTopology;
@@ -168,7 +168,7 @@ gerium_rasterization_state_t createDefault<gerium_rasterization_state_t>() noexc
 }
 
 template <>
-gerium_depth_stencil_state_t createDefault<gerium_depth_stencil_state_t>() noexcept {
+inline gerium_depth_stencil_state_t createDefault<gerium_depth_stencil_state_t>() noexcept {
     gerium_depth_stencil_state_t result{};
     result.depth_test_enable        = defaultDepthTestEnable;
     result.depth_write_enable       = defaultDepthWriteEnable;
@@ -180,14 +180,15 @@ gerium_depth_stencil_state_t createDefault<gerium_depth_stencil_state_t>() noexc
 }
 
 template <>
-gerium_vertex_attribute_t createDefault<gerium_vertex_attribute_t>() noexcept {
+inline gerium_vertex_attribute_t createDefault<gerium_vertex_attribute_t>() noexcept {
     gerium_vertex_attribute_t result{};
     result.format = GERIUM_FORMAT_R8_UNORM;
     return result;
 }
 
 template <>
-gerium_clear_depth_stencil_attachment_state_t createDefault<gerium_clear_depth_stencil_attachment_state_t>() noexcept {
+inline gerium_clear_depth_stencil_attachment_state_t
+createDefault<gerium_clear_depth_stencil_attachment_state_t>() noexcept {
     gerium_clear_depth_stencil_attachment_state_t result{};
     result.depth = 1.0f;
     result.value = 0;
@@ -195,7 +196,7 @@ gerium_clear_depth_stencil_attachment_state_t createDefault<gerium_clear_depth_s
 }
 
 template <>
-gerium_resource_output_t createDefault<gerium_resource_output_t>() noexcept {
+inline gerium_resource_output_t createDefault<gerium_resource_output_t>() noexcept {
     constexpr auto writeMask = GERIUM_COLOR_COMPONENT_R_BIT | GERIUM_COLOR_COMPONENT_G_BIT |
                                GERIUM_COLOR_COMPONENT_B_BIT | GERIUM_COLOR_COMPONENT_A_BIT;
 
@@ -216,13 +217,13 @@ gerium_resource_output_t createDefault<gerium_resource_output_t>() noexcept {
 
 // Deserialize a trivial structure
 template <size_t N, typename T>
-void read(const Node& node, const char (&key)[N], T& result) {
+inline void read(const Node& node, const char (&key)[N], T& result) {
     result = node[key].template as<T>(result);
 }
 
 // Deserialize a trivial structure and store its address
 template <size_t N, typename T>
-void read(const Node& node, const char (&key)[N], T*& result) {
+inline void read(const Node& node, const char (&key)[N], T*& result) {
     using Type        = std::remove_cv_t<T>;
     auto defaultValue = createDefault<Type>();
 
@@ -232,19 +233,19 @@ void read(const Node& node, const char (&key)[N], T*& result) {
 
 // Deserialize string
 template <size_t N>
-void read(const Node& node, const char (&key)[N], gerium_utf8_t& result) {
+inline void read(const Node& node, const char (&key)[N], gerium_utf8_t& result) {
     result = allocate(node[key].template as<std::string>(result ? result : ""));
 }
 
 // Deserialize byte array
 template <size_t N>
-void read(const Node& node, const char (&key)[N], gerium_cdata_t& result) {
+inline void read(const Node& node, const char (&key)[N], gerium_cdata_t& result) {
     result = allocate(node[key].template as<std::string>(""));
 }
 
 // Deserialize a fixed size array
 template <size_t N, typename T, size_t Size>
-void read(const Node& node, const char (&key)[N], T (&results)[Size]) {
+inline void read(const Node& node, const char (&key)[N], T (&results)[Size]) {
     std::vector<T> defaultValues(Size);
     for (size_t i = 0; i < Size; ++i) {
         defaultValues[i] = results[i];
@@ -260,7 +261,7 @@ void read(const Node& node, const char (&key)[N], T (&results)[Size]) {
 
 // Deserialize the array and store the size and pointer
 template <size_t N, typename Size, typename T>
-void read(const Node& node, const char (&key)[N], Size& size, T*& results) {
+inline void read(const Node& node, const char (&key)[N], Size& size, T*& results) {
     using Type  = std::remove_cv_t<T>;
     auto values = node[key].template as<std::vector<Type>>(std::vector<Type>{});
     size        = (Size) values.size();
@@ -269,7 +270,7 @@ void read(const Node& node, const char (&key)[N], Size& size, T*& results) {
 
 // Deserialize enum flags
 template <size_t N, typename T>
-void read(const Node& node, const char (&key)[N], T& result, Flags) {
+inline void read(const Node& node, const char (&key)[N], T& result, Flags) {
     std::vector<T> values{};
     for (auto value : magic_enum::enum_values<T>()) {
         if (result & value) {
@@ -285,7 +286,7 @@ void read(const Node& node, const char (&key)[N], T& result, Flags) {
 
 // Deserialize boolean field
 template <size_t N, typename T>
-void read(const Node& node, const char (&key)[N], T& result, Boolean) {
+inline void read(const Node& node, const char (&key)[N], T& result, Boolean) {
     result = (T) node[key].template as<bool>(result);
 }
 
@@ -503,4 +504,4 @@ struct convert<FrameGraphNode> : encodeFail<FrameGraphNode> {
 
 } // namespace YAML
 
-#endif
+#endif // UTILS_YAML_CONVERTERS_HPP

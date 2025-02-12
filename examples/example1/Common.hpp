@@ -1,13 +1,14 @@
 #ifndef COMMON_HPP
 #define COMMON_HPP
 
-#define _USE_MATH_DEFINES
-
+// gerium API
 #include <gerium/gerium.h>
 
+// Dear ImGui: Bloat-free Graphical User interface
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 
+// Standard C++ libraries
 #include <cmath>
 #include <filesystem>
 #include <limits>
@@ -16,128 +17,55 @@
 #include <span>
 #include <string_view>
 
-#include <nlohmann/json.hpp>
+// Yaml parser
 #include <yaml-cpp/yaml.h>
 
+// Open-Asset-Importer-Library
+#include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
+// Mesh optimization library that makes
+// meshes smaller and faster to render
 #include <meshoptimizer.h>
 
+// C++ mathematics library for graphics software
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_LEFT_HANDED
 #define GLM_FORCE_SWIZZLE
-// #define GLM_FORCE_MESSAGES
-// https://github.com/g-truc/glm/issues/1269
-#include <glm/detail/setup.hpp>
-#undef GLM_DEPRECATED
-#define GLM_DEPRECATED [[deprecated]]
 #include <glm/ext.hpp>
 
+// Very fast, high quality, platform-independent
+// hashing algorithm
 #include <rapidhash.h>
 
+// Static reflection for enums
 #define MAGIC_ENUM_RANGE_MAX 255
 #include <magic_enum/magic_enum.hpp>
 
+// A C++20 library for fast serialization,
+// deserialization and validation using reflection
 #include <rfl.hpp>
 #include <rfl/capnproto.hpp>
 #include <rfl/json.hpp>
 
-#include "Finally.hpp"
+// Internal dependencies for code maintenance
+#include "utils/Constants.hpp"
+#include "utils/Finally.hpp"
+#include "utils/Functions.hpp"
+#include "utils/NonCopyable.hpp"
+#include "utils/NonMovable.hpp"
+#include "utils/Primitives.hpp"
+#include "utils/ReflectCppConverters.hpp"
+#include "utils/YamlConverters.hpp"
+
+// Defining Constants to Identify Assets
 #include "Resources.hpp"
+
+// Declaring shared structures between
+// C++ code and shaders code
 #include "shaders/common/types.h"
-
-static constexpr gerium_uint16_t UndefinedHandle = std::numeric_limits<gerium_uint16_t>::max();
-
-inline void check(gerium_result_t result) {
-    if (result != GERIUM_RESULT_SUCCESS && result != GERIUM_RESULT_SKIP_FRAME) {
-        throw std::runtime_error(gerium_result_to_string(result));
-    }
-}
-
-template <typename T>
-inline T getGroupCount(T threadCount, T localSize) noexcept {
-    return (threadCount + localSize - 1) / localSize;
-}
-
-template <typename T>
-inline gerium_uint32_t calcMipLevels(T width, T height) noexcept {
-    static_assert(std::is_integral_v<T>, "T is not integral type");
-    return static_cast<gerium_uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
-}
-
-inline gerium_float32_t halton(gerium_sint32_t i, gerium_sint32_t b) noexcept {
-    auto f  = 1.0f;
-    auto r  = 0.0f;
-    auto fb = gerium_float32_t(b);
-    while (i > 0) {
-        f = f / fb;
-        r = r + f * gerium_float32_t(i % b);
-        i = i / b;
-    }
-    return r;
-}
-
-inline glm::vec2 halton23(gerium_sint32_t index) noexcept {
-    return { halton(index + 1, 2), halton(index + 1, 3) };
-}
-
-inline glm::vec2 mRobertR2(gerium_sint32_t index) noexcept {
-    const auto g  = 1.32471795724474602596f;
-    const auto a1 = 1.0f / g;
-    const auto a2 = 1.0f / (g * g);
-
-    const auto x = std::fmod(0.5f + a1 * index, 1.0f);
-    const auto y = std::fmod(0.5f + a2 * index, 1.0f);
-    return { x, y };
-}
-
-inline gerium_float32_t interleavedGradientNoise(const glm::vec2& pixel, gerium_sint32_t index) noexcept {
-    const auto newPixel = pixel + gerium_float32_t(index) * 5.588238f;
-    return std::fmod(52.9829189f * fmodf(0.06711056f * newPixel.x + 0.00583715f * newPixel.y, 1.0f), 1.0f);
-}
-
-inline glm::vec2 interleavedGradient(gerium_sint32_t index) noexcept {
-    return { interleavedGradientNoise({ 1.f, 1.f }, index), interleavedGradientNoise({ 1.f, 2.f }, index) };
-}
-
-inline gerium_float32_t radicalInverseBase2(gerium_uint32_t bits) noexcept {
-    bits = (bits << 16u) | (bits >> 16u);
-    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
-    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
-    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
-    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
-    return gerium_float32_t(bits) * 2.3283064365386963e-10f;
-}
-
-inline glm::vec2 hammersley(gerium_sint32_t index, gerium_sint32_t numSamples) noexcept {
-    return { gerium_float32_t(index) / numSamples, radicalInverseBase2(gerium_uint32_t(index)) };
-}
-
-class NonCopyable {
-public:
-    constexpr NonCopyable() = default;
-    ~NonCopyable()          = default;
-
-protected:
-    NonCopyable(NonCopyable&&)            = default;
-    NonCopyable& operator=(NonCopyable&&) = default;
-
-private:
-    NonCopyable(const NonCopyable&)      = delete;
-    NonCopyable& operator=(NonCopyable&) = delete;
-};
-
-class NonMovable : NonCopyable {
-protected:
-    constexpr NonMovable() = default;
-    ~NonMovable()          = default;
-
-private:
-    NonMovable(NonMovable&&)            = delete;
-    NonMovable& operator=(NonMovable&&) = delete;
-};
 
 #endif

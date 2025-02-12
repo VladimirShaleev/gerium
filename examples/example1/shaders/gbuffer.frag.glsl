@@ -5,5 +5,5 @@
 layout(location = 0) out vec4 outBase;
 
 void main() {
-    outBase = vec4(1.0, 0.0, 1.0, 1.0);
+    outBase = COLOR;
 }

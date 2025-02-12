@@ -18,12 +18,17 @@ struct SHADER_ALIGN SceneData {
     float lodTarget;
 };
 
+struct Material {
+    uint index;
+};
+
 struct SHADER_ALIGN MeshInstance {
     mat4  world;
     mat4  prevWorld;
     mat4  normalMatrix;
     float scale;
     uint  mesh;
+    uint  material;
 };
 
 struct MeshLod {

@@ -1,7 +1,0 @@
-#ifndef RESOURCES_HPP
-#define RESOURCES_HPP
-
-#include <entt/entt.hpp>
-
-@LIST_IDS@
-#endif

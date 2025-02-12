@@ -1,10 +1,92 @@
 #include "Model.hpp"
 
 struct Cache {
+    struct PBRNames {
+        gerium_uint32_t index{};
+        std::tuple<size_t, size_t> name{};
+        std::optional<std::tuple<size_t, size_t>> baseColorTexture{};
+        std::optional<std::tuple<size_t, size_t>> metallicRoughnessTexture{};
+        std::optional<std::tuple<size_t, size_t>> normalTexture{};
+        std::optional<std::tuple<size_t, size_t>> occlusionTexture{};
+        std::optional<std::tuple<size_t, size_t>> emissiveTexture{};
+    };
+
     std::set<const aiMesh*> meshes;
+
+    std::vector<std::tuple<size_t, size_t>> nodeNames;
+    std::map<uint32_t, PBRNames> materialNames;
 };
 
-static void appendMesh(Cluster& cluster, Cache& cache, const aiScene* sc, const aiMesh* mesh) {
+static std::tuple<size_t, size_t> appendString(Model& model, const char* name, size_t length) {
+    auto nameIndex = model.strPool.size();
+    model.strPool.resize(nameIndex + length + 1);
+    memcpy(model.strPool.data() + nameIndex, name, length);
+    return { nameIndex, length };
+}
+
+static void appendMaterial(Cache& cache, Model& model, const aiScene* sc, const aiMesh* mesh) {
+    if (sc->HasMaterials()) {
+        const auto& material = sc->mMaterials[mesh->mMaterialIndex];
+        const auto& name     = material->GetName();
+
+        auto materialName = entt::hashed_string{ name.C_Str(), name.length };
+
+        if (auto it = cache.materialNames.find(materialName); it != cache.materialNames.end()) {
+            model.meshes.back().materialIndex = it->second.index;
+            return;
+        }
+
+        const auto basePath = std::filesystem::path("models") / "textures";
+
+        auto getTexture = [&](aiTextureType type) -> std::optional<std::tuple<size_t, size_t>> {
+            if (material->GetTextureCount(type)) {
+                aiString name;
+                material->Get(AI_MATKEY_TEXTURE(type, 0), name);
+                auto nameStr = (basePath / name.C_Str()).string();
+                return appendString(model, nameStr.c_str(), nameStr.length());
+            }
+            return std::nullopt;
+        };
+
+        auto& materialNames = cache.materialNames[materialName];
+
+        materialNames.index                    = (gerium_uint32_t) model.materials.size();
+        materialNames.name                     = appendString(model, name.C_Str(), name.length);
+        materialNames.baseColorTexture         = getTexture(aiTextureType_BASE_COLOR);
+        materialNames.metallicRoughnessTexture = getTexture(aiTextureType_METALNESS);
+        materialNames.normalTexture            = getTexture(aiTextureType_NORMALS);
+        materialNames.occlusionTexture         = getTexture(aiTextureType_LIGHTMAP);
+        materialNames.emissiveTexture          = getTexture(aiTextureType_EMISSIVE);
+
+        model.materials.push_back({});
+        auto& pbr = model.materials.back();
+
+        material->Get(AI_MATKEY_BASE_COLOR, pbr.baseColorFactor);
+        material->Get(AI_MATKEY_COLOR_EMISSIVE, pbr.emissiveFactor);
+        material->Get(AI_MATKEY_METALLIC_FACTOR, pbr.metallicFactor);
+        material->Get(AI_MATKEY_ROUGHNESS_FACTOR, pbr.roughnessFactor);
+        material->Get(AI_MATKEY_GLTF_TEXTURE_STRENGTH(aiTextureType_LIGHTMAP, 0), pbr.occlusionStrength);
+        material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, pbr.alphaCutoff);
+
+        aiString alphaMode{};
+        material->Get(AI_MATKEY_GLTF_ALPHAMODE, alphaMode);
+        auto alphaModeStr = std::string(alphaMode.C_Str(), alphaMode.length);
+
+        if (alphaModeStr == "MASK") {
+            pbr.flags |= Model::MaterialFlags::AlphaMask;
+        } else if (alphaModeStr == "BLEND") {
+            pbr.flags |= Model::MaterialFlags::Transparent;
+        }
+
+        bool doubleSided;
+        material->Get(AI_MATKEY_TWOSIDED, doubleSided);
+        if (doubleSided) {
+            pbr.flags |= Model::MaterialFlags::DoubleSided;
+        }
+    }
+}
+
+static void appendMesh(Cluster& cluster, Cache& cache, Model& model, const aiScene* sc, const aiMesh* mesh) {
     auto indexCount = mesh->mNumFaces * 3;
     std::vector<uint32_t> remap(indexCount);
     std::vector<uint32_t> indicesOrigin(indexCount);
@@ -134,6 +216,8 @@ static void appendMesh(Cluster& cluster, Cache& cache, const aiScene* sc, const 
             meshopt_optimizeVertexCache(indices.data(), indices.data(), indices.size(), vertexCount);
         }
     }
+
+    appendMaterial(cache, model, sc, mesh);
 }
 
 static void recursiveParsing(Cluster& cluster,
@@ -159,22 +243,20 @@ static void recursiveParsing(Cluster& cluster,
     glm::vec4 perspective;
     glm::decompose(localTransform, node.scale, node.rotation, node.position, skew, perspective);
 
-    if (nd->mName.length) {
-        node.nameIndex = (gerium_sint32_t) model.strPool.size();
-        node.nameLen   = nd->mName.length;
-        model.strPool.resize(node.nameIndex + node.nameLen + 1);
-        memcpy(model.strPool.data() + node.nameIndex, nd->mName.C_Str(), node.nameLen);
-    }
-
     auto nodeIndex = (gerium_sint32_t) model.nodes.size();
     model.nodes.push_back(node);
+    cache.nodeNames.push_back({});
+
+    if (nd->mName.length) {
+        cache.nodeNames.back() = appendString(model, nd->mName.C_Str(), nd->mName.length);
+    }
 
     for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
         const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
         if (!cache.meshes.contains(mesh)) {
             cache.meshes.insert(mesh);
-            model.meshes.emplace_back((gerium_uint32_t) cluster.meshes.size(), nodeIndex);
-            appendMesh(cluster, cache, sc, mesh);
+            model.meshes.emplace_back((gerium_uint32_t) cluster.meshes.size(), 0, nodeIndex);
+            appendMesh(cluster, cache, model, sc, mesh);
         }
     }
 
@@ -183,7 +265,7 @@ static void recursiveParsing(Cluster& cluster,
     }
 }
 
-Model loadModel(Cluster& cluster, const std::string& filename) {
+Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
     constexpr auto removePrimitives =
         aiPrimitiveType_POINT | aiPrimitiveType_LINE | aiPrimitiveType_POLYGON | aiPrimitiveType_NGONEncodingFlag;
 
@@ -196,7 +278,7 @@ Model loadModel(Cluster& cluster, const std::string& filename) {
 
     std::filesystem::path appDir = gerium_file_get_app_dir();
 
-    auto path = (appDir / "models" / (filename + ".gltf")).string();
+    auto path = (appDir / "models" / (std::string(name.data(), name.size()) + ".gltf")).string();
 
     auto scene = importer.ReadFile(path, flags);
 
@@ -205,13 +287,53 @@ Model loadModel(Cluster& cluster, const std::string& filename) {
     Cache cache{};
     recursiveParsing(cluster, cache, model, scene, scene->mRootNode, -1, 0);
 
-    auto strPoolOffset = model.strPool.size();
-    model.strPool.resize(strPoolOffset + filename.length() + 1);
-    memcpy(model.strPool.data() + strPoolOffset, filename.c_str(), filename.length());
-    model.name = entt::hashed_string{ model.strPool.data() + strPoolOffset, filename.length() };
+    const auto [nameIndex, nameLen] = appendString(model, name.data(), name.size());
 
-    for (auto& node : model.nodes) {
-        node.name = entt::hashed_string{ model.strPool.data() + node.nameIndex, (size_t) node.nameLen };
+    model.name = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+
+    for (size_t i = 0; i < model.nodes.size(); ++i) {
+        auto& node = model.nodes[i];
+
+        const auto [nameIndex, nameLen] = cache.nodeNames[i];
+
+        node.name = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+    }
+
+    for (size_t i = 0; i < model.materials.size(); ++i) {
+        auto& material = model.materials[i];
+
+        const auto& names =
+            std::find_if(cache.materialNames.cbegin(), cache.materialNames.cend(), [i](const auto& item) {
+            return item.second.index == i;
+        })->second;
+
+        material.name = entt::hashed_string{ model.strPool.data() + std::get<0>(names.name), std::get<1>(names.name) };
+
+        if (names.baseColorTexture) {
+            const auto [nameIndex, nameLen] = names.baseColorTexture.value();
+
+            material.baseColorTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+        }
+        if (names.metallicRoughnessTexture) {
+            const auto [nameIndex, nameLen] = names.metallicRoughnessTexture.value();
+
+            material.metallicRoughnessTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+        }
+        if (names.normalTexture) {
+            const auto [nameIndex, nameLen] = names.normalTexture.value();
+
+            material.normalTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+        }
+        if (names.occlusionTexture) {
+            const auto [nameIndex, nameLen] = names.occlusionTexture.value();
+
+            material.occlusionTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+        }
+        if (names.emissiveTexture) {
+            const auto [nameIndex, nameLen] = names.emissiveTexture.value();
+
+            material.emissiveTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+        }
     }
 
     return model;

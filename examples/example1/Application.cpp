@@ -13,6 +13,7 @@
 #include "components/MeshIndices.hpp"
 #include "components/Name.hpp"
 #include "components/Parent.hpp"
+#include "components/Renderable.hpp"
 #include "components/RigidBody.hpp"
 #include "components/WorldTransform.hpp"
 
@@ -123,6 +124,19 @@ void addModel(entt::registry& registry, entt::entity parent, const Model& model,
     registry.get_or_emplace<Children>(parent).childs.push_back(root);
 }
 
+struct Archive {
+    template <typename Arg>
+    Archive& operator()(Arg&& arg) {
+        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(arg)>, Camera>) {
+            auto result = rfl::capnproto::write(arg);
+            const auto schema = rfl::capnproto::to_schema<std::remove_cvref_t<decltype(arg)>>();
+            auto read = rfl::capnproto::read<std::remove_cvref_t<decltype(arg)>>(result).value();
+            auto i = 0;
+        }
+        return *this;
+    }
+};
+
 void Application::initialize() {
     Cluster cluster{};
     auto model1 = loadModel(cluster, "model1");
@@ -156,11 +170,14 @@ void Application::initialize() {
     camera.movementSpeed = 2.0f;
     camera.rotationSpeed = 0.001f;
     camera.position      = { -3.0f, 0.0f, 0.0f };
-    camera.yaw           = 0.0f;
-    camera.pitch         = 0.0f;
-    camera.nearPlane     = 0.01f;
-    camera.farPlane      = 1000.0f;
-    camera.fov           = glm::radians(60.0f);
+    camera.yaw       = 0.0f;
+    camera.pitch     = 0.0f;
+    camera.nearPlane = 0.01f;
+    camera.farPlane  = 1000.0f;
+    camera.fov       = glm::radians(60.0f);
+
+    Archive archive;
+    entt::snapshot{ _entityRegistry }.get<Camera>(archive);
 
     // auto truck = _entityRegistry.create();
 

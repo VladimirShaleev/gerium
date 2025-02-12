@@ -23,7 +23,6 @@
       ]
     },
 
-    "nlohmann-json",
     "yaml-cpp",
     "glm",
     "entt",

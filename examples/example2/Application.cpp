@@ -168,7 +168,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->cluster().descriptorSet, CLUSTER_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->texturesSet(), TEXTURE_SET);
-    gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, 1, 12);
+    gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, { UndefinedHandle }, 0, 1, 12);
 }
 
 void GBufferPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -333,7 +333,7 @@ void DebugOcclusionPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, camera->getDecriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, _descriptorSet, GLOBAL_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, application()->cluster().descriptorSet, CLUSTER_DATA_SET);
-    gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, 1, 12);
+    gerium_command_buffer_draw_mesh_tasks_indirect(commandBuffer, commandCount, 4, { UndefinedHandle }, 0, 1, 12);
 }
 
 void DebugOcclusionPass::initialize(gerium_frame_graph_t frameGraph, gerium_renderer_t renderer) {
@@ -1609,9 +1609,10 @@ void Application::initialize() {
 #endif
 
     check(gerium_renderer_create(_application,
-                                 GERIUM_FEATURE_BINDLESS_BIT | GERIUM_FEATURE_MESH_SHADER_BIT |
-                                     GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT | GERIUM_FEATURE_8_BIT_STORAGE_BIT |
-                                     GERIUM_FEATURE_16_BIT_STORAGE_BIT,
+                                 GERIUM_FEATURE_BINDLESS_BIT | GERIUM_FEATURE_GEOMETRY_SHADER_BIT |
+                                     GERIUM_FEATURE_MESH_SHADER_BIT | GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT |
+                                     GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT |
+                                     GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT,
                                  &options,
                                  &_renderer));
     gerium_renderer_set_profiler_enable(_renderer, true);

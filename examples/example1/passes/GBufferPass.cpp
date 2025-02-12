@@ -50,7 +50,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
 
     const auto count = renderService().instanceCount();
 
-    gerium_command_buffer_bind_technique(commandBuffer, renderService().baseTechnique());
+    gerium_command_buffer_bind_technique(commandBuffer, resourceManager().loadTechnique(TECH_PBR_ID));
     gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().sceneDataDescriptorSet(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().clusterDescriptorSet(), CLUSTER_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, INSTANCES_DATA_SET);
