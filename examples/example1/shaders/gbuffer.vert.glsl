@@ -4,6 +4,8 @@
 
 #include "common/types.h"
 
+layout(location = 0) flat out uint material;
+
 layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneUBO {
     SceneData scene;
 };
@@ -31,7 +33,9 @@ layout(std430, binding = 1, set = INSTANCES_DATA_SET) readonly buffer CommandsSS
 void main() {
     MeshInstance instance = instances[gl_InstanceIndex];
 
-    uint lodIndex = commands[gl_DrawIDARB].lodIndex;
+    uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + gl_DrawIDARB;
+
+    uint lodIndex = commands[commandIndex].lodIndex;
 
     MeshLod mesh = meshes[instance.mesh].lods[lodIndex];
 

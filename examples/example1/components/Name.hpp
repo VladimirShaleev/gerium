@@ -4,7 +4,7 @@
 #include "../Common.hpp"
 
 struct Name {
-    entt::hashed_string name;
+    hashed_string_owner name;
 };
 
 #endif

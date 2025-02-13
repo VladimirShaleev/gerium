@@ -5,6 +5,9 @@
 #define CLUSTER_DATA_SET   1
 #define INSTANCES_DATA_SET 2
 
+#define MAX_TECHNIQUES              50
+#define MAX_INSTANCES_PER_TECHNIQUE 500
+
 #define PI 3.1415926538
 
 #ifdef __cplusplus

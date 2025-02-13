@@ -9,15 +9,16 @@ enum class MaterialFlags {
     DoubleSided = 2,
     Transparent = 4
 };
+GERIUM_FLAGS(MaterialFlags);
 
 struct MaterialData {
-    entt::hashed_string name = {};
+    hashed_string_owner name = {};
 
-    entt::hashed_string baseColorTexture         = {};
-    entt::hashed_string metallicRoughnessTexture = {};
-    entt::hashed_string normalTexture            = {};
-    entt::hashed_string occlusionTexture         = {};
-    entt::hashed_string emissiveTexture          = {};
+    hashed_string_owner baseColorTexture         = {};
+    hashed_string_owner metallicRoughnessTexture = {};
+    hashed_string_owner normalTexture            = {};
+    hashed_string_owner occlusionTexture         = {};
+    hashed_string_owner emissiveTexture          = {};
 
     glm::vec4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
     glm::vec3 emissiveFactor  = {};
@@ -31,7 +32,7 @@ struct MaterialData {
 };
 
 struct MeshData {
-    entt::hashed_string model;
+    hashed_string_owner model;
     gerium_uint32_t mesh;
     MaterialData material;
 };

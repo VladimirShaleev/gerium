@@ -51,10 +51,14 @@
 #include <rfl/capnproto.hpp>
 #include <rfl/json.hpp>
 
+// Fast and reliable entity component system (ECS)
+#include <entt/entt.hpp>
+
 // Internal dependencies for code maintenance
 #include "utils/Constants.hpp"
 #include "utils/Finally.hpp"
 #include "utils/Functions.hpp"
+#include "utils/HashedStringOwner.hpp"
 #include "utils/NonCopyable.hpp"
 #include "utils/NonMovable.hpp"
 #include "utils/Primitives.hpp"

@@ -2,7 +2,6 @@
 #include "../Application.hpp"
 #include "../Model.hpp"
 #include "../components/Camera.hpp"
-#include "../components/MeshIndices.hpp"
 #include "../components/WorldTransform.hpp"
 #include "../passes/CullingPass.hpp"
 #include "../passes/GBufferPass.hpp"
@@ -77,6 +76,14 @@ gerium_uint32_t RenderService::instanceCount() const noexcept {
     return _staticInstanceCount;
 }
 
+gerium_buffer_h RenderService::materialsBuffer() const noexcept {
+    return _staticMaterials;
+}
+
+const std::vector<Technique>& RenderService::staticTechniques() const noexcept {
+    return _staticTechniques;
+}
+
 void RenderService::loadModel(const std::string& filename) {
 }
 
@@ -110,17 +117,16 @@ void RenderService::createCluster(const Cluster& cluster) {
             vertices[i].tv = meshopt_quantizeHalf(v.tv);
         }
 
-        _cluster.vertices =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                          false,
-                                          "cluster_vertices",
-                                          (gerium_cdata_t) vertices.data(),
-                                          (gerium_uint32_t) (vertices.size() * sizeof(Vertex)));
+        _cluster.vertices = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                          false,
+                                                          "cluster_vertices",
+                                                          (gerium_cdata_t) vertices.data(),
+                                                          (gerium_uint32_t) (vertices.size() * sizeof(Vertex)));
     }
 
     {
         _cluster.indices =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT,
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
                                           false,
                                           "cluster_indices",
                                           (gerium_cdata_t) cluster.primitiveIndices.data(),
@@ -150,12 +156,11 @@ void RenderService::createCluster(const Cluster& cluster) {
             }
         }
 
-        _cluster.meshes =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                          false,
-                                          "cluster_meshes",
-                                          (gerium_cdata_t) meshes.data(),
-                                          (gerium_uint32_t) (meshes.size() * sizeof(Mesh)));
+        _cluster.meshes = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                        false,
+                                                        "cluster_meshes",
+                                                        (gerium_cdata_t) meshes.data(),
+                                                        (gerium_uint32_t) (meshes.size() * sizeof(Mesh)));
     }
 
     _cluster.ds = _resourceManager.createDescriptorSet("cluster_ds", true);
@@ -165,15 +170,73 @@ void RenderService::createCluster(const Cluster& cluster) {
 }
 
 void RenderService::createStaticInstances() {
-    auto view = entityRegistry().view<MeshIndices, WorldTransform>();
+    auto view = entityRegistry().view<Renderable, WorldTransform>();
 
     std::vector<MeshInstance> instances;
 
+    std::vector<Material> materials;
+    std::map<gerium_uint64_t, gerium_uint32_t> materialHash;
+
     for (auto entity : view) {
-        auto& meshIndices    = view.get<MeshIndices>(entity);
+        auto& renderable     = view.get<Renderable>(entity);
         auto& worldTransform = view.get<WorldTransform>(entity);
 
-        for (auto mesh : meshIndices.meshes) {
+        for (const auto& meshData : renderable.meshes) {
+            auto technique = _resourceManager.loadTechnique(meshData.material.name);
+
+            auto techIt =
+                std::find_if(_staticTechniques.cbegin(), _staticTechniques.cend(), [&technique](const auto& item) {
+                gerium_technique_h lhs = item;
+                gerium_technique_h rhs = technique;
+                return lhs.index == rhs.index;
+            });
+
+            gerium_uint32_t techniqueIndex = 0;
+            if (techIt != _staticTechniques.cend()) {
+                techniqueIndex = (gerium_uint32_t) std::distance(_staticTechniques.cbegin(), techIt);
+            } else {
+                techniqueIndex = (gerium_uint32_t) _staticTechniques.size();
+                _staticTechniques.push_back(technique);
+            }
+
+            const auto hash = materialDataHash(meshData.material);
+
+            gerium_uint32_t materialIndex = 0;
+            if (auto it = materialHash.find(hash); it != materialHash.end()) {
+                materialIndex = it->second;
+            } else {
+                assert(materials.size() < std::numeric_limits<gerium_uint8_t>::max());
+                materialIndex = (gerium_uint32_t) materials.size();
+                materials.push_back({});
+                auto& mat = materials.back();
+                materialHash.insert({ hash, materialIndex });
+
+                auto loadTexture = [this](const entt::hashed_string& name) -> gerium_uint16_t {
+                    if (name.size()) {
+                        gerium_texture_h texture = _resourceManager.loadTexture(name);
+                        return texture.index;
+                    }
+                    return { UndefinedHandle };
+                };
+
+                mat.baseColorFactor[0]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.x);
+                mat.baseColorFactor[1]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.y);
+                mat.baseColorFactor[2]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.z);
+                mat.baseColorFactor[3]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.w);
+                mat.emissiveFactor[0]        = meshopt_quantizeHalf(meshData.material.emissiveFactor.x);
+                mat.emissiveFactor[1]        = meshopt_quantizeHalf(meshData.material.emissiveFactor.y);
+                mat.emissiveFactor[2]        = meshopt_quantizeHalf(meshData.material.emissiveFactor.z);
+                mat.metallicFactor           = meshopt_quantizeHalf(meshData.material.metallicFactor);
+                mat.roughnessFactor          = meshopt_quantizeHalf(meshData.material.roughnessFactor);
+                mat.occlusionStrength        = meshopt_quantizeHalf(meshData.material.occlusionStrength);
+                mat.alphaCutoff              = meshopt_quantizeHalf(meshData.material.alphaCutoff);
+                mat.baseColorTexture         = loadTexture(meshData.material.baseColorTexture);
+                mat.metallicRoughnessTexture = loadTexture(meshData.material.metallicRoughnessTexture);
+                mat.normalTexture            = loadTexture(meshData.material.normalTexture);
+                mat.occlusionTexture         = loadTexture(meshData.material.occlusionTexture);
+                mat.emissiveTexture          = loadTexture(meshData.material.emissiveTexture);
+            }
+
             instances.push_back({});
             auto& instance = instances.back();
 
@@ -181,11 +244,25 @@ void RenderService::createStaticInstances() {
             instance.prevWorld    = worldTransform.matrix;
             instance.normalMatrix = glm::transpose(glm::inverse(worldTransform.matrix));
             instance.scale        = worldTransform.scale;
-            instance.mesh         = mesh;
+            instance.mesh         = meshData.mesh;
+            instance.technique    = techniqueIndex;
+            instance.material     = materialIndex;
         }
     }
 
-    _staticInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_STORAGE_BIT,
+    assert(_staticTechniques.size() < MAX_TECHNIQUES);
+    assert(instances.size() < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
+
+    _staticMaterials = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                     false,
+                                                     "static_materials",
+                                                     (gerium_cdata_t) materials.data(),
+                                                     (gerium_uint32_t) (materials.size() * sizeof(materials[0])),
+                                                     0);
+
+    _staticMaterialCount = (gerium_uint32_t) materials.size();
+
+    _staticInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
                                                      false,
                                                      "static_instances",
                                                      (gerium_cdata_t) instances.data(),
@@ -253,11 +330,8 @@ void RenderService::start() {
         renderPass->initialize(_frameGraph, _renderer);
     }
 
-    _activeCamera = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_VERTEX_BIT | GERIUM_BUFFER_USAGE_UNIFORM_BIT,
-                                                  true,
-                                                  "active_camera",
-                                                  nullptr,
-                                                  sizeof(SceneData));
+    _activeCamera = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_camera", nullptr, sizeof(SceneData));
 
     _activeCameraDs = _resourceManager.createDescriptorSet("scene_data", true);
     gerium_renderer_bind_buffer(_renderer, _activeCameraDs, 0, _activeCamera);
@@ -342,6 +416,30 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     if (_error) {
         std::rethrow_exception(_error);
     }
+}
+
+gerium_uint64_t RenderService::materialDataHash(const MaterialData& material) noexcept {
+    const auto baseColor         = material.baseColorTexture.value();
+    const auto metallicRoughness = material.metallicRoughnessTexture.value();
+    const auto normal            = material.normalTexture.value();
+    const auto occlusion         = material.occlusionTexture.value();
+    const auto emissive          = material.emissiveTexture.value();
+
+    gerium_uint64_t seed = RAPID_SEED;
+
+    seed = rapidhash_withSeed(&baseColor, sizeof(baseColor), seed);
+    seed = rapidhash_withSeed(&metallicRoughness, sizeof(metallicRoughness), seed);
+    seed = rapidhash_withSeed(&normal, sizeof(normal), seed);
+    seed = rapidhash_withSeed(&occlusion, sizeof(occlusion), seed);
+    seed = rapidhash_withSeed(&emissive, sizeof(emissive), seed);
+    seed = rapidhash_withSeed(&material.baseColorFactor.x, sizeof(material.baseColorFactor), seed);
+    seed = rapidhash_withSeed(&material.emissiveFactor.x, sizeof(material.emissiveFactor), seed);
+    seed = rapidhash_withSeed(&material.metallicFactor, sizeof(material.metallicFactor), seed);
+    seed = rapidhash_withSeed(&material.roughnessFactor, sizeof(material.roughnessFactor), seed);
+    seed = rapidhash_withSeed(&material.occlusionStrength, sizeof(material.occlusionStrength), seed);
+    seed = rapidhash_withSeed(&material.alphaCutoff, sizeof(material.alphaCutoff), seed);
+
+    return seed;
 }
 
 gerium_uint32_t RenderService::prepare(gerium_frame_graph_t frameGraph,

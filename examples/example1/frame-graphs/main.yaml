@@ -7,7 +7,7 @@ frame graph:
   - name: gbuffer_pass
     inputs:
       - type: GERIUM_RESOURCE_TYPE_BUFFER
-        name: command_count
+        name: command_counts
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
     outputs:
@@ -20,11 +20,13 @@ frame graph:
   - name: culling_pass
     compute: true
     outputs:
+      # max_techniques = 50
+      # max_instances_per_technique = 500
       - type: GERIUM_RESOURCE_TYPE_BUFFER
-        name: command_count
-        size: 4
+        name: command_counts
+        size: 200  # max_techniques * 4
         usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
       - type: GERIUM_RESOURCE_TYPE_BUFFER
         name: commands
-        size: 4194304
-        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT, GERIUM_BUFFER_USAGE_VERTEX_BIT]
+        size: 500000  # max_techniques * max_instances_per_technique * 20
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]

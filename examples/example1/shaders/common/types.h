@@ -18,16 +18,13 @@ struct SHADER_ALIGN SceneData {
     float lodTarget;
 };
 
-struct Material {
-    uint index;
-};
-
 struct SHADER_ALIGN MeshInstance {
     mat4  world;
     mat4  prevWorld;
     mat4  normalMatrix;
     float scale;
     uint  mesh;
+    uint  technique;
     uint  material;
 };
 
@@ -55,10 +52,25 @@ struct MeshNonCompressed {
     MeshLod lods[8];
 };
 
+struct MaterialNonCompressed {
+    float baseColorFactor[4];
+    float emissiveFactor[3];
+    float metallicFactor;
+    float roughnessFactor;
+    float occlusionStrength;
+    float alphaCutoff;
+    uint  baseColorTexture;
+    uint  metallicRoughnessTexture;
+    uint  normalTexture;
+    uint  occlusionTexture;
+    uint  emissiveTexture;
+};
+
 #ifndef USE_COMPRESSED_TYPES
 
-#define Vertex VertexNonCompressed
-#define Mesh   MeshNonCompressed
+#define Vertex   VertexNonCompressed
+#define Mesh     MeshNonCompressed
+#define Material MaterialNonCompressed
 
 #else
 
@@ -78,6 +90,20 @@ struct Mesh {
     uint      vertexCount;
     uint8_t   lodCount;
     MeshLod   lods[8];
+};
+
+struct Material {
+    float16_t baseColorFactor[4];
+    float16_t emissiveFactor[3];
+    float16_t metallicFactor;
+    float16_t roughnessFactor;
+    float16_t occlusionStrength;
+    float16_t alphaCutoff;
+    uint16_t  baseColorTexture;
+    uint16_t  metallicRoughnessTexture;
+    uint16_t  normalTexture;
+    uint16_t  occlusionTexture;
+    uint16_t  emissiveTexture;
 };
 
 #endif

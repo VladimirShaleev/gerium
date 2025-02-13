@@ -10,7 +10,6 @@
 #include "components/Children.hpp"
 #include "components/Collider.hpp"
 #include "components/LocalTransform.hpp"
-#include "components/MeshIndices.hpp"
 #include "components/Name.hpp"
 #include "components/Parent.hpp"
 #include "components/Renderable.hpp"
@@ -106,8 +105,32 @@ void addModel(entt::registry& registry, entt::entity parent, const Model& model,
 
         for (const auto& mesh : model.meshes) {
             if (mesh.nodeIndex == nodeIndex) {
-                auto& meshIndices = registry.get_or_emplace<MeshIndices>(node);
-                meshIndices.meshes.push_back(mesh.meshIndex);
+                auto& renderable = registry.get_or_emplace<Renderable>(node);
+                renderable.meshes.push_back({});
+                auto& meshData = renderable.meshes.back();
+
+                meshData.model = model.name;
+                meshData.mesh  = mesh.meshIndex;
+
+                if (!model.materials.empty()) {
+                    auto& mat = model.materials[mesh.materialIndex];
+
+                    static int ii = 0;
+
+                    meshData.material.name                     = ++ii == 6 ? TECH_OTHER_ID : TECH_PBR_ID; // mat.name;
+                    meshData.material.baseColorTexture         = mat.baseColorTexture;
+                    meshData.material.metallicRoughnessTexture = mat.metallicRoughnessTexture;
+                    meshData.material.normalTexture            = mat.normalTexture;
+                    meshData.material.occlusionTexture         = mat.occlusionTexture;
+                    meshData.material.emissiveTexture          = mat.emissiveTexture;
+                    meshData.material.baseColorFactor          = mat.baseColorFactor;
+                    meshData.material.emissiveFactor           = mat.emissiveFactor;
+                    meshData.material.metallicFactor           = mat.metallicFactor;
+                    meshData.material.roughnessFactor          = mat.roughnessFactor;
+                    meshData.material.occlusionStrength        = mat.occlusionStrength;
+                    meshData.material.alphaCutoff              = mat.alphaCutoff;
+                    meshData.material.flags                    = (MaterialFlags) mat.flags;
+                }
             }
         }
 
@@ -128,10 +151,10 @@ struct Archive {
     template <typename Arg>
     Archive& operator()(Arg&& arg) {
         if constexpr (std::is_same_v<std::remove_cvref_t<decltype(arg)>, Camera>) {
-            auto result = rfl::capnproto::write(arg);
+            auto result       = rfl::capnproto::write(arg);
             const auto schema = rfl::capnproto::to_schema<std::remove_cvref_t<decltype(arg)>>();
-            auto read = rfl::capnproto::read<std::remove_cvref_t<decltype(arg)>>(result).value();
-            auto i = 0;
+            auto read         = rfl::capnproto::read<std::remove_cvref_t<decltype(arg)>>(result).value();
+            auto i            = 0;
         }
         return *this;
     }
@@ -170,11 +193,11 @@ void Application::initialize() {
     camera.movementSpeed = 2.0f;
     camera.rotationSpeed = 0.001f;
     camera.position      = { -3.0f, 0.0f, 0.0f };
-    camera.yaw       = 0.0f;
-    camera.pitch     = 0.0f;
-    camera.nearPlane = 0.01f;
-    camera.farPlane  = 1000.0f;
-    camera.fov       = glm::radians(60.0f);
+    camera.yaw           = 0.0f;
+    camera.pitch         = 0.0f;
+    camera.nearPlane     = 0.01f;
+    camera.farPlane      = 1000.0f;
+    camera.fov           = glm::radians(60.0f);
 
     Archive archive;
     entt::snapshot{ _entityRegistry }.get<Camera>(archive);

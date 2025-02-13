@@ -4,6 +4,7 @@
 #ifndef UTILS_RESOURCES_HPP
 #define UTILS_RESOURCES_HPP
 
+// Fast and reliable entity component system (ECS)
 #include <entt/entt.hpp>
 
 @LIST_IDS@

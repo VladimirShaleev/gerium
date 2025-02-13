@@ -16,8 +16,8 @@ layout(std430, binding = 0, set = INSTANCES_DATA_SET) readonly buffer InstancesS
     MeshInstance instances[];
 };
 
-layout(std430, binding = 1, set = INSTANCES_DATA_SET) buffer CommandCountSSBO {
-    uint commandCount;
+layout(std430, binding = 1, set = INSTANCES_DATA_SET) buffer CommandCountsSSBO {
+    uint commandCounts[];
 };
 
 layout(std430, binding = 2, set = INSTANCES_DATA_SET) writeonly buffer CommandsSSBO {
@@ -59,12 +59,12 @@ void main() {
             }
         }
 
-        uint count = atomicAdd(commandCount, 1);
-        
-        commands[count].vertexCount   = meshes[meshIndex].lods[lodIndex].primitiveCount;
-        commands[count].instanceCount = 1;
-        commands[count].firstVertex   = 0;
-        commands[count].firstInstance = index;
-        commands[count].lodIndex      = lodIndex;
+        uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + atomicAdd(commandCounts[instance.technique], 1);
+
+        commands[commandIndex].vertexCount   = meshes[meshIndex].lods[lodIndex].primitiveCount;
+        commands[commandIndex].instanceCount = 1;
+        commands[commandIndex].firstVertex   = 0;
+        commands[commandIndex].firstInstance = index;
+        commands[commandIndex].lodIndex      = lodIndex;
     }
 }

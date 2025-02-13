@@ -3,6 +3,7 @@
 
 #include "../Model.hpp"
 #include "../ResourceManager.hpp"
+#include "../components/Renderable.hpp"
 #include "ServiceManager.hpp"
 
 class RenderPass;
@@ -21,6 +22,8 @@ public:
     [[nodiscard]] gerium_buffer_h instancesBuffer() const noexcept;
     [[nodiscard]] gerium_buffer_h instanceCountBuffer() const noexcept;
     [[nodiscard]] gerium_uint32_t instanceCount() const noexcept;
+    [[nodiscard]] gerium_buffer_h materialsBuffer() const noexcept;
+    [[nodiscard]] const std::vector<Technique>& staticTechniques() const noexcept;
 
     void loadModel(const std::string& filename);
 
@@ -54,6 +57,8 @@ private:
         _renderPasses.push_back(std::move(renderPass));
     }
 
+    static gerium_uint64_t materialDataHash(const MaterialData& material) noexcept;
+
     static gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
                                    gerium_renderer_t renderer,
                                    gerium_uint32_t maxWorkers,
@@ -79,7 +84,10 @@ private:
     ClusterData _cluster{};
     Buffer _staticInstances{};
     Buffer _staticInstanceCountBuff{};
+    Buffer _staticMaterials{};
     gerium_uint32_t _staticInstanceCount{};
+    gerium_uint32_t _staticMaterialCount{};
+    std::vector<Technique> _staticTechniques{};
     Buffer _activeCamera{};
     DescriptorSet _activeCameraDs{};
 

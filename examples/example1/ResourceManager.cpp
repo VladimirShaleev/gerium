@@ -97,8 +97,7 @@ Technique ResourceManager::loadTechnique(const entt::hashed_string& name, gerium
         return technique;
     }
 
-    std::filesystem::path appDir = gerium_file_get_app_dir();
-    auto path                    = calcTechniquePath(name);
+    auto path = calcTechniquePath(name);
 
     gerium_file_t file;
     check(gerium_file_open(path.c_str(), true, &file));
@@ -237,15 +236,15 @@ gerium_uint64_t ResourceManager::calcKey(const entt::hashed_string& str, Type ty
 
 std::string ResourceManager::calcFrameGraphPath(const entt::hashed_string& name) noexcept {
     std::filesystem::path appDir = gerium_file_get_app_dir();
-    return (appDir / "frame-graphs"s / (std::string(name, name.size()) + ".yaml"s)).string();
+    return (appDir / "frame-graphs"s / (std::string(name.data(), name.size()) + ".yaml"s)).string();
 }
 
 std::string ResourceManager::calcTexturePath(const entt::hashed_string& name) noexcept {
     std::filesystem::path appDir = gerium_file_get_app_dir();
-    return (appDir / std::string(name, name.size())).string();
+    return (appDir / std::string(name.data(), name.size())).string();
 }
 
 std::string ResourceManager::calcTechniquePath(const entt::hashed_string& name) noexcept {
     std::filesystem::path appDir = gerium_file_get_app_dir();
-    return (appDir / "techniques"s / (std::string(name, name.size()) + ".yaml"s)).string();
+    return (appDir / "techniques"s / (std::string(name.data(), name.size()) + ".yaml"s)).string();
 }
