@@ -22,6 +22,8 @@
 
 // Open-Asset-Importer-Library
 #include <assimp/GltfMaterial.h>
+#include <assimp/IOStream.hpp>
+#include <assimp/IOSystem.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>

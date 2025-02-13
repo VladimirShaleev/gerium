@@ -273,14 +273,109 @@ Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
                            aiProcess_GenBoundingBoxes | aiProcess_MakeLeftHanded | aiProcess_FlipUVs |
                            aiProcess_CalcTangentSpace;
 
-    Assimp::Importer importer;
-    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, removePrimitives);
-
     std::filesystem::path appDir = gerium_file_get_app_dir();
+
+    class IOSystem : public Assimp::IOSystem {
+    public:
+        IOSystem(const std::filesystem::path& dir) noexcept : _dir(dir) {
+        }
+
+        bool Exists(const char* pFile) const override {
+            return gerium_file_exists_file(pFile);
+        }
+
+        char getOsSeparator() const override {
+            return char(std::filesystem::path::preferred_separator);
+        }
+
+        Assimp::IOStream* Open(const char* pFile, const char* pMode) override {
+            if (strcmp(pMode, "rb") != 0) {
+                throw std::runtime_error("IOSystem readonly");
+            }
+            auto path = (_dir / "models" / pFile).string();
+
+            class IOStream : public Assimp::IOStream {
+            public:
+                IOStream(gerium_utf8_t path) {
+                    check(gerium_file_open(path, true, &_file));
+                    _data = (const gerium_uint8_t*) gerium_file_map(_file);
+                    _pos  = 0;
+                }
+
+                ~IOStream() {
+                    gerium_file_destroy(_file);
+                }
+
+                size_t Read(void* pvBuffer, size_t pSize, size_t pCount) override {
+                    auto count = std::min(pSize * pCount, FileSize() - Tell());
+                    if (count) {
+                        memcpy(pvBuffer, _data + _pos, count);
+                        _pos += count;
+                    }
+                    return count / (pSize * pCount);
+                }
+
+                size_t Write(const void* pvBuffer, size_t pSize, size_t pCount) override {
+                    throw std::runtime_error("Not implemented");
+                }
+
+                aiReturn Seek(size_t pOffset, aiOrigin pOrigin) override {
+                    auto offset = (gerium_sint64_t) pOffset;
+                    switch (pOrigin) {
+                        case aiOrigin_SET:
+                            _pos = offset;
+                            break;
+                        case aiOrigin_CUR:
+                            _pos += offset;
+                            break;
+                        case aiOrigin_END:
+                            _pos = FileSize() - offset;
+                            break;
+                    }
+                    return aiReturn_SUCCESS;
+                }
+
+                size_t Tell() const override {
+                    return _pos;
+                }
+
+                size_t FileSize() const override {
+                    return gerium_file_get_size(_file);
+                }
+
+                void Flush() override {
+                }
+
+                gerium_file_t _file;
+                const gerium_uint8_t* _data;
+                gerium_sint64_t _pos;
+            };
+
+            return new IOStream(path.c_str());
+        }
+
+        void Close(Assimp::IOStream* pFile) override {
+            delete pFile;
+        }
+
+        const std::filesystem::path& _dir;
+    };
+
+    Assimp::Importer importer;
+
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, removePrimitives);
+    importer.SetIOHandler(new IOSystem(appDir));
 
     auto path = (appDir / "models" / (std::string(name.data(), name.size()) + ".gltf")).string();
 
-    auto scene = importer.ReadFile(path, flags);
+    gerium_file_t file;
+    check(gerium_file_open(path.c_str(), true, &file));
+    deferred(gerium_file_destroy(file));
+
+    auto data    = (const void*) gerium_file_map(file);
+    auto dataLen = (size_t) gerium_file_get_size(file);
+
+    auto scene = importer.ReadFileFromMemory(data, dataLen, flags);
 
     Model model{};
 
