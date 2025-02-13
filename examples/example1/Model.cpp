@@ -1,20 +1,8 @@
 #include "Model.hpp"
 
 struct Cache {
-    struct PBRNames {
-        gerium_uint32_t index{};
-        std::tuple<size_t, size_t> name{};
-        std::optional<std::tuple<size_t, size_t>> baseColorTexture{};
-        std::optional<std::tuple<size_t, size_t>> metallicRoughnessTexture{};
-        std::optional<std::tuple<size_t, size_t>> normalTexture{};
-        std::optional<std::tuple<size_t, size_t>> occlusionTexture{};
-        std::optional<std::tuple<size_t, size_t>> emissiveTexture{};
-    };
-
     std::set<const aiMesh*> meshes;
-
     std::vector<std::tuple<size_t, size_t>> nodeNames;
-    std::map<uint32_t, PBRNames> materialNames;
 };
 
 static std::tuple<size_t, size_t> appendString(Model& model, const char* name, size_t length) {
@@ -27,39 +15,38 @@ static std::tuple<size_t, size_t> appendString(Model& model, const char* name, s
 static void appendMaterial(Cache& cache, Model& model, const aiScene* sc, const aiMesh* mesh) {
     if (sc->HasMaterials()) {
         const auto& material = sc->mMaterials[mesh->mMaterialIndex];
-        const auto& name     = material->GetName();
+        const auto& name     = hashed_string_owner(material->GetName().C_Str());
 
-        auto materialName = entt::hashed_string{ name.C_Str(), name.length };
+        auto it = std::find_if(model.materials.cbegin(), model.materials.cend(), [&name](const auto& item) {
+            return item.name == name;
+        });
 
-        if (auto it = cache.materialNames.find(materialName); it != cache.materialNames.end()) {
-            model.meshes.back().materialIndex = it->second.index;
+        if (it != model.materials.cend()) {
+            model.meshes.back().materialIndex = (gerium_uint32_t) std::distance(model.materials.cbegin(), it);
             return;
         }
 
         const auto basePath = std::filesystem::path("models") / "textures";
 
-        auto getTexture = [&](aiTextureType type) -> std::optional<std::tuple<size_t, size_t>> {
+        auto getTexture = [&](aiTextureType type) -> hashed_string_owner {
             if (material->GetTextureCount(type)) {
                 aiString name;
                 material->Get(AI_MATKEY_TEXTURE(type, 0), name);
                 auto nameStr = (basePath / name.C_Str()).string();
-                return appendString(model, nameStr.c_str(), nameStr.length());
+                return hashed_string_owner{ nameStr.c_str(), nameStr.length() };
             }
-            return std::nullopt;
+            return {};
         };
-
-        auto& materialNames = cache.materialNames[materialName];
-
-        materialNames.index                    = (gerium_uint32_t) model.materials.size();
-        materialNames.name                     = appendString(model, name.C_Str(), name.length);
-        materialNames.baseColorTexture         = getTexture(aiTextureType_BASE_COLOR);
-        materialNames.metallicRoughnessTexture = getTexture(aiTextureType_METALNESS);
-        materialNames.normalTexture            = getTexture(aiTextureType_NORMALS);
-        materialNames.occlusionTexture         = getTexture(aiTextureType_LIGHTMAP);
-        materialNames.emissiveTexture          = getTexture(aiTextureType_EMISSIVE);
 
         model.materials.push_back({});
         auto& pbr = model.materials.back();
+
+        pbr.name                     = std::move(name);
+        pbr.baseColorTexture         = getTexture(aiTextureType_BASE_COLOR);
+        pbr.metallicRoughnessTexture = getTexture(aiTextureType_METALNESS);
+        pbr.normalTexture            = getTexture(aiTextureType_NORMALS);
+        pbr.occlusionTexture         = getTexture(aiTextureType_LIGHTMAP);
+        pbr.emissiveTexture          = getTexture(aiTextureType_EMISSIVE);
 
         material->Get(AI_MATKEY_BASE_COLOR, pbr.baseColorFactor);
         material->Get(AI_MATKEY_COLOR_EMISSIVE, pbr.emissiveFactor);
@@ -73,15 +60,15 @@ static void appendMaterial(Cache& cache, Model& model, const aiScene* sc, const 
         auto alphaModeStr = std::string(alphaMode.C_Str(), alphaMode.length);
 
         if (alphaModeStr == "MASK") {
-            pbr.flags |= Model::MaterialFlags::AlphaMask;
+            pbr.flags |= MaterialFlags::AlphaMask;
         } else if (alphaModeStr == "BLEND") {
-            pbr.flags |= Model::MaterialFlags::Transparent;
+            pbr.flags |= MaterialFlags::Transparent;
         }
 
         bool doubleSided;
         material->Get(AI_MATKEY_TWOSIDED, doubleSided);
         if (doubleSided) {
-            pbr.flags |= Model::MaterialFlags::DoubleSided;
+            pbr.flags |= MaterialFlags::DoubleSided;
         }
     }
 }
@@ -392,43 +379,6 @@ Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
         const auto [nameIndex, nameLen] = cache.nodeNames[i];
 
         node.name = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
-    }
-
-    for (size_t i = 0; i < model.materials.size(); ++i) {
-        auto& material = model.materials[i];
-
-        const auto& names =
-            std::find_if(cache.materialNames.cbegin(), cache.materialNames.cend(), [i](const auto& item) {
-            return item.second.index == i;
-        })->second;
-
-        material.name = entt::hashed_string{ model.strPool.data() + std::get<0>(names.name), std::get<1>(names.name) };
-
-        if (names.baseColorTexture) {
-            const auto [nameIndex, nameLen] = names.baseColorTexture.value();
-
-            material.baseColorTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
-        }
-        if (names.metallicRoughnessTexture) {
-            const auto [nameIndex, nameLen] = names.metallicRoughnessTexture.value();
-
-            material.metallicRoughnessTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
-        }
-        if (names.normalTexture) {
-            const auto [nameIndex, nameLen] = names.normalTexture.value();
-
-            material.normalTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
-        }
-        if (names.occlusionTexture) {
-            const auto [nameIndex, nameLen] = names.occlusionTexture.value();
-
-            material.occlusionTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
-        }
-        if (names.emissiveTexture) {
-            const auto [nameIndex, nameLen] = names.emissiveTexture.value();
-
-            material.emissiveTexture = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
-        }
     }
 
     return model;
