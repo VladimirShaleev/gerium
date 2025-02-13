@@ -2,6 +2,7 @@
 #define UTILS_REFLECT_CPP_CONVERTERS_HPP
 
 #include "../Common.hpp"
+#include "HashedStringOwner.hpp"
 
 template <int N, typename T>
 struct Vec {
@@ -56,6 +57,19 @@ struct Quat {
     }
 };
 
+struct String {
+    std::string str;
+    gerium_uint32_t hash;
+
+    static String from_class(const hashed_string_owner& str) noexcept {
+        return { str.string(), str.value() };
+    }
+
+    hashed_string_owner to_class() const {
+        return { str.c_str(), str.length() };
+    }
+};
+
 namespace rfl {
 
 namespace parsing {
@@ -71,6 +85,10 @@ struct Parser<ReaderType, WriterType, glm::mat<R, C, T, glm::defaultp>, Processo
 template <class ReaderType, class WriterType, class T, class ProcessorsType>
 struct Parser<ReaderType, WriterType, glm::qua<T, glm::defaultp>, ProcessorsType>
     : public CustomParser<ReaderType, WriterType, ProcessorsType, glm::qua<T, glm::defaultp>, Quat<T>> {};
+
+template <class ReaderType, class WriterType, class ProcessorsType>
+struct Parser<ReaderType, WriterType, hashed_string_owner, ProcessorsType>
+    : public CustomParser<ReaderType, WriterType, ProcessorsType, hashed_string_owner, String> {};
 
 } // namespace parsing
 
