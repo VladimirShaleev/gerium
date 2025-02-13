@@ -151,6 +151,13 @@ void SceneService::stop() {
 void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
     auto view = entityRegistry().view<Camera>();
 
+    gerium_uint16_t width, height;
+    gerium_application_get_size(application().handle(), &width, &height);
+
+    if (width == 0 || height == 0) {
+        return;
+    }
+
     for (auto entity : view) {
         auto& camera = view.get<Camera>(entity);
 
@@ -167,9 +174,6 @@ void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
         camera.front   = glm::normalize(camera.front);
         camera.right   = glm::normalize(glm::cross(camera.front, glm::vec3(0.0f, 1.0f, 0.0f)));
         camera.up      = glm::normalize(glm::cross(camera.right, camera.front));
-
-        gerium_uint16_t width, height;
-        gerium_application_get_size(application().handle(), &width, &height);
 
         const auto aspect = float(width) / height;
 
