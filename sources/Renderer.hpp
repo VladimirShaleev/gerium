@@ -25,6 +25,8 @@ public:
     bool getProfilerEnable() const noexcept;
     void setProfilerEnable(bool enable) noexcept;
 
+    gerium_uint32_t getFramesInFlight() const noexcept;
+
     bool isSupportedFormat(gerium_format_t format) noexcept;
     void getTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept;
 
@@ -128,6 +130,8 @@ private:
 
     virtual bool onGetProfilerEnable() const noexcept      = 0;
     virtual void onSetProfilerEnable(bool enable) noexcept = 0;
+
+    virtual gerium_uint32_t onGetFramesInFlight() const noexcept = 0;
 
     virtual bool onIsSupportedFormat(gerium_format_t format) noexcept                         = 0;
     virtual void onGetTextureInfo(TextureHandle handle, gerium_texture_info_t& info) noexcept = 0;

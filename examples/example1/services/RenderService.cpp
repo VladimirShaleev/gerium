@@ -2,6 +2,7 @@
 #include "../Application.hpp"
 #include "../Model.hpp"
 #include "../components/Camera.hpp"
+#include "../components/Static.hpp"
 #include "../components/WorldTransform.hpp"
 #include "../passes/CullingPass.hpp"
 #include "../passes/GBufferPass.hpp"
@@ -9,6 +10,10 @@
 #include "SceneService.hpp"
 
 #include <ranges>
+
+gerium_uint64_t RenderService::frame() const noexcept {
+    return _frame;
+}
 
 gerium_technique_h RenderService::baseTechnique() const noexcept {
     return _baseTechnique;
@@ -65,23 +70,23 @@ gerium_descriptor_set_h RenderService::sceneDataDescriptorSet() const noexcept {
 }
 
 gerium_buffer_h RenderService::instancesBuffer() const noexcept {
-    return _staticInstances;
+    return _instances[_frameIndex];
 }
 
 gerium_buffer_h RenderService::instanceCountBuffer() const noexcept {
-    return _staticInstanceCountBuff;
+    return _drawData;
 }
 
 gerium_uint32_t RenderService::instanceCount() const noexcept {
-    return _staticInstanceCount;
+    return _staticInstancesCount + _dynamicInstancesCount;
 }
 
 gerium_buffer_h RenderService::materialsBuffer() const noexcept {
-    return _staticMaterials;
+    return _materials[_frameIndex];
 }
 
 const std::vector<Technique>& RenderService::staticTechniques() const noexcept {
-    return _staticTechniques;
+    return _techniques;
 }
 
 void RenderService::loadModel(const std::string& filename) {
@@ -170,7 +175,7 @@ void RenderService::createCluster(const Cluster& cluster) {
 }
 
 void RenderService::createStaticInstances() {
-    auto view = entityRegistry().view<Renderable, WorldTransform>();
+    auto view = entityRegistry().view<Renderable, WorldTransform, Static>();
 
     std::vector<MeshInstance> instances;
 
@@ -184,19 +189,18 @@ void RenderService::createStaticInstances() {
         for (const auto& meshData : renderable.meshes) {
             auto technique = _resourceManager.loadTechnique(meshData.material.name);
 
-            auto techIt =
-                std::find_if(_staticTechniques.cbegin(), _staticTechniques.cend(), [&technique](const auto& item) {
+            auto techIt = std::find_if(_techniques.cbegin(), _techniques.cend(), [&technique](const auto& item) {
                 gerium_technique_h lhs = item;
                 gerium_technique_h rhs = technique;
                 return lhs.index == rhs.index;
             });
 
             gerium_uint32_t techniqueIndex = 0;
-            if (techIt != _staticTechniques.cend()) {
-                techniqueIndex = (gerium_uint32_t) std::distance(_staticTechniques.cbegin(), techIt);
+            if (techIt != _techniques.cend()) {
+                techniqueIndex = (gerium_uint32_t) std::distance(_techniques.cbegin(), techIt);
             } else {
-                techniqueIndex = (gerium_uint32_t) _staticTechniques.size();
-                _staticTechniques.push_back(technique);
+                techniqueIndex = (gerium_uint32_t) _techniques.size();
+                _techniques.push_back(technique);
             }
 
             const auto hash = materialDataHash(meshData.material);
@@ -250,33 +254,41 @@ void RenderService::createStaticInstances() {
         }
     }
 
-    assert(_staticTechniques.size() < MAX_TECHNIQUES);
+    _staticInstancesCount = (gerium_uint32_t) instances.size();
+    _staticMaterialsCount = (gerium_uint32_t) materials.size();
+
+    instances.resize(instances.size() + MAX_DYNAMIC_INSTANCES);
+    materials.resize(materials.size() + MAX_DYNAMIC_MATERIALS);
+
+    assert(_techniques.size() < MAX_TECHNIQUES);
     assert(instances.size() < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
 
-    _staticMaterials = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                     false,
-                                                     "static_materials",
-                                                     (gerium_cdata_t) materials.data(),
-                                                     (gerium_uint32_t) (materials.size() * sizeof(materials[0])),
-                                                     0);
+    for (auto& buffer : _materials) {
+        buffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                               false,
+                                               "materials",
+                                               (gerium_cdata_t) materials.data(),
+                                               (gerium_uint32_t) (materials.size() * sizeof(materials[0])),
+                                               0);
+    }
 
-    _staticMaterialCount = (gerium_uint32_t) materials.size();
+    for (auto& buffer : _instances) {
+        buffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                               false,
+                                               "instances",
+                                               (gerium_cdata_t) instances.data(),
+                                               (gerium_uint32_t) (instances.size() * sizeof(instances[0])),
+                                               0);
+    }
+}
 
-    _staticInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                     false,
-                                                     "static_instances",
-                                                     (gerium_cdata_t) instances.data(),
-                                                     (gerium_uint32_t) (instances.size() * sizeof(instances[0])),
-                                                     0);
-
-    _staticInstanceCount = (gerium_uint32_t) instances.size();
-
-    _staticInstanceCountBuff = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                             false,
-                                                             "static_instance_count",
-                                                             (gerium_cdata_t) &_staticInstanceCount,
-                                                             sizeof(gerium_uint32_t),
-                                                             0);
+void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer) {
+    gerium_command_buffer_copy_buffer(commandBuffer,
+                                      _dynamicInstances,
+                                      0,
+                                      _instances[_frameIndex],
+                                      _staticInstancesCount * sizeof(MeshInstance),
+                                      _dynamicInstancesCount * sizeof(MeshInstance));
 }
 
 void RenderService::start() {
@@ -316,6 +328,13 @@ void RenderService::start() {
 
     _resourceManager.create(_renderer, _frameGraph);
 
+    _maxFramesInFlight = gerium_renderer_get_frames_in_flight(_renderer);
+    _instances.resize(_maxFramesInFlight);
+    _materials.resize(_maxFramesInFlight);
+
+    _drawData = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "instances_count", nullptr, sizeof(gerium_uint32_t), 0);
+
     addPass<PresentPass>();
     addPass<GBufferPass>();
     addPass<CullingPass>();
@@ -343,11 +362,13 @@ void RenderService::stop() {
             _renderPasse->uninitialize(_frameGraph, _renderer);
         }
 
-        _activeCameraDs          = {};
-        _activeCamera            = {};
-        _staticInstanceCountBuff = {};
-        _staticInstances         = {};
-        _cluster                 = {};
+        _activeCameraDs   = {};
+        _activeCamera     = {};
+        _drawData         = {};
+        _materials        = {};
+        _instances        = {};
+        _dynamicInstances = {};
+        _cluster          = {};
 
         _baseTechnique = nullptr;
 
@@ -370,6 +391,14 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
         return;
     }
+
+    gerium_application_get_size(application().handle(), &_width, &_height);
+
+    if (_width == 0 || _height == 0) {
+        return;
+    }
+
+    _frameIndex = gerium_uint32_t(_frame++ % _maxFramesInFlight);
 
     _resourceManager.update(elapsedMs);
 
@@ -410,12 +439,120 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     sceneData->lodTarget          = (2.0f / p00p11.y) * invResolution.x;
     gerium_renderer_unmap_buffer(_renderer, _activeCamera);
 
+    auto drawData = (gerium_uint32_t*) gerium_renderer_map_buffer(_renderer, _drawData, 0, 4);
+    *drawData     = instanceCount();
+    gerium_renderer_unmap_buffer(_renderer, _drawData);
+
+    updateDynamicInstances();
+
     gerium_renderer_render(_renderer, _frameGraph);
     gerium_renderer_present(_renderer);
 
     if (_error) {
         std::rethrow_exception(_error);
     }
+}
+
+void RenderService::updateDynamicInstances() {
+    auto view = entityRegistry().view<Renderable, WorldTransform>(entt::exclude<Static>);
+
+    std::vector<MeshInstance> instances;
+
+    // std::vector<Material> materials;
+    // std::map<gerium_uint64_t, gerium_uint32_t> materialHash;
+
+    for (auto entity : view) {
+        auto& renderable     = view.get<Renderable>(entity);
+        auto& worldTransform = view.get<WorldTransform>(entity);
+
+        for (const auto& meshData : renderable.meshes) {
+            // auto technique = _resourceManager.loadTechnique(meshData.material.name);
+
+            // auto techIt = std::find_if(_techniques.cbegin(), _techniques.cend(), [&technique](const auto& item) {
+            //     gerium_technique_h lhs = item;
+            //     gerium_technique_h rhs = technique;
+            //     return lhs.index == rhs.index;
+            // });
+
+            // gerium_uint32_t techniqueIndex = 0;
+            // if (techIt != _techniques.cend()) {
+            //     techniqueIndex = (gerium_uint32_t) std::distance(_techniques.cbegin(), techIt);
+            // } else {
+            //     techniqueIndex = (gerium_uint32_t) _techniques.size();
+            //     _techniques.push_back(technique);
+            // }
+
+            // const auto hash = materialDataHash(meshData.material);
+
+            // gerium_uint32_t materialIndex = 0;
+            // if (auto it = materialHash.find(hash); it != materialHash.end()) {
+            //     materialIndex = it->second;
+            // } else {
+            //     assert(materials.size() < std::numeric_limits<gerium_uint8_t>::max());
+            //     materialIndex = (gerium_uint32_t) materials.size();
+            //     materials.push_back({});
+            //     auto& mat = materials.back();
+            //     materialHash.insert({ hash, materialIndex });
+
+            //     auto loadTexture = [this](const entt::hashed_string& name) -> gerium_uint16_t {
+            //         if (name.size()) {
+            //             gerium_texture_h texture = _resourceManager.loadTexture(name);
+            //             return texture.index;
+            //         }
+            //         return { UndefinedHandle };
+            //     };
+
+            //     mat.baseColorFactor[0]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.x);
+            //     mat.baseColorFactor[1]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.y);
+            //     mat.baseColorFactor[2]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.z);
+            //     mat.baseColorFactor[3]       = meshopt_quantizeHalf(meshData.material.baseColorFactor.w);
+            //     mat.emissiveFactor[0]        = meshopt_quantizeHalf(meshData.material.emissiveFactor.x);
+            //     mat.emissiveFactor[1]        = meshopt_quantizeHalf(meshData.material.emissiveFactor.y);
+            //     mat.emissiveFactor[2]        = meshopt_quantizeHalf(meshData.material.emissiveFactor.z);
+            //     mat.metallicFactor           = meshopt_quantizeHalf(meshData.material.metallicFactor);
+            //     mat.roughnessFactor          = meshopt_quantizeHalf(meshData.material.roughnessFactor);
+            //     mat.occlusionStrength        = meshopt_quantizeHalf(meshData.material.occlusionStrength);
+            //     mat.alphaCutoff              = meshopt_quantizeHalf(meshData.material.alphaCutoff);
+            //     mat.baseColorTexture         = loadTexture(meshData.material.baseColorTexture);
+            //     mat.metallicRoughnessTexture = loadTexture(meshData.material.metallicRoughnessTexture);
+            //     mat.normalTexture            = loadTexture(meshData.material.normalTexture);
+            //     mat.occlusionTexture         = loadTexture(meshData.material.occlusionTexture);
+            //     mat.emissiveTexture          = loadTexture(meshData.material.emissiveTexture);
+            // }
+
+            instances.push_back({});
+            auto& instance = instances.back();
+
+            instance.world        = worldTransform.matrix;
+            instance.prevWorld    = worldTransform.matrix;
+            instance.normalMatrix = glm::transpose(glm::inverse(worldTransform.matrix));
+            instance.scale        = worldTransform.scale;
+            instance.mesh         = meshData.mesh;
+            instance.technique    = 0;
+            instance.material     = 0;
+        }
+    }
+
+    // assert(_techniques.size() < MAX_TECHNIQUES);
+    assert(_staticInstancesCount + instances.size() < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
+
+    // for (auto& buffer : _materials) {
+    //     buffer = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+    //                                            false,
+    //                                            "materials",
+    //                                            (gerium_cdata_t) materials.data(),
+    //                                            (gerium_uint32_t) (materials.size() * sizeof(materials[0])),
+    //                                            0);
+    // }
+
+    _dynamicInstancesCount = (gerium_uint32_t) instances.size();
+
+    _dynamicInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                      true,
+                                                      "dynamic_instances",
+                                                      (gerium_cdata_t) instances.data(),
+                                                      (gerium_uint32_t) (instances.size() * sizeof(instances[0])),
+                                                      0);
 }
 
 gerium_uint64_t RenderService::materialDataHash(const MaterialData& material) noexcept {

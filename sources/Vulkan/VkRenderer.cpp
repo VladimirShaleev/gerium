@@ -181,6 +181,10 @@ void VkRenderer::onSetProfilerEnable(bool enable) noexcept {
     _device->setProfilerEnable(enable);
 }
 
+gerium_uint32_t VkRenderer::onGetFramesInFlight() const noexcept {
+    return kMaxFrames;
+}
+
 bool VkRenderer::onIsSupportedFormat(gerium_format_t format) noexcept {
     return _device->isSupportedFormat(format);
 }

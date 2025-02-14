@@ -14,6 +14,7 @@
 #include "components/Parent.hpp"
 #include "components/Renderable.hpp"
 #include "components/RigidBody.hpp"
+#include "components/Static.hpp"
 #include "components/WorldTransform.hpp"
 
 #include "Model.hpp"
@@ -59,7 +60,8 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
     }
 }
 
-void addModel(entt::registry& registry, entt::entity parent, const Model& model, const glm::vec3 position) {
+void addModel(
+    entt::registry& registry, entt::entity parent, const Model& model, const glm::vec3 position, bool isStatic) {
     auto root = registry.create();
     registry.emplace<Children>(root);
     auto& transform = registry.emplace<WorldTransform>(root);
@@ -106,6 +108,9 @@ void addModel(entt::registry& registry, entt::entity parent, const Model& model,
         for (const auto& mesh : model.meshes) {
             if (mesh.nodeIndex == nodeIndex) {
                 auto& renderable = registry.get_or_emplace<Renderable>(node);
+                if (isStatic) {
+                    registry.emplace_or_replace<Static>(node);
+                }
                 renderable.meshes.push_back({});
                 auto& meshData = renderable.meshes.back();
 
@@ -179,8 +184,9 @@ void Application::initialize() {
 
     auto root = _entityRegistry.create();
 
-    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, 0.0f));
-    addModel(_entityRegistry, root, model3, glm::vec3(-2.0f, 0.0f, 0.0f));
+    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, 0.0f), true);
+    addModel(_entityRegistry, root, model3, glm::vec3(-2.0f, 0.0f, 0.0f), true);
+    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, -8.0f), false);
     // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 0.0f));
     // addModel(_entityRegistry, root, model2, glm::vec3(0.0f, 0.0f, 1.0f));
     // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 4.0f));

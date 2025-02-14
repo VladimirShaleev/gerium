@@ -5,6 +5,8 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
+    renderService().mergeStaticAndDynamicInstances(commandBuffer);
+
     gerium_buffer_h commandCounts;
     check(gerium_renderer_get_buffer(renderer, "command_counts", &commandCounts));
 

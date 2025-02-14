@@ -1,0 +1,6 @@
+#ifndef COMPONENTS_STATIC_HPP
+#define COMPONENTS_STATIC_HPP
+
+struct Static {};
+
+#endif // COMPONENTS_STATIC_HPP

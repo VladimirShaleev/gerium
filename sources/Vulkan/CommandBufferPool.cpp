@@ -60,26 +60,23 @@ void CommandBuffer::addImageBarrier(TextureHandle handle,
 
 void CommandBuffer::addBufferBarrier(BufferHandle handle,
                                      ResourceState dstState,
-                                     QueueType srcQueueType,
-                                     QueueType dstQueueType) {
+                                     gerium_uint32_t offset,
+                                     gerium_uint32_t size) {
     auto buffer = _device->_buffers.access(handle);
 
-    auto [vkBuffer, vkOffset] = getVkBuffer(handle, 0);
-
-    auto srcFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(srcQueueType);
-    auto dstFamily = srcQueueType == dstQueueType ? VK_QUEUE_FAMILY_IGNORED : getFamilyIndex(dstQueueType);
+    auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
 
     VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
     barrier.srcAccessMask       = toVkAccessFlags(buffer->state);
     barrier.dstAccessMask       = toVkAccessFlags(dstState);
-    barrier.srcQueueFamilyIndex = srcFamily;
-    barrier.dstQueueFamilyIndex = dstFamily;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.buffer              = vkBuffer;
     barrier.offset              = vkOffset;
-    barrier.size                = buffer->size;
+    barrier.size                = size == 0 ? buffer->size : std::min(size, buffer->size);
 
-    const auto srcStageMask = utilDeterminePipelineStageFlags(barrier.srcAccessMask, srcQueueType);
-    const auto dstStageMask = utilDeterminePipelineStageFlags(barrier.dstAccessMask, dstQueueType);
+    const auto srcStageMask = utilDeterminePipelineStageFlags(barrier.srcAccessMask, QueueType::Graphics);
+    const auto dstStageMask = utilDeterminePipelineStageFlags(barrier.dstAccessMask, QueueType::Graphics);
 
     _device->vkTable().vkCmdPipelineBarrier(
         _commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &barrier, 0, nullptr);
@@ -143,12 +140,11 @@ void CommandBuffer::copyBuffer(BufferHandle src, BufferHandle dst) {
     auto srcBuffer = _device->_buffers.access(src);
     auto dstBuffer = _device->_buffers.access(dst);
 
-    auto srcOffset = 0;
+    auto srcOffset = srcBuffer->globalOffset;
     auto srcSize   = srcBuffer->size;
 
     if (srcBuffer->parent != Undefined) {
         srcBuffer = _device->_buffers.access(srcBuffer->parent);
-        srcOffset = srcBuffer->globalOffset;
     }
 
     VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
@@ -559,9 +555,25 @@ void CommandBuffer::onFillBuffer(BufferHandle handle,
                                  gerium_uint32_t size,
                                  gerium_uint32_t data) noexcept {
     auto [vkBuffer, vkOffset] = getVkBuffer(handle, offset);
-    addBufferBarrier(handle, ResourceState::CopyDest);
+    addBufferBarrier(handle, ResourceState::CopyDest, offset, size);
     _device->vkTable().vkCmdFillBuffer(_commandBuffer, vkBuffer, vkOffset, VkDeviceSize{ size }, data);
-    addBufferBarrier(handle, ResourceState::ShaderResource);
+    addBufferBarrier(handle, ResourceState::ShaderResource, offset, size);
+}
+
+void CommandBuffer::onCopyBuffer(BufferHandle srcHandle,
+                                 gerium_uint32_t srcOffset,
+                                 BufferHandle dstHandle,
+                                 gerium_uint32_t dstOffset,
+                                 gerium_uint32_t size) noexcept {
+    auto [vkSrcBuffer, vkSrcOffset] = getVkBuffer(srcHandle, srcOffset);
+    auto [vkDstBuffer, vkDstOffset] = getVkBuffer(dstHandle, dstOffset);
+    addBufferBarrier(srcHandle, ResourceState::CopySource, srcOffset, size);
+    addBufferBarrier(dstHandle, ResourceState::CopyDest, dstOffset, size);
+
+    VkBufferCopy bufferCopy = { (VkDeviceSize) vkSrcOffset, (VkDeviceSize) vkDstOffset, (VkDeviceSize) size };
+    _device->vkTable().vkCmdCopyBuffer(_commandBuffer, vkSrcBuffer, vkDstBuffer, 1, &bufferCopy);
+
+    addBufferBarrier(dstHandle, ResourceState::ShaderResource, dstOffset, size);
 }
 
 void CommandBuffer::onBarrierBufferWrite(BufferHandle handle) noexcept {

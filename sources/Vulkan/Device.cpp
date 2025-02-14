@@ -308,6 +308,11 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     if (creation.usage == ResourceUsageType::Dynamic && useGlobalBuffer) {
         const auto useSSBO = (creation.usageFlags & GERIUM_BUFFER_USAGE_UNIFORM_BIT) == 0;
         buffer->parent     = useSSBO ? _dynamicSSBO : _dynamicUBO;
+        if (creation.initialData) {
+            auto ptr = mapBuffer(handle, 0, buffer->size);
+            memcpy(ptr, creation.initialData, buffer->size);
+            unmapBuffer(handle);
+        }
         return handle;
     }
 

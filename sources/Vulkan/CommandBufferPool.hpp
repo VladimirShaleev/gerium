@@ -22,8 +22,8 @@ public:
                          QueueType dstQueueType = QueueType::Graphics);
     void addBufferBarrier(BufferHandle handle,
                           ResourceState dstState,
-                          QueueType srcQueueType = QueueType::Graphics,
-                          QueueType dstQueueType = QueueType::Graphics);
+                          gerium_uint32_t offset = 0,
+                          gerium_uint32_t size   = 0);
     void clearColor(gerium_uint32_t index,
                     gerium_float32_t red,
                     gerium_float32_t green,
@@ -100,6 +100,11 @@ private:
                       gerium_uint32_t offset,
                       gerium_uint32_t size,
                       gerium_uint32_t data) noexcept override;
+    void onCopyBuffer(BufferHandle srcHandle,
+                      gerium_uint32_t srcOffset,
+                      BufferHandle dstHandle,
+                      gerium_uint32_t dstOffset,
+                      gerium_uint32_t size) noexcept override;
 
     void onBarrierBufferWrite(BufferHandle handle) noexcept override;
     void onBarrierBufferRead(BufferHandle handle) noexcept override;

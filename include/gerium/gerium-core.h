@@ -1514,6 +1514,9 @@ gerium_public void
 gerium_renderer_set_profiler_enable(gerium_renderer_t renderer,
                                     gerium_bool_t enable);
 
+gerium_public gerium_uint32_t
+gerium_renderer_get_frames_in_flight(gerium_renderer_t renderer);
+
 gerium_public gerium_bool_t
 gerium_renderer_is_supported_format(gerium_renderer_t renderer,
                                     gerium_format_t format);
@@ -1755,6 +1758,14 @@ gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
                                   gerium_uint32_t offset,
                                   gerium_uint32_t size,
                                   gerium_uint32_t data);
+
+gerium_public void
+gerium_command_buffer_copy_buffer(gerium_command_buffer_t command_buffer,
+                                  gerium_buffer_h source_handle,
+                                  gerium_uint32_t source_offset,
+                                  gerium_buffer_h dest_handle,
+                                  gerium_uint32_t dest_offset,
+                                  gerium_uint32_t size);
 
 gerium_public void
 gerium_command_buffer_barrier_buffer_write(gerium_command_buffer_t command_buffer,

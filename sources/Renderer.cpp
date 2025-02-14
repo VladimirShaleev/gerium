@@ -52,6 +52,10 @@ void Renderer::setProfilerEnable(bool enable) noexcept {
     onSetProfilerEnable(enable);
 }
 
+gerium_uint32_t Renderer::getFramesInFlight() const noexcept {
+    return onGetFramesInFlight();
+}
+
 bool Renderer::isSupportedFormat(gerium_format_t format) noexcept {
     return onIsSupportedFormat(format);
 }
@@ -506,6 +510,11 @@ gerium_bool_t gerium_renderer_get_profiler_enable(gerium_renderer_t renderer) {
 void gerium_renderer_set_profiler_enable(gerium_renderer_t renderer, gerium_bool_t enable) {
     assert(renderer);
     return alias_cast<Renderer*>(renderer)->setProfilerEnable(enable);
+}
+
+gerium_uint32_t gerium_renderer_get_frames_in_flight(gerium_renderer_t renderer) {
+    assert(renderer);
+    return alias_cast<Renderer*>(renderer)->getFramesInFlight();
 }
 
 gerium_bool_t gerium_renderer_is_supported_format(gerium_renderer_t renderer, gerium_format_t format) {

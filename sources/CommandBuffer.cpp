@@ -102,6 +102,14 @@ void CommandBuffer::fillBuffer(BufferHandle handle,
     onFillBuffer(handle, offset, size, data);
 }
 
+void CommandBuffer::copyBuffer(BufferHandle srcHandle,
+                               gerium_uint32_t srcOffset,
+                               BufferHandle dstHandle,
+                               gerium_uint32_t dstOffset,
+                               gerium_uint32_t size) noexcept {
+    onCopyBuffer(srcHandle, srcOffset, dstHandle, dstOffset, size);
+}
+
 void CommandBuffer::barrierBufferWrite(BufferHandle handle) noexcept {
     onBarrierBufferWrite(handle);
 }
@@ -269,6 +277,17 @@ void gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
                                        gerium_uint32_t data) {
     assert(command_buffer);
     alias_cast<CommandBuffer*>(command_buffer)->fillBuffer({ handle.index }, offset, size, data);
+}
+
+void gerium_command_buffer_copy_buffer(gerium_command_buffer_t command_buffer,
+                                       gerium_buffer_h source_handle,
+                                       gerium_uint32_t source_offset,
+                                       gerium_buffer_h dest_handle,
+                                       gerium_uint32_t dest_offset,
+                                       gerium_uint32_t size) {
+    assert(command_buffer);
+    alias_cast<CommandBuffer*>(command_buffer)
+        ->copyBuffer({ source_handle.index }, source_offset, { dest_handle.index }, dest_offset, size);
 }
 
 void gerium_command_buffer_barrier_buffer_write(gerium_command_buffer_t command_buffer, gerium_buffer_h handle) {

@@ -10,6 +10,8 @@ class RenderPass;
 
 class RenderService : public Service {
 public:
+    [[nodiscard]] gerium_uint64_t frame() const noexcept;
+
     [[nodiscard]] gerium_technique_h baseTechnique() const noexcept;
 
     [[nodiscard]] ResourceManager& resourceManager() noexcept;
@@ -29,6 +31,7 @@ public:
 
     void createCluster(const Cluster& cluster);
     void createStaticInstances();
+    void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
 
 protected:
     void start() override;
@@ -57,6 +60,8 @@ private:
         _renderPasses.push_back(std::move(renderPass));
     }
 
+    void updateDynamicInstances();
+
     static gerium_uint64_t materialDataHash(const MaterialData& material) noexcept;
 
     static gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
@@ -79,15 +84,24 @@ private:
     bool _drawIndirectSupported{};
     bool _drawIndirectCountSupported{};
     bool _8and16BitStorageSupported{};
+    gerium_uint32_t _maxFramesInFlight{};
+    gerium_uint32_t _frameIndex{};
+    gerium_uint64_t _frame{};
+    gerium_uint16_t _width{};
+    gerium_uint16_t _height{};
     ResourceManager _resourceManager{};
     Technique _baseTechnique{};
     ClusterData _cluster{};
-    Buffer _staticInstances{};
-    Buffer _staticInstanceCountBuff{};
-    Buffer _staticMaterials{};
-    gerium_uint32_t _staticInstanceCount{};
-    gerium_uint32_t _staticMaterialCount{};
-    std::vector<Technique> _staticTechniques{};
+    Buffer _dynamicInstances{};
+    std::vector<Buffer> _instances{};
+    std::vector<Buffer> _materials{};
+    Buffer _drawData{};
+    gerium_uint32_t _staticInstancesCount{};
+    gerium_uint32_t _dynamicInstancesCount{};
+    gerium_uint32_t _staticMaterialsCount{};
+    gerium_uint32_t _dynamicMaterialsCount{};
+    // gerium_uint32_t _staticMaterialCount{};
+    std::vector<Technique> _techniques{};
     Buffer _activeCamera{};
     DescriptorSet _activeCameraDs{};
 
