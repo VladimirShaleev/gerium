@@ -1398,7 +1398,6 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
     if (recreate) {
         auto pipelineLayout = _descriptorSetLayouts.access(layoutHandle);
 
-        bool swapToPrevResource = false;
         for (auto& [_, item] : descriptorSet->bindings) {
             if (item.resource) {
                 auto resourceHandle = findInputResource(item.resource, item.previousFrame);
@@ -1441,7 +1440,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         _vkTable.vkUpdateDescriptorSets(_device, num, _descriptorWrite, 0, nullptr);
 
         descriptorSet->layout  = layoutHandle;
-        descriptorSet->changed = (updateRequired || swapToPrevResource) && !bindless;
+        descriptorSet->changed = updateRequired && !bindless;
     }
 
     descriptorSet->absoluteFrame = _absoluteFrame;

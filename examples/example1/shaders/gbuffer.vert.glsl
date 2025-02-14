@@ -4,7 +4,8 @@
 
 #include "common/types.h"
 
-layout(location = 0) flat out uint material;
+layout(location = 0) out vec2 texcoord;
+layout(location = 1) flat out uint material;
 
 layout(std140, binding = 0, set = SCENE_DATA_SET) uniform SceneUBO {
     SceneData scene;
@@ -44,4 +45,6 @@ void main() {
     vec4 position = vec4(vertices[vertex].px, vertices[vertex].py, vertices[vertex].pz, 1.0);
     
     gl_Position = scene.viewProjection * instance.world * position;
+    
+    texcoord = vec2(vertices[vertex].tu, vertices[vertex].tv);
 }

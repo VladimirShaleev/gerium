@@ -4,6 +4,9 @@
 #define SCENE_DATA_SET     0
 #define CLUSTER_DATA_SET   1
 #define INSTANCES_DATA_SET 2
+#define TEXTURES_SET       3
+
+#define BINDLESS_BINDING 10
 
 #define MAX_DYNAMIC_INSTANCES       100
 #define MAX_DYNAMIC_MATERIALS       100

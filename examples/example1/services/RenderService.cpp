@@ -38,6 +38,10 @@ gerium_descriptor_set_h RenderService::instancesData() const noexcept {
     return _instancesData;
 }
 
+gerium_descriptor_set_h RenderService::textures() const noexcept {
+    return _bindlessTextures;
+}
+
 gerium_uint32_t RenderService::instancesCount() const noexcept {
     return _staticInstancesCount + _dynamicInstancesCount;
 }
@@ -150,6 +154,7 @@ void RenderService::createStaticInstances() {
     _materialsTable.clear();
     _dynamicMaterialsCache.clear();
     _techniques.clear();
+    _textures.clear();
 
     _resourceManager.update(0);
 
@@ -275,6 +280,22 @@ void RenderService::start() {
     _activeScene = _resourceManager.createBuffer(
         GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_scene", nullptr, sizeof(SceneData));
 
+    gerium_texture_info_t info{};
+    info.width            = 1;
+    info.height           = 1;
+    info.depth            = 1;
+    info.mipmaps          = 1;
+    info.format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
+    info.type             = GERIUM_TEXTURE_TYPE_2D;
+    info.name             = "empty_texture";
+    gerium_uint32_t white = 0xFF000000;
+    _emptyTexture         = _resourceManager.createTexture(info, (gerium_cdata_t) &white);
+
+    _bindlessTextures = _resourceManager.createDescriptorSet("", true);
+    for (int i = 0; i < MAX_INSTANCES_PER_TECHNIQUE; ++i) {
+        gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
+    }
+
     _instancesData = _resourceManager.createDescriptorSet("instances_data", true);
     gerium_renderer_bind_buffer(_renderer, _instancesData, 0, _drawData);
     gerium_renderer_bind_resource(_renderer, _instancesData, 3, "command_counts", false);
@@ -294,6 +315,7 @@ void RenderService::stop() {
         _activeScene     = {};
 
         _instancesData         = {};
+        _textures              = {};
         _techniques            = {};
         _dynamicMaterialsCache = {};
         _materialsTable        = {};
@@ -308,8 +330,10 @@ void RenderService::stop() {
         _dynamicInstances      = {};
         _drawData              = {};
 
-        _cluster       = {};
-        _baseTechnique = nullptr;
+        _cluster          = {};
+        _baseTechnique    = {};
+        _bindlessTextures = {};
+        _emptyTexture     = {};
 
         _resourceManager.destroy();
 
@@ -482,7 +506,10 @@ std::pair<gerium_uint32_t, gerium_uint32_t> RenderService::getMaterial(const Mat
 
         auto loadTexture = [this](const entt::hashed_string& name) -> gerium_uint16_t {
             if (name.size()) {
-                gerium_texture_h texture = _resourceManager.loadTexture(name);
+                Texture result = _resourceManager.loadTexture(name);
+                _textures.insert(result);
+                gerium_texture_h texture = result;
+                gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, texture.index, texture);
                 return texture.index;
             }
             return { UndefinedHandle };

@@ -26,6 +26,10 @@ public:
 
     explicit operator bool() const noexcept;
 
+    bool operator==(const Resource& rhs) const noexcept;
+    bool operator!=(const Resource& rhs) const noexcept;
+    auto operator<=>(const Resource& rhs) const noexcept;
+
 private:
     void destroy() noexcept;
 
@@ -156,7 +160,10 @@ private:
     }
 
     template <typename H>
-    void addResource(const entt::hashed_string& path, const entt::hashed_string& name, H handle, gerium_uint64_t retentionMs) {
+    void addResource(const entt::hashed_string& path,
+                     const entt::hashed_string& name,
+                     H handle,
+                     gerium_uint64_t retentionMs) {
         auto key = calcHandleKey(handle);
 
         auto& resource       = _resources[key];
@@ -301,6 +308,21 @@ inline Resource<T>::operator bool() const noexcept {
 }
 
 template <typename T>
+inline bool Resource<T>::operator==(const Resource& rhs) const noexcept {
+    return _handle.index == rhs._handle.index;
+}
+
+template <typename T>
+inline bool Resource<T>::operator!=(const Resource& rhs) const noexcept {
+    return !(*this == rhs);
+}
+
+template <typename T>
+inline auto Resource<T>::operator<=>(const Resource& rhs) const noexcept {
+    return _handle.index <=> rhs._handle.index;
+}
+
+template <typename T>
 inline void Resource<T>::destroy() noexcept {
     if (_resourceManager) {
         _resourceManager->destroy(*this);
@@ -308,5 +330,16 @@ inline void Resource<T>::destroy() noexcept {
         _handle          = { UndefinedHandle };
     }
 }
+
+namespace std {
+
+template <typename T>
+struct hash<Resource<T>> {
+    size_t operator()(const Resource<T>& resource) const {
+        return T(resource).index;
+    }
+};
+
+} // namespace std
 
 #endif

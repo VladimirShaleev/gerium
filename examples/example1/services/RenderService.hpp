@@ -21,6 +21,7 @@ public:
     [[nodiscard]] gerium_descriptor_set_h sceneData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h clusterData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h instancesData() const noexcept;
+    [[nodiscard]] gerium_descriptor_set_h textures() const noexcept;
     [[nodiscard]] gerium_uint32_t instancesCount() const noexcept;
     [[nodiscard]] const std::vector<Technique>& techniques() const noexcept;
 
@@ -95,6 +96,8 @@ private:
     gerium_uint16_t _width{};
     gerium_uint16_t _height{};
     ResourceManager _resourceManager{};
+    Texture _emptyTexture{};
+    DescriptorSet _bindlessTextures{};
     Technique _baseTechnique{};
     ClusterData _cluster{};
 
@@ -111,6 +114,7 @@ private:
     std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};
     std::vector<Material> _dynamicMaterialsCache{};
     std::vector<Technique> _techniques{};
+    std::set<Texture> _textures{};
     DescriptorSet _instancesData{};
 
     Buffer _activeScene{};

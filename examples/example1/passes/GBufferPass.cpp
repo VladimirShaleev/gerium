@@ -14,6 +14,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     const auto clusterData    = renderService().clusterData();
     const auto instancesData  = renderService().instancesData();
     const auto instancesCount = renderService().instancesCount();
+    const auto textures       = renderService().textures();
 
     const auto& techniques = renderService().techniques();
 
@@ -25,6 +26,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         gerium_command_buffer_bind_descriptor_set(commandBuffer, sceneData, SCENE_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, clusterData, CLUSTER_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, instancesData, INSTANCES_DATA_SET);
+        gerium_command_buffer_bind_descriptor_set(commandBuffer, textures, TEXTURES_SET);
         gerium_command_buffer_draw_indirect(
             commandBuffer, commands, commandsOffset, commandCounts, countOffset, instancesCount, sizeof(IndirectDraw));
     }
