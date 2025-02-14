@@ -4,6 +4,7 @@
 #include "../Model.hpp"
 #include "../ResourceManager.hpp"
 #include "../components/Renderable.hpp"
+#include "../components/WorldTransform.hpp"
 #include "ServiceManager.hpp"
 
 class RenderPass;
@@ -62,6 +63,14 @@ private:
 
     void updateDynamicInstances();
 
+    void getMaterialsAndInstances(const Renderable& renderable,
+                                  const WorldTransform& worldTransform,
+                                  std::vector<Material>& materials,
+                                  std::vector<MeshInstance>& instances);
+
+    std::pair<gerium_uint32_t, gerium_uint32_t> getMaterial(const MaterialData& material,
+                                                            std::vector<Material>& result);
+
     static gerium_uint64_t materialDataHash(const MaterialData& material) noexcept;
 
     static gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
@@ -92,15 +101,18 @@ private:
     ResourceManager _resourceManager{};
     Technique _baseTechnique{};
     ClusterData _cluster{};
+    Buffer _drawData{};
     Buffer _dynamicInstances{};
+    Buffer _dynamicMaterials{};
     std::vector<Buffer> _instances{};
     std::vector<Buffer> _materials{};
-    Buffer _drawData{};
     gerium_uint32_t _staticInstancesCount{};
     gerium_uint32_t _dynamicInstancesCount{};
     gerium_uint32_t _staticMaterialsCount{};
     gerium_uint32_t _dynamicMaterialsCount{};
-    // gerium_uint32_t _staticMaterialCount{};
+    std::map<gerium_uint32_t, gerium_uint32_t> _techniquesTable{};
+    std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};
+    std::vector<Material> _dynamicMaterialsCache{};
     std::vector<Technique> _techniques{};
     Buffer _activeCamera{};
     DescriptorSet _activeCameraDs{};
