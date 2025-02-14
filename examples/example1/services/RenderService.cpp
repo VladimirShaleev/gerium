@@ -53,6 +53,8 @@ void RenderService::createCluster(const Cluster& cluster) {
 
     _cluster = {};
 
+    _resourceManager.update(0);
+
     {
         std::vector<Vertex> vertices(cluster.vertices.size());
         for (size_t i = 0; i < cluster.vertices.size(); ++i) {
@@ -80,7 +82,8 @@ void RenderService::createCluster(const Cluster& cluster) {
                                                           false,
                                                           "cluster_vertices",
                                                           (gerium_cdata_t) vertices.data(),
-                                                          (gerium_uint32_t) (vertices.size() * sizeof(Vertex)));
+                                                          (gerium_uint32_t) (vertices.size() * sizeof(Vertex)),
+                                                          0);
     }
 
     {
@@ -89,7 +92,8 @@ void RenderService::createCluster(const Cluster& cluster) {
                                           false,
                                           "cluster_indices",
                                           (gerium_cdata_t) cluster.primitiveIndices.data(),
-                                          (gerium_uint32_t) (cluster.primitiveIndices.size() * sizeof(uint32_t)));
+                                          (gerium_uint32_t) (cluster.primitiveIndices.size() * sizeof(uint32_t)),
+                                          0);
     }
 
     {
@@ -119,7 +123,8 @@ void RenderService::createCluster(const Cluster& cluster) {
                                                         false,
                                                         "cluster_meshes",
                                                         (gerium_cdata_t) meshes.data(),
-                                                        (gerium_uint32_t) (meshes.size() * sizeof(Mesh)));
+                                                        (gerium_uint32_t) (meshes.size() * sizeof(Mesh)),
+                                                        0);
     }
 
     _cluster.ds = _resourceManager.createDescriptorSet("cluster_ds", true);
@@ -246,13 +251,6 @@ void RenderService::start() {
 
     _resourceManager.create(_renderer, _frameGraph);
 
-    _maxFramesInFlight = gerium_renderer_get_frames_in_flight(_renderer);
-    _instances.resize(_maxFramesInFlight);
-    _materials.resize(_maxFramesInFlight);
-
-    _drawData = _resourceManager.createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "instances_count", nullptr, sizeof(DrawData), 0);
-
     addPass<PresentPass>();
     addPass<GBufferPass>();
     addPass<CullingPass>();
@@ -261,44 +259,56 @@ void RenderService::start() {
     check(gerium_frame_graph_compile(_frameGraph));
 
     _baseTechnique = _resourceManager.loadTechnique(TECH_BASE_ID);
-    _resourceManager.loadTechnique(TECH_OTHER_ID);
+    _resourceManager.loadTechnique(TECH_OTHER_ID); // TODO: remove later
 
     for (auto& renderPass : _renderPasses) {
         renderPass->initialize(_frameGraph, _renderer);
     }
 
+    _maxFramesInFlight = gerium_renderer_get_frames_in_flight(_renderer);
+    _instances.resize(_maxFramesInFlight);
+    _materials.resize(_maxFramesInFlight);
+
+    _drawData = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "instances_count", nullptr, sizeof(DrawData), 0);
+
     _activeScene = _resourceManager.createBuffer(
         GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_scene", nullptr, sizeof(SceneData));
-
-    _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
-    gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
 
     _instancesData = _resourceManager.createDescriptorSet("instances_data", true);
     gerium_renderer_bind_buffer(_renderer, _instancesData, 0, _drawData);
     gerium_renderer_bind_resource(_renderer, _instancesData, 3, "command_counts", false);
     gerium_renderer_bind_resource(_renderer, _instancesData, 4, "commands", false);
+
+    _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
+    gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
 }
 
 void RenderService::stop() {
     if (_renderer) {
-        for (auto& _renderPasse : std::ranges::reverse_view(_renderPasses)) {
-            _renderPasse->uninitialize(_frameGraph, _renderer);
+        for (auto& renderPass : std::ranges::reverse_view(_renderPasses)) {
+            renderPass->uninitialize(_frameGraph, _renderer);
         }
 
         _activeSceneData = {};
         _activeScene     = {};
 
         _instancesData         = {};
-        _staticInstancesCount  = {};
-        _dynamicInstancesCount = {};
-        _staticMaterialsCount  = {};
-        _dynamicMaterialsCount = {};
-        _techniquesTable       = {};
-        _materialsTable        = {};
-        _dynamicMaterialsCache = {};
         _techniques            = {};
-        _cluster               = {};
+        _dynamicMaterialsCache = {};
+        _materialsTable        = {};
+        _techniquesTable       = {};
+        _dynamicMaterialsCount = {};
+        _staticMaterialsCount  = {};
+        _dynamicInstancesCount = {};
+        _staticInstancesCount  = {};
+        _materials             = {};
+        _instances             = {};
+        _dynamicMaterials      = {};
+        _dynamicInstances      = {};
+        _drawData              = {};
 
+        _cluster       = {};
         _baseTechnique = nullptr;
 
         _resourceManager.destroy();
@@ -399,7 +409,7 @@ void RenderService::updateDynamicInstances() {
         _dynamicMaterials = _resourceManager.createBuffer(
             GERIUM_BUFFER_USAGE_STORAGE_BIT,
             true,
-            "dynamic_materials",
+            "",
             (gerium_cdata_t) _dynamicMaterialsCache.data(),
             (gerium_uint32_t) (_dynamicMaterialsCache.size() * sizeof(_dynamicMaterialsCache[0])),
             0);
@@ -408,7 +418,7 @@ void RenderService::updateDynamicInstances() {
     if (_dynamicInstancesCount) {
         _dynamicInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
                                                           true,
-                                                          "dynamic_instances",
+                                                          "",
                                                           (gerium_cdata_t) instances.data(),
                                                           (gerium_uint32_t) (instances.size() * sizeof(instances[0])),
                                                           0);

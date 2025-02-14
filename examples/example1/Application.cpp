@@ -59,6 +59,7 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
         gerium_application_show_message(_application, "example1", "unknown error");
     }
 }
+static entt::entity m3 = {};
 
 void addModel(
     entt::registry& registry, entt::entity parent, const Model& model, const glm::vec3 position, bool isStatic) {
@@ -135,6 +136,10 @@ void addModel(
                     meshData.material.occlusionStrength        = mat.occlusionStrength;
                     meshData.material.alphaCutoff              = mat.alphaCutoff;
                     meshData.material.flags                    = (MaterialFlags) mat.flags;
+
+                    if (ii == 11) {
+                        m3 = node;
+                    }
                 }
             }
         }
@@ -237,6 +242,10 @@ void Application::uninitialize() {
 }
 
 void Application::frame(gerium_uint64_t elapsedMs) {
+    auto& transform  = _entityRegistry.get<WorldTransform>(m3);
+
+    transform.matrix[3][2] -= elapsedMs * 0.001f * 1.0f;
+
     // _eventManager.dispatch();
     _serviceManager.update(elapsedMs);
 }
