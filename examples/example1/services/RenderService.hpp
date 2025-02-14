@@ -18,13 +18,11 @@ public:
 
     [[nodiscard]] gerium_technique_h baseTechnique() const noexcept;
 
-    [[nodiscard]] gerium_descriptor_set_h clusterData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h sceneData() const noexcept;
+    [[nodiscard]] gerium_descriptor_set_h clusterData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h instancesData() const noexcept;
     [[nodiscard]] gerium_uint32_t instancesCount() const noexcept;
     [[nodiscard]] const std::vector<Technique>& techniques() const noexcept;
-
-    void loadModel(const std::string& filename);
 
     void createCluster(const Cluster& cluster);
     void createStaticInstances();
@@ -57,7 +55,9 @@ private:
         _renderPasses.push_back(std::move(renderPass));
     }
 
+    void updateActiveSceneData();
     void updateDynamicInstances();
+    void updateInstancesData();
 
     void getMaterialsAndInstances(const Renderable& renderable,
                                   const WorldTransform& worldTransform,
@@ -111,10 +111,10 @@ private:
     std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};
     std::vector<Material> _dynamicMaterialsCache{};
     std::vector<Technique> _techniques{};
-    DescriptorSet _instancesDataSet{};
+    DescriptorSet _instancesData{};
 
-    Buffer _activeCamera{};
-    DescriptorSet _activeCameraDs{};
+    Buffer _activeScene{};
+    DescriptorSet _activeSceneData{};
 
     std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
     std::map<uint32_t, RenderPass*> _renderPassesCache{};

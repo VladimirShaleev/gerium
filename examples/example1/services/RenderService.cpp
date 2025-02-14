@@ -26,16 +26,16 @@ gerium_technique_h RenderService::baseTechnique() const noexcept {
     return _baseTechnique;
 }
 
+gerium_descriptor_set_h RenderService::sceneData() const noexcept {
+    return _activeSceneData;
+}
+
 gerium_descriptor_set_h RenderService::clusterData() const noexcept {
     return _cluster.ds;
 }
 
-gerium_descriptor_set_h RenderService::sceneData() const noexcept {
-    return _activeCameraDs;
-}
-
 gerium_descriptor_set_h RenderService::instancesData() const noexcept {
-    return _instancesDataSet;
+    return _instancesData;
 }
 
 gerium_uint32_t RenderService::instancesCount() const noexcept {
@@ -44,9 +44,6 @@ gerium_uint32_t RenderService::instancesCount() const noexcept {
 
 const std::vector<Technique>& RenderService::techniques() const noexcept {
     return _techniques;
-}
-
-void RenderService::loadModel(const std::string& filename) {
 }
 
 void RenderService::createCluster(const Cluster& cluster) {
@@ -270,11 +267,16 @@ void RenderService::start() {
         renderPass->initialize(_frameGraph, _renderer);
     }
 
-    _activeCamera = _resourceManager.createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_camera", nullptr, sizeof(SceneData));
+    _activeScene = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_scene", nullptr, sizeof(SceneData));
 
-    _activeCameraDs = _resourceManager.createDescriptorSet("scene_data", true);
-    gerium_renderer_bind_buffer(_renderer, _activeCameraDs, 0, _activeCamera);
+    _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
+    gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
+
+    _instancesData = _resourceManager.createDescriptorSet("instances_data", true);
+    gerium_renderer_bind_buffer(_renderer, _instancesData, 0, _drawData);
+    gerium_renderer_bind_resource(_renderer, _instancesData, 3, "command_counts", false);
+    gerium_renderer_bind_resource(_renderer, _instancesData, 4, "commands", false);
 }
 
 void RenderService::stop() {
@@ -283,10 +285,10 @@ void RenderService::stop() {
             _renderPasse->uninitialize(_frameGraph, _renderer);
         }
 
-        _activeCameraDs = {};
-        _activeCamera   = {};
+        _activeSceneData = {};
+        _activeScene     = {};
 
-        _instancesDataSet      = {};
+        _instancesData         = {};
         _staticInstancesCount  = {};
         _dynamicInstancesCount = {};
         _staticMaterialsCount  = {};
@@ -320,7 +322,6 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     }
 
     gerium_application_get_size(application().handle(), &_width, &_height);
-
     if (_width == 0 || _height == 0) {
         return;
     }
@@ -328,13 +329,24 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     _frameIndex = gerium_uint32_t(_frame++ % _maxFramesInFlight);
 
     _resourceManager.update(elapsedMs);
+    updateActiveSceneData();
+    updateDynamicInstances();
+    updateInstancesData();
 
+    gerium_renderer_render(_renderer, _frameGraph);
+    gerium_renderer_present(_renderer);
+
+    if (_error) {
+        std::rethrow_exception(_error);
+    }
+}
+
+void RenderService::updateActiveSceneData() {
     auto view = entityRegistry().view<Camera>();
 
     Camera* camera = nullptr;
     for (auto entity : view) {
-        auto& c = view.get<Camera>(entity);
-        if (c.active) {
+        if (auto& c = view.get<Camera>(entity); c.active) {
             camera = &c;
         }
     }
@@ -351,7 +363,7 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
 
     auto p00p11 = glm::vec2(camera->projection[0][0], camera->projection[1][1]);
 
-    auto sceneData            = (SceneData*) gerium_renderer_map_buffer(_renderer, _activeCamera, 0, sizeof(SceneData));
+    auto sceneData            = (SceneData*) gerium_renderer_map_buffer(_renderer, _activeScene, 0, sizeof(SceneData));
     sceneData->view           = camera->view;
     sceneData->viewProjection = camera->viewProjection;
     sceneData->prevViewProjection = camera->prevViewProjection;
@@ -364,27 +376,7 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     sceneData->invResolution      = invResolution;
     sceneData->resolution         = camera->resolution;
     sceneData->lodTarget          = (2.0f / p00p11.y) * invResolution.x;
-    gerium_renderer_unmap_buffer(_renderer, _activeCamera);
-
-    auto drawData       = (DrawData*) gerium_renderer_map_buffer(_renderer, _drawData, 0, sizeof(DrawData));
-    drawData->drawCount = instancesCount();
-    gerium_renderer_unmap_buffer(_renderer, _drawData);
-
-    updateDynamicInstances();
-
-    _instancesDataSet = _resourceManager.createDescriptorSet("");
-    gerium_renderer_bind_buffer(_renderer, _instancesDataSet, 0, _drawData);
-    gerium_renderer_bind_buffer(_renderer, _instancesDataSet, 1, _materials[_frameIndex]);
-    gerium_renderer_bind_buffer(_renderer, _instancesDataSet, 2, _instances[_frameIndex]);
-    gerium_renderer_bind_resource(_renderer, _instancesDataSet, 3, "command_counts", false);
-    gerium_renderer_bind_resource(_renderer, _instancesDataSet, 4, "commands", false);
-
-    gerium_renderer_render(_renderer, _frameGraph);
-    gerium_renderer_present(_renderer);
-
-    if (_error) {
-        std::rethrow_exception(_error);
-    }
+    gerium_renderer_unmap_buffer(_renderer, _activeScene);
 }
 
 void RenderService::updateDynamicInstances() {
@@ -421,6 +413,15 @@ void RenderService::updateDynamicInstances() {
                                                           (gerium_uint32_t) (instances.size() * sizeof(instances[0])),
                                                           0);
     }
+}
+
+void RenderService::updateInstancesData() {
+    auto drawData       = (DrawData*) gerium_renderer_map_buffer(_renderer, _drawData, 0, sizeof(DrawData));
+    drawData->drawCount = instancesCount();
+    gerium_renderer_unmap_buffer(_renderer, _drawData);
+
+    gerium_renderer_bind_buffer(_renderer, _instancesData, 1, _materials[_frameIndex]);
+    gerium_renderer_bind_buffer(_renderer, _instancesData, 2, _instances[_frameIndex]);
 }
 
 void RenderService::getMaterialsAndInstances(const Renderable& renderable,
