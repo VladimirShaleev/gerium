@@ -11,22 +11,18 @@ class RenderPass;
 
 class RenderService : public Service {
 public:
+    [[nodiscard]] ResourceManager& resourceManager() noexcept;
+
     [[nodiscard]] gerium_uint64_t frame() const noexcept;
+    [[nodiscard]] gerium_uint32_t frameIndex() const noexcept;
 
     [[nodiscard]] gerium_technique_h baseTechnique() const noexcept;
 
-    [[nodiscard]] ResourceManager& resourceManager() noexcept;
-
-    // [[nodiscard]] gerium_descriptor_set_h getSceneDescriptorSet(Entity entity);
-    // [[nodiscard]] gerium_descriptor_set_h getActiveSceneDescriptorSet();
-
-    [[nodiscard]] gerium_descriptor_set_h clusterDescriptorSet() const noexcept;
-    [[nodiscard]] gerium_descriptor_set_h sceneDataDescriptorSet() const noexcept;
-    [[nodiscard]] gerium_buffer_h instancesBuffer() const noexcept;
-    [[nodiscard]] gerium_buffer_h instanceCountBuffer() const noexcept;
-    [[nodiscard]] gerium_uint32_t instanceCount() const noexcept;
-    [[nodiscard]] gerium_buffer_h materialsBuffer() const noexcept;
-    [[nodiscard]] const std::vector<Technique>& staticTechniques() const noexcept;
+    [[nodiscard]] gerium_descriptor_set_h clusterData() const noexcept;
+    [[nodiscard]] gerium_descriptor_set_h sceneData() const noexcept;
+    [[nodiscard]] gerium_descriptor_set_h instancesData() const noexcept;
+    [[nodiscard]] gerium_uint32_t instancesCount() const noexcept;
+    [[nodiscard]] const std::vector<Technique>& techniques() const noexcept;
 
     void loadModel(const std::string& filename);
 
@@ -101,6 +97,7 @@ private:
     ResourceManager _resourceManager{};
     Technique _baseTechnique{};
     ClusterData _cluster{};
+
     Buffer _drawData{};
     Buffer _dynamicInstances{};
     Buffer _dynamicMaterials{};
@@ -114,6 +111,8 @@ private:
     std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};
     std::vector<Material> _dynamicMaterialsCache{};
     std::vector<Technique> _techniques{};
+    DescriptorSet _instancesDataSet{};
+
     Buffer _activeCamera{};
     DescriptorSet _activeCameraDs{};
 

@@ -18,6 +18,10 @@ struct SHADER_ALIGN SceneData {
     float lodTarget;
 };
 
+struct SHADER_ALIGN DrawData {
+    uint drawCount;
+};
+
 struct SHADER_ALIGN MeshInstance {
     mat4  world;
     mat4  prevWorld;

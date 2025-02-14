@@ -12,26 +12,26 @@ layout(std430, binding = 2, set = CLUSTER_DATA_SET) readonly buffer MeshesSSBO {
     Mesh meshes[];
 };
 
-layout(std430, binding = 0, set = INSTANCES_DATA_SET) readonly buffer InstancesSSBO {
+layout(std140, binding = 0, set = INSTANCES_DATA_SET) uniform DrawDataUBO {
+    DrawData draw;
+};
+
+layout(std430, binding = 2, set = INSTANCES_DATA_SET) readonly buffer InstancesSSBO {
     MeshInstance instances[];
 };
 
-layout(std430, binding = 1, set = INSTANCES_DATA_SET) buffer CommandCountsSSBO {
+layout(std430, binding = 3, set = INSTANCES_DATA_SET) buffer CommandCountsSSBO {
     uint commandCounts[];
 };
 
-layout(std430, binding = 2, set = INSTANCES_DATA_SET) writeonly buffer CommandsSSBO {
+layout(std430, binding = 4, set = INSTANCES_DATA_SET) writeonly buffer CommandsSSBO {
     IndirectDraw commands[];
-};
-
-layout(std430, binding = 3, set = INSTANCES_DATA_SET) readonly buffer InstanceCountSSBO {
-    uint instanceCount;
 };
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
 
-    if (index >= instanceCount) {
+    if (index >= draw.drawCount) {
         return;
     }
     

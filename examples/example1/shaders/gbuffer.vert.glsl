@@ -22,11 +22,11 @@ layout(std430, binding = 2, set = CLUSTER_DATA_SET) readonly buffer MeshesSSBO {
     Mesh meshes[];
 };
 
-layout(std430, binding = 0, set = INSTANCES_DATA_SET) readonly buffer InstancesSSBO {
+layout(std430, binding = 2, set = INSTANCES_DATA_SET) readonly buffer InstancesSSBO {
     MeshInstance instances[];
 };
 
-layout(std430, binding = 1, set = INSTANCES_DATA_SET) readonly buffer CommandsSSBO {
+layout(std430, binding = 4, set = INSTANCES_DATA_SET) readonly buffer CommandsSSBO {
     IndirectDraw commands[];
 };
 
