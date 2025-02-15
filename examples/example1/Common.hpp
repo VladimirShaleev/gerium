@@ -28,6 +28,16 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
+// A multi core friendly rigid body physics
+// and collision detection librar
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Body/Body.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Constraints/HingeConstraint.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+
 // Mesh optimization library that makes
 // meshes smaller and faster to render
 #include <meshoptimizer.h>

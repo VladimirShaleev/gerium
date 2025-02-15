@@ -469,7 +469,7 @@ void RenderService::getMaterialsAndInstances(const Renderable& renderable,
         auto& instance = instances.back();
 
         instance.world        = worldTransform.matrix;
-        instance.prevWorld    = worldTransform.matrix;
+        instance.prevWorld    = worldTransform.prevMatrix;
         instance.normalMatrix = glm::transpose(glm::inverse(worldTransform.matrix));
         instance.scale        = worldTransform.scale;
         instance.mesh         = meshData.mesh;

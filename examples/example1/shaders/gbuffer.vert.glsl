@@ -47,4 +47,5 @@ void main() {
     gl_Position = scene.viewProjection * instance.world * position;
     
     texcoord = vec2(vertices[vertex].tu, vertices[vertex].tv);
+    material = instance.material;
 }

@@ -7,11 +7,10 @@
 #include "services/TimeService.hpp"
 
 #include "components/Camera.hpp"
-#include "components/Children.hpp"
 #include "components/Collider.hpp"
 #include "components/LocalTransform.hpp"
 #include "components/Name.hpp"
-#include "components/Parent.hpp"
+#include "components/Node.hpp"
 #include "components/Renderable.hpp"
 #include "components/RigidBody.hpp"
 #include "components/Static.hpp"
@@ -59,15 +58,17 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
         gerium_application_show_message(_application, "example1", "unknown error");
     }
 }
+
 static entt::entity m3 = {};
 
 void addModel(
     entt::registry& registry, entt::entity parent, const Model& model, const glm::vec3 position, bool isStatic) {
     auto root = registry.create();
-    registry.emplace<Children>(root);
+    registry.emplace<Node>(root);
     auto& transform = registry.emplace<WorldTransform>(root);
 
-    transform.matrix = glm::translate(glm::identity<glm::mat4>(), position);
+    transform.matrix     = glm::translate(glm::identity<glm::mat4>(), position);
+    transform.prevMatrix = transform.matrix;
 
     struct Hierarchy {
         gerium_sint32_t nodeIndex;
@@ -99,12 +100,13 @@ void addModel(
 
         auto worldMatrix = parentMatrix * mat;
 
-        auto node        = registry.create();
-        auto& transform  = registry.emplace<WorldTransform>(node);
-        transform.matrix = worldMatrix;
-        transform.scale  = glm::max(glm::max(scale.x, scale.y), scale.z);
+        auto node            = registry.create();
+        auto& transform      = registry.emplace<WorldTransform>(node);
+        transform.matrix     = worldMatrix;
+        transform.prevMatrix = transform.matrix;
+        transform.scale      = glm::max(glm::max(scale.x, scale.y), scale.z);
 
-        registry.emplace<Parent>(node).parent = parent;
+        registry.emplace<Node>(node).parent = parent;
 
         for (const auto& mesh : model.meshes) {
             if (mesh.nodeIndex == nodeIndex) {
@@ -144,7 +146,7 @@ void addModel(
             }
         }
 
-        auto& childs = registry.get_or_emplace<Children>(parent);
+        auto& childs = registry.get_or_emplace<Node>(parent);
         childs.childs.push_back(node);
 
         for (gerium_sint32_t i = 0; i < (gerium_sint32_t) model.nodes.size(); ++i) {
@@ -154,7 +156,7 @@ void addModel(
         }
     }
 
-    registry.get_or_emplace<Children>(parent).childs.push_back(root);
+    registry.get_or_emplace<Node>(parent).childs.push_back(root);
 }
 
 struct Archive {
@@ -242,8 +244,9 @@ void Application::uninitialize() {
 }
 
 void Application::frame(gerium_uint64_t elapsedMs) {
-    auto& transform  = _entityRegistry.get<WorldTransform>(m3);
+    auto& transform = _entityRegistry.get<WorldTransform>(m3);
 
+    transform.prevMatrix = transform.matrix;
     transform.matrix[3][2] -= elapsedMs * 0.001f * 1.0f;
 
     // _eventManager.dispatch();
