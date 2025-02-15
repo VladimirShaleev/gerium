@@ -161,6 +161,11 @@ static void appendMesh(Cluster& cluster, Cache& cache, Model& model, const aiSce
     meshLods.vertexOffset = offsetVertices;
     meshLods.vertexCount  = vertexCount;
 
+    auto vMin  = glm::vec3(mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z);
+    auto vMax  = glm::vec3(mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z);
+    auto& node = model.nodes[model.meshes.back().nodeIndex];
+    node.bbox  = node.bbox.combine(BoundingBox(vMin, vMax));
+
     auto lodScale = meshopt_simplifyScale(&vertices->px, vertexCount, sizeof(VertexNonCompressed));
 
     while (meshLods.lodCount < std::size(meshLods.lods)) {

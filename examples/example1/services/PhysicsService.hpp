@@ -5,15 +5,25 @@
 #include "ServiceManager.hpp"
 
 class PhysicsService final : public Service {
+public:
+    void createBodies();
+
 private:
     void start() override;
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
+    void syncPhysicsToECS();
     void updatePhysicsTransforms(entt::storage<WorldTransform>& storage);
     void updateLocalTransforms(entt::storage<WorldTransform>& storage);
 
     glm::mat4 getPhysicsTransform();
+
+    enum ObjectLayers : JPH::uint8 {
+        Static  = 0,
+        Dynamic = 1,
+        Trigger = 2
+    };
 
     class BroadPhaseLayerInterface : public JPH::BroadPhaseLayerInterface {
     public:
@@ -44,9 +54,11 @@ private:
         PhysicsService* _service;
     };
 
-    std::unique_ptr<BroadPhaseLayerInterface> _broadPhaseLayerInterface{};
-    std::unique_ptr<ObjectVsBroadPhaseLayerFilter> _objectVsBroadPhaseLayerFilter{};
-    std::unique_ptr<ObjectLayerPairFilter> _objectLayerPairFilter{};
+    std::unique_ptr<JPH::TempAllocator> _allocator{};
+    std::unique_ptr<JPH::JobSystem> _jobSystem{};
+    std::unique_ptr<JPH::BroadPhaseLayerInterface> _broadPhaseLayerInterface{};
+    std::unique_ptr<JPH::ObjectVsBroadPhaseLayerFilter> _objectVsBroadPhaseLayerFilter{};
+    std::unique_ptr<JPH::ObjectLayerPairFilter> _objectLayerPairFilter{};
     std::unique_ptr<JPH::PhysicsSystem> _physicsSystem{};
 };
 

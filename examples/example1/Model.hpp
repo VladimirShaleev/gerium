@@ -18,6 +18,7 @@ struct Model : private NonCopyable {
         glm::vec3 position;
         glm::quat rotation;
         glm::vec3 scale;
+        BoundingBox bbox;
     };
 
     struct Mesh {

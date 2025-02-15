@@ -1,14 +1,71 @@
 #include "PhysicsService.hpp"
+#include "../components/Collider.hpp"
 #include "../components/LocalTransform.hpp"
 #include "../components/Node.hpp"
 #include "../components/RigidBody.hpp"
+#include "../components/Static.hpp"
 #include "../components/WorldTransform.hpp"
 
 using namespace entt::literals;
 
+void PhysicsService::createBodies() {
+    auto view = entityRegistry().view<RigidBody, Collider, WorldTransform>();
+
+    for (auto entity : view) {
+        auto& rigidBody      = view.get<RigidBody>(entity);
+        auto& collider       = view.get<Collider>(entity);
+        auto& worldTransform = view.get<WorldTransform>(entity);
+        auto isDynamic       = !entityRegistry().any_of<::Static>(entity);
+
+        glm::vec3 scale;
+        glm::quat rotation;
+        glm::vec3 position;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(worldTransform.matrix, scale, rotation, position, skew, perspective);
+
+        auto pos  = JPH::Vec3(position.x, position.y, position.z);
+        auto quat = JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w);
+        auto size = collider.size * scale;
+
+        JPH::Ref<JPH::Shape> shape{};
+        switch (collider.shape) {
+            case Collider::Shape::Box:
+                shape = new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z));
+                break;
+            case Collider::Shape::Sphere:
+                shape = new JPH::SphereShape(glm::max(glm::max(size.x, size.y), size.z));
+                break;
+            case Collider::Shape::Capsule:
+                break;
+        }
+
+        JPH::BodyCreationSettings settings(shape,
+                                           pos,
+                                           quat,
+                                           isDynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static,
+                                           isDynamic ? ObjectLayers::Dynamic : ObjectLayers::Static);
+
+        rigidBody.body = _physicsSystem->GetBodyInterface().CreateBody(settings)->GetID();
+        _physicsSystem->GetBodyInterface().AddBody(rigidBody.body, JPH::EActivation::Activate);
+
+        _physicsSystem->GetBodyInterface().SetLinearVelocity(rigidBody.body, JPH::Vec3(0.0f, -5.0f, 0.0f));
+    }
+
+    _physicsSystem->OptimizeBroadPhase();
+}
+
 void PhysicsService::start() {
     JPH::RegisterDefaultAllocator();
 
+    JPH::Factory::sInstance = new JPH::Factory();
+
+    JPH::RegisterTypes();
+
+    auto numThreads = std::thread::hardware_concurrency() - 1;
+
+    _allocator                     = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
+    _jobSystem                     = std::make_unique<JPH::JobSystemThreadPool>(512, 8, numThreads);
     _broadPhaseLayerInterface      = std::make_unique<BroadPhaseLayerInterface>(this);
     _objectVsBroadPhaseLayerFilter = std::make_unique<ObjectVsBroadPhaseLayerFilter>(this);
     _objectLayerPairFilter         = std::make_unique<ObjectLayerPairFilter>(this);
@@ -28,15 +85,42 @@ void PhysicsService::stop() {
     _objectLayerPairFilter         = nullptr;
     _objectVsBroadPhaseLayerFilter = nullptr;
     _broadPhaseLayerInterface      = nullptr;
+    _allocator                     = nullptr;
+
+    JPH::UnregisterTypes();
+
+    delete JPH::Factory::sInstance;
+    JPH::Factory::sInstance = nullptr;
 }
 
-void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t /* elapsed */) {
-    auto&& physicsTransforms = entityRegistry().storage<WorldTransform>("physics_transforms"_hs);
+void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t elapsed) {
+    _physicsSystem->Update(elapsed, 1, _allocator.get(), _jobSystem.get());
 
-    updatePhysicsTransforms(physicsTransforms);
-    updateLocalTransforms(physicsTransforms);
+    syncPhysicsToECS();
 
-    physicsTransforms.clear();
+    // auto&& physicsTransforms = entityRegistry().storage<WorldTransform>("physics_transforms"_hs);
+
+    // updatePhysicsTransforms(physicsTransforms);
+    // updateLocalTransforms(physicsTransforms);
+
+    // physicsTransforms.clear();
+}
+
+void PhysicsService::syncPhysicsToECS() {
+    auto view = entityRegistry().view<RigidBody, WorldTransform>(entt::exclude<::Static>);
+
+    for (auto entity : view) {
+        auto& rigidBody      = view.get<RigidBody>(entity);
+        auto& worldTransform = view.get<WorldTransform>(entity);
+
+        auto position = _physicsSystem->GetBodyInterface().GetCenterOfMassPosition(rigidBody.body);
+        auto velocity = _physicsSystem->GetBodyInterface().GetLinearVelocity(rigidBody.body);
+
+        auto newPos = glm::vec4(position.GetX(), position.GetY(), position.GetZ(), worldTransform.matrix[3][3]);
+
+        worldTransform.prevMatrix = worldTransform.matrix;
+        worldTransform.matrix[3]  = newPos;
+    }
 }
 
 void PhysicsService::updatePhysicsTransforms(entt::storage<WorldTransform>& storage) {
@@ -90,11 +174,20 @@ PhysicsService::BroadPhaseLayerInterface::BroadPhaseLayerInterface(PhysicsServic
 }
 
 JPH::uint PhysicsService::BroadPhaseLayerInterface::GetNumBroadPhaseLayers() const {
-    return 2;
+    return magic_enum::enum_count<ObjectLayers>();
 }
 
 JPH::BroadPhaseLayer PhysicsService::BroadPhaseLayerInterface::GetBroadPhaseLayer(JPH::ObjectLayer inLayer) const {
-    return JPH::BroadPhaseLayer(inLayer < JPH::uint16(2) ? JPH::uint8(inLayer) : JPH::uint8(0));
+    switch (inLayer) {
+        case ObjectLayers::Static:
+            return JPH::BroadPhaseLayer(0);
+        case ObjectLayers::Dynamic:
+            return JPH::BroadPhaseLayer(1);
+        case ObjectLayers::Trigger:
+            return JPH::BroadPhaseLayer(2);
+        default:
+            return JPH::BroadPhaseLayer(0);
+    }
 }
 
 PhysicsService::ObjectVsBroadPhaseLayerFilter::ObjectVsBroadPhaseLayerFilter(PhysicsService* service) noexcept :
@@ -103,7 +196,15 @@ PhysicsService::ObjectVsBroadPhaseLayerFilter::ObjectVsBroadPhaseLayerFilter(Phy
 
 bool PhysicsService::ObjectVsBroadPhaseLayerFilter::ShouldCollide(JPH::ObjectLayer inLayer1,
                                                                   JPH::BroadPhaseLayer inLayer2) const {
-    return true;
+    switch (inLayer1) {
+        case Static:
+            return inLayer2 == JPH::BroadPhaseLayer(Dynamic);
+        case Dynamic:
+            return true;
+        default:
+            JPH_ASSERT(false);
+            return false;
+    }
 }
 
 PhysicsService::ObjectLayerPairFilter::ObjectLayerPairFilter(PhysicsService* service) noexcept : _service(service) {

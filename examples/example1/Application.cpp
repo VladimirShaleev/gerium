@@ -106,6 +106,12 @@ void addModel(
         transform.prevMatrix = transform.matrix;
         transform.scale      = glm::max(glm::max(scale.x, scale.y), scale.z);
 
+        auto& lt    = registry.emplace<LocalTransform>(node);
+        lt.isDirty  = false;
+        lt.position = translate;
+        lt.rotation = rotation;
+        lt.scale    = scale;
+
         registry.emplace<Node>(node).parent = parent;
 
         for (const auto& mesh : model.meshes) {
@@ -140,7 +146,45 @@ void addModel(
                     meshData.material.flags                    = (MaterialFlags) mat.flags;
 
                     if (ii == 11) {
-                        m3 = node;
+                        const auto& bbox = model.nodes[nodeIndex].bbox;
+
+                        m3             = node;
+                        auto& body     = registry.emplace<RigidBody>(node);
+                        auto& collider = registry.emplace<Collider>(node);
+                        collider.shape = Collider::Shape::Box;
+                        collider.size  = bbox.max() - bbox.min();
+                    }
+                    if (ii == 12) {
+                        const auto& bbox = model.nodes[nodeIndex].bbox;
+                        auto size        = bbox.max() - bbox.min();
+                        auto& body       = registry.emplace<RigidBody>(node); // lb
+                        auto& collider   = registry.emplace<Collider>(node);
+                        collider.shape   = Collider::Shape::Sphere;
+                        collider.size    = size * 0.5f;
+                    }
+                    if (ii == 13) {
+                        const auto& bbox = model.nodes[nodeIndex].bbox;
+                        auto size        = bbox.max() - bbox.min();
+                        auto& body       = registry.emplace<RigidBody>(node); // lf
+                        auto& collider   = registry.emplace<Collider>(node);
+                        collider.shape   = Collider::Shape::Sphere;
+                        collider.size    = size * 0.5f;
+                    }
+                    if (ii == 14) {
+                        const auto& bbox = model.nodes[nodeIndex].bbox;
+                        auto size        = bbox.max() - bbox.min();
+                        auto& body       = registry.emplace<RigidBody>(node); // rb
+                        auto& collider   = registry.emplace<Collider>(node);
+                        collider.shape   = Collider::Shape::Sphere;
+                        collider.size    = size * 0.5f;
+                    }
+                    if (ii == 15) {
+                        const auto& bbox = model.nodes[nodeIndex].bbox;
+                        auto size        = bbox.max() - bbox.min();
+                        auto& body       = registry.emplace<RigidBody>(node); // rf
+                        auto& collider   = registry.emplace<Collider>(node);
+                        collider.shape   = Collider::Shape::Sphere;
+                        collider.size    = size * 0.5f;
                     }
                 }
             }
@@ -199,6 +243,7 @@ void Application::initialize() {
     // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 4.0f));
 
     _serviceManager.getService<RenderService>()->createStaticInstances();
+    _serviceManager.getService<PhysicsService>()->createBodies();
 
     auto& camera = _entityRegistry.emplace<Camera>(_entityRegistry.create());
 
@@ -244,10 +289,10 @@ void Application::uninitialize() {
 }
 
 void Application::frame(gerium_uint64_t elapsedMs) {
-    auto& transform = _entityRegistry.get<WorldTransform>(m3);
+    // auto& transform = _entityRegistry.get<WorldTransform>(m3);
 
-    transform.prevMatrix = transform.matrix;
-    transform.matrix[3][2] -= elapsedMs * 0.001f * 1.0f;
+    // transform.prevMatrix = transform.matrix;
+    // transform.matrix[3][2] -= elapsedMs * 0.001f * 1.0f;
 
     // _eventManager.dispatch();
     _serviceManager.update(elapsedMs);
