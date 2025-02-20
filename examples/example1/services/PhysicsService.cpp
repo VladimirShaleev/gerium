@@ -46,223 +46,67 @@ void PhysicsService::createBodies(const Cluster& cluster) {
 
         settings.mOverrideMassProperties       = JPH::EOverrideMassProperties::CalculateInertia;
         settings.mMassPropertiesOverride.mMass = rigidBody.mass;
+        settings.mLinearDamping                = rigidBody.linearDamping;
+        settings.mAngularDamping               = rigidBody.angularDamping;
 
-        settings.mLinearDamping  = 0.2f;
-        settings.mAngularDamping = 0.2f;
+        auto body = _physicsSystem->GetBodyInterface().CreateBody(settings);
 
-        auto b = _physicsSystem->GetBodyInterface().CreateBody(settings);
-        // b->SetFriction(1.0f); TODO
-        rigidBody.body = b->GetID();
+        rigidBody.body = body->GetID();
         _physicsSystem->GetBodyInterface().AddBody(
             rigidBody.body, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
 
         if (vehicle) {
             JPH::VehicleConstraintSettings constraint;
             constraint.mMaxPitchRollAngle = vehicle->maxRollAngle;
+            constraint.mWheels.resize(vehicle->wheels.size());
 
-            const auto sFrontSuspensionSidewaysAngle = 0.0f;
-            const auto sFrontSuspensionForwardAngle  = 0.0f;
-            const auto sFrontKingPinAngle            = 0.0f;
-            const auto sFrontCasterAngle             = 0.0f;
-            const auto sFrontCamber                  = 0.0f;
-            const auto sFrontToe                     = 0.0f;
-            const auto sRearSuspensionSidewaysAngle  = 0.0f;
-            const auto sRearSuspensionForwardAngle   = 0.0f;
-            const auto sRearKingPinAngle             = 0.0f;
-            const auto sRearCasterAngle              = 0.0f;
-            const auto sRearCamber                   = 0.0f;
-            const auto sRearToe                      = 0.0f;
-            const auto sFrontSuspensionMinLength     = 0.3f;
-            const auto sFrontSuspensionMaxLength     = 0.5f;
-            const auto sFrontSuspensionFrequency     = 1.5f;
-            const auto sFrontSuspensionDamping       = 0.5f;
-            const auto sRearSuspensionMinLength      = 0.3f;
-            const auto sRearSuspensionMaxLength      = 0.5f;
-            const auto sRearSuspensionFrequency      = 1.5f;
-            const auto sRearSuspensionDamping        = 0.5f;
-            const auto sMaxSteeringAngle             = JPH::DegreesToRadians(30.0f);
-            const auto sFourWheelDrive               = false;
-            const auto sAntiRollbar                  = true;
+            for (const auto& wheelEntity : vehicle->wheels) {
+                const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
 
-            auto frontSuspensionDir =
-                JPH::Vec3(JPH::Tan(sFrontSuspensionSidewaysAngle), -1, JPH::Tan(sFrontSuspensionForwardAngle))
-                    .Normalized();
-            auto frontSteeringAxis =
-                JPH::Vec3(-JPH::Tan(sFrontKingPinAngle), 1, -JPH::Tan(sFrontCasterAngle)).Normalized();
-            auto frontWheelUp      = JPH::Vec3(JPH::Sin(sFrontCamber), JPH::Cos(sFrontCamber), 0);
-            auto frontWheelForward = JPH::Vec3(-JPH::Sin(sFrontToe), 0, JPH::Cos(sFrontToe));
-            auto rearSuspensionDir =
-                JPH::Vec3(JPH::Tan(sRearSuspensionSidewaysAngle), -1, JPH::Tan(sRearSuspensionForwardAngle))
-                    .Normalized();
-            auto rearSteeringAxis =
-                JPH::Vec3(-JPH::Tan(sRearKingPinAngle), 1, -JPH::Tan(sRearCasterAngle)).Normalized();
-            auto rearWheelUp      = JPH::Vec3(JPH::Sin(sRearCamber), JPH::Cos(sRearCamber), 0);
-            auto rearWheelForward = JPH::Vec3(-JPH::Sin(sRearToe), 0, JPH::Cos(sRearToe));
-            JPH::Vec3 flipX(-1, 1, 1);
+                auto localMatrix = glm::inverse(transform.matrix) * entityRegistry().get<Transform>(wheelEntity).matrix;
+                auto wheelPosition = localMatrix[3].xyz();
 
-            if (sAntiRollbar) {
-                constraint.mAntiRollBars.resize(2);
-                // constraint.mAntiRollBars[0].mLeftWheel  = 0;
-                // constraint.mAntiRollBars[0].mRightWheel = 1;
-                // constraint.mAntiRollBars[1].mLeftWheel  = 2;
-                // constraint.mAntiRollBars[1].mRightWheel = 3;
+                const auto& wheelCollider = entityRegistry().get<Collider>(wheelEntity);
+
+                constraint.mWheels[int(wheel.position)] =
+                    createWheelSettings(*vehicle, wheel, wheelPosition, wheelCollider.size.z, wheelCollider.size.x);
             }
 
-            for (const auto& wheel : vehicle->wheels) {
-                auto localMatrix = glm::inverse(transform.matrix) * entityRegistry().get<Transform>(wheel).matrix;
+            if (vehicle->antiRollbar) {
+                constraint.mAntiRollBars.resize(vehicle->wheels.size() / 2);
+                for (auto wheelEntity : vehicle->wheels) {
+                    const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
+                    const auto index  = int(wheel.position) / 2;
+                    const auto isLeft = int(wheel.position) % 2 == 0;
 
-                auto mm = localMatrix[3].xyz();
-
-                // auto lp = entityRegistry().get<LocalTransform>(wheel).position;
-
-                // glm::vec3 scale;
-                // glm::quat quat;
-                // glm::vec3 tr;
-                // glm::vec3 skew;
-                // glm::vec4 perspective;
-                // glm::decompose(localMatrix, scale, quat, tr, skew, perspective);
-
-                auto m3 = glm::mat3(localMatrix);
-
-                auto up      = glm::normalize(m3 * glm::vec3(0.0f, 1.0f, 0.0f));
-                auto forward = glm::normalize(m3 * glm::vec3(0.0f, 0.0f, 1.0f));
-                auto right   = glm::normalize(m3 * glm::vec3(1.0f, 0.0f, 0.0f));
-
-                JPH::Vec3 suspensionDir, steeringAxis, wheelUp, wheelForward;
-
-                float suspensionMinLength, suspensionMaxLength, suspensionFrequency, suspensionDamping,
-                    maxSteeringAngle;
-                float maxHandBrakeTorque = 4000.0f;
-                switch (entityRegistry().get<Wheel>(wheel).position) {
-                    case Wheel::FrontLeft:
-                        suspensionDir       = frontSuspensionDir;
-                        steeringAxis        = frontSteeringAxis;
-                        wheelUp             = frontWheelUp;
-                        wheelForward        = frontWheelForward;
-                        suspensionMinLength = sFrontSuspensionMinLength;
-                        suspensionMaxLength = sFrontSuspensionMaxLength;
-                        suspensionFrequency = sFrontSuspensionFrequency;
-                        suspensionDamping   = sFrontSuspensionDamping;
-                        maxSteeringAngle    = sMaxSteeringAngle;
-                        maxHandBrakeTorque  = 0.0f;
-
-                        entityRegistry().get<Wheel>(wheel).id  = 0;
-                        constraint.mAntiRollBars[0].mLeftWheel = 0;
-                        break;
-                    case Wheel::FrontRight:
-                        suspensionDir       = flipX * frontSuspensionDir;
-                        steeringAxis        = frontSteeringAxis;
-                        wheelUp             = frontWheelUp;
-                        wheelForward        = flipX * frontWheelForward;
-                        suspensionMinLength = sFrontSuspensionMinLength;
-                        suspensionMaxLength = sFrontSuspensionMaxLength;
-                        suspensionFrequency = sFrontSuspensionFrequency;
-                        suspensionDamping   = sFrontSuspensionDamping;
-                        maxSteeringAngle    = sMaxSteeringAngle;
-                        maxHandBrakeTorque  = 0.0f;
-
-                        entityRegistry().get<Wheel>(wheel).id   = 1;
-                        constraint.mAntiRollBars[0].mRightWheel = 1;
-                        break;
-                    case Wheel::BackLeft1:
-                        suspensionDir       = rearSuspensionDir;
-                        steeringAxis        = rearSteeringAxis;
-                        wheelUp             = rearWheelUp;
-                        wheelForward        = rearWheelForward;
-                        suspensionMinLength = sRearSuspensionMinLength;
-                        suspensionMaxLength = sRearSuspensionMaxLength;
-                        suspensionFrequency = sRearSuspensionFrequency;
-                        suspensionDamping   = sRearSuspensionDamping;
-                        maxSteeringAngle    = 0.0f;
-
-                        entityRegistry().get<Wheel>(wheel).id  = 2;
-                        constraint.mAntiRollBars[1].mLeftWheel = 2;
-                        break;
-                    case Wheel::BackRight1:
-                        suspensionDir       = flipX * rearSuspensionDir;
-                        steeringAxis        = rearSteeringAxis;
-                        wheelUp             = rearWheelUp;
-                        wheelForward        = flipX * rearWheelForward;
-                        suspensionMinLength = sRearSuspensionMinLength;
-                        suspensionMaxLength = sRearSuspensionMaxLength;
-                        suspensionFrequency = sRearSuspensionFrequency;
-                        suspensionDamping   = sRearSuspensionDamping;
-                        maxSteeringAngle    = 0.0f;
-
-                        entityRegistry().get<Wheel>(wheel).id   = 3;
-                        constraint.mAntiRollBars[1].mRightWheel = 3;
-                        break;
-                    case Wheel::BackLeft2:
-                        suspensionDir       = rearSuspensionDir;
-                        steeringAxis        = rearSteeringAxis;
-                        wheelUp             = rearWheelUp;
-                        wheelForward        = rearWheelForward;
-                        suspensionMinLength = sRearSuspensionMinLength;
-                        suspensionMaxLength = sRearSuspensionMaxLength;
-                        suspensionFrequency = sRearSuspensionFrequency;
-                        suspensionDamping   = sRearSuspensionDamping;
-                        maxSteeringAngle    = 0.0f;
-                        break;
-                    case Wheel::BackRight2:
-                        suspensionDir       = flipX * rearSuspensionDir;
-                        steeringAxis        = rearSteeringAxis;
-                        wheelUp             = rearWheelUp;
-                        wheelForward        = flipX * rearWheelForward;
-                        suspensionMinLength = sRearSuspensionMinLength;
-                        suspensionMaxLength = sRearSuspensionMaxLength;
-                        suspensionFrequency = sRearSuspensionFrequency;
-                        suspensionDamping   = sRearSuspensionDamping;
-                        maxSteeringAngle    = 0.0f;
-                        break;
+                    if (isLeft) {
+                        constraint.mAntiRollBars[index].mLeftWheel = int(wheel.position);
+                    } else {
+                        constraint.mAntiRollBars[index].mRightWheel = int(wheel.position);
+                    }
                 }
-
-                const auto& wheelCollider = entityRegistry().get<Collider>(wheel);
-
-                auto w            = new JPH::WheelSettingsWV;
-                const auto& point = entityRegistry().get<Wheel>(wheel).point;
-                w->mPosition = JPH::Vec3(mm.x, mm.y + 0.3f, mm.z); // JPH::Vec3(point.x - 2, point.y + 8, point.z + 8);
-                w->mSuspensionDirection = suspensionDir;
-
-                w->mAngularDamping = 0.8f;
-
-                auto radius = wheelCollider.size.z;
-                auto width  = wheelCollider.size.x;
-
-                w->mSteeringAxis                = steeringAxis;
-                w->mWheelUp                     = wheelUp;
-                w->mWheelForward                = wheelForward;
-                w->mSuspensionMinLength         = suspensionMinLength;
-                w->mSuspensionMaxLength         = suspensionMaxLength;
-                w->mSuspensionSpring.mFrequency = suspensionFrequency;
-                w->mSuspensionSpring.mDamping   = suspensionDamping;
-                w->mMaxSteerAngle               = maxSteeringAngle;
-                w->mMaxHandBrakeTorque          = maxHandBrakeTorque;
-                w->mRadius                      = radius;
-                w->mWidth                       = width;
-
-                // w->mLongitudinalFriction;
-                // w->mLateralFriction;
-
-                constraint.mWheels.push_back(w);
             }
 
-            auto controller        = new JPH::WheeledVehicleControllerSettings;
+            auto controller = new JPH::WheeledVehicleControllerSettings;
+
             constraint.mController = controller;
-            controller->mDifferentials.resize(sFourWheelDrive ? 2 : 1);
-            controller->mDifferentials[0].mLeftWheel  = 0;
-            controller->mDifferentials[0].mRightWheel = 1;
-            if (sFourWheelDrive) {
-                controller->mDifferentials[1].mLeftWheel         = 2;
-                controller->mDifferentials[1].mRightWheel        = 3;
-                controller->mDifferentials[0].mEngineTorqueRatio = controller->mDifferentials[1].mEngineTorqueRatio =
-                    0.5f;
+            controller->mDifferentials.resize(vehicle->wheelDrive ? vehicle->wheels.size() / 2 : 1);
+            for (auto wheelEntity : vehicle->wheels) {
+                const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
+                const auto index  = int(wheel.position) / 2;
+                const auto isLeft = int(wheel.position) % 2 == 0;
+                if (index == 0 || vehicle->wheelDrive) {
+                    if (isLeft) {
+                        controller->mDifferentials[index].mLeftWheel = int(wheel.position);
+                    } else {
+                        controller->mDifferentials[index].mRightWheel = int(wheel.position);
+                    }
+                    controller->mDifferentials[index].mEngineTorqueRatio = 1.0f / controller->mDifferentials.size();
+                }
             }
 
             _car               = _physicsSystem->GetBodyLockInterface().TryGetBody(rigidBody.body);
             _vehicleConstraint = new JPH::VehicleConstraint(*_car, constraint);
-
-            // for (auto& w : _vehicleConstraint->GetWheels()) {
-            // }
 
             static_cast<JPH::WheeledVehicleController*>(_vehicleConstraint->GetController())
                 ->SetTireMaxImpulseCallback([](uint,
@@ -280,7 +124,6 @@ void PhysicsService::createBodies(const Cluster& cluster) {
 
             _physicsSystem->AddConstraint(_vehicleConstraint);
             _physicsSystem->AddStepListener(_vehicleConstraint);
-            // mPhysicsSystem->RemoveStepListener(mVehicleConstraint);
         }
     }
 
@@ -442,12 +285,6 @@ void PhysicsService::step() {
         right = 1.0f;
     }
 
-    // OK
-    // if (forward == 0.0f) {
-    //     JPH::Vec3 currentVelocity = _car->GetLinearVelocity();
-    //     _car->SetLinearVelocity(currentVelocity * 0.95f);
-    // }
-
     if (right != 0.0f || forward != 0.0f || brake != 0.0f || handBrake != 0.0f) {
         _physicsSystem->GetBodyInterface().ActivateBody(_car->GetID());
     }
@@ -514,8 +351,8 @@ void PhysicsService::syncPhysicsToECS() {
                 auto& w = entityRegistry().get<Wheel>(wheel);
                 auto& t = entityRegistry().get<Transform>(wheel);
                 // const auto settings = _vehicleConstraint->GetWheels()[w.id]->GetSettings();
-                auto wheelTransform =
-                    _vehicleConstraint->GetWheelWorldTransform(w.id, JPH::Vec3::sAxisX(), JPH::Vec3::sAxisY());
+                auto wheelTransform = _vehicleConstraint->GetWheelWorldTransform(
+                    (JPH::uint) w.position, JPH::Vec3::sAxisX(), JPH::Vec3::sAxisY());
                 t.prevMatrix = t.matrix;
                 memcpy((void*) &t.matrix, (void*) &wheelTransform, sizeof(glm::mat4));
             }
@@ -568,6 +405,89 @@ void PhysicsService::updateLocalTransforms(entt::storage<Transform>& storage) {
 
 glm::mat4 PhysicsService::getPhysicsTransform() {
     return {};
+}
+
+JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
+                                                        const Wheel& wheel,
+                                                        const glm::vec3& position,
+                                                        gerium_float32_t radius,
+                                                        gerium_float32_t width) {
+    const auto isFront = wheel.position == Wheel::FrontLeft || wheel.position == Wheel::FrontRight;
+
+    const auto isRight = wheel.position == Wheel::FrontRight || wheel.position == Wheel::BackRight1 ||
+                         wheel.position == Wheel::BackRight2;
+
+    const JPH::Vec3 flipX(-1, 1, 1);
+
+    auto getSuspensionDirection = [&vehicle, isFront, isRight, &flipX]() {
+        const auto suspensionSidewaysAngle =
+            isFront ? vehicle.frontSuspensionSidewaysAngle : vehicle.rearSuspensionSidewaysAngle;
+        const auto suspensionForwardAngle =
+            isFront ? vehicle.frontSuspensionForwardAngle : vehicle.rearSuspensionForwardAngle;
+        const auto result =
+            JPH::Vec3(JPH::Tan(suspensionSidewaysAngle), -1, JPH::Tan(suspensionForwardAngle)).Normalized();
+        return isRight ? flipX * result : result;
+    };
+
+    auto getSteeringAxis = [&vehicle, isFront]() {
+        const auto kingPinAngle = isFront ? vehicle.frontKingPinAngle : vehicle.rearKingPinAngle;
+        const auto casterAngle  = isFront ? vehicle.frontCasterAngle : vehicle.rearCasterAngle;
+        return JPH::Vec3(-JPH::Tan(kingPinAngle), 1, -JPH::Tan(casterAngle)).Normalized();
+    };
+
+    auto getWheelUp = [&vehicle, isFront]() {
+        const auto camber = isFront ? vehicle.frontCamber : vehicle.rearCamber;
+        return JPH::Vec3(JPH::Sin(camber), JPH::Cos(camber), 0);
+    };
+
+    auto getWheelForward = [&vehicle, isFront, isRight, &flipX]() {
+        const auto toe    = isFront ? vehicle.frontToe : vehicle.rearToe;
+        const auto result = JPH::Vec3(-JPH::Sin(toe), 0, JPH::Cos(toe));
+        return isRight ? flipX * result : result;
+    };
+
+    auto getSuspensionMinLength = [&vehicle, isFront]() {
+        return isFront ? vehicle.frontSuspensionMinLength : vehicle.rearSuspensionMinLength;
+    };
+
+    auto getSuspensionMaxLength = [&vehicle, isFront]() {
+        return isFront ? vehicle.frontSuspensionMaxLength : vehicle.rearSuspensionMaxLength;
+    };
+
+    auto getSuspensionFrequency = [&vehicle, isFront]() {
+        return isFront ? vehicle.frontSuspensionFrequency : vehicle.rearSuspensionFrequency;
+    };
+
+    auto getSuspensionDamping = [&vehicle, isFront]() {
+        return isFront ? vehicle.frontSuspensionDamping : vehicle.rearSuspensionDamping;
+    };
+
+    auto getMaxSteerAngle = [&vehicle, isFront]() {
+        return isFront ? vehicle.maxSteeringAngle : 0.0f;
+    };
+
+    auto getMaxHandBrakeTorque = [&vehicle, isFront]() {
+        return isFront ? vehicle.maxHandBrakeTorque : 0.0f;
+    };
+
+    const auto wPosition = JPH::Vec3(position.x, position.y + getSuspensionMinLength(), position.z);
+
+    auto settings                          = new JPH::WheelSettingsWV;
+    settings->mSuspensionDirection         = getSuspensionDirection();
+    settings->mAngularDamping              = vehicle.angularDamping;
+    settings->mSteeringAxis                = getSteeringAxis();
+    settings->mWheelUp                     = getWheelUp();
+    settings->mWheelForward                = getWheelForward();
+    settings->mSuspensionMinLength         = getSuspensionMinLength();
+    settings->mSuspensionMaxLength         = getSuspensionMaxLength();
+    settings->mSuspensionSpring.mFrequency = getSuspensionFrequency();
+    settings->mSuspensionSpring.mDamping   = getSuspensionDamping();
+    settings->mMaxSteerAngle               = getMaxSteerAngle();
+    settings->mMaxHandBrakeTorque          = getMaxHandBrakeTorque();
+    settings->mPosition                    = wPosition;
+    settings->mRadius                      = radius;
+    settings->mWidth                       = width;
+    return settings;
 }
 
 JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cluster& cluster) {

@@ -14,9 +14,7 @@ struct Wheel {
     };
 
     entt::entity parent;
-    glm::vec3 point;
     Position position;
-    JPH::uint id;
 };
 
 #endif

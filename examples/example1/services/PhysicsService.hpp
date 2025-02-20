@@ -4,6 +4,8 @@
 #include "../Model.hpp"
 #include "../components/Collider.hpp"
 #include "../components/Transform.hpp"
+#include "../components/Vehicle.hpp"
+#include "../components/Wheel.hpp"
 #include "ServiceManager.hpp"
 
 class PhysicsService final : public Service {
@@ -22,6 +24,12 @@ private:
     void updateLocalTransforms(entt::storage<Transform>& storage);
 
     glm::mat4 getPhysicsTransform();
+
+    static JPH::WheelSettings* createWheelSettings(const Vehicle& vehicle,
+                                                   const Wheel& wheel,
+                                                   const glm::vec3& position,
+                                                   gerium_float32_t radius,
+                                                   gerium_float32_t width);
 
     static JPH::Ref<JPH::Shape> getShape(const Collider& collider, const Cluster& cluster);
 

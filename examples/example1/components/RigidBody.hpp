@@ -4,9 +4,9 @@
 #include "../Common.hpp"
 
 struct RigidBody {
-    float mass{ 1.0f };
-    glm::vec3 velocity{ 0.0f };
-    glm::vec3 angularVelocity{ 0.0f };
+    gerium_float32_t mass{ 1.0f };
+    gerium_float32_t linearDamping{ 0.2f };
+    gerium_float32_t angularDamping{ 0.2f };
     bool isKinematic{ false };
     JPH::BodyID body{};
 };

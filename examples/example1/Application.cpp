@@ -151,7 +151,6 @@ entt::entity addModel(entt::registry& registry,
             if (wheelPos) {
                 auto& wheel    = registry.emplace<Wheel>(node);
                 wheel.parent   = vehicle;
-                wheel.point    = transform.matrix[3].xyz();
                 wheel.position = wheelPos.value();
                 registry.get<Vehicle>(vehicle).wheels.push_back(node);
             }
@@ -240,8 +239,10 @@ void Application::initialize() {
     _serviceManager.addService<SceneService>();
     _serviceManager.addService<RenderService>();
 
+    auto rotate = glm::rotate(glm::identity<glm::quat>(), glm::radians(150.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
     auto root = _entityRegistry.create();
-    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, -8.0f));
+    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, -8.0f), rotate);
     addModel(_entityRegistry, root, model4, glm::vec3(2.0f, -8.0f, -8.0f));
     addModel(_entityRegistry, root, model4, glm::vec3(2.0f, -10.0f, -20.0f));
 
