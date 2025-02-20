@@ -60,8 +60,18 @@ void PhysicsService::createBodies(const Cluster& cluster) {
             constraint.mMaxPitchRollAngle = vehicle->maxRollAngle;
             constraint.mWheels.resize(vehicle->wheels.size());
 
+            size_t frontWheels = 0;
+            size_t rearWheels  = 0;
+
             for (const auto& wheelEntity : vehicle->wheels) {
                 const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
+
+                const auto index = int(wheel.position) / 2;
+                if (index == 0) {
+                    ++frontWheels;
+                } else {
+                    ++rearWheels;
+                }
 
                 auto localMatrix = glm::inverse(transform.matrix) * entityRegistry().get<Transform>(wheelEntity).matrix;
                 auto wheelPosition = localMatrix[3].xyz();
@@ -87,21 +97,39 @@ void PhysicsService::createBodies(const Cluster& cluster) {
                 }
             }
 
-            auto controller = new JPH::WheeledVehicleControllerSettings;
+            size_t differentials;
+            switch (vehicle->wheelDrive) {
+                case Vehicle::FrontWheelDrive:
+                    differentials = frontWheels / 2;
+                    break;
+                case Vehicle::RearWheelDrive:
+                    differentials = rearWheels / 2;
+                    break;
+                case Vehicle::AllWheelDrive:
+                    differentials = (frontWheels + rearWheels) / 2;
+                    break;
+            }
+            const auto engineTorqueRatio = 1.0f / differentials;
 
+            auto controller        = new JPH::WheeledVehicleControllerSettings;
             constraint.mController = controller;
-            controller->mDifferentials.resize(vehicle->wheelDrive ? vehicle->wheels.size() / 2 : 1);
+            controller->mDifferentials.resize(differentials);
             for (auto wheelEntity : vehicle->wheels) {
                 const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
-                const auto index  = int(wheel.position) / 2;
+                auto index        = int(wheel.position) / 2;
                 const auto isLeft = int(wheel.position) % 2 == 0;
-                if (index == 0 || vehicle->wheelDrive) {
+                if ((index == 0 && vehicle->wheelDrive == Vehicle::FrontWheelDrive) ||
+                    (index != 0 && vehicle->wheelDrive == Vehicle::RearWheelDrive) ||
+                    vehicle->wheelDrive == Vehicle::AllWheelDrive) {
+                    if (vehicle->wheelDrive == Vehicle::RearWheelDrive) {
+                        index = 0;
+                    }
                     if (isLeft) {
                         controller->mDifferentials[index].mLeftWheel = int(wheel.position);
                     } else {
                         controller->mDifferentials[index].mRightWheel = int(wheel.position);
                     }
-                    controller->mDifferentials[index].mEngineTorqueRatio = 1.0f / controller->mDifferentials.size();
+                    controller->mDifferentials[index].mEngineTorqueRatio = engineTorqueRatio;
                 }
             }
 
@@ -467,7 +495,13 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
     };
 
     auto getMaxHandBrakeTorque = [&vehicle, isFront]() {
-        return isFront ? vehicle.maxHandBrakeTorque : 0.0f;
+        if (vehicle.handBrake == Vehicle::AllWheelDrive) {
+            return vehicle.maxHandBrakeTorque;
+        }
+        if (vehicle.handBrake == Vehicle::FrontWheelDrive) {
+            return isFront ? vehicle.maxHandBrakeTorque : 0.0f;
+        }
+        return isFront ? 0.0f : vehicle.maxHandBrakeTorque;
     };
 
     const auto wPosition = JPH::Vec3(position.x, position.y + getSuspensionMinLength(), position.z);

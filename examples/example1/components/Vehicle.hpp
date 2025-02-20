@@ -4,6 +4,12 @@
 #include "../Common.hpp"
 
 struct Vehicle {
+    enum WheelDrive {
+        FrontWheelDrive,
+        RearWheelDrive,
+        AllWheelDrive
+    };
+
     std::vector<entt::entity> wheels;
     gerium_float32_t frontSuspensionSidewaysAngle{ 0.0f };
     gerium_float32_t frontSuspensionForwardAngle{ 0.0f };
@@ -30,7 +36,9 @@ struct Vehicle {
     gerium_float32_t maxSteeringAngle{ glm::radians(30.0f) };
     gerium_float32_t angularDamping{ 0.8f };
     gerium_float32_t antiRollbar{ true };
-    bool wheelDrive{ false };
+    WheelDrive wheelDrive{ FrontWheelDrive };
+    WheelDrive handBrake{ FrontWheelDrive };
+
 };
 
 #endif
