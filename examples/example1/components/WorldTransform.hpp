@@ -6,7 +6,7 @@
 struct WorldTransform {
     glm::mat4 matrix{ 1.0f };
     glm::mat4 prevMatrix{ 1.0f };
-    float scale{ 1.0f };
+    glm::vec3 scale{ 1.0f };
 };
 
 #endif

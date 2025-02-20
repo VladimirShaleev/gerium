@@ -4,16 +4,23 @@
 #include "Common.hpp"
 #include "components/Renderable.hpp"
 
+struct MeshCollider {
+    std::vector<vec3> vertices;
+    std::vector<uint32_t> indices;
+};
+
 struct Cluster {
     std::vector<VertexNonCompressed> vertices;
     std::vector<MeshNonCompressed> meshes;
     std::vector<uint32_t> primitiveIndices;
+    std::vector<MeshCollider> meshColliders;
 };
 
 struct Model : private NonCopyable {
     struct Node {
         gerium_sint32_t parent : 24;
         gerium_sint32_t level  : 8;
+        gerium_sint32_t colliderIndex;
         entt::hashed_string name;
         glm::vec3 position;
         glm::quat rotation;

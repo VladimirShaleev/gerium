@@ -1440,7 +1440,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         _vkTable.vkUpdateDescriptorSets(_device, num, _descriptorWrite, 0, nullptr);
 
         descriptorSet->layout  = layoutHandle;
-        descriptorSet->changed = updateRequired && !bindless;
+        descriptorSet->changed = updateRequired;
     }
 
     descriptorSet->absoluteFrame = _absoluteFrame;

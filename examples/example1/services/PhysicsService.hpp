@@ -1,17 +1,21 @@
 #ifndef SERVICES_PHYSICS_SERVICE_HPP
 #define SERVICES_PHYSICS_SERVICE_HPP
 
+#include "../Model.hpp"
+#include "../components/Collider.hpp"
 #include "../components/WorldTransform.hpp"
 #include "ServiceManager.hpp"
 
 class PhysicsService final : public Service {
 public:
-    void createBodies();
+    void createBodies(const Cluster& cluster);
+    void ApplyThrottle(entt::entity entity, float throttle);
 
 private:
     void start() override;
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
+    void step();
 
     void syncPhysicsToECS();
     void updatePhysicsTransforms(entt::storage<WorldTransform>& storage);
@@ -19,10 +23,12 @@ private:
 
     glm::mat4 getPhysicsTransform();
 
+    static JPH::Ref<JPH::Shape> getShape(const Collider& collider, const Cluster& cluster);
+
     enum ObjectLayers : JPH::uint8 {
-        Static  = 0,
-        Dynamic = 1,
-        Trigger = 2
+        Static     = 0,
+        Dynamic    = 1,
+        Constraint = 2
     };
 
     class BroadPhaseLayerInterface : public JPH::BroadPhaseLayerInterface {
@@ -60,6 +66,12 @@ private:
     std::unique_ptr<JPH::ObjectVsBroadPhaseLayerFilter> _objectVsBroadPhaseLayerFilter{};
     std::unique_ptr<JPH::ObjectLayerPairFilter> _objectLayerPairFilter{};
     std::unique_ptr<JPH::PhysicsSystem> _physicsSystem{};
+
+    ///////////////////
+
+    JPH::Ref<JPH::VehicleCollisionTester> _tester{};
+    JPH::Ref<JPH::VehicleConstraint> _vehicleConstraint{};
+    JPH::Body* _car{};
 };
 
 #endif

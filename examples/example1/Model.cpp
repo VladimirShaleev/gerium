@@ -3,6 +3,7 @@
 struct Cache {
     std::set<const aiMesh*> meshes;
     std::vector<std::tuple<size_t, size_t>> nodeNames;
+    std::unordered_map<gerium_uint32_t, gerium_sint32_t> colliders;
 };
 
 static std::tuple<size_t, size_t> appendString(Model& model, const char* name, size_t length) {
@@ -69,6 +70,56 @@ static void appendMaterial(Cache& cache, Model& model, const aiScene* sc, const 
         material->Get(AI_MATKEY_TWOSIDED, doubleSided);
         if (doubleSided) {
             pbr.flags |= MaterialFlags::DoubleSided;
+        }
+    }
+}
+
+static void appendCollider(MeshCollider& collider, const aiMesh* mesh) {
+    auto indexCount = mesh->mNumFaces * 3;
+    std::vector<uint32_t> remap(indexCount);
+    std::vector<uint32_t> indicesOrigin(indexCount);
+    std::vector<glm::vec3> verticesOrigin(mesh->mNumVertices);
+
+    for (int v = 0; v < mesh->mNumVertices; ++v) {
+        const auto vertex   = mesh->mVertices[v];
+        verticesOrigin[v].x = vertex.x;
+        verticesOrigin[v].y = vertex.y;
+        verticesOrigin[v].z = vertex.z;
+    }
+
+    for (int i = 0; i < mesh->mNumFaces; ++i) {
+        const aiFace* face = &mesh->mFaces[i];
+        assert(face->mNumIndices == 3);
+        indicesOrigin[i * 3 + 0] = face->mIndices[0];
+        indicesOrigin[i * 3 + 1] = face->mIndices[1];
+        indicesOrigin[i * 3 + 2] = face->mIndices[2];
+    }
+
+    auto vertexCount = meshopt_generateVertexRemap(remap.data(),
+                                                   indicesOrigin.data(),
+                                                   indexCount,
+                                                   verticesOrigin.data(),
+                                                   verticesOrigin.size(),
+                                                   sizeof(glm::vec3));
+
+    auto verticesOffset = collider.vertices.size();
+    auto indicesOffset  = collider.indices.size();
+
+    collider.vertices.resize(verticesOffset + vertexCount);
+    collider.indices.resize(indicesOffset + indexCount);
+
+    auto vertices = collider.vertices.data() + verticesOffset;
+    auto indices  = collider.indices.data() + indicesOffset;
+
+    meshopt_remapVertexBuffer(vertices, verticesOrigin.data(), verticesOrigin.size(), sizeof(glm::vec3), remap.data());
+    meshopt_remapIndexBuffer(indices, indicesOrigin.data(), indexCount, remap.data());
+
+    meshopt_optimizeVertexCache(indices, indices, indexCount, vertexCount);
+    meshopt_optimizeVertexFetch(vertices, indices, indexCount, vertices, vertexCount, sizeof(glm::vec3));
+
+    if (verticesOffset) {
+        for (unsigned int i = 0; i < indexCount; ++i) {
+            indices[i] += verticesOffset;
         }
     }
 }
@@ -239,16 +290,28 @@ static void recursiveParsing(Cluster& cluster,
     model.nodes.push_back(node);
     cache.nodeNames.push_back({});
 
-    if (nd->mName.length) {
-        cache.nodeNames.back() = appendString(model, nd->mName.C_Str(), nd->mName.length);
-    }
+    hashed_string_owner name(nd->mName.C_Str(), nd->mName.length);
 
-    for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
-        const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
-        if (!cache.meshes.contains(mesh)) {
-            cache.meshes.insert(mesh);
-            model.meshes.emplace_back((gerium_uint32_t) cluster.meshes.size(), 0, nodeIndex);
-            appendMesh(cluster, cache, model, sc, mesh);
+    if (name.string().ends_with("_collider")) {
+        cache.colliders[name] = (gerium_sint32_t) cluster.meshColliders.size();
+        cluster.meshColliders.push_back({});
+        auto& collider = cluster.meshColliders.back();
+        for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
+            const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
+            appendCollider(collider, mesh);
+        }
+    } else {
+        if (nd->mName.length) {
+            cache.nodeNames.back() = appendString(model, nd->mName.C_Str(), nd->mName.length);
+        }
+
+        for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
+            const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
+            if (!cache.meshes.contains(mesh)) {
+                cache.meshes.insert(mesh);
+                model.meshes.emplace_back((gerium_uint32_t) cluster.meshes.size(), 0, nodeIndex);
+                appendMesh(cluster, cache, model, sc, mesh);
+            }
         }
     }
 
@@ -384,6 +447,14 @@ Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
         const auto [nameIndex, nameLen] = cache.nodeNames[i];
 
         node.name = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+
+        auto colliderName = std::string(node.name.data(), node.name.size()) + "_collider";
+        auto colliderKey  = entt::hashed_string{ colliderName.c_str(), colliderName.length() }.value();
+        if (auto it = cache.colliders.find(colliderKey); it != cache.colliders.end()) {
+            node.colliderIndex = it->second;
+        } else {
+            node.colliderIndex = -1;
+        }
     }
 
     return model;

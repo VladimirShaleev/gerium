@@ -468,10 +468,12 @@ void RenderService::getMaterialsAndInstances(const Renderable& renderable,
         instances.push_back({});
         auto& instance = instances.back();
 
+        const auto scale = glm::max(glm::max(worldTransform.scale.x, worldTransform.scale.y), worldTransform.scale.z);
+
         instance.world        = worldTransform.matrix;
         instance.prevWorld    = worldTransform.prevMatrix;
         instance.normalMatrix = glm::transpose(glm::inverse(worldTransform.matrix));
-        instance.scale        = worldTransform.scale;
+        instance.scale        = scale;
         instance.mesh         = meshData.mesh;
         instance.technique    = techniqueIndex;
         instance.material     = materialIndex;

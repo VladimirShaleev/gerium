@@ -4,8 +4,18 @@
 #include "../Common.hpp"
 
 struct Collider {
-    enum class Shape { Box, Sphere, Capsule } shape;
-    glm::vec3 size{1.0f};
+    enum Shape {
+        Box,
+        Sphere,
+        Capsule,
+        Mesh
+    } shape;
+
+    union Data {
+        glm::vec3 size;
+        gerium_float32_t radius;
+        gerium_uint32_t colliderIndex;
+    } data;
 };
 
 #endif

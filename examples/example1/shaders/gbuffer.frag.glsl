@@ -20,5 +20,5 @@ void main() {
 
     vec4 baseColor = texture(globalTextures[nonuniformEXT(baseColorHandle)], texcoord);
 
-    outBase = baseColor * COLOR;
+    outBase = baseColor /* * COLOR */;
 }

@@ -8,12 +8,15 @@
 
 #include "components/Camera.hpp"
 #include "components/Collider.hpp"
+#include "components/Constraint.hpp"
 #include "components/LocalTransform.hpp"
 #include "components/Name.hpp"
 #include "components/Node.hpp"
 #include "components/Renderable.hpp"
 #include "components/RigidBody.hpp"
 #include "components/Static.hpp"
+#include "components/Vehicle.hpp"
+#include "components/Wheel.hpp"
 #include "components/WorldTransform.hpp"
 
 #include "Model.hpp"
@@ -59,10 +62,18 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
     }
 }
 
-static entt::entity m3 = {};
+static entt::entity vechicle = {};
+static entt::entity wheelLf  = {};
+static entt::entity wheelLb  = {};
+static entt::entity wheelRf  = {};
+static entt::entity wheelRb  = {};
 
-void addModel(
-    entt::registry& registry, entt::entity parent, const Model& model, const glm::vec3 position, bool isStatic) {
+void addModel(entt::registry& registry,
+              entt::entity parent,
+              const Cluster& cluster,
+              const Model& model,
+              const glm::vec3 position,
+              bool isStatic) {
     auto root = registry.create();
     registry.emplace<Node>(root);
     auto& transform = registry.emplace<WorldTransform>(root);
@@ -76,6 +87,8 @@ void addModel(
         entt::entity parent;
         glm::mat4 parentMatrix;
     };
+
+    std::map<std::string, Collider> meshColliders;
 
     std::queue<Hierarchy> nodesToVisit;
 
@@ -104,7 +117,7 @@ void addModel(
         auto& transform      = registry.emplace<WorldTransform>(node);
         transform.matrix     = worldMatrix;
         transform.prevMatrix = transform.matrix;
-        transform.scale      = glm::max(glm::max(scale.x, scale.y), scale.z);
+        transform.scale      = scale;
 
         auto& lt    = registry.emplace<LocalTransform>(node);
         lt.isDirty  = false;
@@ -126,12 +139,16 @@ void addModel(
                 meshData.model = model.name;
                 meshData.mesh  = mesh.meshIndex;
 
+                // if (name == "vehicle") {
+                //     meshData.mesh = 10;
+                // }
+
                 if (!model.materials.empty()) {
                     auto& mat = model.materials[mesh.materialIndex];
 
                     static int ii = 0;
 
-                    meshData.material.name                     = ++ii == 6 ? TECH_OTHER_ID : TECH_PBR_ID; // mat.name;
+                    meshData.material.name                     = ii++ % 2 ? TECH_OTHER_ID : TECH_PBR_ID; // mat.name;
                     meshData.material.baseColorTexture         = mat.baseColorTexture;
                     meshData.material.metallicRoughnessTexture = mat.metallicRoughnessTexture;
                     meshData.material.normalTexture            = mat.normalTexture;
@@ -145,46 +162,89 @@ void addModel(
                     meshData.material.alphaCutoff              = mat.alphaCutoff;
                     meshData.material.flags                    = (MaterialFlags) mat.flags;
 
-                    if (ii == 11) {
-                        const auto& bbox = model.nodes[nodeIndex].bbox;
-
-                        m3             = node;
-                        auto& body     = registry.emplace<RigidBody>(node);
-                        auto& collider = registry.emplace<Collider>(node);
-                        collider.shape = Collider::Shape::Box;
-                        collider.size  = bbox.max() - bbox.min();
+                    if (ii == 1) { // vechicle
+                        const auto& bbox   = model.nodes[nodeIndex].bbox;
+                        auto& body         = registry.emplace<RigidBody>(node);
+                        body.mass          = 6000.0f;
+                        auto& collider     = registry.emplace<Collider>(node);
+                        auto colliderIndex = model.nodes[nodeIndex].colliderIndex;
+                        if (colliderIndex >= 0) {
+                            collider.shape              = Collider::Shape::Mesh;
+                            collider.data.colliderIndex = colliderIndex;
+                        } else {
+                            collider.shape     = Collider::Shape::Box;
+                            collider.data.size = (bbox.max() - bbox.min()) * 0.5f;
+                        }
+                        vechicle = node;
+                        registry.emplace<Vehicle>(node);
                     }
-                    if (ii == 12) {
-                        const auto& bbox = model.nodes[nodeIndex].bbox;
-                        auto size        = bbox.max() - bbox.min();
-                        auto& body       = registry.emplace<RigidBody>(node); // lb
-                        auto& collider   = registry.emplace<Collider>(node);
-                        collider.shape   = Collider::Shape::Sphere;
-                        collider.size    = size * 0.5f;
+                    if (ii == 3) { // lf
+                        const auto& bbox     = model.nodes[nodeIndex].bbox;
+                        auto size            = bbox.max() - bbox.min();
+                        auto& body           = registry.emplace<RigidBody>(node);
+                        body.mass            = 120.0f;
+                        auto& collider       = registry.emplace<Collider>(node);
+                        collider.shape       = Collider::Shape::Sphere;
+                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
+                        wheelLf              = node;
+                        auto& wheel          = registry.emplace<Wheel>(node);
+                        wheel.point          = worldMatrix[3].xyz();
+                        wheel.position       = Wheel::FrontLeft;
                     }
-                    if (ii == 13) {
-                        const auto& bbox = model.nodes[nodeIndex].bbox;
-                        auto size        = bbox.max() - bbox.min();
-                        auto& body       = registry.emplace<RigidBody>(node); // lf
-                        auto& collider   = registry.emplace<Collider>(node);
-                        collider.shape   = Collider::Shape::Sphere;
-                        collider.size    = size * 0.5f;
+                    if (ii == 2) { // lb
+                        const auto& bbox     = model.nodes[nodeIndex].bbox;
+                        auto size            = bbox.max() - bbox.min();
+                        auto& body           = registry.emplace<RigidBody>(node);
+                        body.mass            = 200.0f;
+                        auto& collider       = registry.emplace<Collider>(node);
+                        collider.shape       = Collider::Shape::Sphere;
+                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
+                        wheelLb              = node;
+                        auto& wheel          = registry.emplace<Wheel>(node);
+                        wheel.point          = worldMatrix[3].xyz();
+                        wheel.position       = Wheel::BackLeft1;
                     }
-                    if (ii == 14) {
-                        const auto& bbox = model.nodes[nodeIndex].bbox;
-                        auto size        = bbox.max() - bbox.min();
-                        auto& body       = registry.emplace<RigidBody>(node); // rb
-                        auto& collider   = registry.emplace<Collider>(node);
-                        collider.shape   = Collider::Shape::Sphere;
-                        collider.size    = size * 0.5f;
+                    if (ii == 5) { // rf
+                        const auto& bbox     = model.nodes[nodeIndex].bbox;
+                        auto size            = bbox.max() - bbox.min();
+                        auto& body           = registry.emplace<RigidBody>(node);
+                        body.mass            = 120.0f;
+                        auto& collider       = registry.emplace<Collider>(node);
+                        collider.shape       = Collider::Shape::Sphere;
+                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
+                        wheelRf              = node;
+                        auto& wheel          = registry.emplace<Wheel>(node);
+                        wheel.point          = worldMatrix[3].xyz();
+                        wheel.position       = Wheel::FrontRight;
                     }
-                    if (ii == 15) {
+                    if (ii == 4) { // rb
+                        const auto& bbox     = model.nodes[nodeIndex].bbox;
+                        auto size            = bbox.max() - bbox.min();
+                        auto& body           = registry.emplace<RigidBody>(node);
+                        body.mass            = 200.0f;
+                        auto& collider       = registry.emplace<Collider>(node);
+                        collider.shape       = Collider::Shape::Sphere;
+                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
+                        wheelRb              = node;
+                        auto& wheel          = registry.emplace<Wheel>(node);
+                        wheel.point          = worldMatrix[3].xyz();
+                        wheel.position       = Wheel::BackRight1;
+                    }
+                    if (ii == 6) { // floor
                         const auto& bbox = model.nodes[nodeIndex].bbox;
-                        auto size        = bbox.max() - bbox.min();
-                        auto& body       = registry.emplace<RigidBody>(node); // rf
-                        auto& collider   = registry.emplace<Collider>(node);
-                        collider.shape   = Collider::Shape::Sphere;
-                        collider.size    = size * 0.5f;
+                        auto& body       = registry.emplace<RigidBody>(node);
+                        // body.mass        = 100000.0f;
+                        auto& collider     = registry.emplace<Collider>(node);
+                        collider.shape     = Collider::Shape::Box;
+                        collider.data.size = (bbox.max() - bbox.min()) * 0.5f;
+                    }
+                    if (ii == 7) { // floor
+                        const auto& bbox = model.nodes[nodeIndex].bbox;
+                        auto& body       = registry.emplace<RigidBody>(node);
+                        // body.mass        = 100000.0f;
+                        auto& collider     = registry.emplace<Collider>(node);
+                        collider.shape     = Collider::Shape::Box;
+                        collider.data.size = (bbox.max() - bbox.min()) * 0.5f;
                     }
                 }
             }
@@ -221,6 +281,7 @@ void Application::initialize() {
     auto model1 = loadModel(cluster, "model1");
     auto model2 = loadModel(cluster, "model2");
     auto model3 = loadModel(cluster, "truck");
+    auto model4 = loadModel(cluster, MODEL_FLOOR_ID);
 
     _serviceManager.create(this);
     _serviceManager.addService<TimeService>();
@@ -231,19 +292,54 @@ void Application::initialize() {
     _serviceManager.addService<RenderService>();
 
     _serviceManager.getService<RenderService>()->createCluster(cluster);
-    cluster = {};
 
     auto root = _entityRegistry.create();
 
-    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, 0.0f), true);
-    addModel(_entityRegistry, root, model3, glm::vec3(-2.0f, 0.0f, 0.0f), true);
-    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, -8.0f), false);
+    // addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, 0.0f), true);
+    // addModel(_entityRegistry, root, model3, glm::vec3(-2.0f, 0.0f, 0.0f), true);
+    addModel(_entityRegistry, root, cluster, model3, glm::vec3(2.0f, 0.0f, -8.0f), false);
+    addModel(_entityRegistry, root, cluster, model4, glm::vec3(2.0f, -8.0f, -8.0f), true);
+    addModel(_entityRegistry, root, cluster, model4, glm::vec3(2.0f, -10.0f, -20.0f), true);
     // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 0.0f));
     // addModel(_entityRegistry, root, model2, glm::vec3(0.0f, 0.0f, 1.0f));
     // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 4.0f));
 
+    auto axis = glm::vec3(1.0f, 0.0f, 0.0f);
+
+    auto& wlf  = _entityRegistry.emplace<Constraint>(wheelLf);
+    wlf.parent = vechicle;
+    wlf.point  = _entityRegistry.get<WorldTransform>(wheelLf).matrix[3].xyz();
+    wlf.axis   = axis;
+
+    auto& wlb  = _entityRegistry.emplace<Constraint>(wheelLb);
+    wlb.parent = vechicle;
+    wlb.point  = _entityRegistry.get<WorldTransform>(wheelLb).matrix[3].xyz();
+    wlb.axis   = axis;
+
+    auto& wrf  = _entityRegistry.emplace<Constraint>(wheelRf);
+    wrf.parent = vechicle;
+    wrf.point  = _entityRegistry.get<WorldTransform>(wheelRf).matrix[3].xyz();
+    wrf.axis   = axis;
+
+    auto& wrb  = _entityRegistry.emplace<Constraint>(wheelRb);
+    wrb.parent = vechicle;
+    wrb.point  = _entityRegistry.get<WorldTransform>(wheelRb).matrix[3].xyz();
+    wrb.axis   = axis;
+
+    auto& vv = _entityRegistry.get<Vehicle>(vechicle);
+    vv.wheels.push_back(wheelLf);
+    vv.wheels.push_back(wheelRf);
+    vv.wheels.push_back(wheelLb);
+    vv.wheels.push_back(wheelRb);
+    wlf.parent = vechicle;
+    wrf.parent = vechicle;
+    wlb.parent = vechicle;
+    wrb.parent = vechicle;
+
     _serviceManager.getService<RenderService>()->createStaticInstances();
-    _serviceManager.getService<PhysicsService>()->createBodies();
+    _serviceManager.getService<PhysicsService>()->createBodies(cluster);
+
+    cluster = {};
 
     auto& camera = _entityRegistry.emplace<Camera>(_entityRegistry.create());
 
@@ -296,6 +392,8 @@ void Application::frame(gerium_uint64_t elapsedMs) {
 
     // _eventManager.dispatch();
     _serviceManager.update(elapsedMs);
+
+    _serviceManager.getService<PhysicsService>()->ApplyThrottle(wheelRb, 100.0f);
 }
 
 void Application::state(gerium_application_state_t state) {
