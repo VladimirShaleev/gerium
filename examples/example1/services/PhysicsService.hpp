@@ -3,7 +3,7 @@
 
 #include "../Model.hpp"
 #include "../components/Collider.hpp"
-#include "../components/WorldTransform.hpp"
+#include "../components/Transform.hpp"
 #include "ServiceManager.hpp"
 
 class PhysicsService final : public Service {
@@ -18,8 +18,8 @@ private:
     void step();
 
     void syncPhysicsToECS();
-    void updatePhysicsTransforms(entt::storage<WorldTransform>& storage);
-    void updateLocalTransforms(entt::storage<WorldTransform>& storage);
+    void updatePhysicsTransforms(entt::storage<Transform>& storage);
+    void updateLocalTransforms(entt::storage<Transform>& storage);
 
     glm::mat4 getPhysicsTransform();
 

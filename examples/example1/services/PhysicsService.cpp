@@ -1,13 +1,11 @@
 #include "PhysicsService.hpp"
 #include "../components/Collider.hpp"
-#include "../components/Constraint.hpp"
-#include "../components/LocalTransform.hpp"
 #include "../components/Node.hpp"
 #include "../components/RigidBody.hpp"
 #include "../components/Static.hpp"
+#include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
 #include "../components/Wheel.hpp"
-#include "../components/WorldTransform.hpp"
 #include "InputService.hpp"
 
 using namespace entt::literals;
@@ -15,142 +13,30 @@ using namespace entt::literals;
 constexpr float mUpdateFrequency    = 60.0f;
 constexpr float mRequestedDeltaTime = 1.0f / mUpdateFrequency;
 
-// std::vector<JPH::HingeConstraint*> h;
-
 void PhysicsService::createBodies(const Cluster& cluster) {
-    /*std::set<entt::entity> parentConstraints;
-    for (auto [_, constraint] : entityRegistry().view<::Constraint>().each()) {
-        parentConstraints.insert(constraint.parent);
-    }
-
-    auto view = entityRegistry().view<RigidBody, Collider, WorldTransform>();
-
-    for (auto entity : view) {
-        auto& rigidBody      = view.get<RigidBody>(entity);
-        auto& collider       = view.get<Collider>(entity);
-        auto& worldTransform = view.get<WorldTransform>(entity);
-        auto isDynamic       = !entityRegistry().any_of<::Static>(entity);
-        auto isConstraint    = entityRegistry().any_of<::Constraint>(entity);
-
-        if (!isConstraint && parentConstraints.contains(entity)) {
-            isConstraint = true;
-        }
-
-        glm::vec3 scale;
-        glm::quat rotation;
-        glm::vec3 position;
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::decompose(worldTransform.matrix, scale, rotation, position, skew, perspective);
-
-        auto pos  = JPH::Vec3(position.x, position.y, position.z);
-        auto quat = JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w);
-        auto size = collider.size;
-
-        JPH::Ref<JPH::Shape> shape{};
-        switch (collider.shape) {
-            case Collider::Shape::Box: {
-                JPH::BoxShapeSettings box(JPH::Vec3(size.x, size.y, size.z));
-                box.SetEmbedded();
-                auto shapeResult = box.Create();
-                shape            = shapeResult.Get();
-                break;
-            }
-            case Collider::Shape::Sphere: {
-                JPH::SphereShapeSettings sphere(size.x);
-                sphere.SetEmbedded();
-                auto shapeResult = sphere.Create();
-                shape            = shapeResult.Get();
-                break;
-            }
-            case Collider::Shape::Capsule: {
-                JPH::CapsuleShapeSettings capsule(size.x, size.y);
-                capsule.SetEmbedded();
-                auto shapeResult = capsule.Create();
-                shape            = shapeResult.Get();
-                break;
-            }
-        }
-        shape->ScaleShape(JPH::Vec3(scale.x, scale.y, scale.z));
-
-        JPH::BodyCreationSettings settings(shape,
-                                           pos,
-                                           quat,
-                                           isDynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static,
-                                           isDynamic ? (isConstraint ? Constraint : Dynamic) : Static);
-
-        auto inertia = rigidBody.mass * 0.2f;
-
-        settings.mOverrideMassProperties          = JPH::EOverrideMassProperties::MassAndInertiaProvided;
-        settings.mMassPropertiesOverride.mMass    = rigidBody.mass;
-        settings.mMassPropertiesOverride.mInertia = JPH::Mat44::sScale(JPH::Vec3(inertia, inertia, inertia));
-
-        rigidBody.body = _physicsSystem->GetBodyInterface().CreateBody(settings)->GetID();
-        _physicsSystem->GetBodyInterface().AddBody(
-            rigidBody.body, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
-
-        // _physicsSystem->GetBodyInterface().SetLinearVelocity(rigidBody.body, JPH::Vec3(0.0f, -0.0f, 0.0f));
-    }
-
-    auto view2 = entityRegistry().view<RigidBody, ::Constraint>();
-
-    for (auto entity : view2) {
-        const auto& rigidBody  = view2.get<RigidBody>(entity);
-        const auto& constraint = view2.get<::Constraint>(entity);
-
-        const JPH::Vec3 point(constraint.point.x, constraint.point.y, constraint.point.z);
-        const JPH::Vec3 axis(constraint.axis.x, constraint.axis.y, constraint.axis.z);
-
-        auto parentID = entityRegistry().get<RigidBody>(constraint.parent).body;
-
-        JPH::HingeConstraintSettings settings;
-        settings.mPoint1 = settings.mPoint2 = point;
-        settings.mHingeAxis1 = settings.mHingeAxis2 = axis;
-
-        settings.mMotorSettings                            = JPH::MotorSettings();
-        settings.mMotorSettings.mSpringSettings.mFrequency = 2.0f;
-        settings.mMotorSettings.mSpringSettings.mDamping   = 1.0f;
-        settings.mMotorSettings.mMinTorqueLimit            = -1000.0f;
-        settings.mMotorSettings.mMaxTorqueLimit            = 1000.0f;
-
-        // settings.mLimitsMin = -0.5f * 0.5f * JPH::JPH_PI;
-        // settings.mLimitsMax = 0.5f * 0.5f * JPH::JPH_PI;
-
-        auto parent = _physicsSystem->GetBodyLockInterface().TryGetBody(parentID);
-        auto child  = _physicsSystem->GetBodyLockInterface().TryGetBody(rigidBody.body);
-
-        auto hinge = (JPH::HingeConstraint*) settings.Create(*parent, *child);
-        hinge->SetMotorState(JPH::EMotorState::Velocity);
-        hinge->SetTargetAngularVelocity(-2.0f);
-        h.push_back(hinge);
-        _physicsSystem->AddConstraint(hinge);
-    }*/
-
-    ////////////////
-
     _tester = new JPH::VehicleCollisionTesterCastCylinder(Dynamic);
 
-    auto view = entityRegistry().view<RigidBody, Collider, WorldTransform>(entt::exclude<Wheel>);
+    auto view = entityRegistry().view<RigidBody, Collider, Transform>(entt::exclude<Wheel>);
 
     for (auto entity : view) {
-        auto& rigidBody            = view.get<RigidBody>(entity);
-        const auto& collider       = view.get<Collider>(entity);
-        const auto& worldTransform = view.get<WorldTransform>(entity);
-        const auto vehicle         = entityRegistry().try_get<Vehicle>(entity);
-        const auto isDynamic       = !entityRegistry().any_of<::Static>(entity);
+        auto& rigidBody       = view.get<RigidBody>(entity);
+        const auto& collider  = view.get<Collider>(entity);
+        const auto& transform = view.get<Transform>(entity);
+        const auto vehicle    = entityRegistry().try_get<Vehicle>(entity);
+        const auto isDynamic  = !entityRegistry().any_of<::Static>(entity);
 
         glm::vec3 scale;
         glm::quat orientation;
         glm::vec3 translation;
         glm::vec3 skew;
         glm::vec4 perspective;
-        glm::decompose(worldTransform.matrix, scale, orientation, translation, skew, perspective);
+        glm::decompose(transform.matrix, scale, orientation, translation, skew, perspective);
 
         const auto position = JPH::Vec3(translation.x, translation.y, translation.z);
         const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
 
         auto shape = getShape(collider, cluster);
-        shape->ScaleShape(JPH::Vec3(worldTransform.scale.x, worldTransform.scale.y, worldTransform.scale.z));
+        shape->ScaleShape(JPH::Vec3(transform.scale.x, transform.scale.y, transform.scale.z));
 
         JPH::BodyCreationSettings settings(shape,
                                            position,
@@ -223,12 +109,11 @@ void PhysicsService::createBodies(const Cluster& cluster) {
             }
 
             for (const auto& wheel : vehicle->wheels) {
-                auto localMatrix =
-                    glm::inverse(worldTransform.matrix) * entityRegistry().get<WorldTransform>(wheel).matrix;
+                auto localMatrix = glm::inverse(transform.matrix) * entityRegistry().get<Transform>(wheel).matrix;
 
                 auto mm = localMatrix[3].xyz();
 
-                auto lp = entityRegistry().get<LocalTransform>(wheel).position;
+                // auto lp = entityRegistry().get<LocalTransform>(wheel).position;
 
                 // glm::vec3 scale;
                 // glm::quat quat;
@@ -340,6 +225,9 @@ void PhysicsService::createBodies(const Cluster& cluster) {
 
                 w->mAngularDamping = 0.8f;
 
+                auto radius = wheelCollider.size.z;
+                auto width  = wheelCollider.size.x;
+
                 w->mSteeringAxis                = steeringAxis;
                 w->mWheelUp                     = wheelUp;
                 w->mWheelForward                = wheelForward;
@@ -349,8 +237,8 @@ void PhysicsService::createBodies(const Cluster& cluster) {
                 w->mSuspensionSpring.mDamping   = suspensionDamping;
                 w->mMaxSteerAngle               = maxSteeringAngle;
                 w->mMaxHandBrakeTorque          = maxHandBrakeTorque;
-                w->mRadius                      = wheelCollider.data.radius;
-                w->mWidth                       = wheelCollider.data.radius / 2;
+                w->mRadius                      = radius;
+                w->mWidth                       = width;
 
                 // w->mLongitudinalFriction;
                 // w->mLateralFriction;
@@ -501,7 +389,7 @@ void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t el
 
     // syncPhysicsToECS();
 
-    // auto&& physicsTransforms = entityRegistry().storage<WorldTransform>("physics_transforms"_hs);
+    // auto&& physicsTransforms = entityRegistry().storage<Transform>("physics_transforms"_hs);
 
     // updatePhysicsTransforms(physicsTransforms);
     // updateLocalTransforms(physicsTransforms);
@@ -593,12 +481,12 @@ void PhysicsService::step() {
 }
 
 void PhysicsService::syncPhysicsToECS() {
-    auto view = entityRegistry().view<RigidBody, WorldTransform>(entt::exclude<::Static, Wheel>);
+    auto view = entityRegistry().view<RigidBody, Transform>(entt::exclude<::Static, Wheel>);
 
     for (auto entity : view) {
-        auto& rigidBody      = view.get<RigidBody>(entity);
-        auto& worldTransform = view.get<WorldTransform>(entity);
-        auto vehicle         = entityRegistry().try_get<Vehicle>(entity);
+        auto& rigidBody = view.get<RigidBody>(entity);
+        auto& transform = view.get<Transform>(entity);
+        auto vehicle    = entityRegistry().try_get<Vehicle>(entity);
 
         auto position = _physicsSystem->GetBodyInterface().GetPosition(rigidBody.body);
         auto rrrr     = _physicsSystem->GetBodyInterface().GetRotation(rigidBody.body);
@@ -611,20 +499,20 @@ void PhysicsService::syncPhysicsToECS() {
         glm::vec3 p;
         glm::vec3 skew;
         glm::vec4 perspective;
-        glm::decompose(worldTransform.matrix, scale, rotation, p, skew, perspective);
+        glm::decompose(transform.matrix, scale, rotation, p, skew, perspective);
 
         auto matS = glm::scale(glm::identity<glm::mat4>(), scale);
         auto matT = glm::translate(glm::identity<glm::mat4>(), newPos);
         auto matR = glm::mat4_cast(newRot);
         auto mat  = matT * matR * matS;
 
-        worldTransform.prevMatrix = worldTransform.matrix;
-        worldTransform.matrix     = mat;
+        transform.prevMatrix = transform.matrix;
+        transform.matrix     = mat;
 
         if (vehicle) {
             for (auto wheel : vehicle->wheels) {
                 auto& w = entityRegistry().get<Wheel>(wheel);
-                auto& t = entityRegistry().get<WorldTransform>(wheel);
+                auto& t = entityRegistry().get<Transform>(wheel);
                 // const auto settings = _vehicleConstraint->GetWheels()[w.id]->GetSettings();
                 auto wheelTransform =
                     _vehicleConstraint->GetWheelWorldTransform(w.id, JPH::Vec3::sAxisX(), JPH::Vec3::sAxisY());
@@ -635,46 +523,47 @@ void PhysicsService::syncPhysicsToECS() {
     }
 }
 
-void PhysicsService::updatePhysicsTransforms(entt::storage<WorldTransform>& storage) {
-    auto view = entityRegistry().view<RigidBody, WorldTransform>();
+void PhysicsService::updatePhysicsTransforms(entt::storage<Transform>& storage) {
+    // auto view = entityRegistry().view<RigidBody, Transform>();
 
-    for (auto entity : view) {
-        auto& rigidBody      = view.get<RigidBody>(entity);
-        auto& worldTransform = view.get<WorldTransform>(entity);
+    // for (auto entity : view) {
+    //     auto& rigidBody = view.get<RigidBody>(entity);
+    //     auto& transform = view.get<Transform>(entity);
 
-        if (!rigidBody.isKinematic) {
-            auto physicsMatrix = worldTransform.matrix; // getPhysicsTransform();
+    //     if (!rigidBody.isKinematic) {
+    //         auto physicsMatrix = transform.matrix; // getPhysicsTransform();
 
-            if (worldTransform.matrix != physicsMatrix) {
-                worldTransform.matrix = physicsMatrix;
-                storage.push(entity);
-            }
-        }
-    }
+    //         if (transform.matrix != physicsMatrix) {
+    //             transform.matrix = physicsMatrix;
+    //             storage.push(entity);
+    //         }
+    //     }
+    // }
 }
 
-void PhysicsService::updateLocalTransforms(entt::storage<WorldTransform>& storage) {
-    auto view = entityRegistry().view<LocalTransform>() | entt::basic_view{ storage };
+void PhysicsService::updateLocalTransforms(entt::storage<Transform>& storage) {
+    // auto view = entityRegistry().view<LocalTransform>() | entt::basic_view{ storage };
 
-    for (auto entity : view) {
-        const auto node = entityRegistry().try_get<Node>(entity);
+    // for (auto entity : view) {
+    //     const auto node = entityRegistry().try_get<Node>(entity);
 
-        const auto parentInverseWorldMatrix =
-            node && node->parent != entt::null ? glm::inverse(entityRegistry().get<WorldTransform>(node->parent).matrix)
-                                               : glm::identity<glm::mat4>();
+    //     const auto parentInverseWorldMatrix =
+    //         node && node->parent != entt::null ?
+    //         glm::inverse(entityRegistry().get<Transform>(node->parent).matrix)
+    //                                            : glm::identity<glm::mat4>();
 
-        const auto& worldMatrix = view.get<WorldTransform>(entity).matrix;
-        auto localMatrix        = parentInverseWorldMatrix * worldMatrix;
+    //     const auto& worldMatrix = view.get<Transform>(entity).matrix;
+    //     auto localMatrix        = parentInverseWorldMatrix * worldMatrix;
 
-        auto& localTransform = view.get<LocalTransform>(entity);
-        assert(!localTransform.isDirty && "The physics service can only work with calculated world transforms.");
+    //     auto& localTransform = view.get<LocalTransform>(entity);
+    //     assert(!localTransform.isDirty && "The physics service can only work with calculated world transforms.");
 
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::decompose(
-            localMatrix, localTransform.scale, localTransform.rotation, localTransform.position, skew, perspective);
-        localTransform.isDirty = true;
-    }
+    //     glm::vec3 skew;
+    //     glm::vec4 perspective;
+    //     glm::decompose(
+    //         localMatrix, localTransform.scale, localTransform.rotation, localTransform.position, skew, perspective);
+    //     localTransform.isDirty = true;
+    // }
 }
 
 glm::mat4 PhysicsService::getPhysicsTransform() {
@@ -685,13 +574,13 @@ JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cl
     JPH::Ref<JPH::Shape> shape{};
     switch (collider.shape) {
         case Collider::Shape::Box: {
-            const auto& size = collider.data.size;
+            const auto& size = collider.size;
             JPH::BoxShapeSettings shape(JPH::Vec3(size.x, size.y, size.z));
             shape.SetEmbedded();
             return shape.Create().Get();
         }
         case Collider::Shape::Sphere: {
-            JPH::SphereShapeSettings shape(collider.data.radius);
+            JPH::SphereShapeSettings shape(collider.radius);
             shape.SetEmbedded();
             return shape.Create().Get();
         }
@@ -703,7 +592,7 @@ JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cl
             return {};
         }
         case Collider::Shape::Mesh: {
-            const auto& meshCollider = cluster.meshColliders[collider.data.colliderIndex];
+            const auto& meshCollider = cluster.meshColliders[collider.index];
             JPH::VertexList vertices;
             JPH::IndexedTriangleList indices;
             vertices.resize(meshCollider.vertices.size());

@@ -8,16 +8,14 @@
 
 #include "components/Camera.hpp"
 #include "components/Collider.hpp"
-#include "components/Constraint.hpp"
-#include "components/LocalTransform.hpp"
 #include "components/Name.hpp"
 #include "components/Node.hpp"
 #include "components/Renderable.hpp"
 #include "components/RigidBody.hpp"
 #include "components/Static.hpp"
+#include "components/Transform.hpp"
 #include "components/Vehicle.hpp"
 #include "components/Wheel.hpp"
-#include "components/WorldTransform.hpp"
 
 #include "Model.hpp"
 
@@ -62,23 +60,25 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
     }
 }
 
-static entt::entity vechicle = {};
-static entt::entity wheelLf  = {};
-static entt::entity wheelLb  = {};
-static entt::entity wheelRf  = {};
-static entt::entity wheelRb  = {};
+glm::mat4 calcMatrix(const glm::vec3& translate, const glm::quat& rotation, const glm::vec3& scale) {
+    auto matT = glm::translate(glm::identity<glm::mat4>(), translate);
+    auto matR = glm::mat4_cast(rotation);
+    auto matS = glm::scale(glm::identity<glm::mat4>(), scale);
+    return matT * matR * matS;
+}
 
-void addModel(entt::registry& registry,
-              entt::entity parent,
-              const Cluster& cluster,
-              const Model& model,
-              const glm::vec3 position,
-              bool isStatic) {
+entt::entity addModel(entt::registry& registry,
+                      entt::entity parent,
+                      const Model& model,
+                      const glm::vec3& position = { 0.0f, 0.0f, 0.0f },
+                      const glm::quat& rotation = { 1.0f, 0.0f, 0.0f, 0.0f },
+                      const glm::vec3& scale    = { 1.0f, 1.0f, 1.0f }) {
     auto root = registry.create();
     registry.emplace<Node>(root);
-    auto& transform = registry.emplace<WorldTransform>(root);
+    registry.get_or_emplace<Node>(parent).childs.push_back(root);
 
-    transform.matrix     = glm::translate(glm::identity<glm::mat4>(), position);
+    auto& transform      = registry.emplace<Transform>(root);
+    transform.matrix     = calcMatrix(position, rotation, scale);
     transform.prevMatrix = transform.matrix;
 
     struct Hierarchy {
@@ -86,69 +86,106 @@ void addModel(entt::registry& registry,
         gerium_sint32_t childLevel;
         entt::entity parent;
         glm::mat4 parentMatrix;
+        glm::vec3 parentScale;
     };
-
-    std::map<std::string, Collider> meshColliders;
 
     std::queue<Hierarchy> nodesToVisit;
 
     for (gerium_sint32_t i = 0; i < (gerium_sint32_t) model.nodes.size(); ++i) {
         if (model.nodes[i].parent < 0) {
-            nodesToVisit.emplace(i, model.nodes[i].level + 1, root, transform.matrix);
+            nodesToVisit.emplace(i, model.nodes[i].level + 1, root, transform.matrix, scale);
         }
     }
 
+    auto isStatic = true;
+
+    entt::entity vehicle = entt::null;
+
     while (!nodesToVisit.empty()) {
-        const auto [nodeIndex, childLevel, parent, parentMatrix] = nodesToVisit.front();
+        const auto [nodeIndex, childLevel, parent, parentMatrix, parentScale] = nodesToVisit.front();
         nodesToVisit.pop();
 
-        const glm::vec3& scale     = model.nodes[nodeIndex].scale;
-        const glm::vec3& translate = model.nodes[nodeIndex].position;
-        const glm::quat& rotation  = model.nodes[nodeIndex].rotation;
+        const auto& modelNode = model.nodes[nodeIndex];
 
-        auto matS = glm::scale(glm::identity<glm::mat4>(), scale);
-        auto matT = glm::translate(glm::identity<glm::mat4>(), translate);
-        auto matR = glm::mat4_cast(rotation);
-        auto mat  = matT * matR * matS;
+        const glm::vec3& localTranslate = modelNode.position;
+        const glm::quat& localRotation  = modelNode.rotation;
+        const glm::vec3& localScale     = modelNode.scale;
 
-        auto worldMatrix = parentMatrix * mat;
-
-        auto node            = registry.create();
-        auto& transform      = registry.emplace<WorldTransform>(node);
-        transform.matrix     = worldMatrix;
-        transform.prevMatrix = transform.matrix;
-        transform.scale      = scale;
-
-        auto& lt    = registry.emplace<LocalTransform>(node);
-        lt.isDirty  = false;
-        lt.position = translate;
-        lt.rotation = rotation;
-        lt.scale    = scale;
+        auto node = registry.create();
 
         registry.emplace<Node>(node).parent = parent;
+        registry.get_or_emplace<Node>(parent).childs.push_back(node);
+
+        auto& transform      = registry.emplace<Transform>(node);
+        transform.matrix     = parentMatrix * calcMatrix(localTranslate, localRotation, localScale);
+        transform.prevMatrix = transform.matrix;
+        transform.scale      = parentScale * localScale;
+
+        if (modelNode.name == "vehicle"_hs) {
+            isStatic = false;
+            vehicle  = node;
+            registry.emplace<Vehicle>(node);
+        } else if (vehicle != entt::null) {
+            std::optional<Wheel::Position> wheelPos = std::nullopt;
+            switch (modelNode.name) {
+                case "wheel_lf"_hs:
+                    wheelPos = Wheel::FrontLeft;
+                    break;
+                case "wheel_rf"_hs:
+                    wheelPos = Wheel::FrontRight;
+                    break;
+                case "wheel_lb"_hs:
+                    wheelPos = Wheel::BackLeft1;
+                    break;
+                case "wheel_rb"_hs:
+                    wheelPos = Wheel::BackRight1;
+                    break;
+                case "wheel_lb2"_hs:
+                    wheelPos = Wheel::BackLeft2;
+                    break;
+                case "wheel_rb2"_hs:
+                    wheelPos = Wheel::BackRight2;
+                    break;
+            }
+
+            if (wheelPos) {
+                auto& wheel    = registry.emplace<Wheel>(node);
+                wheel.parent   = vehicle;
+                wheel.point    = transform.matrix[3].xyz();
+                wheel.position = wheelPos.value();
+                registry.get<Vehicle>(vehicle).wheels.push_back(node);
+            }
+        }
+
+        if (isStatic) {
+            registry.emplace_or_replace<Static>(node);
+        }
 
         for (const auto& mesh : model.meshes) {
             if (mesh.nodeIndex == nodeIndex) {
-                auto& renderable = registry.get_or_emplace<Renderable>(node);
-                if (isStatic) {
-                    registry.emplace_or_replace<Static>(node);
+                auto& collider = registry.get_or_emplace<Collider>(node);
+                auto& body     = registry.get_or_emplace<RigidBody>(node);
+                body.mass      = 6000.0f;
+
+                if (auto colliderIndex = modelNode.colliderIndex; colliderIndex >= 0) {
+                    collider.shape = Collider::Shape::Mesh;
+                    collider.index = colliderIndex;
+                } else {
+                    collider.shape = Collider::Shape::Box;
+                    collider.size  = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
                 }
+
+                auto& renderable = registry.get_or_emplace<Renderable>(node);
                 renderable.meshes.push_back({});
                 auto& meshData = renderable.meshes.back();
 
                 meshData.model = model.name;
                 meshData.mesh  = mesh.meshIndex;
 
-                // if (name == "vehicle") {
-                //     meshData.mesh = 10;
-                // }
-
                 if (!model.materials.empty()) {
                     auto& mat = model.materials[mesh.materialIndex];
 
-                    static int ii = 0;
-
-                    meshData.material.name                     = ii++ % 2 ? TECH_OTHER_ID : TECH_PBR_ID; // mat.name;
+                    meshData.material.name                     = TECH_PBR_ID; // mat.name;
                     meshData.material.baseColorTexture         = mat.baseColorTexture;
                     meshData.material.metallicRoughnessTexture = mat.metallicRoughnessTexture;
                     meshData.material.normalTexture            = mat.normalTexture;
@@ -161,106 +198,18 @@ void addModel(entt::registry& registry,
                     meshData.material.occlusionStrength        = mat.occlusionStrength;
                     meshData.material.alphaCutoff              = mat.alphaCutoff;
                     meshData.material.flags                    = (MaterialFlags) mat.flags;
-
-                    if (ii == 1) { // vechicle
-                        const auto& bbox   = model.nodes[nodeIndex].bbox;
-                        auto& body         = registry.emplace<RigidBody>(node);
-                        body.mass          = 6000.0f;
-                        auto& collider     = registry.emplace<Collider>(node);
-                        auto colliderIndex = model.nodes[nodeIndex].colliderIndex;
-                        if (colliderIndex >= 0) {
-                            collider.shape              = Collider::Shape::Mesh;
-                            collider.data.colliderIndex = colliderIndex;
-                        } else {
-                            collider.shape     = Collider::Shape::Box;
-                            collider.data.size = (bbox.max() - bbox.min()) * 0.5f;
-                        }
-                        vechicle = node;
-                        registry.emplace<Vehicle>(node);
-                    }
-                    if (ii == 3) { // lf
-                        const auto& bbox     = model.nodes[nodeIndex].bbox;
-                        auto size            = bbox.max() - bbox.min();
-                        auto& body           = registry.emplace<RigidBody>(node);
-                        body.mass            = 120.0f;
-                        auto& collider       = registry.emplace<Collider>(node);
-                        collider.shape       = Collider::Shape::Sphere;
-                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
-                        wheelLf              = node;
-                        auto& wheel          = registry.emplace<Wheel>(node);
-                        wheel.point          = worldMatrix[3].xyz();
-                        wheel.position       = Wheel::FrontLeft;
-                    }
-                    if (ii == 2) { // lb
-                        const auto& bbox     = model.nodes[nodeIndex].bbox;
-                        auto size            = bbox.max() - bbox.min();
-                        auto& body           = registry.emplace<RigidBody>(node);
-                        body.mass            = 200.0f;
-                        auto& collider       = registry.emplace<Collider>(node);
-                        collider.shape       = Collider::Shape::Sphere;
-                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
-                        wheelLb              = node;
-                        auto& wheel          = registry.emplace<Wheel>(node);
-                        wheel.point          = worldMatrix[3].xyz();
-                        wheel.position       = Wheel::BackLeft1;
-                    }
-                    if (ii == 5) { // rf
-                        const auto& bbox     = model.nodes[nodeIndex].bbox;
-                        auto size            = bbox.max() - bbox.min();
-                        auto& body           = registry.emplace<RigidBody>(node);
-                        body.mass            = 120.0f;
-                        auto& collider       = registry.emplace<Collider>(node);
-                        collider.shape       = Collider::Shape::Sphere;
-                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
-                        wheelRf              = node;
-                        auto& wheel          = registry.emplace<Wheel>(node);
-                        wheel.point          = worldMatrix[3].xyz();
-                        wheel.position       = Wheel::FrontRight;
-                    }
-                    if (ii == 4) { // rb
-                        const auto& bbox     = model.nodes[nodeIndex].bbox;
-                        auto size            = bbox.max() - bbox.min();
-                        auto& body           = registry.emplace<RigidBody>(node);
-                        body.mass            = 200.0f;
-                        auto& collider       = registry.emplace<Collider>(node);
-                        collider.shape       = Collider::Shape::Sphere;
-                        collider.data.radius = glm::max(glm::max(size.x, size.y), size.z) * 0.5f;
-                        wheelRb              = node;
-                        auto& wheel          = registry.emplace<Wheel>(node);
-                        wheel.point          = worldMatrix[3].xyz();
-                        wheel.position       = Wheel::BackRight1;
-                    }
-                    if (ii == 6) { // floor
-                        const auto& bbox = model.nodes[nodeIndex].bbox;
-                        auto& body       = registry.emplace<RigidBody>(node);
-                        // body.mass        = 100000.0f;
-                        auto& collider     = registry.emplace<Collider>(node);
-                        collider.shape     = Collider::Shape::Box;
-                        collider.data.size = (bbox.max() - bbox.min()) * 0.5f;
-                    }
-                    if (ii == 7) { // floor
-                        const auto& bbox = model.nodes[nodeIndex].bbox;
-                        auto& body       = registry.emplace<RigidBody>(node);
-                        // body.mass        = 100000.0f;
-                        auto& collider     = registry.emplace<Collider>(node);
-                        collider.shape     = Collider::Shape::Box;
-                        collider.data.size = (bbox.max() - bbox.min()) * 0.5f;
-                    }
                 }
             }
         }
 
-        auto& childs = registry.get_or_emplace<Node>(parent);
-        childs.childs.push_back(node);
-
         for (gerium_sint32_t i = 0; i < (gerium_sint32_t) model.nodes.size(); ++i) {
             if (model.nodes[i].level == childLevel && model.nodes[i].parent == nodeIndex) {
-                nodesToVisit.emplace(i, model.nodes[i].level + 1, node, worldMatrix);
+                nodesToVisit.emplace(i, model.nodes[i].level + 1, node, transform.matrix, transform.scale);
             }
         }
     }
 
-    registry.get_or_emplace<Node>(parent).childs.push_back(root);
+    return root;
 }
 
 struct Archive {
@@ -291,54 +240,14 @@ void Application::initialize() {
     _serviceManager.addService<SceneService>();
     _serviceManager.addService<RenderService>();
 
-    _serviceManager.getService<RenderService>()->createCluster(cluster);
-
     auto root = _entityRegistry.create();
+    addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, -8.0f));
+    addModel(_entityRegistry, root, model4, glm::vec3(2.0f, -8.0f, -8.0f));
+    addModel(_entityRegistry, root, model4, glm::vec3(2.0f, -10.0f, -20.0f));
 
-    // addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, 0.0f), true);
-    // addModel(_entityRegistry, root, model3, glm::vec3(-2.0f, 0.0f, 0.0f), true);
-    addModel(_entityRegistry, root, cluster, model3, glm::vec3(2.0f, 0.0f, -8.0f), false);
-    addModel(_entityRegistry, root, cluster, model4, glm::vec3(2.0f, -8.0f, -8.0f), true);
-    addModel(_entityRegistry, root, cluster, model4, glm::vec3(2.0f, -10.0f, -20.0f), true);
-    // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 0.0f));
-    // addModel(_entityRegistry, root, model2, glm::vec3(0.0f, 0.0f, 1.0f));
-    // addModel(_entityRegistry, root, model1, glm::vec3(0.0f, 0.0f, 4.0f));
-
-    auto axis = glm::vec3(1.0f, 0.0f, 0.0f);
-
-    auto& wlf  = _entityRegistry.emplace<Constraint>(wheelLf);
-    wlf.parent = vechicle;
-    wlf.point  = _entityRegistry.get<WorldTransform>(wheelLf).matrix[3].xyz();
-    wlf.axis   = axis;
-
-    auto& wlb  = _entityRegistry.emplace<Constraint>(wheelLb);
-    wlb.parent = vechicle;
-    wlb.point  = _entityRegistry.get<WorldTransform>(wheelLb).matrix[3].xyz();
-    wlb.axis   = axis;
-
-    auto& wrf  = _entityRegistry.emplace<Constraint>(wheelRf);
-    wrf.parent = vechicle;
-    wrf.point  = _entityRegistry.get<WorldTransform>(wheelRf).matrix[3].xyz();
-    wrf.axis   = axis;
-
-    auto& wrb  = _entityRegistry.emplace<Constraint>(wheelRb);
-    wrb.parent = vechicle;
-    wrb.point  = _entityRegistry.get<WorldTransform>(wheelRb).matrix[3].xyz();
-    wrb.axis   = axis;
-
-    auto& vv = _entityRegistry.get<Vehicle>(vechicle);
-    vv.wheels.push_back(wheelLf);
-    vv.wheels.push_back(wheelRf);
-    vv.wheels.push_back(wheelLb);
-    vv.wheels.push_back(wheelRb);
-    wlf.parent = vechicle;
-    wrf.parent = vechicle;
-    wlb.parent = vechicle;
-    wrb.parent = vechicle;
-
+    _serviceManager.getService<RenderService>()->createCluster(cluster);
     _serviceManager.getService<RenderService>()->createStaticInstances();
     _serviceManager.getService<PhysicsService>()->createBodies(cluster);
-
     cluster = {};
 
     auto& camera = _entityRegistry.emplace<Camera>(_entityRegistry.create());
@@ -355,28 +264,6 @@ void Application::initialize() {
 
     Archive archive;
     entt::snapshot{ _entityRegistry }.get<Camera>(archive);
-
-    // auto truck = _entityRegistry.create();
-
-    // _entityRegistry.emplace<Name>(truck).name = "truck"_hs;
-    // _entityRegistry.emplace<LocalTransform>(truck);
-    // _entityRegistry.emplace<WorldTransform>(truck);
-    // auto wheels = _entityRegistry.emplace<Children>(truck);
-
-    // for (int i = 0; i < 4; ++i) {
-    //     auto wheel = _entityRegistry.create();
-
-    //     auto name = "wheel_" + std::to_string(i);
-
-    //     _entityRegistry.emplace<Name>(wheel).name = entt::hashed_string{ name.c_str(), name.length() };
-    //     _entityRegistry.emplace<LocalTransform>(wheel);
-    //     _entityRegistry.emplace<WorldTransform>(wheel);
-    //     _entityRegistry.emplace<RigidBody>(wheel);
-    //     _entityRegistry.emplace<Collider>(wheel);
-    //     _entityRegistry.emplace<Parent>(wheel).parent = truck;
-
-    //     wheels.childs.push_back(wheel);
-    // }
 }
 
 void Application::uninitialize() {
@@ -385,15 +272,7 @@ void Application::uninitialize() {
 }
 
 void Application::frame(gerium_uint64_t elapsedMs) {
-    // auto& transform = _entityRegistry.get<WorldTransform>(m3);
-
-    // transform.prevMatrix = transform.matrix;
-    // transform.matrix[3][2] -= elapsedMs * 0.001f * 1.0f;
-
-    // _eventManager.dispatch();
     _serviceManager.update(elapsedMs);
-
-    _serviceManager.getService<PhysicsService>()->ApplyThrottle(wheelRb, 100.0f);
 }
 
 void Application::state(gerium_application_state_t state) {
@@ -419,7 +298,6 @@ void Application::state(gerium_application_state_t state) {
         case GERIUM_APPLICATION_STATE_MAXIMIZE:
         case GERIUM_APPLICATION_STATE_FULLSCREEN:
         case GERIUM_APPLICATION_STATE_RESIZED:
-            // _eventManager.send<WindowStateEvent>(state, width, height);
             break;
         default:
             break;

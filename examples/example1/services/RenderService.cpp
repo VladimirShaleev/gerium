@@ -158,15 +158,15 @@ void RenderService::createStaticInstances() {
 
     _resourceManager.update(0);
 
-    auto view = entityRegistry().view<Renderable, WorldTransform, Static>();
+    auto view = entityRegistry().view<Renderable, Transform, Static>();
 
     std::vector<Material> materials;
     std::vector<MeshInstance> instances;
 
     for (auto entity : view) {
-        auto& renderable     = view.get<Renderable>(entity);
-        auto& worldTransform = view.get<WorldTransform>(entity);
-        getMaterialsAndInstances(renderable, worldTransform, materials, instances);
+        auto& renderable = view.get<Renderable>(entity);
+        auto& transform  = view.get<Transform>(entity);
+        getMaterialsAndInstances(renderable, transform, materials, instances);
     }
 
     _staticMaterialsCount = (gerium_uint32_t) materials.size();
@@ -414,14 +414,14 @@ void RenderService::updateActiveSceneData() {
 }
 
 void RenderService::updateDynamicInstances() {
-    auto view = entityRegistry().view<Renderable, WorldTransform>(entt::exclude<Static>);
+    auto view = entityRegistry().view<Renderable, Transform>(entt::exclude<Static>);
 
     std::vector<MeshInstance> instances;
 
     for (auto entity : view) {
-        auto& renderable     = view.get<Renderable>(entity);
-        auto& worldTransform = view.get<WorldTransform>(entity);
-        getMaterialsAndInstances(renderable, worldTransform, _dynamicMaterialsCache, instances);
+        auto& renderable = view.get<Renderable>(entity);
+        auto& transform  = view.get<Transform>(entity);
+        getMaterialsAndInstances(renderable, transform, _dynamicMaterialsCache, instances);
     }
 
     assert(_staticInstancesCount + instances.size() < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
@@ -459,7 +459,7 @@ void RenderService::updateInstancesData() {
 }
 
 void RenderService::getMaterialsAndInstances(const Renderable& renderable,
-                                             const WorldTransform& worldTransform,
+                                             const Transform& transform,
                                              std::vector<Material>& materials,
                                              std::vector<MeshInstance>& instances) {
     for (const auto& meshData : renderable.meshes) {
@@ -468,11 +468,11 @@ void RenderService::getMaterialsAndInstances(const Renderable& renderable,
         instances.push_back({});
         auto& instance = instances.back();
 
-        const auto scale = glm::max(glm::max(worldTransform.scale.x, worldTransform.scale.y), worldTransform.scale.z);
+        const auto scale = glm::max(glm::max(transform.scale.x, transform.scale.y), transform.scale.z);
 
-        instance.world        = worldTransform.matrix;
-        instance.prevWorld    = worldTransform.prevMatrix;
-        instance.normalMatrix = glm::transpose(glm::inverse(worldTransform.matrix));
+        instance.world        = transform.matrix;
+        instance.prevWorld    = transform.prevMatrix;
+        instance.normalMatrix = glm::transpose(glm::inverse(transform.matrix));
         instance.scale        = scale;
         instance.mesh         = meshData.mesh;
         instance.technique    = techniqueIndex;

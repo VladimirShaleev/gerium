@@ -1,5 +1,7 @@
 #include "Model.hpp"
 
+using namespace entt::literals;
+
 struct Cache {
     std::set<const aiMesh*> meshes;
     std::vector<std::tuple<size_t, size_t>> nodeNames;
@@ -270,49 +272,54 @@ static void recursiveParsing(Cluster& cluster,
                              const aiNode* nd,
                              gerium_sint32_t parent,
                              gerium_sint32_t level) {
-    auto matrix = nd->mTransformation;
-    matrix.Transpose();
-
-    glm::mat4 localTransform;
-    localTransform[0] = glm::vec4(matrix.a1, matrix.a2, matrix.a3, matrix.a4);
-    localTransform[1] = glm::vec4(matrix.b1, matrix.b2, matrix.b3, matrix.b4);
-    localTransform[2] = glm::vec4(matrix.c1, matrix.c2, matrix.c3, matrix.c4);
-    localTransform[3] = glm::vec4(matrix.d1, matrix.d2, matrix.d3, matrix.d4);
-
-    Model::Node node{};
-    node.parent = parent;
-    node.level  = level;
-    glm::vec3 skew;
-    glm::vec4 perspective;
-    glm::decompose(localTransform, node.scale, node.rotation, node.position, skew, perspective);
-
     auto nodeIndex = (gerium_sint32_t) model.nodes.size();
-    model.nodes.push_back(node);
-    cache.nodeNames.push_back({});
-
     hashed_string_owner name(nd->mName.C_Str(), nd->mName.length);
 
-    if (name.string().ends_with("_collider")) {
-        cache.colliders[name] = (gerium_sint32_t) cluster.meshColliders.size();
-        cluster.meshColliders.push_back({});
-        auto& collider = cluster.meshColliders.back();
-        for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
-            const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
-            appendCollider(collider, mesh);
-        }
-    } else {
-        if (nd->mName.length) {
-            cache.nodeNames.back() = appendString(model, nd->mName.C_Str(), nd->mName.length);
-        }
+    if ((gerium_uint32_t) name != "ROOT"_hs) {
+        if (name.string().ends_with("_collider")) {
+            cache.colliders[name] = (gerium_sint32_t) cluster.meshColliders.size();
+            cluster.meshColliders.push_back({});
+            auto& collider = cluster.meshColliders.back();
+            for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
+                const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
+                appendCollider(collider, mesh);
+            }
+        } else {
+            auto matrix = nd->mTransformation;
+            matrix.Transpose();
 
-        for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
-            const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
-            if (!cache.meshes.contains(mesh)) {
-                cache.meshes.insert(mesh);
-                model.meshes.emplace_back((gerium_uint32_t) cluster.meshes.size(), 0, nodeIndex);
-                appendMesh(cluster, cache, model, sc, mesh);
+            glm::mat4 localTransform;
+            localTransform[0] = glm::vec4(matrix.a1, matrix.a2, matrix.a3, matrix.a4);
+            localTransform[1] = glm::vec4(matrix.b1, matrix.b2, matrix.b3, matrix.b4);
+            localTransform[2] = glm::vec4(matrix.c1, matrix.c2, matrix.c3, matrix.c4);
+            localTransform[3] = glm::vec4(matrix.d1, matrix.d2, matrix.d3, matrix.d4);
+
+            Model::Node node{};
+            node.parent = parent;
+            node.level  = level;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(localTransform, node.scale, node.rotation, node.position, skew, perspective);
+
+            model.nodes.push_back(node);
+            cache.nodeNames.push_back({});
+
+            if (nd->mName.length) {
+                cache.nodeNames.back() = appendString(model, nd->mName.C_Str(), nd->mName.length);
+            }
+
+            for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
+                const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
+                if (!cache.meshes.contains(mesh)) {
+                    cache.meshes.insert(mesh);
+                    model.meshes.emplace_back((gerium_uint32_t) cluster.meshes.size(), 0, nodeIndex);
+                    appendMesh(cluster, cache, model, sc, mesh);
+                }
             }
         }
+    } else {
+        nodeIndex = -1;
+        level     = -1;
     }
 
     for (unsigned int n = 0; n < nd->mNumChildren; ++n) {

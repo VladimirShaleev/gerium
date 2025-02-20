@@ -11,11 +11,11 @@ struct Collider {
         Mesh
     } shape;
 
-    union Data {
+    union {
         glm::vec3 size;
         gerium_float32_t radius;
-        gerium_uint32_t colliderIndex;
-    } data;
+        gerium_uint32_t index;
+    };
 };
 
 #endif

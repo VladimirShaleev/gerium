@@ -4,7 +4,7 @@
 #include "../Model.hpp"
 #include "../ResourceManager.hpp"
 #include "../components/Renderable.hpp"
-#include "../components/WorldTransform.hpp"
+#include "../components/Transform.hpp"
 #include "ServiceManager.hpp"
 
 class RenderPass;
@@ -61,7 +61,7 @@ private:
     void updateInstancesData();
 
     void getMaterialsAndInstances(const Renderable& renderable,
-                                  const WorldTransform& worldTransform,
+                                  const Transform& transform,
                                   std::vector<Material>& materials,
                                   std::vector<MeshInstance>& instances);
 
