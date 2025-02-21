@@ -1,6 +1,8 @@
 #include "InputService.hpp"
 #include "../Application.hpp"
 #include "../components/Camera.hpp"
+#include "../components/Vehicle.hpp"
+#include "../components/VehicleController.hpp"
 
 bool InputService::isPressScancode(gerium_scancode_t scancode) const noexcept {
     return gerium_application_is_press_scancode(application().handle(), scancode);
@@ -103,5 +105,32 @@ void InputService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t elap
 
     if (gerium_application_get_platform(app) != GERIUM_RUNTIME_PLATFORM_ANDROID) {
         gerium_application_show_cursor(app, showCursor);
+    }
+
+    gerium_float32_t forward = 0.0f;
+    gerium_float32_t right   = 0.0f;
+    if (isPressScancode(GERIUM_SCANCODE_NUMPAD_8)) {
+        forward = 1.0f;
+    } else if (isPressScancode(GERIUM_SCANCODE_NUMPAD_2)) {
+        forward = -1.0f;
+    }
+
+    if (isPressScancode(GERIUM_SCANCODE_NUMPAD_4)) {
+        right = -1.0f;
+    } else if (isPressScancode(GERIUM_SCANCODE_NUMPAD_6)) {
+        right = 1.0f;
+    }
+
+    bool handBrake = false;
+    if (isPressScancode(GERIUM_SCANCODE_NUMPAD_0)) {
+        handBrake = true;
+    }
+
+    auto viewControllers = entityRegistry().view<Vehicle, VehicleController>();
+    for (auto entity : viewControllers) {
+        auto& vehicle            = viewControllers.get<Vehicle>(entity);
+        vehicle.forward          = forward;
+        vehicle.right            = right;
+        vehicle.handBrakePressed = handBrake;
     }
 }

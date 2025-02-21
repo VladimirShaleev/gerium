@@ -19,6 +19,8 @@ private:
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
     void step();
 
+    void driverInput(entt::entity entity, Vehicle& vehicle);
+    void updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint);
     void syncPhysicsToECS();
     void updatePhysicsTransforms(entt::storage<Transform>& storage);
     void updateLocalTransforms(entt::storage<Transform>& storage);
@@ -74,12 +76,8 @@ private:
     std::unique_ptr<JPH::ObjectVsBroadPhaseLayerFilter> _objectVsBroadPhaseLayerFilter{};
     std::unique_ptr<JPH::ObjectLayerPairFilter> _objectLayerPairFilter{};
     std::unique_ptr<JPH::PhysicsSystem> _physicsSystem{};
-
-    ///////////////////
-
-    JPH::Ref<JPH::VehicleCollisionTester> _tester{};
-    JPH::Ref<JPH::VehicleConstraint> _vehicleConstraint{};
-    JPH::Body* _car{};
+    JPH::Ref<JPH::VehicleCollisionTester> _vehicleTester{};
+    std::map<entt::entity, JPH::Ref<JPH::VehicleConstraint>> _vehicleConstraints{};
 };
 
 #endif

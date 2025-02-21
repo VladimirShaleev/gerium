@@ -6,7 +6,6 @@
 #include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
 #include "../components/Wheel.hpp"
-#include "InputService.hpp"
 
 using namespace entt::literals;
 
@@ -14,8 +13,6 @@ constexpr float mUpdateFrequency    = 60.0f;
 constexpr float mRequestedDeltaTime = 1.0f / mUpdateFrequency;
 
 void PhysicsService::createBodies(const Cluster& cluster) {
-    _tester = new JPH::VehicleCollisionTesterCastCylinder(Dynamic);
-
     auto view = entityRegistry().view<RigidBody, Collider, Transform>(entt::exclude<Wheel>);
 
     for (auto entity : view) {
@@ -133,10 +130,12 @@ void PhysicsService::createBodies(const Cluster& cluster) {
                 }
             }
 
-            _car               = _physicsSystem->GetBodyLockInterface().TryGetBody(rigidBody.body);
-            _vehicleConstraint = new JPH::VehicleConstraint(*_car, constraint);
+            _vehicleConstraints[entity] = new JPH::VehicleConstraint(*body, constraint);
+            auto& vehicleConstraint     = _vehicleConstraints[entity];
+            vehicleConstraint->SetVehicleCollisionTester(_vehicleTester);
+            updateVehicleSettings(*vehicle, vehicleConstraint);
 
-            static_cast<JPH::WheeledVehicleController*>(_vehicleConstraint->GetController())
+            static_cast<JPH::WheeledVehicleController*>(vehicleConstraint->GetController())
                 ->SetTireMaxImpulseCallback([](uint,
                                                float& outLongitudinalImpulse,
                                                float& outLateralImpulse,
@@ -150,8 +149,8 @@ void PhysicsService::createBodies(const Cluster& cluster) {
                 outLateralImpulse      = inLateralFriction * inSuspensionImpulse;
             });
 
-            _physicsSystem->AddConstraint(_vehicleConstraint);
-            _physicsSystem->AddStepListener(_vehicleConstraint);
+            _physicsSystem->AddConstraint(vehicleConstraint);
+            _physicsSystem->AddStepListener(vehicleConstraint);
         }
     }
 
@@ -219,6 +218,7 @@ void PhysicsService::start() {
                          *_objectVsBroadPhaseLayerFilter.get(),
                          *_objectLayerPairFilter.get());
     _physicsSystem->SetPhysicsSettings(settings);
+    _vehicleTester = new JPH::VehicleCollisionTesterCastCylinder(Dynamic);
     // _physicsSystem->SetContactListener();
 }
 
@@ -268,81 +268,77 @@ void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t el
     // physicsTransforms.clear();
 }
 
-float forward         = 0.0f;
-float previousForward = 1.0f;
-float right           = 0.0f;
-float brake           = 0.0f;
-float handBrake       = 0.0f;
-
 void PhysicsService::step() {
-    auto is = manager().getService<InputService>();
+    syncPhysicsToECS();
 
-    forward = 0.0f;
-    if (is->isPressScancode(GERIUM_SCANCODE_NUMPAD_8)) {
-        forward = 1.0f;
-    } else if (is->isPressScancode(GERIUM_SCANCODE_NUMPAD_2)) {
-        forward = -1.0f;
+    auto view = entityRegistry().view<Vehicle>();
+    for (auto entity : view) {
+        auto& vehicle = view.get<Vehicle>(entity);
+        driverInput(entity, vehicle);
     }
 
-    brake = 0.0f;
-    if (previousForward * forward < 0.0f) {
-        // Get vehicle velocity in local space to the body of the vehicle
-        float velocity = (_car->GetRotation().Conjugated() * _car->GetLinearVelocity()).GetZ();
-        if ((forward > 0.0f && velocity < -0.1f) || (forward < 0.0f && velocity > 0.1f)) {
-            // Brake while we've not stopped yet
-            forward = 0.0f;
-            brake   = 1.0f;
+    _physicsSystem->Update(mRequestedDeltaTime, 1, _allocator.get(), _jobSystem.get());
+}
+
+void PhysicsService::driverInput(entt::entity entity, Vehicle& vehicle) {
+    auto& constraint = _vehicleConstraints[entity];
+
+    auto body = constraint->GetVehicleBody();
+
+    auto brake = 0.0f;
+    if (vehicle.previousForward * vehicle.forward < 0.0f) {
+        auto velocity = (body->GetRotation().Conjugated() * body->GetLinearVelocity()).GetZ();
+        if ((vehicle.forward > 0.0f && velocity < -0.1f) || (vehicle.forward < 0.0f && velocity > 0.1f)) {
+            vehicle.forward = 0.0f;
+            brake           = 1.0f;
         } else {
-            // When we've come to a stop, accept the new direction
-            previousForward = forward;
+            vehicle.previousForward = vehicle.forward;
         }
     }
 
-    // Hand brake will cancel gas pedal
-    handBrake = 0.0f;
-    if (is->isPressScancode(GERIUM_SCANCODE_NUMPAD_0)) {
-        forward   = 0.0f;
-        handBrake = 1.0f;
+    auto handBrakeValue = 0.0f;
+    if (vehicle.handBrakePressed) {
+        vehicle.forward = 0.0f;
+        handBrakeValue  = 1.0f;
     }
 
-    // Steering
-    right = 0.0f;
-    if (is->isPressScancode(GERIUM_SCANCODE_NUMPAD_4)) {
-        right = -1.0f;
-    } else if (is->isPressScancode(GERIUM_SCANCODE_NUMPAD_6)) {
-        right = 1.0f;
+    if (vehicle.forward != 0.0f || vehicle.right != 0.0f || brake != 0.0f || handBrakeValue != 0.0f) {
+        _physicsSystem->GetBodyInterface().ActivateBody(constraint->GetVehicleBody()->GetID());
     }
 
-    if (right != 0.0f || forward != 0.0f || brake != 0.0f || handBrake != 0.0f) {
-        _physicsSystem->GetBodyInterface().ActivateBody(_car->GetID());
+    auto controller = static_cast<JPH::WheeledVehicleController*>(constraint->GetController());
+
+    updateVehicleSettings(vehicle, constraint);
+    controller->SetDriverInput(vehicle.forward, -vehicle.right, brake, handBrakeValue);
+
+    vehicle.forward          = 0.0f;
+    vehicle.right            = 0.0f;
+    vehicle.handBrakePressed = false;
+}
+
+void PhysicsService::updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint) {
+    auto controller    = static_cast<JPH::WheeledVehicleController*>(constraint->GetController());
+    auto& engine       = controller->GetEngine();
+    auto& transmission = controller->GetTransmission();
+
+    engine.mMaxTorque            = vehicle.maxTorque;
+    engine.mMinRPM               = vehicle.minRPM;
+    engine.mMaxRPM               = vehicle.maxRPM;
+    transmission.mClutchStrength = vehicle.clutchStrength;
+    transmission.mSwitchTime     = vehicle.switchTime;
+
+    if (transmission.mGearRatios.size() != vehicle.gearRatios.size()) {
+        transmission.mGearRatios.resize(vehicle.gearRatios.size());
     }
 
-    auto controller = static_cast<JPH::WheeledVehicleController*>(_vehicleConstraint->GetController());
-
-    const auto sLimitedSlipDifferentials = true;
-    const auto sMaxEngineTorque          = 500.0;
-    const auto sClutchStrength           = 10.0;
-    const auto limitedSlipRatio          = sLimitedSlipDifferentials ? 1.4f : FLT_MAX;
-
-    controller->GetEngine().mMaxTorque            = sMaxEngineTorque;
-    controller->GetEngine().mMinRPM               = 1000.0f;
-    controller->GetEngine().mMaxRPM               = 6000.0f;
-    controller->GetTransmission().mClutchStrength = 10.0f; // sClutchStrength;
-    controller->GetTransmission().mGearRatios     = { 2.66f, 1.78f, 1.3f, 1.0f, 0.74f };
-    controller->GetTransmission().mSwitchTime     = 0.5f;
-
-    controller->SetDifferentialLimitedSlipRatio(limitedSlipRatio);
-    for (auto& d : controller->GetDifferentials()) {
-        d.mLimitedSlipRatio = limitedSlipRatio;
+    for (size_t i = 0; i < vehicle.gearRatios.size(); ++i) {
+        transmission.mGearRatios[i] = vehicle.gearRatios[i];
     }
 
-    controller->SetDriverInput(forward, -right, brake, handBrake);
-
-    _vehicleConstraint->SetVehicleCollisionTester(_tester);
-
-    syncPhysicsToECS();
-
-    _physicsSystem->Update(mRequestedDeltaTime, 1, _allocator.get(), _jobSystem.get());
+    controller->SetDifferentialLimitedSlipRatio(vehicle.limitedSlipRatio);
+    for (auto& differential : controller->GetDifferentials()) {
+        differential.mLimitedSlipRatio = vehicle.limitedSlipRatio;
+    }
 }
 
 void PhysicsService::syncPhysicsToECS() {
@@ -379,7 +375,7 @@ void PhysicsService::syncPhysicsToECS() {
                 auto& w = entityRegistry().get<Wheel>(wheel);
                 auto& t = entityRegistry().get<Transform>(wheel);
                 // const auto settings = _vehicleConstraint->GetWheels()[w.id]->GetSettings();
-                auto wheelTransform = _vehicleConstraint->GetWheelWorldTransform(
+                auto wheelTransform = _vehicleConstraints[entity]->GetWheelWorldTransform(
                     (JPH::uint) w.position, JPH::Vec3::sAxisX(), JPH::Vec3::sAxisY());
                 t.prevMatrix = t.matrix;
                 memcpy((void*) &t.matrix, (void*) &wheelTransform, sizeof(glm::mat4));

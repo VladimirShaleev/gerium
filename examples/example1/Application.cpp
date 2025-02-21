@@ -15,6 +15,7 @@
 #include "components/Static.hpp"
 #include "components/Transform.hpp"
 #include "components/Vehicle.hpp"
+#include "components/VehicleController.hpp"
 #include "components/Wheel.hpp"
 
 #include "Model.hpp"
@@ -73,13 +74,8 @@ entt::entity addModel(entt::registry& registry,
                       const glm::vec3& position = { 0.0f, 0.0f, 0.0f },
                       const glm::quat& rotation = { 1.0f, 0.0f, 0.0f, 0.0f },
                       const glm::vec3& scale    = { 1.0f, 1.0f, 1.0f }) {
-    auto root = registry.create();
-    registry.emplace<Node>(root);
-    registry.get_or_emplace<Node>(parent).childs.push_back(root);
-
-    auto& transform      = registry.emplace<Transform>(root);
-    transform.matrix     = calcMatrix(position, rotation, scale);
-    transform.prevMatrix = transform.matrix;
+    auto worldTransform = registry.get_or_emplace<Transform>(parent).matrix * calcMatrix(position, rotation, scale);
+    auto worldScale     = registry.get_or_emplace<Transform>(parent).scale * scale;
 
     struct Hierarchy {
         gerium_sint32_t nodeIndex;
@@ -93,12 +89,13 @@ entt::entity addModel(entt::registry& registry,
 
     for (gerium_sint32_t i = 0; i < (gerium_sint32_t) model.nodes.size(); ++i) {
         if (model.nodes[i].parent < 0) {
-            nodesToVisit.emplace(i, model.nodes[i].level + 1, root, transform.matrix, scale);
+            nodesToVisit.emplace(i, model.nodes[i].level + 1, parent, worldTransform, worldScale);
         }
     }
 
     auto isStatic = true;
 
+    entt::entity result  = entt::null;
     entt::entity vehicle = entt::null;
 
     while (!nodesToVisit.empty()) {
@@ -112,6 +109,10 @@ entt::entity addModel(entt::registry& registry,
         const glm::vec3& localScale     = modelNode.scale;
 
         auto node = registry.create();
+
+        if (result == entt::null) {
+            result = node;
+        }
 
         registry.emplace<Node>(node).parent = parent;
         registry.get_or_emplace<Node>(parent).childs.push_back(node);
@@ -166,13 +167,13 @@ entt::entity addModel(entt::registry& registry,
                 auto& body     = registry.get_or_emplace<RigidBody>(node);
                 body.mass      = 6000.0f;
 
-                if (auto colliderIndex = modelNode.colliderIndex; colliderIndex >= 0) {
-                    collider.shape = Collider::Shape::Mesh;
-                    collider.index = colliderIndex;
-                } else {
-                    collider.shape = Collider::Shape::Box;
-                    collider.size  = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
-                }
+                // if (auto colliderIndex = modelNode.colliderIndex; colliderIndex >= 0) {
+                //     collider.shape = Collider::Shape::Mesh;
+                //     collider.index = colliderIndex;
+                // } else {
+                collider.shape = Collider::Shape::Box;
+                collider.size  = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
+                // }
 
                 auto& renderable = registry.get_or_emplace<Renderable>(node);
                 renderable.meshes.push_back({});
@@ -208,7 +209,7 @@ entt::entity addModel(entt::registry& registry,
         }
     }
 
-    return root;
+    return result;
 }
 
 struct Archive {
@@ -245,6 +246,9 @@ void Application::initialize() {
     addModel(_entityRegistry, root, model3, glm::vec3(2.0f, 0.0f, -8.0f), rotate);
     addModel(_entityRegistry, root, model4, glm::vec3(2.0f, -8.0f, -8.0f));
     addModel(_entityRegistry, root, model4, glm::vec3(2.0f, -10.0f, -20.0f));
+    auto v1 = addModel(_entityRegistry, root, model3, glm::vec3(4.3f, 0.0f, -8.0f));
+
+    _entityRegistry.emplace<VehicleController>(v1);
 
     _serviceManager.getService<RenderService>()->createCluster(cluster);
     _serviceManager.getService<RenderService>()->createStaticInstances();
