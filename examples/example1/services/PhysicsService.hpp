@@ -3,6 +3,7 @@
 
 #include "../Model.hpp"
 #include "../components/Collider.hpp"
+#include "../components/RigidBody.hpp"
 #include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
 #include "../components/Wheel.hpp"
@@ -11,7 +12,6 @@
 class PhysicsService final : public Service {
 public:
     void createBodies(const Cluster& cluster);
-    void ApplyThrottle(entt::entity entity, float throttle);
 
 private:
     void start() override;
@@ -19,17 +19,18 @@ private:
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
     void step();
 
+    void createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody);
+
+    entt::hashed_string stateName() const noexcept override;
+    std::vector<gerium_uint8_t> saveState() override;
+    void restoreState(const std::vector<gerium_uint8_t>& data) override;
+
     void driverInput(entt::entity entity, Vehicle& vehicle);
     void updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint);
     void syncPhysicsToECS();
-    void updatePhysicsTransforms(entt::storage<Transform>& storage);
-    void updateLocalTransforms(entt::storage<Transform>& storage);
-
-    glm::mat4 getPhysicsTransform();
 
     static JPH::WheelSettings* createWheelSettings(const Vehicle& vehicle,
                                                    const Wheel& wheel,
-                                                   const glm::vec3& position,
                                                    gerium_float32_t radius,
                                                    gerium_float32_t width);
 

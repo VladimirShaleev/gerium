@@ -15,6 +15,7 @@ enum class WheelPosition {
 struct Wheel {
     entt::entity parent;
     WheelPosition position;
+    glm::vec3 point;
 };
 
 #endif

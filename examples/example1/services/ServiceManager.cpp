@@ -1,6 +1,8 @@
 #include "ServiceManager.hpp"
 #include "../Application.hpp"
 
+using namespace entt::literals;
+
 ServiceManager& Service::manager() noexcept {
     return *_manager;
 }
@@ -33,6 +35,17 @@ void Service::start() {
 }
 
 void Service::stop() {
+}
+
+entt::hashed_string Service::stateName() const noexcept {
+    return {};
+}
+
+std::vector<gerium_uint8_t> Service::saveState() {
+    return {};
+}
+
+void Service::restoreState(const std::vector<gerium_uint8_t>& data) {
 }
 
 void Service::setManager(ServiceManager* manager, uint32_t id) noexcept {
@@ -78,6 +91,29 @@ void ServiceManager::update(gerium_uint64_t elapsedMs) {
         auto service = it->get();
         if (!service->isStopped()) {
             service->update(_elapsedMs, _elapsed);
+        }
+    }
+}
+
+std::map<entt::hashed_string, std::vector<uint8_t>> ServiceManager::saveState() {
+    std::map<entt::hashed_string, std::vector<uint8_t>> states;
+    for (auto it = _services.begin(); it != _services.end(); ++it) {
+        auto service = it->get();
+        if (auto key = service->stateName(); key != ""_hs) {
+            if (states.contains(key)) {
+                throw std::runtime_error("State key already exists");
+            }
+            states[key] = service->saveState();
+        }
+    }
+    return states;
+}
+
+void ServiceManager::restoreState(const std::map<hashed_string_owner, std::vector<uint8_t>>& states) {
+    for (auto it = _services.begin(); it != _services.end(); ++it) {
+        auto service = it->get();
+        if (auto it = states.find(service->stateName()); it != states.end()) {
+            service->restoreState(it->second);
         }
     }
 }

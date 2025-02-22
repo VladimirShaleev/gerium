@@ -1,11 +1,5 @@
 #include "PhysicsService.hpp"
-#include "../components/Collider.hpp"
-#include "../components/Node.hpp"
-#include "../components/RigidBody.hpp"
 #include "../components/Static.hpp"
-#include "../components/Transform.hpp"
-#include "../components/Vehicle.hpp"
-#include "../components/Wheel.hpp"
 
 using namespace entt::literals;
 
@@ -54,116 +48,11 @@ void PhysicsService::createBodies(const Cluster& cluster) {
             bodyId, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
 
         if (vehicle) {
-            JPH::VehicleConstraintSettings constraint;
-            constraint.mMaxPitchRollAngle = vehicle->maxRollAngle;
-            constraint.mWheels.resize(vehicle->wheels.size());
-
-            size_t frontWheels = 0;
-            size_t rearWheels  = 0;
-
-            for (const auto& wheelEntity : vehicle->wheels) {
-                const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
-
-                const auto index = int(wheel.position) / 2;
-                if (index == 0) {
-                    ++frontWheels;
-                } else {
-                    ++rearWheels;
-                }
-
-                auto localMatrix = glm::inverse(transform.matrix) * entityRegistry().get<Transform>(wheelEntity).matrix;
-                auto wheelPosition = localMatrix[3].xyz();
-
-                const auto& wheelCollider = entityRegistry().get<Collider>(wheelEntity);
-
-                constraint.mWheels[int(wheel.position)] =
-                    createWheelSettings(*vehicle, wheel, wheelPosition, wheelCollider.size.z, wheelCollider.size.x);
-            }
-
-            if (vehicle->antiRollbar) {
-                constraint.mAntiRollBars.resize(vehicle->wheels.size() / 2);
-                for (auto wheelEntity : vehicle->wheels) {
-                    const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
-                    const auto index  = int(wheel.position) / 2;
-                    const auto isLeft = int(wheel.position) % 2 == 0;
-
-                    if (isLeft) {
-                        constraint.mAntiRollBars[index].mLeftWheel = int(wheel.position);
-                    } else {
-                        constraint.mAntiRollBars[index].mRightWheel = int(wheel.position);
-                    }
-                }
-            }
-
-            size_t differentials;
-            switch (vehicle->wheelDrive) {
-                case WheelDrive::Front:
-                    differentials = frontWheels / 2;
-                    break;
-                case WheelDrive::Rear:
-                    differentials = rearWheels / 2;
-                    break;
-                case WheelDrive::All:
-                    differentials = (frontWheels + rearWheels) / 2;
-                    break;
-            }
-            const auto engineTorqueRatio = 1.0f / differentials;
-
-            auto controller        = new JPH::WheeledVehicleControllerSettings;
-            constraint.mController = controller;
-            controller->mDifferentials.resize(differentials);
-            for (auto wheelEntity : vehicle->wheels) {
-                const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
-                auto index        = int(wheel.position) / 2;
-                const auto isLeft = int(wheel.position) % 2 == 0;
-                if ((index == 0 && vehicle->wheelDrive == WheelDrive::Front) ||
-                    (index != 0 && vehicle->wheelDrive == WheelDrive::Rear) || vehicle->wheelDrive == WheelDrive::All) {
-                    if (vehicle->wheelDrive == WheelDrive::Rear) {
-                        index = 0;
-                    }
-                    if (isLeft) {
-                        controller->mDifferentials[index].mLeftWheel = int(wheel.position);
-                    } else {
-                        controller->mDifferentials[index].mRightWheel = int(wheel.position);
-                    }
-                    controller->mDifferentials[index].mEngineTorqueRatio = engineTorqueRatio;
-                }
-            }
-
-            _vehicleConstraints[entity] = new JPH::VehicleConstraint(*body, constraint);
-            auto& vehicleConstraint     = _vehicleConstraints[entity];
-            vehicleConstraint->SetVehicleCollisionTester(_vehicleTester);
-            updateVehicleSettings(*vehicle, vehicleConstraint);
-
-            static_cast<JPH::WheeledVehicleController*>(vehicleConstraint->GetController())
-                ->SetTireMaxImpulseCallback([](uint,
-                                               float& outLongitudinalImpulse,
-                                               float& outLateralImpulse,
-                                               float inSuspensionImpulse,
-                                               float inLongitudinalFriction,
-                                               float inLateralFriction,
-                                               float,
-                                               float,
-                                               float) {
-                outLongitudinalImpulse = 10.0f * inLongitudinalFriction * inSuspensionImpulse;
-                outLateralImpulse      = inLateralFriction * inSuspensionImpulse;
-            });
-
-            _physicsSystem->AddConstraint(vehicleConstraint);
-            _physicsSystem->AddStepListener(vehicleConstraint);
+            createVehicleConstraints(entity, *vehicle, rigidBody);
         }
     }
 
     _physicsSystem->OptimizeBroadPhase();
-}
-
-void PhysicsService::ApplyThrottle(entt::entity entity, float throttle) {
-    // auto bodyId = entityRegistry().get<RigidBody>(entity).body;
-
-    // _physicsSystem->GetBodyInterface().AddTorque(bodyId, JPH::Vec3(0.0f, throttle, 0.0f));
-    // for (auto hh : h) {
-    //     hh->SetTargetAngularVelocity(-5.0f);
-    // }
 }
 
 void PhysicsService::start() {
@@ -219,18 +108,22 @@ void PhysicsService::start() {
                          *_objectLayerPairFilter.get());
     _physicsSystem->SetPhysicsSettings(settings);
     _vehicleTester = new JPH::VehicleCollisionTesterCastCylinder(Dynamic);
-    // _physicsSystem->SetContactListener();
 }
 
 void PhysicsService::stop() {
-    // _tester
+    if (_physicsSystem) {
+        for (auto& [_, constraint] : _vehicleConstraints) {
+            _physicsSystem->RemoveStepListener(constraint);
+        }
+    }
 
-    //////////////
-
+    _vehicleConstraints.clear();
+    _vehicleTester                 = nullptr;
     _physicsSystem                 = nullptr;
     _objectLayerPairFilter         = nullptr;
     _objectVsBroadPhaseLayerFilter = nullptr;
     _broadPhaseLayerInterface      = nullptr;
+    _jobSystem                     = nullptr;
     _allocator                     = nullptr;
 
     JPH::UnregisterTypes();
@@ -257,15 +150,6 @@ void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t el
     if (worldDeltaTime > 0.0f) {
         step();
     }
-
-    // syncPhysicsToECS();
-
-    // auto&& physicsTransforms = entityRegistry().storage<Transform>("physics_transforms"_hs);
-
-    // updatePhysicsTransforms(physicsTransforms);
-    // updateLocalTransforms(physicsTransforms);
-
-    // physicsTransforms.clear();
 }
 
 void PhysicsService::step() {
@@ -278,6 +162,177 @@ void PhysicsService::step() {
     }
 
     _physicsSystem->Update(mRequestedDeltaTime, 1, _allocator.get(), _jobSystem.get());
+}
+
+void PhysicsService::createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody) {
+    JPH::VehicleConstraintSettings constraint;
+    constraint.mMaxPitchRollAngle = vehicle.maxRollAngle;
+    constraint.mWheels.resize(vehicle.wheels.size());
+
+    size_t frontWheels = 0;
+    size_t rearWheels  = 0;
+
+    for (const auto& wheelEntity : vehicle.wheels) {
+        const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
+
+        const auto index = int(wheel.position) / 2;
+        if (index == 0) {
+            ++frontWheels;
+        } else {
+            ++rearWheels;
+        }
+
+        const auto& wheelCollider = entityRegistry().get<Collider>(wheelEntity);
+
+        constraint.mWheels[int(wheel.position)] =
+            createWheelSettings(vehicle, wheel, wheelCollider.size.z, wheelCollider.size.x);
+    }
+
+    if (vehicle.antiRollbar) {
+        constraint.mAntiRollBars.resize(vehicle.wheels.size() / 2);
+        for (auto wheelEntity : vehicle.wheels) {
+            const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
+            const auto index  = int(wheel.position) / 2;
+            const auto isLeft = int(wheel.position) % 2 == 0;
+
+            if (isLeft) {
+                constraint.mAntiRollBars[index].mLeftWheel = int(wheel.position);
+            } else {
+                constraint.mAntiRollBars[index].mRightWheel = int(wheel.position);
+            }
+        }
+    }
+
+    size_t differentials;
+    switch (vehicle.wheelDrive) {
+        case WheelDrive::Front:
+            differentials = frontWheels / 2;
+            break;
+        case WheelDrive::Rear:
+            differentials = rearWheels / 2;
+            break;
+        case WheelDrive::All:
+            differentials = (frontWheels + rearWheels) / 2;
+            break;
+    }
+    const auto engineTorqueRatio = 1.0f / differentials;
+
+    auto controller        = new JPH::WheeledVehicleControllerSettings;
+    constraint.mController = controller;
+    controller->mDifferentials.resize(differentials);
+    for (auto wheelEntity : vehicle.wheels) {
+        const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
+        auto index        = int(wheel.position) / 2;
+        const auto isLeft = int(wheel.position) % 2 == 0;
+        if ((index == 0 && vehicle.wheelDrive == WheelDrive::Front) ||
+            (index != 0 && vehicle.wheelDrive == WheelDrive::Rear) || vehicle.wheelDrive == WheelDrive::All) {
+            if (vehicle.wheelDrive == WheelDrive::Rear) {
+                index = 0;
+            }
+            if (isLeft) {
+                controller->mDifferentials[index].mLeftWheel = int(wheel.position);
+            } else {
+                controller->mDifferentials[index].mRightWheel = int(wheel.position);
+            }
+            controller->mDifferentials[index].mEngineTorqueRatio = engineTorqueRatio;
+        }
+    }
+
+    auto body = _physicsSystem->GetBodyLockInterface().TryGetBody(JPH::BodyID(rigidBody.bodyID));
+
+    _vehicleConstraints[entity] = new JPH::VehicleConstraint(*body, constraint);
+    auto& vehicleConstraint     = _vehicleConstraints[entity];
+    vehicleConstraint->SetVehicleCollisionTester(_vehicleTester);
+    updateVehicleSettings(vehicle, vehicleConstraint);
+
+    static_cast<JPH::WheeledVehicleController*>(vehicleConstraint->GetController())
+        ->SetTireMaxImpulseCallback([](uint,
+                                       float& outLongitudinalImpulse,
+                                       float& outLateralImpulse,
+                                       float inSuspensionImpulse,
+                                       float inLongitudinalFriction,
+                                       float inLateralFriction,
+                                       float,
+                                       float,
+                                       float) {
+        outLongitudinalImpulse = 10.0f * inLongitudinalFriction * inSuspensionImpulse;
+        outLateralImpulse      = inLateralFriction * inSuspensionImpulse;
+    });
+
+    _physicsSystem->AddConstraint(vehicleConstraint);
+    _physicsSystem->AddStepListener(vehicleConstraint);
+}
+
+entt::hashed_string PhysicsService::stateName() const noexcept {
+    return "physics_service"_hs;
+}
+
+std::vector<gerium_uint8_t> PhysicsService::saveState() {
+    struct Stream : JPH::StreamOut {
+        void WriteBytes(const void* inData, size_t inNumBytes) override {
+            auto offset = data.size();
+            data.resize(offset + inNumBytes);
+            memcpy(data.data() + offset, inData, inNumBytes);
+        }
+
+        bool IsFailed() const override {
+            return false;
+        }
+
+        std::vector<gerium_uint8_t> data;
+    };
+
+    Stream stream;
+    JPH::Ref<JPH::PhysicsScene> scene = new JPH::PhysicsScene();
+    scene->FromPhysicsSystem(_physicsSystem.get());
+    scene->SaveBinaryState(stream, true, true);
+    return std::move(stream.data);
+}
+
+void PhysicsService::restoreState(const std::vector<gerium_uint8_t>& data) {
+    stop();
+    start();
+
+    struct Stream : JPH::StreamIn {
+        explicit Stream(const std::vector<gerium_uint8_t>& d) noexcept : data(d) {
+        }
+
+        void ReadBytes(void* outData, size_t inNumBytes) override {
+            auto count = std::min(data.size() - offset, inNumBytes);
+            if (count) {
+                memcpy(outData, data.data() + offset, count);
+                offset += count;
+            }
+        }
+
+        bool IsEOF() const override {
+            return data.size() - offset == 0;
+        }
+
+        bool IsFailed() const override {
+            return false;
+        }
+
+        const std::vector<gerium_uint8_t>& data;
+        size_t offset{};
+    };
+
+    Stream stream(data);
+    auto result = JPH::PhysicsScene::sRestoreFromBinaryState(stream);
+    if (result.HasError()) {
+        throw std::runtime_error(result.GetError().c_str());
+    }
+    auto scene = result.Get();
+
+    scene->CreateBodies(_physicsSystem.get());
+
+    auto view = entityRegistry().view<Vehicle, RigidBody>(entt::exclude<::Static, Wheel>);
+
+    for (auto entity : view) {
+        auto& vehicle   = view.get<Vehicle>(entity);
+        auto& rigidBody = view.get<RigidBody>(entity);
+        createVehicleConstraints(entity, vehicle, rigidBody);
+    }
 }
 
 void PhysicsService::driverInput(entt::entity entity, Vehicle& vehicle) {
@@ -386,56 +441,8 @@ void PhysicsService::syncPhysicsToECS() {
     }
 }
 
-void PhysicsService::updatePhysicsTransforms(entt::storage<Transform>& storage) {
-    // auto view = entityRegistry().view<RigidBody, Transform>();
-
-    // for (auto entity : view) {
-    //     auto& rigidBody = view.get<RigidBody>(entity);
-    //     auto& transform = view.get<Transform>(entity);
-
-    //     if (!rigidBody.isKinematic) {
-    //         auto physicsMatrix = transform.matrix; // getPhysicsTransform();
-
-    //         if (transform.matrix != physicsMatrix) {
-    //             transform.matrix = physicsMatrix;
-    //             storage.push(entity);
-    //         }
-    //     }
-    // }
-}
-
-void PhysicsService::updateLocalTransforms(entt::storage<Transform>& storage) {
-    // auto view = entityRegistry().view<LocalTransform>() | entt::basic_view{ storage };
-
-    // for (auto entity : view) {
-    //     const auto node = entityRegistry().try_get<Node>(entity);
-
-    //     const auto parentInverseWorldMatrix =
-    //         node && node->parent != entt::null ?
-    //         glm::inverse(entityRegistry().get<Transform>(node->parent).matrix)
-    //                                            : glm::identity<glm::mat4>();
-
-    //     const auto& worldMatrix = view.get<Transform>(entity).matrix;
-    //     auto localMatrix        = parentInverseWorldMatrix * worldMatrix;
-
-    //     auto& localTransform = view.get<LocalTransform>(entity);
-    //     assert(!localTransform.isDirty && "The physics service can only work with calculated world transforms.");
-
-    //     glm::vec3 skew;
-    //     glm::vec4 perspective;
-    //     glm::decompose(
-    //         localMatrix, localTransform.scale, localTransform.rotation, localTransform.position, skew, perspective);
-    //     localTransform.isDirty = true;
-    // }
-}
-
-glm::mat4 PhysicsService::getPhysicsTransform() {
-    return {};
-}
-
 JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
                                                         const Wheel& wheel,
-                                                        const glm::vec3& position,
                                                         gerium_float32_t radius,
                                                         gerium_float32_t width) {
     const auto isFront = wheel.position == WheelPosition::FrontLeft || wheel.position == WheelPosition::FrontRight;
@@ -502,7 +509,7 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
         return isFront ? 0.0f : vehicle.maxHandBrakeTorque;
     };
 
-    const auto wPosition = JPH::Vec3(position.x, position.y + getSuspensionMinLength(), position.z);
+    const auto wPosition = JPH::Vec3(wheel.point.x, wheel.point.y + getSuspensionMinLength(), wheel.point.z);
 
     auto settings                          = new JPH::WheelSettingsWV;
     settings->mSuspensionDirection         = getSuspensionDirection();

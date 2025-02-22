@@ -26,6 +26,10 @@ protected:
     virtual void stop();
     virtual void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) = 0;
 
+    virtual entt::hashed_string stateName() const noexcept;
+    virtual std::vector<gerium_uint8_t> saveState();
+    virtual void restoreState(const std::vector<gerium_uint8_t>& data);
+
 private:
     friend ServiceManager;
 
@@ -44,6 +48,9 @@ public:
     void destroy() noexcept;
 
     void update(gerium_uint64_t elapsedMs);
+
+    std::map<entt::hashed_string, std::vector<uint8_t>> saveState();
+    void restoreState(const std::map<hashed_string_owner, std::vector<uint8_t>>& states);
 
     [[nodiscard]] Application& application() noexcept;
     [[nodiscard]] const Application& application() const noexcept;

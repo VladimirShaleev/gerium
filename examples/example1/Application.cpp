@@ -155,6 +155,7 @@ entt::entity addModel(entt::registry& registry,
                 auto& wheel    = registry.emplace<Wheel>(node);
                 wheel.parent   = vehicle;
                 wheel.position = wheelPos.value();
+                wheel.point    = localTranslate * localScale;
                 registry.get<Vehicle>(vehicle).wheels.push_back(node);
             }
         }
@@ -252,7 +253,8 @@ void Application::uninitialize() {
 }
 
 void Application::saveState() {
-    auto result = makeSnapshot(_entityRegistry, SnapshotFormat::Capnproto);
+    auto states = _serviceManager.saveState();
+    auto result = makeSnapshot(_entityRegistry, states, SnapshotFormat::Capnproto);
 
     auto path = (std::filesystem::path(gerium_file_get_app_dir()) / "snapshot.bin").string();
 
@@ -274,7 +276,9 @@ void Application::loadState() {
         std::vector<gerium_uint8_t> data(gerium_file_get_size(file));
         gerium_file_read(file, (gerium_data_t) data.data(), data.size());
 
-        loadSnapshot(_entityRegistry, SnapshotFormat::Capnproto, data);
+        std::map<hashed_string_owner, std::vector<uint8_t>> states;
+        loadSnapshot(_entityRegistry, states, SnapshotFormat::Capnproto, data);
+        _serviceManager.restoreState(states);
     }
 }
 

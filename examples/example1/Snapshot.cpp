@@ -99,6 +99,12 @@ struct Component {
     T data;
 };
 
+template <typename T>
+struct Entry {
+    hashed_string_owner key;
+    T value;
+};
+
 struct Snapshot {
     gerium_uint32_t head;
     std::vector<entt::entity> entities;
@@ -112,6 +118,16 @@ struct Snapshot {
     std::vector<Component<VehicleController>> vehicleControllers;
     std::vector<Component<Camera>> cameras;
     std::vector<Component<Renderable>> renderables;
+};
+
+struct SnapshotJson {
+    std::vector<Entry<std::string>> serviceStates;
+    rfl::Flatten<Snapshot> snapshot;
+};
+
+struct SnapshotCapnproto {
+    std::vector<Entry<rfl::Bytestring>> serviceStates;
+    rfl::Flatten<Snapshot> snapshot;
 };
 
 struct ArchiveEntities final {
@@ -231,7 +247,9 @@ struct InputArchiveComponents final {
 
 } // namespace
 
-std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry, SnapshotFormat format) {
+std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry,
+                                         const std::map<entt::hashed_string, std::vector<uint8_t>>& states,
+                                         SnapshotFormat format) {
     Snapshot snapshotData;
     auto archiveEntities           = ArchiveEntities(snapshotData.head, snapshotData.entities);
     auto archiveNodes              = ArchiveComponents(snapshotData.nodes);
@@ -260,12 +278,24 @@ std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry, Snapsho
 
     switch (format) {
         case SnapshotFormat::Json: {
-            const auto json = rfl::json::write(snapshotData, rfl::json::pretty);
+            std::vector<Entry<std::string>> serviceStates;
+            for (const auto& [key, value] : states) {
+                serviceStates.emplace_back(key, Assimp::Base64::Encode(value));
+            }
+            SnapshotJson snapshotJson{ std::move(serviceStates), std::move(snapshotData) };
+            const auto json = rfl::json::write(snapshotJson, rfl::json::pretty);
             auto it         = (const uint8_t*) json.data();
             return std::vector<gerium_uint8_t>(it, it + json.size());
         }
         case SnapshotFormat::Capnproto: {
-            return rfl::capnproto::write2(snapshotData);
+            std::vector<Entry<rfl::Bytestring>> serviceStates;
+            for (const auto& [key, value] : states) {
+                serviceStates.emplace_back(key,
+                                           std::basic_string<std::byte>((const std::byte*) value.data(), value.size()));
+            }
+            SnapshotCapnproto snapshotCapnproto{ std::move(serviceStates), std::move(snapshotData) };
+            auto schema = rfl::capnproto::to_schema2<SnapshotCapnproto>().str();
+            return rfl::capnproto::write2(snapshotCapnproto);
         }
         default: {
             assert(!"unreachable code");
@@ -274,35 +304,50 @@ std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry, Snapsho
     }
 }
 
-bool loadSnapshot(entt::registry& registry, SnapshotFormat format, const std::vector<gerium_uint8_t>& data) {
-    rfl::Result<Snapshot> snapshotData = Snapshot{};
+bool loadSnapshot(entt::registry& registry,
+                  std::map<hashed_string_owner, std::vector<uint8_t>>& states,
+                  SnapshotFormat format,
+                  const std::vector<gerium_uint8_t>& data) {
+    Snapshot snapshotData;
     switch (format) {
-        case SnapshotFormat::Json:
-            snapshotData = rfl::json::read<Snapshot>(std::string((char*) data.data(), data.size()));
+        case SnapshotFormat::Json: {
+            auto snapshotJson = rfl::json::read<SnapshotJson>(std::string((char*) data.data(), data.size()));
+            if (!snapshotJson) {
+                return false;
+            }
+            for (const auto& entry : snapshotJson.value().serviceStates) {
+                states[entry.key] = Assimp::Base64::Decode(entry.value);
+            }
+            snapshotData = std::move(snapshotJson.value().snapshot.get());
             break;
-        case SnapshotFormat::Capnproto:
-            snapshotData = rfl::capnproto::read2<Snapshot>(data);
+        }
+        case SnapshotFormat::Capnproto: {
+            auto snapshotCapnproto = rfl::capnproto::read2<SnapshotCapnproto>(data);
+            if (!snapshotCapnproto) {
+                return false;
+            }
+            for (const auto& entry : snapshotCapnproto.value().serviceStates) {
+                auto it           = (uint8_t*) entry.value.data();
+                states[entry.key] = std::vector<uint8_t>(it, it + entry.value.size());
+            }
+            snapshotData = std::move(snapshotCapnproto.value().snapshot.get());
             break;
+        }
         default:
             return false;
     }
-    if (!snapshotData) {
-        return false;
-    }
 
-    const auto& result = snapshotData.value();
-
-    auto archiveEntities           = InputArchiveEntities(result.head, result.entities);
-    auto archiveNodes              = InputArchiveComponents(result.nodes);
-    auto archiveStatics            = InputArchiveComponents(result.statics);
-    auto archiveTransforms         = InputArchiveComponents(result.transforms);
-    auto archiveRigidBodies        = InputArchiveComponents(result.rigidBodies);
-    auto archiveColliders          = InputArchiveComponents(result.colliders);
-    auto archiveWheels             = InputArchiveComponents(result.wheels);
-    auto archiveVehicles           = InputArchiveComponents(result.vehicles);
-    auto archiveVehicleControllers = InputArchiveComponents(result.vehicleControllers);
-    auto archiveCameras            = InputArchiveComponents(result.cameras);
-    auto archiveRenderables        = InputArchiveComponents(result.renderables);
+    auto archiveEntities           = InputArchiveEntities(snapshotData.head, snapshotData.entities);
+    auto archiveNodes              = InputArchiveComponents(snapshotData.nodes);
+    auto archiveStatics            = InputArchiveComponents(snapshotData.statics);
+    auto archiveTransforms         = InputArchiveComponents(snapshotData.transforms);
+    auto archiveRigidBodies        = InputArchiveComponents(snapshotData.rigidBodies);
+    auto archiveColliders          = InputArchiveComponents(snapshotData.colliders);
+    auto archiveWheels             = InputArchiveComponents(snapshotData.wheels);
+    auto archiveVehicles           = InputArchiveComponents(snapshotData.vehicles);
+    auto archiveVehicleControllers = InputArchiveComponents(snapshotData.vehicleControllers);
+    auto archiveCameras            = InputArchiveComponents(snapshotData.cameras);
+    auto archiveRenderables        = InputArchiveComponents(snapshotData.renderables);
 
     registry.clear();
     entt::snapshot_loader{ registry }

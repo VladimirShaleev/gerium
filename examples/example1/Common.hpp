@@ -21,6 +21,7 @@
 #include <yaml-cpp/yaml.h>
 
 // Open-Asset-Importer-Library
+#include <assimp/Base64.hpp>
 #include <assimp/GltfMaterial.h>
 #include <assimp/IOStream.hpp>
 #include <assimp/IOSystem.hpp>
@@ -44,6 +45,7 @@
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Constraints/HingeConstraint.h>
+#include <Jolt/Physics/PhysicsScene.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Vehicle/WheeledVehicleController.h>
