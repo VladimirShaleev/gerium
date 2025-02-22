@@ -153,8 +153,6 @@ void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t el
 }
 
 void PhysicsService::step() {
-    syncPhysicsToECS();
-
     auto view = entityRegistry().view<Vehicle>();
     for (auto entity : view) {
         auto& vehicle = view.get<Vehicle>(entity);
@@ -162,6 +160,8 @@ void PhysicsService::step() {
     }
 
     _physicsSystem->Update(mRequestedDeltaTime, 1, _allocator.get(), _jobSystem.get());
+
+    syncPhysicsToECS();
 }
 
 void PhysicsService::createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody) {
