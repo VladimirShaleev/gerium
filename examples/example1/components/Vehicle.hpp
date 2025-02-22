@@ -3,13 +3,13 @@
 
 #include "../Common.hpp"
 
-struct Vehicle {
-    enum WheelDrive {
-        FrontWheelDrive,
-        RearWheelDrive,
-        AllWheelDrive
-    };
+enum class WheelDrive {
+    Front,
+    Rear,
+    All
+};
 
+struct Vehicle {
     std::vector<entt::entity> wheels{};
     gerium_float32_t frontSuspensionSidewaysAngle{ 0.0f };
     gerium_float32_t frontSuspensionForwardAngle{ 0.0f };
@@ -43,8 +43,8 @@ struct Vehicle {
     gerium_float32_t clutchStrength{ 10.0f };
     gerium_float32_t limitedSlipRatio{ 1.4f };
     std::vector<gerium_float32_t> gearRatios{ 2.66f, 1.78f, 1.3f, 1.0f, 0.74f };
-    WheelDrive wheelDrive{ FrontWheelDrive };
-    WheelDrive handBrake{ FrontWheelDrive };
+    WheelDrive wheelDrive{ WheelDrive::Front };
+    WheelDrive handBrake{ WheelDrive::Front };
     gerium_float32_t previousForward{ 1.0f };
     gerium_float32_t forward{ 0.0f };
     gerium_float32_t right{ 0.0f };

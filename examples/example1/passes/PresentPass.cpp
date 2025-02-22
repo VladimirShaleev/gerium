@@ -1,4 +1,5 @@
 #include "PresentPass.hpp"
+#include "../components/Settings.hpp"
 
 void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_renderer_t renderer,
@@ -14,4 +15,15 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
     gerium_command_buffer_draw_profiler(commandBuffer, nullptr);
+
+    if (ImGui::Begin("Settings")) {
+        auto& settings = entityRegistry().ctx().get<Settings>();
+        if (ImGui::Button("Save state")) {
+            settings.state = Settings::Save;
+        }
+        if (ImGui::Button("Load state")) {
+            settings.state = Settings::Load;
+        }
+    }
+    ImGui::End();
 }

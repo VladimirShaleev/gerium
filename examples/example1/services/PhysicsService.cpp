@@ -48,9 +48,10 @@ void PhysicsService::createBodies(const Cluster& cluster) {
 
         auto body = _physicsSystem->GetBodyInterface().CreateBody(settings);
 
-        rigidBody.body = body->GetID();
+        auto bodyId      = body->GetID();
+        rigidBody.bodyID = bodyId.GetIndexAndSequenceNumber();
         _physicsSystem->GetBodyInterface().AddBody(
-            rigidBody.body, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
+            bodyId, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
 
         if (vehicle) {
             JPH::VehicleConstraintSettings constraint;
@@ -96,13 +97,13 @@ void PhysicsService::createBodies(const Cluster& cluster) {
 
             size_t differentials;
             switch (vehicle->wheelDrive) {
-                case Vehicle::FrontWheelDrive:
+                case WheelDrive::Front:
                     differentials = frontWheels / 2;
                     break;
-                case Vehicle::RearWheelDrive:
+                case WheelDrive::Rear:
                     differentials = rearWheels / 2;
                     break;
-                case Vehicle::AllWheelDrive:
+                case WheelDrive::All:
                     differentials = (frontWheels + rearWheels) / 2;
                     break;
             }
@@ -115,10 +116,9 @@ void PhysicsService::createBodies(const Cluster& cluster) {
                 const auto& wheel = entityRegistry().get<Wheel>(wheelEntity);
                 auto index        = int(wheel.position) / 2;
                 const auto isLeft = int(wheel.position) % 2 == 0;
-                if ((index == 0 && vehicle->wheelDrive == Vehicle::FrontWheelDrive) ||
-                    (index != 0 && vehicle->wheelDrive == Vehicle::RearWheelDrive) ||
-                    vehicle->wheelDrive == Vehicle::AllWheelDrive) {
-                    if (vehicle->wheelDrive == Vehicle::RearWheelDrive) {
+                if ((index == 0 && vehicle->wheelDrive == WheelDrive::Front) ||
+                    (index != 0 && vehicle->wheelDrive == WheelDrive::Rear) || vehicle->wheelDrive == WheelDrive::All) {
+                    if (vehicle->wheelDrive == WheelDrive::Rear) {
                         index = 0;
                     }
                     if (isLeft) {
@@ -349,8 +349,10 @@ void PhysicsService::syncPhysicsToECS() {
         auto& transform = view.get<Transform>(entity);
         auto vehicle    = entityRegistry().try_get<Vehicle>(entity);
 
-        auto position = _physicsSystem->GetBodyInterface().GetPosition(rigidBody.body);
-        auto rrrr     = _physicsSystem->GetBodyInterface().GetRotation(rigidBody.body);
+        JPH::BodyID bodyId(rigidBody.bodyID);
+
+        auto position = _physicsSystem->GetBodyInterface().GetPosition(bodyId);
+        auto rrrr     = _physicsSystem->GetBodyInterface().GetRotation(bodyId);
 
         auto newPos = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
         auto newRot = glm::quat(rrrr.GetW(), rrrr.GetX(), rrrr.GetY(), rrrr.GetZ());
@@ -436,10 +438,10 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
                                                         const glm::vec3& position,
                                                         gerium_float32_t radius,
                                                         gerium_float32_t width) {
-    const auto isFront = wheel.position == Wheel::FrontLeft || wheel.position == Wheel::FrontRight;
+    const auto isFront = wheel.position == WheelPosition::FrontLeft || wheel.position == WheelPosition::FrontRight;
 
-    const auto isRight = wheel.position == Wheel::FrontRight || wheel.position == Wheel::BackRight1 ||
-                         wheel.position == Wheel::BackRight2;
+    const auto isRight = wheel.position == WheelPosition::FrontRight || wheel.position == WheelPosition::BackRight1 ||
+                         wheel.position == WheelPosition::BackRight2;
 
     const JPH::Vec3 flipX(-1, 1, 1);
 
@@ -491,10 +493,10 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
     };
 
     auto getMaxHandBrakeTorque = [&vehicle, isFront]() {
-        if (vehicle.handBrake == Vehicle::AllWheelDrive) {
+        if (vehicle.handBrake == WheelDrive::All) {
             return vehicle.maxHandBrakeTorque;
         }
-        if (vehicle.handBrake == Vehicle::FrontWheelDrive) {
+        if (vehicle.handBrake == WheelDrive::Front) {
             return isFront ? vehicle.maxHandBrakeTorque : 0.0f;
         }
         return isFront ? 0.0f : vehicle.maxHandBrakeTorque;
@@ -523,25 +525,25 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
 JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cluster& cluster) {
     JPH::Ref<JPH::Shape> shape{};
     switch (collider.shape) {
-        case Collider::Shape::Box: {
+        case Shape::Box: {
             const auto& size = collider.size;
             JPH::BoxShapeSettings shape(JPH::Vec3(size.x, size.y, size.z));
             shape.SetEmbedded();
             return shape.Create().Get();
         }
-        case Collider::Shape::Sphere: {
+        case Shape::Sphere: {
             JPH::SphereShapeSettings shape(collider.radius);
             shape.SetEmbedded();
             return shape.Create().Get();
         }
-        case Collider::Shape::Capsule: {
+        case Shape::Capsule: {
             // JPH::CapsuleShapeSettings shape(size.x, size.y);
             // shape.SetEmbedded();
             // return shape.Create().Get();
             assert(!"unreachable code");
             return {};
         }
-        case Collider::Shape::Mesh: {
+        case Shape::Mesh: {
             const auto& meshCollider = cluster.meshColliders[collider.index];
             JPH::VertexList vertices;
             JPH::IndexedTriangleList indices;

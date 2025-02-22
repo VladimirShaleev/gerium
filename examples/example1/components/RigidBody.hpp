@@ -8,7 +8,7 @@ struct RigidBody {
     gerium_float32_t linearDamping{ 0.2f };
     gerium_float32_t angularDamping{ 0.2f };
     bool isKinematic{ false };
-    JPH::BodyID body{};
+    gerium_uint32_t bodyID{};
 };
 
 #endif

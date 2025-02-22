@@ -31,6 +31,10 @@ ResourceManager& RenderPass::resourceManager() noexcept {
     return renderService().resourceManager();
 }
 
+entt::registry& RenderPass::entityRegistry() noexcept {
+    return _service->entityRegistry();
+}
+
 const entt::registry& RenderPass::entityRegistry() const noexcept {
     return _service->entityRegistry();
 }

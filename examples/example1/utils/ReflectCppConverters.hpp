@@ -70,6 +70,18 @@ struct String {
     }
 };
 
+struct Entity {
+    gerium_uint32_t entity;
+
+    static Entity from_class(const entt::entity& entity) noexcept {
+        return { entity == entt::null ? std::numeric_limits<gerium_uint32_t>::max() : gerium_uint32_t(entity) };
+    }
+
+    entt::entity to_class() const {
+        return entity == std::numeric_limits<gerium_uint32_t>::max() ? entt::null : entt::entity{ entity };
+    }
+};
+
 namespace rfl {
 
 namespace parsing {
@@ -89,6 +101,10 @@ struct Parser<ReaderType, WriterType, glm::qua<T, glm::defaultp>, ProcessorsType
 template <class ReaderType, class WriterType, class ProcessorsType>
 struct Parser<ReaderType, WriterType, hashed_string_owner, ProcessorsType>
     : public CustomParser<ReaderType, WriterType, ProcessorsType, hashed_string_owner, String> {};
+
+template <class ReaderType, class WriterType, class ProcessorsType>
+struct Parser<ReaderType, WriterType, entt::entity, ProcessorsType>
+    : public CustomParser<ReaderType, WriterType, ProcessorsType, entt::entity, Entity> {};
 
 } // namespace parsing
 

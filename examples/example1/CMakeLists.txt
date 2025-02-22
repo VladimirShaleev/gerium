@@ -69,6 +69,7 @@ set_target_properties(example1 PROPERTIES
 
 if(MSVC)
     target_compile_options(example1 PUBLIC /GR-)
+    target_compile_options(example1 PRIVATE /bigobj)
     target_compile_options(example1 PRIVATE -DNOMINMAX)
     if(GERIUM_MSVC_DYNAMIC_RUNTIME)
         set_target_properties(example1 PROPERTIES

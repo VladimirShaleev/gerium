@@ -29,6 +29,7 @@ public:
     RenderService& renderService() noexcept;
     ResourceManager& resourceManager() noexcept;
 
+    entt::registry& entityRegistry() noexcept;
     const entt::registry& entityRegistry() const noexcept;
 
     [[nodiscard]] const std::string& name() const noexcept;

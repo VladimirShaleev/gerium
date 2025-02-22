@@ -12,6 +12,7 @@
 #include "components/Node.hpp"
 #include "components/Renderable.hpp"
 #include "components/RigidBody.hpp"
+#include "components/Settings.hpp"
 #include "components/Static.hpp"
 #include "components/Transform.hpp"
 #include "components/Vehicle.hpp"
@@ -19,6 +20,7 @@
 #include "components/Wheel.hpp"
 
 #include "Model.hpp"
+#include "Snapshot.hpp"
 
 using namespace entt::literals;
 
@@ -127,25 +129,25 @@ entt::entity addModel(entt::registry& registry,
             vehicle  = node;
             registry.emplace<Vehicle>(node);
         } else if (vehicle != entt::null) {
-            std::optional<Wheel::Position> wheelPos = std::nullopt;
+            std::optional<WheelPosition> wheelPos = std::nullopt;
             switch (modelNode.name) {
                 case "wheel_lf"_hs:
-                    wheelPos = Wheel::FrontLeft;
+                    wheelPos = WheelPosition::FrontLeft;
                     break;
                 case "wheel_rf"_hs:
-                    wheelPos = Wheel::FrontRight;
+                    wheelPos = WheelPosition::FrontRight;
                     break;
                 case "wheel_lb"_hs:
-                    wheelPos = Wheel::BackLeft1;
+                    wheelPos = WheelPosition::BackLeft1;
                     break;
                 case "wheel_rb"_hs:
-                    wheelPos = Wheel::BackRight1;
+                    wheelPos = WheelPosition::BackRight1;
                     break;
                 case "wheel_lb2"_hs:
-                    wheelPos = Wheel::BackLeft2;
+                    wheelPos = WheelPosition::BackLeft2;
                     break;
                 case "wheel_rb2"_hs:
-                    wheelPos = Wheel::BackRight2;
+                    wheelPos = WheelPosition::BackRight2;
                     break;
             }
 
@@ -168,10 +170,10 @@ entt::entity addModel(entt::registry& registry,
                 body.mass      = 6000.0f;
 
                 // if (auto colliderIndex = modelNode.colliderIndex; colliderIndex >= 0) {
-                //     collider.shape = Collider::Shape::Mesh;
+                //     collider.shape = Shape::Mesh;
                 //     collider.index = colliderIndex;
                 // } else {
-                collider.shape = Collider::Shape::Box;
+                collider.shape = Shape::Box;
                 collider.size  = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
                 // }
 
@@ -183,21 +185,8 @@ entt::entity addModel(entt::registry& registry,
                 meshData.mesh  = mesh.meshIndex;
 
                 if (!model.materials.empty()) {
-                    auto& mat = model.materials[mesh.materialIndex];
-
-                    meshData.material.name                     = TECH_PBR_ID; // mat.name;
-                    meshData.material.baseColorTexture         = mat.baseColorTexture;
-                    meshData.material.metallicRoughnessTexture = mat.metallicRoughnessTexture;
-                    meshData.material.normalTexture            = mat.normalTexture;
-                    meshData.material.occlusionTexture         = mat.occlusionTexture;
-                    meshData.material.emissiveTexture          = mat.emissiveTexture;
-                    meshData.material.baseColorFactor          = mat.baseColorFactor;
-                    meshData.material.emissiveFactor           = mat.emissiveFactor;
-                    meshData.material.metallicFactor           = mat.metallicFactor;
-                    meshData.material.roughnessFactor          = mat.roughnessFactor;
-                    meshData.material.occlusionStrength        = mat.occlusionStrength;
-                    meshData.material.alphaCutoff              = mat.alphaCutoff;
-                    meshData.material.flags                    = (MaterialFlags) mat.flags;
+                    meshData.material      = model.materials[mesh.materialIndex];
+                    meshData.material.name = TECH_PBR_ID; // mat.name;
                 }
             }
         }
@@ -212,20 +201,9 @@ entt::entity addModel(entt::registry& registry,
     return result;
 }
 
-struct Archive {
-    template <typename Arg>
-    Archive& operator()(Arg&& arg) {
-        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(arg)>, Camera>) {
-            auto result       = rfl::capnproto::write(arg);
-            const auto schema = rfl::capnproto::to_schema<std::remove_cvref_t<decltype(arg)>>();
-            auto read         = rfl::capnproto::read<std::remove_cvref_t<decltype(arg)>>(result).value();
-            auto i            = 0;
-        }
-        return *this;
-    }
-};
-
 void Application::initialize() {
+    _entityRegistry.ctx().emplace<Settings>(Settings{});
+
     Cluster cluster{};
     auto model1 = loadModel(cluster, "model1");
     auto model2 = loadModel(cluster, "model2");
@@ -266,9 +244,6 @@ void Application::initialize() {
     camera.nearPlane     = 0.01f;
     camera.farPlane      = 1000.0f;
     camera.fov           = glm::radians(60.0f);
-
-    Archive archive;
-    entt::snapshot{ _entityRegistry }.get<Camera>(archive);
 }
 
 void Application::uninitialize() {
@@ -276,8 +251,45 @@ void Application::uninitialize() {
     _entityRegistry.clear();
 }
 
+void Application::saveState() {
+    auto result = makeSnapshot(_entityRegistry, SnapshotFormat::Capnproto);
+
+    auto path = (std::filesystem::path(gerium_file_get_app_dir()) / "snapshot.bin").string();
+
+    gerium_file_t file;
+    check(gerium_file_create(path.c_str(), 0, &file));
+    deferred(gerium_file_destroy(file));
+
+    gerium_file_write(file, (gerium_cdata_t) result.data(), result.size());
+}
+
+void Application::loadState() {
+    auto path = (std::filesystem::path(gerium_file_get_app_dir()) / "snapshot.bin").string();
+
+    if (gerium_file_exists_file(path.c_str())) {
+        gerium_file_t file;
+        check(gerium_file_open(path.c_str(), true, &file));
+        deferred(gerium_file_destroy(file));
+
+        std::vector<gerium_uint8_t> data(gerium_file_get_size(file));
+        gerium_file_read(file, (gerium_data_t) data.data(), data.size());
+
+        loadSnapshot(_entityRegistry, SnapshotFormat::Capnproto, data);
+    }
+}
+
 void Application::frame(gerium_uint64_t elapsedMs) {
     _serviceManager.update(elapsedMs);
+
+    auto& settings = entityRegistry().ctx().get<Settings>();
+    if (settings.state != Settings::None) {
+        if (settings.state == Settings::Save) {
+            saveState();
+        } else {
+            loadState();
+        }
+        settings.state = Settings::None;
+    }
 }
 
 void Application::state(gerium_application_state_t state) {

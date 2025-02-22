@@ -3,18 +3,18 @@
 
 #include "../Common.hpp"
 
-struct Wheel {
-    enum Position {
-        FrontLeft,
-        FrontRight,
-        BackLeft1,
-        BackRight1,
-        BackLeft2,
-        BackRight2
-    };
+enum class WheelPosition {
+    FrontLeft,
+    FrontRight,
+    BackLeft1,
+    BackRight1,
+    BackLeft2,
+    BackRight2
+};
 
+struct Wheel {
     entt::entity parent;
-    Position position;
+    WheelPosition position;
 };
 
 #endif

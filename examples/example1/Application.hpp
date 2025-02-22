@@ -32,6 +32,9 @@ private:
     void initialize();
     void uninitialize();
 
+    void saveState();
+    void loadState();
+
     void frame(gerium_uint64_t elapsedMs);
     void state(gerium_application_state_t state);
 

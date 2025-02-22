@@ -3,19 +3,18 @@
 
 #include "../Common.hpp"
 
-struct Collider {
-    enum Shape {
-        Box,
-        Sphere,
-        Capsule,
-        Mesh
-    } shape;
+enum class Shape {
+    Box,
+    Sphere,
+    Capsule,
+    Mesh
+};
 
-    union {
-        glm::vec3 size;
-        gerium_float32_t radius;
-        gerium_uint32_t index;
-    };
+struct Collider {
+    Shape shape;
+    glm::vec3 size;
+    gerium_float32_t radius;
+    gerium_uint32_t index;
 };
 
 #endif
