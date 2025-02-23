@@ -37,9 +37,8 @@ private:
     static JPH::Ref<JPH::Shape> getShape(const Collider& collider, const Cluster& cluster);
 
     enum ObjectLayers : JPH::uint8 {
-        Static     = 0,
-        Dynamic    = 1,
-        Constraint = 2
+        Static  = 0,
+        Dynamic = 1
     };
 
     class BroadPhaseLayerInterface : public JPH::BroadPhaseLayerInterface {

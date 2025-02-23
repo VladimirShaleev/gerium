@@ -42,10 +42,10 @@ void PhysicsService::createBodies(const Cluster& cluster) {
 
         auto body = _physicsSystem->GetBodyInterface().CreateBody(settings);
 
-        auto bodyId      = body->GetID();
-        rigidBody.bodyID = bodyId.GetIndexAndSequenceNumber();
+        auto bodyID      = body->GetID();
+        rigidBody.bodyID = bodyID.GetIndexAndSequenceNumber();
         _physicsSystem->GetBodyInterface().AddBody(
-            bodyId, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
+            bodyID, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
 
         if (vehicle) {
             createVehicleConstraints(entity, *vehicle, rigidBody);
@@ -185,7 +185,7 @@ void PhysicsService::createVehicleConstraints(entt::entity entity, Vehicle& vehi
         const auto& wheelCollider = entityRegistry().get<Collider>(wheelEntity);
 
         constraint.mWheels[int(wheel.position)] =
-            createWheelSettings(vehicle, wheel, wheelCollider.size.z, wheelCollider.size.x);
+            createWheelSettings(vehicle, wheel, wheelCollider.halfExtent.z, wheelCollider.halfExtent.x);
     }
 
     if (vehicle.antiRollbar) {
@@ -405,37 +405,19 @@ void PhysicsService::syncPhysicsToECS() {
         auto vehicle    = entityRegistry().try_get<Vehicle>(entity);
 
         JPH::BodyID bodyId(rigidBody.bodyID);
-
-        auto position = _physicsSystem->GetBodyInterface().GetPosition(bodyId);
-        auto rrrr     = _physicsSystem->GetBodyInterface().GetRotation(bodyId);
-
-        auto newPos = glm::vec3(position.GetX(), position.GetY(), position.GetZ());
-        auto newRot = glm::quat(rrrr.GetW(), rrrr.GetX(), rrrr.GetY(), rrrr.GetZ());
-
-        glm::vec3 scale;
-        glm::quat rotation;
-        glm::vec3 p;
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::decompose(transform.matrix, scale, rotation, p, skew, perspective);
-
-        auto matS = glm::scale(glm::identity<glm::mat4>(), scale);
-        auto matT = glm::translate(glm::identity<glm::mat4>(), newPos);
-        auto matR = glm::mat4_cast(newRot);
-        auto mat  = matT * matR * matS;
+        const auto mat = _physicsSystem->GetBodyInterface().GetWorldTransform(bodyId);
 
         transform.prevMatrix = transform.matrix;
-        transform.matrix     = mat;
+        memcpy((void*) &transform.matrix, (void*) &mat, sizeof(glm::mat4));
 
         if (vehicle) {
-            for (auto wheel : vehicle->wheels) {
-                auto& w = entityRegistry().get<Wheel>(wheel);
-                auto& t = entityRegistry().get<Transform>(wheel);
-                // const auto settings = _vehicleConstraint->GetWheels()[w.id]->GetSettings();
-                auto wheelTransform = _vehicleConstraints[entity]->GetWheelWorldTransform(
-                    (JPH::uint) w.position, JPH::Vec3::sAxisX(), JPH::Vec3::sAxisY());
-                t.prevMatrix = t.matrix;
-                memcpy((void*) &t.matrix, (void*) &wheelTransform, sizeof(glm::mat4));
+            for (auto wheelEntity : vehicle->wheels) {
+                auto& wheel          = entityRegistry().get<Wheel>(wheelEntity);
+                auto& wheelTransform = entityRegistry().get<Transform>(wheelEntity);
+                auto wheelMat        = _vehicleConstraints[entity]->GetWheelWorldTransform(
+                    (JPH::uint) wheel.position, JPH::Vec3::sAxisX(), JPH::Vec3::sAxisY());
+                wheelTransform.prevMatrix = wheelTransform.matrix;
+                memcpy((void*) &wheelTransform.matrix, (void*) &wheelMat, sizeof(glm::mat4));
             }
         }
     }
@@ -533,7 +515,7 @@ JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cl
     JPH::Ref<JPH::Shape> shape{};
     switch (collider.shape) {
         case Shape::Box: {
-            const auto& size = collider.size;
+            const auto& size = collider.halfExtent;
             JPH::BoxShapeSettings shape(JPH::Vec3(size.x, size.y, size.z));
             shape.SetEmbedded();
             return shape.Create().Get();
@@ -544,11 +526,9 @@ JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cl
             return shape.Create().Get();
         }
         case Shape::Capsule: {
-            // JPH::CapsuleShapeSettings shape(size.x, size.y);
-            // shape.SetEmbedded();
-            // return shape.Create().Get();
-            assert(!"unreachable code");
-            return {};
+            JPH::CapsuleShapeSettings shape(collider.halfHeightOfCylinder, collider.radius);
+            shape.SetEmbedded();
+            return shape.Create().Get();
         }
         case Shape::Mesh: {
             const auto& meshCollider = cluster.meshColliders[collider.index];
@@ -590,8 +570,6 @@ JPH::BroadPhaseLayer PhysicsService::BroadPhaseLayerInterface::GetBroadPhaseLaye
             return JPH::BroadPhaseLayer(0);
         case ObjectLayers::Dynamic:
             return JPH::BroadPhaseLayer(1);
-        case ObjectLayers::Constraint:
-            return JPH::BroadPhaseLayer(2);
         default:
             return JPH::BroadPhaseLayer(0);
     }
@@ -605,12 +583,9 @@ bool PhysicsService::ObjectVsBroadPhaseLayerFilter::ShouldCollide(JPH::ObjectLay
                                                                   JPH::BroadPhaseLayer inLayer2) const {
     switch (inLayer1) {
         case Static:
-            return true; // return inLayer2 == JPH::BroadPhaseLayer(Dynamic) || inLayer2 ==
-                         // JPH::BroadPhaseLayer(Constraint);
+            return inLayer2 == JPH::BroadPhaseLayer(Dynamic);
         case Dynamic:
             return true;
-        case Constraint:
-            return true; // return inLayer2 != JPH::BroadPhaseLayer(Constraint);
         default:
             JPH_ASSERT(false);
             return false;
@@ -623,11 +598,9 @@ PhysicsService::ObjectLayerPairFilter::ObjectLayerPairFilter(PhysicsService* ser
 bool PhysicsService::ObjectLayerPairFilter::ShouldCollide(JPH::ObjectLayer inLayer1, JPH::ObjectLayer inLayer2) const {
     switch (inLayer1) {
         case Static:
-            return true; // return inLayer2 == Dynamic || inLayer2 == Constraint;
+            return inLayer2 == Dynamic;
         case Dynamic:
             return true;
-        case Constraint:
-            return true; // return inLayer2 != Constraint;
         default:
             JPH_ASSERT(false);
             return false;

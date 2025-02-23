@@ -12,7 +12,8 @@ enum class Shape {
 
 struct Collider {
     Shape shape;
-    glm::vec3 size;
+    glm::vec3 halfExtent;
+    gerium_float32_t halfHeightOfCylinder;
     gerium_float32_t radius;
     gerium_uint32_t index;
 };

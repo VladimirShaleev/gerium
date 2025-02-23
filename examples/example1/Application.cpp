@@ -174,8 +174,8 @@ entt::entity addModel(entt::registry& registry,
                 //     collider.shape = Shape::Mesh;
                 //     collider.index = colliderIndex;
                 // } else {
-                collider.shape = Shape::Box;
-                collider.size  = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
+                collider.shape      = Shape::Box;
+                collider.halfExtent = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
                 // }
 
                 auto& renderable = registry.get_or_emplace<Renderable>(node);
