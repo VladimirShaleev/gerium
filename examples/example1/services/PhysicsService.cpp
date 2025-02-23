@@ -530,6 +530,25 @@ JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cl
             shape.SetEmbedded();
             return shape.Create().Get();
         }
+        case Shape::ConvexHull: {
+            const auto convexHulls = cluster.convexHullColliders[collider.index];
+            JPH::Array<JPH::Vec3> vertices;
+            JPH::StaticCompoundShapeSettings shape;
+            for (const auto& convexHull : convexHulls.convexHulls) {
+                vertices.resize(convexHull.vertices.size());
+                for (size_t i = 0; i < convexHull.vertices.size(); ++i) {
+                    const auto& vertex = convexHull.vertices[i];
+                    vertices[i].SetX(vertex.x);
+                    vertices[i].SetY(vertex.y);
+                    vertices[i].SetZ(vertex.z);
+                }
+                JPH::ConvexHullShapeSettings convexShape(vertices);
+                convexShape.SetEmbedded();
+                shape.AddShape(JPH::Vec3(0.0f, 0.0f, 0.0f), JPH::Quat::sIdentity(), convexShape.Create().Get());
+            }
+            shape.SetEmbedded();
+            return shape.Create().Get();
+        }
         case Shape::Mesh: {
             const auto& meshCollider = cluster.meshColliders[collider.index];
             JPH::VertexList vertices;

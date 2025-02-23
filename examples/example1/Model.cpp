@@ -5,7 +5,8 @@ using namespace entt::literals;
 struct Cache {
     std::set<const aiMesh*> meshes;
     std::vector<std::tuple<size_t, size_t>> nodeNames;
-    std::unordered_map<gerium_uint32_t, gerium_sint32_t> colliders;
+    std::unordered_map<gerium_uint32_t, gerium_sint32_t> meshColliders;
+    std::unordered_map<gerium_uint32_t, gerium_sint32_t> convexHullColliders;
 };
 
 static std::tuple<size_t, size_t> appendString(Model& model, const char* name, size_t length) {
@@ -74,6 +75,21 @@ static void appendMaterial(Cache& cache, Model& model, const aiScene* sc, const 
             pbr.flags |= MaterialFlags::DoubleSided;
         }
     }
+}
+
+static void appendConvexHull(ConvexHullCollider::ConvexHull& convexHull, const aiMesh* mesh) {
+    struct Hash {
+        size_t operator()(const glm::vec3& vec) const noexcept {
+            return rapidhash_withSeed(&vec.x, sizeof(vec), RAPID_SEED);
+        }
+    };
+
+    std::unordered_set<glm::vec3, Hash> vertices;
+    for (int v = 0; v < mesh->mNumVertices; ++v) {
+        const auto vertex = mesh->mVertices[v];
+        vertices.emplace(vertex.x, vertex.y, vertex.z);
+    }
+    convexHull.vertices.insert(convexHull.vertices.end(), vertices.begin(), vertices.end());
 }
 
 static void appendCollider(MeshCollider& collider, const aiMesh* mesh) {
@@ -277,12 +293,56 @@ static void recursiveParsing(Cluster& cluster,
 
     if ((gerium_uint32_t) name != "ROOT"_hs) {
         if (name.string().ends_with("_collider")) {
-            cache.colliders[name] = (gerium_sint32_t) cluster.meshColliders.size();
-            cluster.meshColliders.push_back({});
-            auto& collider = cluster.meshColliders.back();
+            auto hasMeshColliders       = false;
+            auto hasConvexHullColliders = false;
             for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
                 const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
-                appendCollider(collider, mesh);
+                if (sc->HasMaterials()) {
+                    const auto& material = sc->mMaterials[mesh->mMaterialIndex];
+                    const auto& name     = hashed_string_owner(material->GetName().C_Str());
+                    if (name.string().starts_with("convex_hull_")) {
+                        hasConvexHullColliders = true;
+                    } else {
+                        hasMeshColliders = true;
+                    }
+                } else {
+                    hasMeshColliders = true;
+                }
+            }
+            if (hasMeshColliders && hasConvexHullColliders) {
+                throw std::runtime_error("A node can only have one collider type");
+            }
+
+            MeshCollider* meshCollider{};
+            ConvexHullCollider* convexHullCollider{};
+            if (hasMeshColliders) {
+                cache.meshColliders[name] = (gerium_sint32_t) cluster.meshColliders.size();
+                cluster.meshColliders.push_back({});
+                meshCollider = &cluster.meshColliders.back();
+            }
+            if (hasConvexHullColliders) {
+                cache.convexHullColliders[name] = (gerium_sint32_t) cluster.convexHullColliders.size();
+                cluster.convexHullColliders.push_back({});
+                convexHullCollider = &cluster.convexHullColliders.back();
+            }
+
+            for (unsigned int n = 0; n < nd->mNumMeshes; ++n) {
+                const aiMesh* mesh = sc->mMeshes[nd->mMeshes[n]];
+                bool isConvexHull  = false;
+                if (sc->HasMaterials()) {
+                    const auto& material = sc->mMaterials[mesh->mMaterialIndex];
+                    const auto& name     = hashed_string_owner(material->GetName().C_Str());
+                    if (name.string().starts_with("convex_hull_")) {
+                        isConvexHull = true;
+                    }
+                }
+                if (isConvexHull) {
+                    convexHullCollider->convexHulls.push_back({});
+                    auto& convexHull = convexHullCollider->convexHulls.back();
+                    appendConvexHull(convexHull, mesh);
+                } else {
+                    appendCollider(*meshCollider, mesh);
+                }
             }
         } else {
             auto matrix = nd->mTransformation;
@@ -453,14 +513,19 @@ Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
 
         const auto [nameIndex, nameLen] = cache.nodeNames[i];
 
-        node.name = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+        node.name          = entt::hashed_string{ model.strPool.data() + nameIndex, nameLen };
+        node.colliderIndex = -1;
+        node.colliderShape = Shape::Box;
 
         auto colliderName = std::string(node.name.data(), node.name.size()) + "_collider";
         auto colliderKey  = entt::hashed_string{ colliderName.c_str(), colliderName.length() }.value();
-        if (auto it = cache.colliders.find(colliderKey); it != cache.colliders.end()) {
+        if (auto it = cache.meshColliders.find(colliderKey); it != cache.meshColliders.end()) {
             node.colliderIndex = it->second;
-        } else {
-            node.colliderIndex = -1;
+            node.colliderShape = Shape::Mesh;
+        }
+        if (auto it = cache.convexHullColliders.find(colliderKey); it != cache.convexHullColliders.end()) {
+            node.colliderIndex = it->second;
+            node.colliderShape = Shape::ConvexHull;
         }
     }
 

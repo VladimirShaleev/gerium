@@ -170,13 +170,20 @@ entt::entity addModel(entt::registry& registry,
                 auto& body     = registry.get_or_emplace<RigidBody>(node);
                 body.mass      = 6000.0f;
 
-                // if (auto colliderIndex = modelNode.colliderIndex; colliderIndex >= 0) {
-                //     collider.shape = Shape::Mesh;
-                //     collider.index = colliderIndex;
-                // } else {
-                collider.shape      = Shape::Box;
-                collider.halfExtent = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
-                // }
+                switch (modelNode.colliderShape) {
+                    case Shape::ConvexHull:
+                        collider.shape = Shape::ConvexHull;
+                        collider.index = modelNode.colliderIndex;
+                        break;
+                    case Shape::Mesh:
+                        collider.shape = Shape::Mesh;
+                        collider.index = modelNode.colliderIndex;
+                        break;
+                    default:
+                        collider.shape      = Shape::Box;
+                        collider.halfExtent = (modelNode.bbox.max() - modelNode.bbox.min()) * 0.5f;
+                        break;
+                }
 
                 auto& renderable = registry.get_or_emplace<Renderable>(node);
                 renderable.meshes.push_back({});

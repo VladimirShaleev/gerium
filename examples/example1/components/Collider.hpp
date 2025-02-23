@@ -7,6 +7,7 @@ enum class Shape {
     Box,
     Sphere,
     Capsule,
+    ConvexHull,
     Mesh
 };
 

@@ -2,6 +2,7 @@
 #define MODEL_HPP
 
 #include "Common.hpp"
+#include "components/Collider.hpp"
 #include "components/Renderable.hpp"
 
 struct MeshCollider {
@@ -9,11 +10,20 @@ struct MeshCollider {
     std::vector<uint32_t> indices;
 };
 
+struct ConvexHullCollider {
+    struct ConvexHull {
+        std::vector<vec3> vertices;
+    };
+
+    std::vector<ConvexHull> convexHulls;
+};
+
 struct Cluster {
     std::vector<VertexNonCompressed> vertices;
     std::vector<MeshNonCompressed> meshes;
     std::vector<uint32_t> primitiveIndices;
     std::vector<MeshCollider> meshColliders;
+    std::vector<ConvexHullCollider> convexHullColliders;
 };
 
 struct Model : private NonCopyable {
@@ -21,6 +31,7 @@ struct Model : private NonCopyable {
         gerium_sint32_t parent : 24;
         gerium_sint32_t level  : 8;
         gerium_sint32_t colliderIndex;
+        Shape colliderShape;
         entt::hashed_string name;
         glm::vec3 position;
         glm::quat rotation;
