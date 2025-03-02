@@ -8,4 +8,8 @@
 #include <entt/entt.hpp>
 
 @LIST_IDS@
+@TECH_IDS@
+
+@MODEL_IDS@
+
 #endif

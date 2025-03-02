@@ -10,6 +10,8 @@
 
 #include <ranges>
 
+using namespace entt::literals;
+
 ResourceManager& RenderService::resourceManager() noexcept {
     return _resourceManager;
 }
@@ -220,6 +222,8 @@ void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t comma
 }
 
 void RenderService::start() {
+    application().dispatcher().sink<FlushClusterEvent>().connect<&RenderService::onEvent>(*this);
+
     gerium_renderer_options_t options{};
     options.app_version               = GERIUM_VERSION_ENCODE(1, 0, 0);
     options.command_buffers_per_frame = 5;
@@ -348,6 +352,8 @@ void RenderService::stop() {
         gerium_renderer_destroy(_renderer);
         _renderer = nullptr;
     }
+
+    application().dispatcher().sink<FlushClusterEvent>().disconnect(this);
 }
 
 void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapsed */) {
@@ -373,6 +379,11 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     if (_error) {
         std::rethrow_exception(_error);
     }
+}
+
+void RenderService::onEvent(const FlushClusterEvent& event) {
+    createCluster(*event.cluster);
+    createStaticInstances();
 }
 
 void RenderService::updateActiveSceneData() {

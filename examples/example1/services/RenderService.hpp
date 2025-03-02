@@ -5,6 +5,7 @@
 #include "../ResourceManager.hpp"
 #include "../components/Renderable.hpp"
 #include "../components/Transform.hpp"
+#include "../events/FlushClusterEvent.hpp"
 #include "ServiceManager.hpp"
 
 class RenderPass;
@@ -55,6 +56,8 @@ private:
         _renderPassesCache[entt::type_index<RP>::value()] = renderPass.get();
         _renderPasses.push_back(std::move(renderPass));
     }
+
+    void onEvent(const FlushClusterEvent& event);
 
     void updateActiveSceneData();
     void updateDynamicInstances();

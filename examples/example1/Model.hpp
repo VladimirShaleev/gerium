@@ -37,12 +37,13 @@ struct Model : private NonCopyable {
         glm::quat rotation;
         glm::vec3 scale;
         BoundingBox bbox;
+        gerium_float32_t mass;
     };
 
     struct Mesh {
         gerium_uint32_t meshIndex;
         gerium_uint32_t materialIndex;
-        gerium_sint32_t nodeIndex;
+        gerium_uint32_t nodeIndex;
     };
 
     std::vector<char> strPool;

@@ -34,6 +34,7 @@ struct MaterialData {
 struct MeshData {
     hashed_string_owner model;
     gerium_uint32_t mesh;
+    gerium_uint32_t node;
     MaterialData material;
 };
 

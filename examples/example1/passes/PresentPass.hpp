@@ -13,6 +13,9 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
+
+private:
+    void developSceneGraph();
 };
 
 #endif

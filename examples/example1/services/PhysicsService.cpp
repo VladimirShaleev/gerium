@@ -1,4 +1,5 @@
 #include "PhysicsService.hpp"
+#include "../Application.hpp"
 #include "../components/Static.hpp"
 
 using namespace entt::literals;
@@ -6,56 +7,17 @@ using namespace entt::literals;
 constexpr float mUpdateFrequency    = 60.0f;
 constexpr float mRequestedDeltaTime = 1.0f / mUpdateFrequency;
 
-void PhysicsService::createBodies(const Cluster& cluster) {
-    auto view = entityRegistry().view<RigidBody, Collider, Transform>(entt::exclude<Wheel>);
-
-    for (auto entity : view) {
-        auto& rigidBody       = view.get<RigidBody>(entity);
-        const auto& collider  = view.get<Collider>(entity);
-        const auto& transform = view.get<Transform>(entity);
-        const auto vehicle    = entityRegistry().try_get<Vehicle>(entity);
-        const auto isDynamic  = !entityRegistry().any_of<::Static>(entity);
-
-        glm::vec3 scale;
-        glm::quat orientation;
-        glm::vec3 translation;
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::decompose(transform.matrix, scale, orientation, translation, skew, perspective);
-
-        const auto position = JPH::Vec3(translation.x, translation.y, translation.z);
-        const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
-
-        auto shape = getShape(collider, cluster);
-        shape->ScaleShape(JPH::Vec3(transform.scale.x, transform.scale.y, transform.scale.z));
-
-        JPH::BodyCreationSettings settings(shape,
-                                           position,
-                                           rotation,
-                                           isDynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static,
-                                           isDynamic ? Dynamic : Static);
-
-        settings.mOverrideMassProperties       = JPH::EOverrideMassProperties::CalculateInertia;
-        settings.mMassPropertiesOverride.mMass = rigidBody.mass;
-        settings.mLinearDamping                = rigidBody.linearDamping;
-        settings.mAngularDamping               = rigidBody.angularDamping;
-
-        auto body = _physicsSystem->GetBodyInterface().CreateBody(settings);
-
-        auto bodyID      = body->GetID();
-        rigidBody.bodyID = bodyID.GetIndexAndSequenceNumber();
-        _physicsSystem->GetBodyInterface().AddBody(
-            bodyID, isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
-
-        if (vehicle) {
-            createVehicleConstraints(entity, *vehicle, rigidBody);
-        }
-    }
-
-    _physicsSystem->OptimizeBroadPhase();
+void PhysicsService::onEvent(const FlushClusterEvent& event) {
+    _meshColliders       = event.cluster->meshColliders;
+    _convexHullColliders = event.cluster->convexHullColliders;
+    _loadedColliders     = true;
 }
 
 void PhysicsService::start() {
+    application().dispatcher().sink<FlushClusterEvent>().connect<&PhysicsService::onEvent>(*this);
+    entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT).on_construct<RigidBody>();
+    entityRegistry().storage<entt::reactive>(STORAGE_DESTROY).on_destroy<RigidBody>();
+
     JPH::RegisterDefaultAllocator();
 
     JPH::Factory::sInstance = new JPH::Factory();
@@ -117,8 +79,12 @@ void PhysicsService::stop() {
         }
     }
 
+    _loadedColliders     = {};
+    _convexHullColliders = {};
+    _meshColliders       = {};
     _vehicleConstraints.clear();
-    _vehicleTester                 = nullptr;
+    _vehicleTester = nullptr;
+    _mapBodies.clear();
     _physicsSystem                 = nullptr;
     _objectLayerPairFilter         = nullptr;
     _objectVsBroadPhaseLayerFilter = nullptr;
@@ -130,9 +96,18 @@ void PhysicsService::stop() {
 
     delete JPH::Factory::sInstance;
     JPH::Factory::sInstance = nullptr;
+
+    auto& storageConstruct = entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT);
+    auto& storageDestroy   = entityRegistry().storage<entt::reactive>(STORAGE_DESTROY);
+    entityRegistry().on_construct<RigidBody>().disconnect(&storageConstruct);
+    entityRegistry().on_destroy<RigidBody>().disconnect(&storageDestroy);
+    application().dispatcher().sink<FlushClusterEvent>().disconnect(this);
 }
 
 void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t elapsed) {
+    destroyBodies();
+    createBodies();
+
     float worldDeltaTime = 0.0f;
 
     static float mResidualDeltaTime = 0.0f;
@@ -162,6 +137,101 @@ void PhysicsService::step() {
     _physicsSystem->Update(mRequestedDeltaTime, 1, _allocator.get(), _jobSystem.get());
 
     syncPhysicsToECS();
+}
+
+void PhysicsService::destroyBodies() {
+    auto& storage = entityRegistry().storage<entt::reactive>(STORAGE_DESTROY);
+    if (!storage.empty()) {
+        for (auto entity : storage) {
+            if (auto it = _vehicleConstraints.find(entity); it != _vehicleConstraints.end()) {
+                _physicsSystem->RemoveStepListener(it->second);
+                _physicsSystem->RemoveConstraint(it->second);
+                _vehicleConstraints.erase(it);
+            }
+        }
+        storage.clear();
+
+        std::set<gerium_uint32_t> savedBodies;
+        for (auto [entity, rigidBody] : entityRegistry().view<RigidBody>(entt::exclude<Wheel>).each()) {
+            savedBodies.insert(rigidBody.bodyID);
+        }
+
+        JPH::BodyIDVector bodies;
+        _physicsSystem->GetBodies(bodies);
+        for (const auto& bodyID : bodies) {
+            auto body         = _physicsSystem->GetBodyLockInterfaceNoLock().TryGetBody(bodyID);
+            auto customBodyId = (gerium_uint32_t) body->GetUserData();
+            if (!savedBodies.contains(customBodyId)) {
+                _physicsSystem->GetBodyInterface().RemoveBody(bodyID);
+                _physicsSystem->GetBodyInterface().DestroyBody(bodyID);
+                _mapBodies.erase(_mapBodies.find(customBodyId));
+            }
+        }
+
+        for (const auto& [_, constraint] : _vehicleConstraints) {
+            _physicsSystem->GetBodyInterface().ActivateBody(constraint->GetVehicleBody()->GetID());
+        }
+    }
+}
+
+void PhysicsService::createBodies() {
+    if (_loadedColliders) {
+        auto updated  = false;
+        auto& storage = entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT);
+        if (!storage.empty()) {
+            auto nextId = getNextBodyID();
+            for (auto [entity, rigidBody, collider, transform] :
+                 (entt::basic_view{ storage } |
+                  entityRegistry().view<RigidBody, Collider, Transform>(entt::exclude<Wheel>))
+                     .each()) {
+                updated = true;
+
+                const auto vehicle   = entityRegistry().try_get<Vehicle>(entity);
+                const auto isDynamic = !entityRegistry().any_of<::Static>(entity);
+
+                glm::vec3 scale;
+                glm::quat orientation;
+                glm::vec3 translation;
+                glm::vec3 skew;
+                glm::vec4 perspective;
+                glm::decompose(transform.matrix, scale, orientation, translation, skew, perspective);
+
+                const auto position = JPH::Vec3(translation.x, translation.y, translation.z);
+                const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
+
+                auto shape = getShape(collider);
+                shape->ScaleShape(JPH::Vec3(transform.scale.x, transform.scale.y, transform.scale.z));
+
+                JPH::BodyCreationSettings settings(shape,
+                                                   position,
+                                                   rotation,
+                                                   isDynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static,
+                                                   isDynamic ? Dynamic : Static);
+
+                settings.mOverrideMassProperties       = JPH::EOverrideMassProperties::CalculateInertia;
+                settings.mMassPropertiesOverride.mMass = rigidBody.mass;
+                settings.mLinearDamping                = rigidBody.linearDamping;
+                settings.mAngularDamping               = rigidBody.angularDamping;
+
+                rigidBody.bodyID = nextId++;
+                auto body        = _physicsSystem->GetBodyInterface().CreateBody(settings);
+                body->SetUserData((JPH::uint64) rigidBody.bodyID);
+                _mapBodies[rigidBody.bodyID] = body;
+
+                _physicsSystem->GetBodyInterface().AddBody(
+                    body->GetID(), isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
+
+                if (vehicle) {
+                    createVehicleConstraints(entity, *vehicle, rigidBody);
+                }
+            }
+        }
+
+        if (updated) {
+            storage.clear();
+            _physicsSystem->OptimizeBroadPhase();
+        }
+    }
 }
 
 void PhysicsService::createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody) {
@@ -238,7 +308,7 @@ void PhysicsService::createVehicleConstraints(entt::entity entity, Vehicle& vehi
         }
     }
 
-    auto body = _physicsSystem->GetBodyLockInterface().TryGetBody(JPH::BodyID(rigidBody.bodyID));
+    auto body = _mapBodies[rigidBody.bodyID];
 
     _vehicleConstraints[entity] = new JPH::VehicleConstraint(*body, constraint);
     auto& vehicleConstraint     = _vehicleConstraints[entity];
@@ -283,6 +353,16 @@ std::vector<gerium_uint8_t> PhysicsService::saveState() {
     };
 
     Stream stream;
+
+    JPH::BodyIDVector bodies;
+    _physicsSystem->GetBodies(bodies);
+    stream.Write(gerium_uint32_t(bodies.size()));
+    for (const auto& bodyID : bodies) {
+        auto body     = _physicsSystem->GetBodyLockInterfaceNoLock().TryGetBody(bodyID);
+        auto customId = (gerium_uint32_t) body->GetUserData();
+        stream.Write(customId);
+    }
+
     JPH::Ref<JPH::PhysicsScene> scene = new JPH::PhysicsScene();
     scene->FromPhysicsSystem(_physicsSystem.get());
     scene->SaveBinaryState(stream, true, true);
@@ -318,6 +398,17 @@ void PhysicsService::restoreState(const std::vector<gerium_uint8_t>& data) {
     };
 
     Stream stream(data);
+
+    gerium_uint32_t bodyCount = 0;
+    stream.Read(bodyCount);
+    std::vector<gerium_uint32_t> ids;
+    ids.resize(bodyCount);
+    for (gerium_uint32_t i = 0; i < bodyCount; ++i) {
+        gerium_uint32_t customId;
+        stream.Read(customId);
+        ids[i] = customId;
+    }
+
     auto result = JPH::PhysicsScene::sRestoreFromBinaryState(stream);
     if (result.HasError()) {
         throw std::runtime_error(result.GetError().c_str());
@@ -326,6 +417,14 @@ void PhysicsService::restoreState(const std::vector<gerium_uint8_t>& data) {
 
     scene->CreateBodies(_physicsSystem.get());
 
+    JPH::BodyIDVector bodies;
+    _physicsSystem->GetBodies(bodies);
+    for (size_t i = 0; i < bodies.size(); ++i) {
+        auto body = _physicsSystem->GetBodyLockInterfaceNoLock().TryGetBody(bodies[i]);
+        body->SetUserData((JPH::uint64) ids[i]);
+        _mapBodies[ids[i]] = body;
+    }
+
     auto view = entityRegistry().view<Vehicle, RigidBody>(entt::exclude<::Static, Wheel>);
 
     for (auto entity : view) {
@@ -333,6 +432,9 @@ void PhysicsService::restoreState(const std::vector<gerium_uint8_t>& data) {
         auto& rigidBody = view.get<RigidBody>(entity);
         createVehicleConstraints(entity, vehicle, rigidBody);
     }
+
+    entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT).clear();
+    entityRegistry().storage<entt::reactive>(STORAGE_DESTROY).clear();
 }
 
 void PhysicsService::driverInput(entt::entity entity, Vehicle& vehicle) {
@@ -404,8 +506,8 @@ void PhysicsService::syncPhysicsToECS() {
         auto& transform = view.get<Transform>(entity);
         auto vehicle    = entityRegistry().try_get<Vehicle>(entity);
 
-        JPH::BodyID bodyId(rigidBody.bodyID);
-        const auto mat = _physicsSystem->GetBodyInterface().GetWorldTransform(bodyId);
+        const auto bodyId = _mapBodies[rigidBody.bodyID]->GetID();
+        const auto mat    = _physicsSystem->GetBodyInterface().GetWorldTransform(bodyId);
 
         transform.prevMatrix = transform.matrix;
         memcpy((void*) &transform.matrix, (void*) &mat, sizeof(glm::mat4));
@@ -421,6 +523,78 @@ void PhysicsService::syncPhysicsToECS() {
             }
         }
     }
+}
+
+JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider) {
+    JPH::Ref<JPH::Shape> shape{};
+    switch (collider.shape) {
+        case Shape::Box: {
+            const auto& size = collider.halfExtent;
+            JPH::BoxShapeSettings shape(JPH::Vec3(size.x, size.y, size.z));
+            shape.SetEmbedded();
+            return shape.Create().Get();
+        }
+        case Shape::Sphere: {
+            JPH::SphereShapeSettings shape(collider.radius);
+            shape.SetEmbedded();
+            return shape.Create().Get();
+        }
+        case Shape::Capsule: {
+            JPH::CapsuleShapeSettings shape(collider.halfHeightOfCylinder, collider.radius);
+            shape.SetEmbedded();
+            return shape.Create().Get();
+        }
+        case Shape::ConvexHull: {
+            const auto& convexHulls = _convexHullColliders[collider.index];
+            JPH::Array<JPH::Vec3> vertices;
+            JPH::StaticCompoundShapeSettings shape;
+            for (const auto& convexHull : convexHulls.convexHulls) {
+                vertices.resize(convexHull.vertices.size());
+                for (size_t i = 0; i < convexHull.vertices.size(); ++i) {
+                    const auto& vertex = convexHull.vertices[i];
+                    vertices[i].SetX(vertex.x);
+                    vertices[i].SetY(vertex.y);
+                    vertices[i].SetZ(vertex.z);
+                }
+                JPH::ConvexHullShapeSettings convexShape(vertices);
+                convexShape.SetEmbedded();
+                shape.AddShape(JPH::Vec3(0.0f, 0.0f, 0.0f), JPH::Quat::sIdentity(), convexShape.Create().Get());
+            }
+            shape.SetEmbedded();
+            return shape.Create().Get();
+        }
+        case Shape::Mesh: {
+            const auto& meshCollider = _meshColliders[collider.index];
+            JPH::VertexList vertices;
+            JPH::IndexedTriangleList indices;
+            vertices.resize(meshCollider.vertices.size());
+            indices.resize(meshCollider.indices.size() / 3);
+            for (int i = 0; i < meshCollider.vertices.size(); ++i) {
+                vertices[i].x = meshCollider.vertices[i].x;
+                vertices[i].y = meshCollider.vertices[i].y;
+                vertices[i].z = meshCollider.vertices[i].z;
+            }
+            for (int i = 0; i < meshCollider.indices.size() / 3; ++i) {
+                indices[i].mIdx[0] = meshCollider.indices[i * 3 + 2];
+                indices[i].mIdx[1] = meshCollider.indices[i * 3 + 1];
+                indices[i].mIdx[2] = meshCollider.indices[i * 3 + 0];
+            }
+            JPH::MeshShapeSettings shape(vertices, indices);
+            shape.SetEmbedded();
+            return shape.Create().Get();
+        }
+        default:
+            assert(!"unreachable code");
+            return {};
+    }
+}
+
+gerium_uint32_t PhysicsService::getNextBodyID() {
+    gerium_uint32_t nextId = 0;
+    for (auto [_, rigidBody] : entityRegistry().view<RigidBody>().each()) {
+        nextId = std::max(nextId, rigidBody.bodyID);
+    }
+    return nextId;
 }
 
 JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
@@ -509,70 +683,6 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
     settings->mRadius                      = radius;
     settings->mWidth                       = width;
     return settings;
-}
-
-JPH::Ref<JPH::Shape> PhysicsService::getShape(const Collider& collider, const Cluster& cluster) {
-    JPH::Ref<JPH::Shape> shape{};
-    switch (collider.shape) {
-        case Shape::Box: {
-            const auto& size = collider.halfExtent;
-            JPH::BoxShapeSettings shape(JPH::Vec3(size.x, size.y, size.z));
-            shape.SetEmbedded();
-            return shape.Create().Get();
-        }
-        case Shape::Sphere: {
-            JPH::SphereShapeSettings shape(collider.radius);
-            shape.SetEmbedded();
-            return shape.Create().Get();
-        }
-        case Shape::Capsule: {
-            JPH::CapsuleShapeSettings shape(collider.halfHeightOfCylinder, collider.radius);
-            shape.SetEmbedded();
-            return shape.Create().Get();
-        }
-        case Shape::ConvexHull: {
-            const auto convexHulls = cluster.convexHullColliders[collider.index];
-            JPH::Array<JPH::Vec3> vertices;
-            JPH::StaticCompoundShapeSettings shape;
-            for (const auto& convexHull : convexHulls.convexHulls) {
-                vertices.resize(convexHull.vertices.size());
-                for (size_t i = 0; i < convexHull.vertices.size(); ++i) {
-                    const auto& vertex = convexHull.vertices[i];
-                    vertices[i].SetX(vertex.x);
-                    vertices[i].SetY(vertex.y);
-                    vertices[i].SetZ(vertex.z);
-                }
-                JPH::ConvexHullShapeSettings convexShape(vertices);
-                convexShape.SetEmbedded();
-                shape.AddShape(JPH::Vec3(0.0f, 0.0f, 0.0f), JPH::Quat::sIdentity(), convexShape.Create().Get());
-            }
-            shape.SetEmbedded();
-            return shape.Create().Get();
-        }
-        case Shape::Mesh: {
-            const auto& meshCollider = cluster.meshColliders[collider.index];
-            JPH::VertexList vertices;
-            JPH::IndexedTriangleList indices;
-            vertices.resize(meshCollider.vertices.size());
-            indices.resize(meshCollider.indices.size() / 3);
-            for (int i = 0; i < meshCollider.vertices.size(); ++i) {
-                vertices[i].x = meshCollider.vertices[i].x;
-                vertices[i].y = meshCollider.vertices[i].y;
-                vertices[i].z = meshCollider.vertices[i].z;
-            }
-            for (int i = 0; i < meshCollider.indices.size() / 3; ++i) {
-                indices[i].mIdx[0] = meshCollider.indices[i * 3 + 2];
-                indices[i].mIdx[1] = meshCollider.indices[i * 3 + 1];
-                indices[i].mIdx[2] = meshCollider.indices[i * 3 + 0];
-            }
-            JPH::MeshShapeSettings shape(vertices, indices);
-            shape.SetEmbedded();
-            return shape.Create().Get();
-        }
-        default:
-            assert(!"unreachable code");
-            return {};
-    }
 }
 
 PhysicsService::BroadPhaseLayerInterface::BroadPhaseLayerInterface(PhysicsService* service) noexcept :

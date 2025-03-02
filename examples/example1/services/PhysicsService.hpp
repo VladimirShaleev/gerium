@@ -7,18 +7,23 @@
 #include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
 #include "../components/Wheel.hpp"
+#include "../events/FlushClusterEvent.hpp"
 #include "ServiceManager.hpp"
 
 class PhysicsService final : public Service {
-public:
-    void createBodies(const Cluster& cluster);
-
 private:
+    static constexpr entt::hashed_string STORAGE_CONSTRUCT = { "create_rigid_bodies" };
+    static constexpr entt::hashed_string STORAGE_DESTROY   = { "destroy_rigid_bodies" };
+
+    void onEvent(const FlushClusterEvent& event);
+
     void start() override;
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
     void step();
 
+    void destroyBodies();
+    void createBodies();
     void createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody);
 
     entt::hashed_string stateName() const noexcept override;
@@ -29,12 +34,14 @@ private:
     void updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint);
     void syncPhysicsToECS();
 
+    JPH::Ref<JPH::Shape> getShape(const Collider& collider);
+
+    gerium_uint32_t getNextBodyID();
+
     static JPH::WheelSettings* createWheelSettings(const Vehicle& vehicle,
                                                    const Wheel& wheel,
                                                    gerium_float32_t radius,
                                                    gerium_float32_t width);
-
-    static JPH::Ref<JPH::Shape> getShape(const Collider& collider, const Cluster& cluster);
 
     enum ObjectLayers : JPH::uint8 {
         Static  = 0,
@@ -76,8 +83,12 @@ private:
     std::unique_ptr<JPH::ObjectVsBroadPhaseLayerFilter> _objectVsBroadPhaseLayerFilter{};
     std::unique_ptr<JPH::ObjectLayerPairFilter> _objectLayerPairFilter{};
     std::unique_ptr<JPH::PhysicsSystem> _physicsSystem{};
+    std::map<gerium_uint32_t, JPH::Body*> _mapBodies{};
     JPH::Ref<JPH::VehicleCollisionTester> _vehicleTester{};
     std::map<entt::entity, JPH::Ref<JPH::VehicleConstraint>> _vehicleConstraints{};
+    std::vector<MeshCollider> _meshColliders{};
+    std::vector<ConvexHullCollider> _convexHullColliders{};
+    bool _loadedColliders{};
 };
 
 #endif

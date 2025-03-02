@@ -95,6 +95,18 @@ public:
     [[nodiscard]] auto operator<=>(const hashed_string_owner& rhs) const noexcept {
         return value() <=> rhs.value();
     }
+
+    [[nodiscard]] bool operator==(const entt::hashed_string& rhs) const noexcept {
+        return value() == rhs.value();
+    }
+
+    [[nodiscard]] bool operator!=(const entt::hashed_string& rhs) const noexcept {
+        return !(*this == rhs);
+    }
+
+    [[nodiscard]] auto operator<=>(const entt::hashed_string& rhs) const noexcept {
+        return value() <=> rhs.value();
+    }
 };
 
 [[nodiscard]] inline hashed_string_owner operator""_hso(const char* str, std::size_t len) {

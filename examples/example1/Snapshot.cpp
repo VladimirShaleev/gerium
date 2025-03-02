@@ -109,6 +109,7 @@ struct Snapshot {
     gerium_uint32_t head;
     std::vector<entt::entity> entities;
     std::vector<Component<Node>> nodes;
+    std::vector<Component<Name>> names;
     std::vector<Component<Static>> statics;
     std::vector<Component<Transform>> transforms;
     std::vector<Component<RigidBody>> rigidBodies;
@@ -253,6 +254,7 @@ std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry,
     Snapshot snapshotData;
     auto archiveEntities           = ArchiveEntities(snapshotData.head, snapshotData.entities);
     auto archiveNodes              = ArchiveComponents(snapshotData.nodes);
+    auto archiveNames              = ArchiveComponents(snapshotData.names);
     auto archiveStatics            = ArchiveComponents(snapshotData.statics);
     auto archiveTransforms         = ArchiveComponents(snapshotData.transforms);
     auto archiveRigidBodies        = ArchiveComponents(snapshotData.rigidBodies);
@@ -266,6 +268,7 @@ std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry,
     entt::snapshot{ registry }
         .get<entt::entity>(archiveEntities)
         .get<Node>(archiveNodes)
+        .get<Name>(archiveNames)
         .get<Static>(archiveStatics)
         .get<Transform>(archiveTransforms)
         .get<RigidBody>(archiveRigidBodies)
@@ -339,6 +342,7 @@ bool loadSnapshot(entt::registry& registry,
 
     auto archiveEntities           = InputArchiveEntities(snapshotData.head, snapshotData.entities);
     auto archiveNodes              = InputArchiveComponents(snapshotData.nodes);
+    auto archiveNames              = InputArchiveComponents(snapshotData.names);
     auto archiveStatics            = InputArchiveComponents(snapshotData.statics);
     auto archiveTransforms         = InputArchiveComponents(snapshotData.transforms);
     auto archiveRigidBodies        = InputArchiveComponents(snapshotData.rigidBodies);
@@ -353,6 +357,7 @@ bool loadSnapshot(entt::registry& registry,
     entt::snapshot_loader{ registry }
         .get<entt::entity>(archiveEntities)
         .get<Node>(archiveNodes)
+        .get<Name>(archiveNames)
         .get<Static>(archiveStatics)
         .get<Transform>(archiveTransforms)
         .get<RigidBody>(archiveRigidBodies)

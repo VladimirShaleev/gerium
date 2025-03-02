@@ -28,7 +28,22 @@ public:
         return _entityRegistry;
     }
 
+    [[nodiscard]] entt::dispatcher& dispatcher() noexcept {
+        return _dispatcher;
+    }
+
+    void addModel(const entt::hashed_string& modelId) {
+        // addModel(_root, _models[modelId]);
+    }
+
 private:
+    void addModel(const hashed_string_owner& parent,
+                  const hashed_string_owner& name,
+                  const entt::hashed_string& model,
+                  const glm::vec3& position = { 0.0f, 0.0f, 0.0f },
+                  const glm::quat& rotation = { 1.0f, 0.0f, 0.0f, 0.0f },
+                  const glm::vec3& scale    = { 1.0f, 1.0f, 1.0f });
+
     void initialize();
     void uninitialize();
 
@@ -46,6 +61,9 @@ private:
     gerium_application_t _application{};
     ServiceManager _serviceManager{};
     entt::registry _entityRegistry{};
+    entt::dispatcher _dispatcher{};
+    std::map<entt::hashed_string, Model> _models{};
+    entt::entity _root{};
 };
 
 #endif
