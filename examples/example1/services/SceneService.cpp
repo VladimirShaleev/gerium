@@ -10,7 +10,6 @@
 #include "../components/Vehicle.hpp"
 #include "../components/VehicleController.hpp"
 #include "../components/Wheel.hpp"
-#include "../events/FlushClusterEvent.hpp"
 #include "TimeService.hpp"
 
 using namespace entt::literals;
@@ -23,10 +22,6 @@ static glm::mat4 calcMatrix(const glm::vec3& translate, const glm::quat& rotatio
 }
 
 void SceneService::onAddModel(const AddModelEvent& event) {
-    if (_clusterFlushed && !_models.contains(event.model)) {
-        reloadCluster();
-    }
-
     auto& registry = entityRegistry();
 
     auto parent = _nodes.at(event.parent);
@@ -182,8 +177,6 @@ void SceneService::onDeleteNode(const DeleteNodeEvent& event) {
     auto& parentChilds = registry.get<Node>(parent).childs;
     parentChilds.erase(std::find(parentChilds.begin(), parentChilds.end(), event.entity));
 
-    auto hasStatics = false;
-
     std::queue<entt::entity> visit;
     visit.push(event.entity);
     while (!visit.empty()) {
@@ -194,15 +187,18 @@ void SceneService::onDeleteNode(const DeleteNodeEvent& event) {
             visit.push(child);
         }
 
-        if (registry.any_of<Static>(entity)) {
-            hasStatics = true;
+        if (auto name = registry.try_get<Name>(entity)) {
+            if (auto it = _nodes.find(name->name); it != _nodes.end()) {
+                _nodes.erase(it);
+            }
         }
-
         registry.destroy(entity);
     }
+}
 
-    if (hasStatics && _clusterFlushed) {
-        reloadCluster();
+void SceneService::onDeleteNodeByName(const DeleteNodeByNameEvent& event) {
+    if (auto it = _nodes.find(event.name); it != _nodes.end()) {
+        onDeleteNode({ it->second });
     }
 }
 
@@ -210,47 +206,9 @@ void SceneService::checkAndAddNode(entt::entity entity, const Name& name) {
     if (auto it = _nodes.find(name.name); it == _nodes.end()) {
         _nodes[name.name] = entity;
     } else if (it->second != entity) {
-        static auto message = "Node with name '" + name.name.string() + "' already exists";
+        static std::string message;
+        message = "Node with name '" + name.name.string() + "' already exists";
         throw std::runtime_error(message.c_str());
-    }
-}
-
-void SceneService::reloadCluster() {
-    _clusterFlushed = false;
-    _models.clear();
-    auto view = entityRegistry().view<Renderable>();
-    for (auto entity : view) {
-        auto& renderable = view.get<Renderable>(entity);
-        for (auto& mesh : renderable.meshes) {
-            auto& model = getModel(mesh.model);
-            for (const auto& reloadMesh : model.meshes) {
-                if (reloadMesh.nodeIndex == mesh.node) {
-                    mesh.mesh = reloadMesh.meshIndex;
-                    if (auto collider = entityRegistry().try_get<Collider>(entity)) {
-                        const auto& reloadNode = model.nodes[reloadMesh.nodeIndex];
-                        switch (reloadNode.colliderShape) {
-                            case Shape::ConvexHull:
-                                collider->shape = Shape::ConvexHull;
-                                collider->index = reloadNode.colliderIndex;
-                                break;
-                            case Shape::Mesh:
-                                collider->shape = Shape::Mesh;
-                                collider->index = reloadNode.colliderIndex;
-                                break;
-                            default:
-                                collider->shape      = Shape::Box;
-                                collider->halfExtent = (reloadNode.bbox.max() - reloadNode.bbox.min()) * 0.5f;
-                                break;
-                        }
-                    }
-                    if (auto rigidBody = entityRegistry().try_get<RigidBody>(entity)) {
-                        const auto& reloadNode = model.nodes[reloadMesh.nodeIndex];
-                        rigidBody->mass        = reloadNode.mass;
-                    }
-                    break;
-                }
-            }
-        }
     }
 }
 
@@ -258,14 +216,12 @@ const Model& SceneService::getModel(const entt::hashed_string& modelId) {
     if (auto it = _models.find(modelId); it != _models.end()) {
         return it->second;
     }
-    _models[modelId] = loadModel(_cluster, modelId);
+    _models[modelId] = loadModel(modelId);
     return _models[modelId];
 }
 
 void SceneService::start() {
-    auto view = entityRegistry().view<Name>();
-    for (auto entity : view) {
-        const auto& name = view.get<Name>(entity);
+    for (auto [entity, name] : entityRegistry().view<Name>().each()) {
         checkAndAddNode(entity, name);
     }
     if (auto it = _nodes.find(ROOT); it == _nodes.end()) {
@@ -273,26 +229,20 @@ void SceneService::start() {
         entityRegistry().emplace<Name>(root, ROOT);
         _nodes[ROOT] = root;
     }
-    reloadCluster();
     application().dispatcher().sink<AddModelEvent>().connect<&SceneService::onAddModel>(*this);
     application().dispatcher().sink<DeleteNodeEvent>().connect<&SceneService::onDeleteNode>(*this);
+    application().dispatcher().sink<DeleteNodeByNameEvent>().connect<&SceneService::onDeleteNodeByName>(*this);
 }
 
 void SceneService::stop() {
+    application().dispatcher().sink<DeleteNodeByNameEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeEvent>().disconnect(this);
     application().dispatcher().sink<AddModelEvent>().disconnect(this);
-    _cluster = {};
     _models.clear();
     _nodes.clear();
 }
 
 void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
-    if (!_clusterFlushed) {
-        _clusterFlushed = true;
-        application().dispatcher().trigger(FlushClusterEvent{ &_cluster });
-        _cluster = {};
-    }
-
     auto view = entityRegistry().view<Camera>();
 
     gerium_uint16_t width, height;
@@ -331,16 +281,4 @@ void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
         camera.view               = glm::lookAt(camera.position, camera.position + camera.front, camera.up);
         camera.viewProjection     = camera.projection * camera.view;
     }
-}
-
-entt::hashed_string SceneService::stateName() const noexcept {
-    return "scene_service"_hs;
-}
-
-std::vector<gerium_uint8_t> SceneService::saveState() {
-    return {};
-}
-
-void SceneService::restoreState(const std::vector<gerium_uint8_t>& data) {
-    reloadCluster();
 }

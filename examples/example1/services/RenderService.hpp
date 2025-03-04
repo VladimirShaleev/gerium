@@ -5,12 +5,11 @@
 #include "../ResourceManager.hpp"
 #include "../components/Renderable.hpp"
 #include "../components/Transform.hpp"
-#include "../events/FlushClusterEvent.hpp"
 #include "ServiceManager.hpp"
 
 class RenderPass;
 
-class RenderService : public Service {
+class RenderService final : public Service {
 public:
     [[nodiscard]] ResourceManager& resourceManager() noexcept;
 
@@ -26,16 +25,13 @@ public:
     [[nodiscard]] gerium_uint32_t instancesCount() const noexcept;
     [[nodiscard]] const std::vector<Technique>& techniques() const noexcept;
 
-    void createCluster(const Cluster& cluster);
-    void createStaticInstances();
     void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
 
 protected:
-    void start() override;
-    void stop() override;
-    void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
+    static constexpr entt::hashed_string STORAGE_CONSTRUCT         = { "create_renderable" };
+    static constexpr entt::hashed_string STORAGE_DESTROY           = { "destroy_renderable" };
+    static constexpr gerium_uint32_t deletionsToCheckUpdateCluster = 1;
 
-private:
     struct ClusterData {
         Buffer vertices;
         Buffer indices;
@@ -57,8 +53,14 @@ private:
         _renderPasses.push_back(std::move(renderPass));
     }
 
-    void onEvent(const FlushClusterEvent& event);
+    void start() override;
+    void stop() override;
+    void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
+    void createCluster(const Cluster& cluster);
+    void createStaticInstances();
+
+    void updateCluster();
     void updateActiveSceneData();
     void updateDynamicInstances();
     void updateInstancesData();
@@ -125,6 +127,10 @@ private:
 
     std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
     std::map<uint32_t, RenderPass*> _renderPassesCache{};
+
+    std::set<entt::hashed_string> _modelsInCluster{};
+    gerium_uint32_t _renderableDestroyed{};
+    gerium_uint32_t _modelsDestroyed{};
 };
 
 #endif

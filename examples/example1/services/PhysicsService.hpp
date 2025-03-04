@@ -3,19 +3,17 @@
 
 #include "../Model.hpp"
 #include "../components/Collider.hpp"
+#include "../components/Renderable.hpp"
 #include "../components/RigidBody.hpp"
 #include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
 #include "../components/Wheel.hpp"
-#include "../events/FlushClusterEvent.hpp"
 #include "ServiceManager.hpp"
 
 class PhysicsService final : public Service {
 private:
     static constexpr entt::hashed_string STORAGE_CONSTRUCT = { "create_rigid_bodies" };
     static constexpr entt::hashed_string STORAGE_DESTROY   = { "destroy_rigid_bodies" };
-
-    void onEvent(const FlushClusterEvent& event);
 
     void start() override;
     void stop() override;
@@ -34,7 +32,7 @@ private:
     void updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint);
     void syncPhysicsToECS();
 
-    JPH::Ref<JPH::Shape> getShape(const Collider& collider);
+    JPH::Ref<JPH::Shape> getShape(const Collider& collider, const Renderable* renderable);
 
     gerium_uint32_t getNextBodyID();
 
@@ -86,9 +84,7 @@ private:
     std::map<gerium_uint32_t, JPH::Body*> _mapBodies{};
     JPH::Ref<JPH::VehicleCollisionTester> _vehicleTester{};
     std::map<entt::entity, JPH::Ref<JPH::VehicleConstraint>> _vehicleConstraints{};
-    std::vector<MeshCollider> _meshColliders{};
-    std::vector<ConvexHullCollider> _convexHullColliders{};
-    bool _loadedColliders{};
+    std::map<entt::hashed_string, JPH::Ref<JPH::Shape>> _colliders{};
 };
 
 #endif

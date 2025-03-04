@@ -52,6 +52,214 @@ const std::vector<Technique>& RenderService::techniques() const noexcept {
     return _techniques;
 }
 
+void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer) {
+    if (_dynamicMaterialsCount) {
+        gerium_command_buffer_copy_buffer(commandBuffer,
+                                          _dynamicMaterials,
+                                          0,
+                                          _materials[_frameIndex],
+                                          _staticMaterialsCount * sizeof(Material),
+                                          _dynamicMaterialsCount * sizeof(Material));
+    }
+    if (_dynamicInstancesCount) {
+        gerium_command_buffer_copy_buffer(commandBuffer,
+                                          _dynamicInstances,
+                                          0,
+                                          _instances[_frameIndex],
+                                          _staticInstancesCount * sizeof(MeshInstance),
+                                          _dynamicInstancesCount * sizeof(MeshInstance));
+    }
+}
+
+void RenderService::start() {
+    gerium_renderer_options_t options{};
+    options.app_version               = GERIUM_VERSION_ENCODE(1, 0, 0);
+    options.command_buffers_per_frame = 5;
+    options.descriptor_sets_pool_size = 128;
+    options.descriptor_pool_elements  = 128;
+    options.dynamic_ssbo_size         = 64 * 1024 * 1024;
+#ifdef NDEBUG
+    options.debug_mode = false;
+#else
+    options.debug_mode = true; // includes validation layers, GPU object names and logs
+#endif
+
+    // Requested features needed for this example
+    constexpr auto features = GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT |
+                              GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
+                              GERIUM_FEATURE_BINDLESS_BIT;
+
+    // Initializes the gerium rendering system
+    check(gerium_renderer_create(application().handle(), features, &options, &_renderer));
+
+    // Enables queries to GPU to obtain performance timestamps
+    // and and creates an object to receive these metrics for the client code
+    gerium_renderer_set_profiler_enable(_renderer, true);
+    check(gerium_profiler_create(_renderer, &_profiler));
+
+    // Checking supported features requested when creating a render system
+    const auto supportedFeatures = gerium_renderer_get_enabled_features(_renderer);
+    _bindlessSupported           = supportedFeatures & GERIUM_FEATURE_BINDLESS_BIT;
+    _drawIndirectSupported       = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_BIT;
+    _drawIndirectCountSupported  = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT;
+    _8and16BitStorageSupported   = (supportedFeatures & GERIUM_FEATURE_8_BIT_STORAGE_BIT) &&
+                                 (supportedFeatures & GERIUM_FEATURE_16_BIT_STORAGE_BIT);
+
+    if (!_drawIndirectSupported || !_drawIndirectCountSupported) {
+        throw std::runtime_error("Support draw indirect and draw indirect count is currently mandatory");
+    }
+
+    // Creates an object to manage Frame Graph rendering
+    check(gerium_frame_graph_create(_renderer, &_frameGraph));
+
+    // Initializes an class for managing resources such as textures,
+    // buffers, etc. And queues it for deletion using RAII and eventually
+    // deletes it if the resource has not been reused.
+    _resourceManager.create(_renderer, _frameGraph);
+
+    // Adding Render Passes
+    // the order of adding is not important
+    addPass<PresentPass>();
+    addPass<GBufferPass>();
+    addPass<CullingPass>();
+
+    // Now we can load the render graph and compile it
+    _resourceManager.loadFrameGraph(GRAPH_MAIN_ID);
+    check(gerium_frame_graph_compile(_frameGraph));
+
+    // Loading a technique. This can be considered a material.
+    // A technique can include several shading techniques for
+    // several render passes.
+    _baseTechnique = _resourceManager.loadTechnique(TECH_BASE_ID);
+    _resourceManager.loadTechnique(TECH_OTHER_ID); // TODO: remove later
+
+    // Initializing render passes
+    for (auto& renderPass : _renderPasses) {
+        renderPass->initialize(_frameGraph, _renderer);
+    }
+
+    // For rendering in this example we use multiple buffers (for the current
+    // and next frames). This is a common rendering technique where the GPU
+    // uses one buffer while we fill another for the next frame.
+    _maxFramesInFlight = gerium_renderer_get_frames_in_flight(_renderer);
+    _instances.resize(_maxFramesInFlight);
+    _materials.resize(_maxFramesInFlight);
+
+    _drawData = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "instances_count", nullptr, sizeof(DrawData), 0);
+
+    _activeScene = _resourceManager.createBuffer(
+        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_scene", nullptr, sizeof(SceneData));
+
+    // Create an empty 2D texture and bind it to the texture
+    // array of the descriptor set
+    gerium_texture_info_t info{};
+    info.width            = 1;
+    info.height           = 1;
+    info.depth            = 1;
+    info.mipmaps          = 1;
+    info.format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
+    info.type             = GERIUM_TEXTURE_TYPE_2D;
+    info.name             = "empty_texture";
+    gerium_uint32_t white = 0xFF000000;
+    _emptyTexture         = _resourceManager.createTexture(info, (gerium_cdata_t) &white);
+    _bindlessTextures     = _resourceManager.createDescriptorSet("", true);
+    for (int i = 0; i < MAX_INSTANCES_PER_TECHNIQUE; ++i) {
+        gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
+    }
+
+    _instancesData = _resourceManager.createDescriptorSet("instances_data", true);
+    gerium_renderer_bind_buffer(_renderer, _instancesData, 0, _drawData);
+    gerium_renderer_bind_resource(_renderer, _instancesData, 3, "command_counts", false);
+    gerium_renderer_bind_resource(_renderer, _instancesData, 4, "commands", false);
+
+    _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
+    gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
+
+    entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT).on_construct<Renderable>();
+    entityRegistry().storage<entt::reactive>(STORAGE_DESTROY).on_destroy<Renderable>();
+}
+
+void RenderService::stop() {
+    auto& storageConstruct = entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT);
+    auto& storageDestroy   = entityRegistry().storage<entt::reactive>(STORAGE_DESTROY);
+    entityRegistry().on_construct<Renderable>().disconnect(&storageConstruct);
+    entityRegistry().on_destroy<Renderable>().disconnect(&storageDestroy);
+
+    _modelsDestroyed     = 0;
+    _renderableDestroyed = 0;
+    _modelsInCluster.clear();
+
+    if (_renderer) {
+        for (auto& renderPass : std::ranges::reverse_view(_renderPasses)) {
+            renderPass->uninitialize(_frameGraph, _renderer);
+        }
+
+        _activeSceneData = {};
+        _activeScene     = {};
+
+        _instancesData         = {};
+        _textures              = {};
+        _techniques            = {};
+        _dynamicMaterialsCache = {};
+        _materialsTable        = {};
+        _techniquesTable       = {};
+        _dynamicMaterialsCount = {};
+        _staticMaterialsCount  = {};
+        _dynamicInstancesCount = {};
+        _staticInstancesCount  = {};
+        _materials             = {};
+        _instances             = {};
+        _dynamicMaterials      = {};
+        _dynamicInstances      = {};
+        _drawData              = {};
+
+        _cluster          = {};
+        _baseTechnique    = {};
+        _bindlessTextures = {};
+        _emptyTexture     = {};
+
+        _resourceManager.destroy();
+
+        if (_frameGraph) {
+            gerium_frame_graph_destroy(_frameGraph);
+            _frameGraph = nullptr;
+        }
+        if (_profiler) {
+            gerium_profiler_destroy(_profiler);
+            _profiler = nullptr;
+        }
+        gerium_renderer_destroy(_renderer);
+        _renderer = nullptr;
+    }
+}
+
+void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapsed */) {
+    if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
+        return;
+    }
+
+    gerium_application_get_size(application().handle(), &_width, &_height);
+    if (_width == 0 || _height == 0) {
+        return;
+    }
+
+    _frameIndex = gerium_uint32_t(_frame++ % _maxFramesInFlight);
+
+    _resourceManager.update(elapsedMs);
+    updateCluster();
+    updateActiveSceneData();
+    updateDynamicInstances();
+    updateInstancesData();
+
+    gerium_renderer_render(_renderer, _frameGraph);
+    gerium_renderer_present(_renderer);
+
+    if (_error) {
+        std::rethrow_exception(_error);
+    }
+}
+
 void RenderService::createCluster(const Cluster& cluster) {
     if (!_8and16BitStorageSupported) {
         throw std::runtime_error("Support for 8-bit and 16-bit storage is currently mandatory");
@@ -160,11 +368,10 @@ void RenderService::createStaticInstances() {
 
     _resourceManager.update(0);
 
-    auto view = entityRegistry().view<Renderable, Transform, Static>();
-
     std::vector<Material> materials;
     std::vector<MeshInstance> instances;
 
+    auto view = entityRegistry().view<Renderable, Transform, Static>();
     for (auto entity : view) {
         auto& renderable = view.get<Renderable>(entity);
         auto& transform  = view.get<Transform>(entity);
@@ -202,188 +409,98 @@ void RenderService::createStaticInstances() {
     }
 }
 
-void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer) {
-    if (_dynamicMaterialsCount) {
-        gerium_command_buffer_copy_buffer(commandBuffer,
-                                          _dynamicMaterials,
-                                          0,
-                                          _materials[_frameIndex],
-                                          _staticMaterialsCount * sizeof(Material),
-                                          _dynamicMaterialsCount * sizeof(Material));
-    }
-    if (_dynamicInstancesCount) {
-        gerium_command_buffer_copy_buffer(commandBuffer,
-                                          _dynamicInstances,
-                                          0,
-                                          _instances[_frameIndex],
-                                          _staticInstancesCount * sizeof(MeshInstance),
-                                          _dynamicInstancesCount * sizeof(MeshInstance));
-    }
-}
+void RenderService::updateCluster() {
+    auto& registry       = entityRegistry();
+    auto& storageCreate  = registry.storage<entt::reactive>(STORAGE_CONSTRUCT);
+    auto& storageDestroy = registry.storage<entt::reactive>(STORAGE_DESTROY);
 
-void RenderService::start() {
-    application().dispatcher().sink<FlushClusterEvent>().connect<&RenderService::onEvent>(*this);
-
-    gerium_renderer_options_t options{};
-    options.app_version               = GERIUM_VERSION_ENCODE(1, 0, 0);
-    options.command_buffers_per_frame = 5;
-    options.descriptor_sets_pool_size = 128;
-    options.descriptor_pool_elements  = 128;
-    options.dynamic_ssbo_size         = 64 * 1024 * 1024;
-
-#ifdef NDEBUG
-    options.debug_mode = false;
-#else
-    options.debug_mode = true;
-#endif
-
-    constexpr auto features = GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT |
-                              GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
-                              GERIUM_FEATURE_BINDLESS_BIT;
-
-    check(gerium_renderer_create(application().handle(), features, &options, &_renderer));
-    gerium_renderer_set_profiler_enable(_renderer, true);
-    check(gerium_profiler_create(_renderer, &_profiler));
-
-    const auto supportedFeatures = gerium_renderer_get_enabled_features(_renderer);
-    _bindlessSupported           = supportedFeatures & GERIUM_FEATURE_BINDLESS_BIT;
-    _drawIndirectSupported       = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_BIT;
-    _drawIndirectCountSupported  = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT;
-    _8and16BitStorageSupported   = (supportedFeatures & GERIUM_FEATURE_8_BIT_STORAGE_BIT) &&
-                                 (supportedFeatures & GERIUM_FEATURE_16_BIT_STORAGE_BIT);
-
-    if (!_drawIndirectSupported || !_drawIndirectCountSupported) {
-        throw std::runtime_error("Support draw indirect and draw indirect count is currently mandatory");
-    }
-
-    check(gerium_frame_graph_create(_renderer, &_frameGraph));
-
-    _resourceManager.create(_renderer, _frameGraph);
-
-    addPass<PresentPass>();
-    addPass<GBufferPass>();
-    addPass<CullingPass>();
-
-    _resourceManager.loadFrameGraph(GRAPH_MAIN_ID);
-    check(gerium_frame_graph_compile(_frameGraph));
-
-    _baseTechnique = _resourceManager.loadTechnique(TECH_BASE_ID);
-    _resourceManager.loadTechnique(TECH_OTHER_ID); // TODO: remove later
-
-    for (auto& renderPass : _renderPasses) {
-        renderPass->initialize(_frameGraph, _renderer);
-    }
-
-    _maxFramesInFlight = gerium_renderer_get_frames_in_flight(_renderer);
-    _instances.resize(_maxFramesInFlight);
-    _materials.resize(_maxFramesInFlight);
-
-    _drawData = _resourceManager.createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "instances_count", nullptr, sizeof(DrawData), 0);
-
-    _activeScene = _resourceManager.createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_scene", nullptr, sizeof(SceneData));
-
-    gerium_texture_info_t info{};
-    info.width            = 1;
-    info.height           = 1;
-    info.depth            = 1;
-    info.mipmaps          = 1;
-    info.format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
-    info.type             = GERIUM_TEXTURE_TYPE_2D;
-    info.name             = "empty_texture";
-    gerium_uint32_t white = 0xFF000000;
-    _emptyTexture         = _resourceManager.createTexture(info, (gerium_cdata_t) &white);
-
-    _bindlessTextures = _resourceManager.createDescriptorSet("", true);
-    for (int i = 0; i < MAX_INSTANCES_PER_TECHNIQUE; ++i) {
-        gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
-    }
-
-    _instancesData = _resourceManager.createDescriptorSet("instances_data", true);
-    gerium_renderer_bind_buffer(_renderer, _instancesData, 0, _drawData);
-    gerium_renderer_bind_resource(_renderer, _instancesData, 3, "command_counts", false);
-    gerium_renderer_bind_resource(_renderer, _instancesData, 4, "commands", false);
-
-    _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
-    gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
-}
-
-void RenderService::stop() {
-    if (_renderer) {
-        for (auto& renderPass : std::ranges::reverse_view(_renderPasses)) {
-            renderPass->uninitialize(_frameGraph, _renderer);
+    auto needReloadCluster         = false;
+    auto needUpdateStaticInstances = false;
+    for (auto entity : storageCreate) {
+        const auto& renderable = registry.get<Renderable>(entity);
+        const auto isStatic    = registry.any_of<Static>(entity);
+        if (isStatic) {
+            needUpdateStaticInstances = true;
         }
-
-        _activeSceneData = {};
-        _activeScene     = {};
-
-        _instancesData         = {};
-        _textures              = {};
-        _techniques            = {};
-        _dynamicMaterialsCache = {};
-        _materialsTable        = {};
-        _techniquesTable       = {};
-        _dynamicMaterialsCount = {};
-        _staticMaterialsCount  = {};
-        _dynamicInstancesCount = {};
-        _staticInstancesCount  = {};
-        _materials             = {};
-        _instances             = {};
-        _dynamicMaterials      = {};
-        _dynamicInstances      = {};
-        _drawData              = {};
-
-        _cluster          = {};
-        _baseTechnique    = {};
-        _bindlessTextures = {};
-        _emptyTexture     = {};
-
-        _resourceManager.destroy();
-
-        if (_frameGraph) {
-            gerium_frame_graph_destroy(_frameGraph);
-            _frameGraph = nullptr;
+        for (const auto& mesh : renderable.meshes) {
+            if (!_modelsInCluster.contains(mesh.model)) {
+                needReloadCluster         = true;
+                needUpdateStaticInstances = true;
+                break;
+            }
         }
-        if (_profiler) {
-            gerium_profiler_destroy(_profiler);
-            _profiler = nullptr;
+        if (needReloadCluster) {
+            break;
         }
-        gerium_renderer_destroy(_renderer);
-        _renderer = nullptr;
+    }
+    storageCreate.clear();
+
+    if (!needUpdateStaticInstances && !storageDestroy.empty()) {
+        gerium_uint32_t currentStaticInstancesCount = 0;
+        for (auto _ : registry.view<Renderable, Static>()) {
+            ++currentStaticInstancesCount;
+        }
+        needUpdateStaticInstances = currentStaticInstancesCount != _staticInstancesCount;
     }
 
-    application().dispatcher().sink<FlushClusterEvent>().disconnect(this);
-}
+    _renderableDestroyed += (gerium_uint32_t) storageDestroy.size();
+    if (_renderableDestroyed >= deletionsToCheckUpdateCluster) {
+        std::set<entt::hashed_string> removedModels = _modelsInCluster;
+        for (auto [entity, renderable] : registry.view<Renderable>().each()) {
+            for (const auto& mesh : renderable.meshes) {
+                if (auto it = removedModels.find(mesh.model); it != removedModels.end()) {
+                    removedModels.erase(it);
+                }
+            }
+        }
+        _modelsDestroyed += (gerium_uint32_t) removedModels.size();
+        _renderableDestroyed = 0;
+    }
+    storageDestroy.clear();
 
-void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapsed */) {
-    if (gerium_renderer_new_frame(_renderer) == GERIUM_RESULT_SKIP_FRAME) {
-        return;
+    if (_modelsDestroyed >= deletionsToCheckUpdateCluster) {
+        needReloadCluster         = true;
+        needUpdateStaticInstances = true;
+        _materialsTable.clear();
+        _dynamicMaterialsCache.clear();
+        _textures.clear();
+        _modelsDestroyed = 0;
     }
 
-    gerium_application_get_size(application().handle(), &_width, &_height);
-    if (_width == 0 || _height == 0) {
-        return;
+    if (needReloadCluster) {
+        _modelsInCluster.clear();
+
+        Cluster cluster;
+        std::map<entt::hashed_string, Model> models;
+        auto getModel = [this, &cluster, &models](const entt::hashed_string& modelId) -> const Model& {
+            if (auto it = models.find(modelId); it != models.end()) {
+                return it->second;
+            }
+            _modelsInCluster.insert(modelId);
+            models[modelId] = loadModel(cluster, modelId);
+            return models[modelId];
+        };
+
+        for (auto entity : registry.view<Renderable>()) {
+            auto& renderable = registry.get<Renderable>(entity);
+            auto isStatic    = registry.any_of<Static>(entity);
+            for (auto& mesh : renderable.meshes) {
+                const auto& model = getModel(mesh.model);
+                for (const auto& reloadMesh : model.meshes) {
+                    if (reloadMesh.nodeIndex == mesh.node) {
+                        mesh.mesh = reloadMesh.meshIndex;
+                    }
+                }
+            }
+        }
+        if (!cluster.vertices.empty()) {
+            createCluster(cluster);
+        }
     }
 
-    _frameIndex = gerium_uint32_t(_frame++ % _maxFramesInFlight);
-
-    _resourceManager.update(elapsedMs);
-    updateActiveSceneData();
-    updateDynamicInstances();
-    updateInstancesData();
-
-    gerium_renderer_render(_renderer, _frameGraph);
-    gerium_renderer_present(_renderer);
-
-    if (_error) {
-        std::rethrow_exception(_error);
+    if (needUpdateStaticInstances) {
+        createStaticInstances();
     }
-}
-
-void RenderService::onEvent(const FlushClusterEvent& event) {
-    createCluster(*event.cluster);
-    createStaticInstances();
 }
 
 void RenderService::updateActiveSceneData() {

@@ -53,6 +53,7 @@ struct Model : private NonCopyable {
     std::vector<MaterialData> materials{};
 };
 
+Model loadModel(const entt::hashed_string& name);
 Model loadModel(Cluster& cluster, const entt::hashed_string& name);
 
 #endif

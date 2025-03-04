@@ -392,6 +392,11 @@ static void recursiveParsing(Cluster& cluster,
     }
 }
 
+Model loadModel(const entt::hashed_string& name) {
+    Cluster cluster;
+    return loadModel(cluster, name);
+}
+
 Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
     constexpr auto removePrimitives =
         aiPrimitiveType_POINT | aiPrimitiveType_LINE | aiPrimitiveType_POLYGON | aiPrimitiveType_NGONEncodingFlag;
@@ -505,7 +510,6 @@ Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
     auto scene = importer.ReadFileFromMemory(data, dataLen, flags);
 
     Model model{};
-
     Cache cache{};
     recursiveParsing(cluster, cache, model, scene, scene->mRootNode, -1, 0);
 
