@@ -32,7 +32,6 @@ Application::~Application() {
 
 void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) noexcept {
     gerium_logger_set_level_by_tag("gerium", GERIUM_LOGGER_LEVEL_VERBOSE);
-
     try {
         check(gerium_application_create(title, width, height, &_application));
         gerium_application_set_background_wait(_application, true);
@@ -54,13 +53,12 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
     }
 }
 
-void Application::addModel(const hashed_string_owner& parent,
-                           const hashed_string_owner& name,
+void Application::addModel(const hashed_string_owner& name,
                            const entt::hashed_string& model,
                            const glm::vec3& position,
                            const glm::quat& rotation,
                            const glm::vec3& scale) {
-    dispatcher().enqueue<AddModelEvent>(parent, name, model, position, rotation, scale);
+    dispatcher().enqueue<AddModelEvent>(entt::null, name, model, position, rotation, scale);
 }
 
 void Application::initialize() {
@@ -76,14 +74,14 @@ void Application::initialize() {
 
     auto rotate = glm::rotate(glm::identity<glm::quat>(), glm::radians(150.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    addModel(""_hs, "main_truck"_hs, MODEL_TRUCK_ID, glm::vec3(2.0f, 0.0f, -8.0f), rotate);
-    addModel(""_hs, "s0"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -8.0f, -4.0f));
-    addModel(""_hs, "s1"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -8.0f, -8.0f));
-    addModel(""_hs, "s2"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -8.0f, -12.0f));
-    addModel(""_hs, "s3"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -10.0f, -16.0f));
-    addModel(""_hs, "s4"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -10.0f, -20.0f));
-    addModel(""_hs, "s5"_hs, MODEL_WALL_01_ID, glm::vec3(2.0f, -10.0f, -21.5f));
-    addModel(""_hs, "second_truck"_hs, MODEL_TRUCK_ID, glm::vec3(4.3f, 0.0f, -8.0f));
+    addModel("main_truck"_hs, MODEL_TRUCK_ID, glm::vec3(2.0f, 0.0f, -8.0f), rotate);
+    addModel("s0"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -8.0f, -4.0f));
+    addModel("s1"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -8.0f, -8.0f));
+    addModel("s2"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -8.0f, -12.0f));
+    addModel("s3"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -10.0f, -16.0f));
+    addModel("s4"_hs, MODEL_FLOOR_01_ID, glm::vec3(2.0f, -10.0f, -20.0f));
+    addModel("s5"_hs, MODEL_WALL_01_ID, glm::vec3(2.0f, -10.0f, -21.5f));
+    addModel("second_truck"_hs, MODEL_TRUCK_ID, glm::vec3(4.3f, 0.0f, -8.0f));
 
     auto& camera = _entityRegistry.emplace<Camera>(_entityRegistry.create());
 

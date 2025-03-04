@@ -4,7 +4,7 @@
 #include "../Common.hpp"
 
 struct AddModelEvent {
-    hashed_string_owner parent;
+    entt::entity parent;
     hashed_string_owner name;
     entt::hashed_string model;
     glm::vec3 position{ 0.0f, 0.0f, 0.0f };

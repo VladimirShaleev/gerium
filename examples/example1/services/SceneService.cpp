@@ -24,7 +24,7 @@ static glm::mat4 calcMatrix(const glm::vec3& translate, const glm::quat& rotatio
 void SceneService::onAddModel(const AddModelEvent& event) {
     auto& registry = entityRegistry();
 
-    auto parent = _nodes.at(event.parent);
+    auto parent = event.parent == entt::null ? _nodes.at(ROOT) : event.parent;
     auto root   = registry.create();
 
     const auto& name = registry.emplace<Name>(root, event.name);

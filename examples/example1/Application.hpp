@@ -37,8 +37,7 @@ public:
     }
 
 private:
-    void addModel(const hashed_string_owner& parent,
-                  const hashed_string_owner& name,
+    void addModel(const hashed_string_owner& name,
                   const entt::hashed_string& model,
                   const glm::vec3& position = { 0.0f, 0.0f, 0.0f },
                   const glm::quat& rotation = { 1.0f, 0.0f, 0.0f, 0.0f },

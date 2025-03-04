@@ -3,6 +3,7 @@
 #include "../components/Name.hpp"
 #include "../components/Node.hpp"
 #include "../components/Settings.hpp"
+#include "../events/AddModelEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 
 using namespace entt::literals;
@@ -30,15 +31,6 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
         if (ImGui::Button("Load state")) {
             settings.state = Settings::Load;
         }
-
-        static int currentItem = 0;
-        ImGui::ListBox("models", &currentItem, [](auto _, auto index) {
-            return modelIds[index].data();
-        }, nullptr, std::size(modelIds));
-
-        if (ImGui::Button("Add model")) {
-            renderService().application().addModel(modelIds[currentItem]);
-        }
     }
     ImGui::End();
 
@@ -46,8 +38,12 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
 }
 
 void PresentPass::developSceneGraph() {
-    static entt::entity selected   = entt::null;
-    static entt::entity deleteItem = entt::null;
+    static entt::entity selected     = entt::null;
+    static entt::entity addModelItem = entt::null;
+    static entt::entity deleteItem   = entt::null;
+    static int addModelIndex         = 0;
+    static bool addModelNameValid    = true;
+    static char addModelName[256]{};
 
     if (ImGui::Begin("Scene Graph")) {
         if (ImGui::BeginTable("mygrid", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
@@ -105,23 +101,32 @@ void PresentPass::developSceneGraph() {
                 if (ImGui::IsItemClicked()) {
                     selected = entity;
                 }
-                if (!isRoot && ImGui::BeginPopupContextItem()) {
+                if (ImGui::BeginPopupContextItem()) {
+                    selected = entity;
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-                    auto parent        = entityRegistry().get<Node>(entity).parent;
-                    auto& parentChilds = entityRegistry().get<Node>(parent).childs;
-                    if (ImGui::MenuItem("Up")) {
-                        auto it = std::find(parentChilds.begin(), parentChilds.end(), entity);
+                    if (!isRoot && ImGui::MenuItem("Up")) {
+                        auto parent        = entityRegistry().get<Node>(entity).parent;
+                        auto& parentChilds = entityRegistry().get<Node>(parent).childs;
+                        auto it            = std::find(parentChilds.begin(), parentChilds.end(), entity);
                         if (it != parentChilds.begin()) {
                             std::swap(*it, *(it - 1));
                         }
                     }
-                    if (ImGui::MenuItem("Down")) {
-                        auto it = std::find(parentChilds.rbegin(), parentChilds.rend(), entity);
+                    if (!isRoot && ImGui::MenuItem("Down")) {
+                        auto parent        = entityRegistry().get<Node>(entity).parent;
+                        auto& parentChilds = entityRegistry().get<Node>(parent).childs;
+                        auto it            = std::find(parentChilds.rbegin(), parentChilds.rend(), entity);
                         if (it != parentChilds.rbegin()) {
                             std::swap(*it, *(it - 1));
                         }
                     }
-                    if (ImGui::MenuItem("Delete")) {
+                    if (ImGui::MenuItem("Add model")) {
+                        addModelItem      = entity;
+                        addModelIndex     = 0;
+                        addModelNameValid = false;
+                        memset(addModelName, 0, sizeof(addModelName));
+                    }
+                    if (!isRoot && ImGui::MenuItem("Delete")) {
                         deleteItem = entity;
                     }
                     ImGui::PopStyleColor();
@@ -191,16 +196,63 @@ void PresentPass::developSceneGraph() {
             ImGui::EndTable();
         }
 
+        if (addModelItem != entt::null) {
+            ImGui::OpenPopup("Add Model to Node");
+            if (ImGui::BeginPopupModal("Add Model to Node", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                auto validText = 0;
+                if (!addModelNameValid) {
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.0f, 0.0f, 0.5f));
+                    ++validText;
+                }
+                if (ImGui::InputText("Unique name", addModelName, sizeof(addModelName))) {
+                    std::string str = addModelName;
+                    strcpy(addModelName, trim(str).c_str());
+                    addModelNameValid = true;
+                    if (strlen(addModelName) == 0) {
+                        addModelNameValid = false;
+                    } else {
+                        entt::hashed_string hashedName = addModelName;
+                        if (hashedName == "root"_hs) {
+                            addModelNameValid = false;
+                        } else {
+                            for (const auto [_, name] : entityRegistry().view<Name>().each()) {
+                                if (name.name == hashedName) {
+                                    addModelNameValid = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                ImGui::PopStyleColor(validText);
+                ImGui::ListBox("models", &addModelIndex, [](auto _, auto index) {
+                    return modelIds[index].data();
+                }, nullptr, std::size(modelIds));
+                if (!addModelNameValid) {
+                    ImGui::BeginDisabled();
+                }
+                if (ImGui::Button("Add", ImVec2(120, 0))) {
+                    auto& dispatcher = renderService().application().dispatcher();
+                    dispatcher.enqueue<AddModelEvent>(addModelItem, addModelName, modelIds[addModelIndex]);
+                    addModelItem = entt::null;
+                    ImGui::CloseCurrentPopup();
+                }
+                if (!addModelNameValid) {
+                    ImGui::EndDisabled();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                    addModelItem = entt::null;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+        }
         if (deleteItem != entt::null) {
             ImGui::OpenPopup("Delete Node");
             if (ImGui::BeginPopupModal("Delete Node", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
                 ImGui::Text("Do you want to delete\nthe selected node?");
                 if (ImGui::Button("Yes", ImVec2(120, 0))) {
-                    // auto parent  = entityRegistry().get<Node>(deleteItem).parent;
-                    // auto& childs = entityRegistry().get<Node>(parent).childs;
-                    // childs.erase(std::find(childs.begin(), childs.end(), deleteItem));
-                    // // entityRegistry().destroy(deleteItem);
-                    // entityRegistry().erase<Node>(deleteItem);
                     auto& dispatcher = renderService().application().dispatcher();
                     dispatcher.enqueue<DeleteNodeEvent>(deleteItem);
                     deleteItem = entt::null;

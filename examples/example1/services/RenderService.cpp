@@ -461,10 +461,7 @@ void RenderService::updateCluster() {
     if (_modelsDestroyed >= deletionsToCheckUpdateCluster) {
         needReloadCluster         = true;
         needUpdateStaticInstances = true;
-        _materialsTable.clear();
-        _dynamicMaterialsCache.clear();
-        _textures.clear();
-        _modelsDestroyed = 0;
+        _modelsDestroyed          = 0;
     }
 
     if (needReloadCluster) {

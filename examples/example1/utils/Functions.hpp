@@ -20,4 +20,27 @@ inline gerium_uint32_t calcMipLevels(T width, T height) noexcept {
     return static_cast<gerium_uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 }
 
+inline std::string& ltrim(std::string& s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](auto c) {
+        return !std::isspace(c);
+    }));
+    return s;
+}
+
+inline std::string& rtrim(std::string& s) {
+    s.erase(std::find_if(s.rbegin(),
+                         s.rend(),
+                         [](auto ch) {
+        return !std::isspace(ch);
+    }).base(),
+            s.end());
+    return s;
+}
+
+inline std::string& trim(std::string& s) {
+    rtrim(s);
+    ltrim(s);
+    return s;
+}
+
 #endif // UTILS_FUNCTIONS_HPP
