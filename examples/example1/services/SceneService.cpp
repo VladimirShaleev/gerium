@@ -243,6 +243,7 @@ void SceneService::stop() {
 }
 
 void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
+    _models.clear();
     auto view = entityRegistry().view<Camera>();
 
     gerium_uint16_t width, height;

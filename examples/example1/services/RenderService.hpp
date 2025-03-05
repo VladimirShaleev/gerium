@@ -39,6 +39,14 @@ protected:
         DescriptorSet ds;
     };
 
+    struct MeshIndices {
+        struct Node {
+            gerium_sint32_t nodeIndex;
+            gerium_uint32_t meshIndex;
+        };
+        std::vector<Node> indices;
+    };
+
     template <typename RP, typename... Args>
     void addPass(Args&&... args) {
         static_assert(std::is_base_of_v<RenderPass, RP>);
@@ -128,7 +136,7 @@ protected:
     std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
     std::map<uint32_t, RenderPass*> _renderPassesCache{};
 
-    std::set<entt::hashed_string> _modelsInCluster{};
+    std::map<entt::hashed_string, MeshIndices> _modelsInCluster{};
     gerium_uint32_t _renderableDestroyed{};
     gerium_uint32_t _modelsDestroyed{};
 };

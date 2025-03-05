@@ -211,7 +211,7 @@ void PresentPass::developSceneGraph() {
                     if (strlen(addModelName) == 0) {
                         addModelNameValid = false;
                     } else {
-                        entt::hashed_string hashedName = addModelName;
+                        entt::hashed_string hashedName = entt::hashed_string(addModelName, strlen(addModelName));
                         if (hashedName == "root"_hs) {
                             addModelNameValid = false;
                         } else {
@@ -225,15 +225,16 @@ void PresentPass::developSceneGraph() {
                     }
                 }
                 ImGui::PopStyleColor(validText);
-                ImGui::ListBox("models", &addModelIndex, [](auto _, auto index) {
+                ImGui::ListBox("Models", &addModelIndex, [](auto _, auto index) {
                     return modelIds[index].data();
                 }, nullptr, std::size(modelIds));
                 if (!addModelNameValid) {
                     ImGui::BeginDisabled();
                 }
                 if (ImGui::Button("Add", ImVec2(120, 0))) {
+                    auto name        = hashed_string_owner(addModelName, strlen(addModelName));
                     auto& dispatcher = renderService().application().dispatcher();
-                    dispatcher.enqueue<AddModelEvent>(addModelItem, addModelName, modelIds[addModelIndex]);
+                    dispatcher.enqueue<AddModelEvent>(addModelItem, name, modelIds[addModelIndex]);
                     addModelItem = entt::null;
                     ImGui::CloseCurrentPopup();
                 }

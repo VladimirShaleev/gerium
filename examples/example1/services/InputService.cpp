@@ -16,6 +16,10 @@ void InputService::stop() {
 }
 
 void InputService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t elapsed) {
+    if (ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantCaptureMouse) {
+        return;
+    }
+
     auto view = entityRegistry().view<Camera>();
 
     Camera* camera = nullptr;

@@ -417,13 +417,20 @@ void RenderService::updateCluster() {
     auto needReloadCluster         = false;
     auto needUpdateStaticInstances = false;
     for (auto entity : storageCreate) {
-        const auto& renderable = registry.get<Renderable>(entity);
-        const auto isStatic    = registry.any_of<Static>(entity);
+        auto& renderable    = registry.get<Renderable>(entity);
+        const auto isStatic = registry.any_of<Static>(entity);
         if (isStatic) {
             needUpdateStaticInstances = true;
         }
-        for (const auto& mesh : renderable.meshes) {
-            if (!_modelsInCluster.contains(mesh.model)) {
+        for (auto& mesh : renderable.meshes) {
+            if (auto it = _modelsInCluster.find(mesh.model); it != _modelsInCluster.end()) {
+                for (const auto& index : it->second.indices) {
+                    if (mesh.node == index.nodeIndex) {
+                        mesh.mesh = index.meshIndex;
+                        break;
+                    }
+                }
+            } else {
                 needReloadCluster         = true;
                 needUpdateStaticInstances = true;
                 break;
@@ -445,7 +452,10 @@ void RenderService::updateCluster() {
 
     _renderableDestroyed += (gerium_uint32_t) storageDestroy.size();
     if (_renderableDestroyed >= deletionsToCheckUpdateCluster) {
-        std::set<entt::hashed_string> removedModels = _modelsInCluster;
+        std::set<entt::hashed_string> removedModels;
+        for (const auto& [key, _] : _modelsInCluster) {
+            removedModels.insert(key);
+        }
         for (auto [entity, renderable] : registry.view<Renderable>().each()) {
             for (const auto& mesh : renderable.meshes) {
                 if (auto it = removedModels.find(mesh.model); it != removedModels.end()) {
@@ -473,9 +483,13 @@ void RenderService::updateCluster() {
             if (auto it = models.find(modelId); it != models.end()) {
                 return it->second;
             }
-            _modelsInCluster.insert(modelId);
             models[modelId] = loadModel(cluster, modelId);
-            return models[modelId];
+            auto& model     = models[modelId];
+            auto& indices   = _modelsInCluster[modelId].indices;
+            for (const auto& mesh : model.meshes) {
+                indices.emplace_back(mesh.nodeIndex, mesh.meshIndex);
+            }
+            return model;
         };
 
         for (auto entity : registry.view<Renderable>()) {

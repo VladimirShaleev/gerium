@@ -605,7 +605,7 @@ gerium_uint32_t PhysicsService::getNextBodyID() {
     for (auto [_, rigidBody] : entityRegistry().view<RigidBody>().each()) {
         nextId = std::max(nextId, rigidBody.bodyID);
     }
-    return nextId;
+    return nextId + 1;
 }
 
 JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
