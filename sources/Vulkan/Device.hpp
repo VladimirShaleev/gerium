@@ -1,5 +1,5 @@
-#ifndef GERIUM_WINDOWS_VULKAN_DEVICE_HPP
-#define GERIUM_WINDOWS_VULKAN_DEVICE_HPP
+#ifndef GERIUM_VULKAN_DEVICE_HPP
+#define GERIUM_VULKAN_DEVICE_HPP
 
 #include "../Application.hpp"
 #include "../Gerium.hpp"
@@ -443,6 +443,7 @@ private:
 
     bool _enableValidations{};
     bool _enableDebugNames{};
+    gerium_uint32_t _maxPoolElements{};
     Application* _application{};
     gerium_uint16_t _appWidth{};
     gerium_uint16_t _appHeight{};
@@ -491,9 +492,9 @@ private:
     SamplerHandle _defaultSampler{ Undefined };
     TextureHandle _defaultTexture{ Undefined };
     TextureHandle _defaultTexture3D{ Undefined };
-    VkWriteDescriptorSet _descriptorWrite[kBindlessPoolElements]{};
-    VkDescriptorBufferInfo _bufferInfo[kBindlessPoolElements]{};
-    VkDescriptorImageInfo _imageInfo[kBindlessPoolElements]{};
+    std::vector<VkWriteDescriptorSet> _descriptorWrite{};
+    std::vector<VkDescriptorBufferInfo> _bufferInfo{};
+    std::vector<VkDescriptorImageInfo> _imageInfo{};
 
     BufferPool _buffers;
     TexturePool _textures;

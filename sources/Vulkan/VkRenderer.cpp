@@ -38,10 +38,10 @@ PipelineHandle VkRenderer::getPipeline(TechniqueHandle handle) const noexcept {
                                technique->passes + technique->passCount,
                                _currentRenderPassName,
                                [](const auto& p1, const auto& pass) {
-        return p1.render_pass < pass;
+        return p1.renderPass < pass;
     });
 
-    return it != technique->passes + technique->passCount ? it->pipeline : Undefined;
+    return it != technique->passes + technique->passCount ? it->pipeline : PipelineHandle{ Undefined };
 }
 
 void VkRenderer::onInitialize(gerium_feature_flags_t features, const gerium_renderer_options_t& options) {
@@ -56,7 +56,7 @@ Application* VkRenderer::application() noexcept {
 
 void VkRenderer::createTransferBuffer() {
     BufferCreation bc;
-    bc.reset().set({}, ResourceUsageType::Staging, 256 * 1024 * 1024).setName("staging_buffer").setPersistent(true);
+    bc.set({}, ResourceUsageType::Staging, 256 * 1024 * 1024).setName("staging_buffer").setPersistent(true);
     _transferBuffer       = _device->createBuffer(bc);
     _transferBufferOffset = 0;
 
@@ -263,13 +263,13 @@ TechniqueHandle VkRenderer::onCreateTechnique(const FrameGraph& frameGraph,
             pc.renderPass = _device->getRenderPassOutput(_device->getSwapchainPass());
         }
 
-        technique->passes[i].render_pass = intern(pipelines[i].render_pass);
-        technique->passes[i].pipeline    = _device->createPipeline(pc);
+        technique->passes[i].renderPass = intern(pipelines[i].render_pass);
+        technique->passes[i].pipeline   = _device->createPipeline(pc);
         ++technique->passCount;
     }
 
     std::sort(technique->passes, technique->passes + technique->passCount, [](const auto& mat1, const auto& mat2) {
-        return mat1.render_pass < mat2.render_pass;
+        return mat1.renderPass < mat2.renderPass;
     });
 
     return handle;

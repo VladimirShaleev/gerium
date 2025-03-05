@@ -164,7 +164,7 @@ void RenderService::start() {
     gerium_uint32_t white = 0xFF000000;
     _emptyTexture         = _resourceManager.createTexture(info, (gerium_cdata_t) &white);
     _bindlessTextures     = _resourceManager.createDescriptorSet("", true);
-    for (int i = 0; i < MAX_INSTANCES_PER_TECHNIQUE; ++i) {
+    for (int i = 0; i < options.descriptor_pool_elements; ++i) {
         gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
     }
 

@@ -118,6 +118,7 @@ void Device::create(Application* application,
     _autoRotation      = autoRotation;
     _enableValidations = options.debug_mode;
     _enableDebugNames  = options.debug_mode;
+    _maxPoolElements   = options.descriptor_pool_elements;
     _application       = application;
     _logger            = Logger::create("gerium:renderer:vulkan");
     _logger->setLevel(options.debug_mode ? GERIUM_LOGGER_LEVEL_DEBUG : GERIUM_LOGGER_LEVEL_OFF);
@@ -552,14 +553,8 @@ SamplerHandle Device::createSampler(const SamplerCreation& creation) {
     }
 
     auto [handle, sampler] = _samplers.obtain_and_access();
-
-    sampler->minFilter    = creation.minFilter;
-    sampler->magFilter    = creation.magFilter;
-    sampler->mipFilter    = creation.mipFilter;
-    sampler->addressModeU = creation.addressModeU;
-    sampler->addressModeV = creation.addressModeV;
-    sampler->addressModeW = creation.addressModeW;
-    sampler->name         = intern(creation.name);
+    sampler->hash          = key;
+    sampler->name          = intern(creation.name);
 
     VkSamplerCreateInfo createInfo{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
     createInfo.magFilter               = creation.magFilter;
@@ -603,6 +598,7 @@ RenderPassHandle Device::createRenderPass(const RenderPassCreation& creation) {
     auto [handle, renderPass] = _renderPasses.obtain_and_access();
 
     renderPass->output       = creation.output;
+    renderPass->hash         = key;
     renderPass->name         = intern(creation.name);
     renderPass->vkRenderPass = vkCreateRenderPass(renderPass->output, renderPass->name);
 
@@ -817,7 +813,7 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
                     layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
                     if (reflBinding.type_description && reflBinding.type_description->op == SpvOpTypeRuntimeArray) {
-                        layoutBinding.descriptorCount = kBindlessPoolElements;
+                        layoutBinding.descriptorCount = _maxPoolElements;
                         bindingFlags =
                             VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
                     }
@@ -1418,7 +1414,7 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
         if (descriptorSet->vkDescriptorSet && descriptorSet->global) {
             _freeDescriptorSetQueue.emplace_back(descriptorSet->vkDescriptorSet, _absoluteFrame);
         }
-        uint32_t maxBinding = kBindlessPoolElements - 1;
+        uint32_t maxBinding = _maxPoolElements - 1;
 
         VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{
             VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
@@ -1434,10 +1430,10 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
 
         check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
 
-        const auto [num, updateRequired] =
-            fillWriteDescriptorSets(*pipelineLayout, *descriptorSet, _descriptorWrite, _bufferInfo, _imageInfo);
+        const auto [num, updateRequired] = fillWriteDescriptorSets(
+            *pipelineLayout, *descriptorSet, _descriptorWrite.data(), _bufferInfo.data(), _imageInfo.data());
 
-        _vkTable.vkUpdateDescriptorSets(_device, num, _descriptorWrite, 0, nullptr);
+        _vkTable.vkUpdateDescriptorSets(_device, num, _descriptorWrite.data(), 0, nullptr);
 
         descriptorSet->layout  = layoutHandle;
         descriptorSet->changed = updateRequired;
@@ -1847,17 +1843,11 @@ void Device::createDescriptorPools(const gerium_renderer_options_t& options) {
     const auto poolElements = options.descriptor_pool_elements;
 
     VkDescriptorPoolSize poolSizes[] = {
-        // { VK_DESCRIPTOR_TYPE_SAMPLER,                kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, poolElements * 2 },
-        // { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          poolElements     },
-        //{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   kGlobalPoolElements     },
-        //{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   kGlobalPoolElements     },
-        // { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         kGlobalPoolElements     },
-        // { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         kGlobalPoolElements     },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, poolElements     },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, poolElements     },
-        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       poolElements     }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, poolElements },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          poolElements },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, poolElements },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, poolElements },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       poolElements }
     };
 
     VkDescriptorPoolCreateFlags flags = {};
@@ -1877,6 +1867,10 @@ void Device::createDescriptorPools(const gerium_renderer_options_t& options) {
 
     poolInfo.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     check(_vkTable.vkCreateDescriptorPool(_device, &poolInfo, getAllocCalls(), &_globalDescriptorPool));
+
+    _descriptorWrite.resize(poolElements);
+    _bufferInfo.resize(poolElements);
+    _imageInfo.resize(poolElements);
 }
 
 void Device::createVmaAllocator() {
@@ -2794,10 +2788,7 @@ void Device::deleteResources(bool forceDelete) {
             case ResourceType::Sampler:
                 if (_samplers.references(SamplerHandle{ resource.handle }) == 1) {
                     auto sampler = _samplers.access(resource.handle);
-                    _samplerCache.erase(calcSamplerHash(
-                        SamplerCreation()
-                            .setMinMagMip(sampler->minFilter, sampler->magFilter, sampler->mipFilter)
-                            .setAddressModeUvw(sampler->addressModeU, sampler->addressModeV, sampler->addressModeW)));
+                    _samplerCache.erase(sampler->hash);
                     _vkTable.vkDestroySampler(_device, sampler->vkSampler, getAllocCalls());
                 }
                 _samplers.release(resource.handle);
@@ -2805,7 +2796,7 @@ void Device::deleteResources(bool forceDelete) {
             case ResourceType::RenderPass:
                 if (_renderPasses.references(RenderPassHandle{ resource.handle }) == 1) {
                     auto renderPass = _renderPasses.access(resource.handle);
-                    _renderPassCache.erase(hash(renderPass->output));
+                    _renderPassCache.erase(renderPass->hash);
                     _vkTable.vkDestroyRenderPass(_device, renderPass->vkRenderPass, getAllocCalls());
                 }
                 _renderPasses.release(resource.handle);

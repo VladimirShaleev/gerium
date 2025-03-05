@@ -1,5 +1,5 @@
-#ifndef GERIUM_WINDOWS_VULKAN_UTILS_HPP
-#define GERIUM_WINDOWS_VULKAN_UTILS_HPP
+#ifndef GERIUM_VULKAN_UTILS_HPP
+#define GERIUM_VULKAN_UTILS_HPP
 
 #include "../Gerium.hpp"
 #include "../Handles.hpp"

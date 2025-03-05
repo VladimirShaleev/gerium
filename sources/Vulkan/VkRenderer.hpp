@@ -1,5 +1,5 @@
-#ifndef GERIUM_WINDOWS_VULKAN_VK_RENDERER_HPP
-#define GERIUM_WINDOWS_VULKAN_VK_RENDERER_HPP
+#ifndef GERIUM_VULKAN_VK_RENDERER_HPP
+#define GERIUM_VULKAN_VK_RENDERER_HPP
 
 #include "../Application.hpp"
 #include "../Logger.hpp"
