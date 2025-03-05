@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "gerium",
   "version": "1.0.0",
-  "builtin-baseline": "57c08a3223a1ec03c3a31986ee38d32e90b6039c",
+  "builtin-baseline": "d5ec528843d29e3a52d745a64b469f810b2cedbf",
   "dependencies": [
     "mimalloc",
     "cmakerc",
@@ -16,6 +16,24 @@
     "spirv-reflect",
     "marl",
     "stb",
+    {
+      "name": "imgui",
+      "features": [
+        {
+          "name": "android-binding",
+          "platform": "android"
+        },
+        {
+          "name": "win32-binding",
+          "platform": "windows"
+        },
+        {
+          "name": "osx-binding",
+          "platform": "osx"
+        },
+        "vulkan-binding"
+      ]
+    },
     {
       "name": "ktx",
       "features": [

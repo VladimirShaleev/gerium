@@ -2,8 +2,7 @@ if(NOT CMAKE_SYSTEM_NAME MATCHES "Linux")
     return()
 endif()
 
-include(ExternalProject)
-
+include(FetchContent)
 FetchContent_Declare(
     x11
     GIT_REPOSITORY https://github.com/hexops/x11-headers.git

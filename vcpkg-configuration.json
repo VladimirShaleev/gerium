@@ -9,5 +9,8 @@
         "fidelityfx"
       ]
     }
+  ],
+  "overlay-ports": [
+    "./cmake/vcpkg/overlay-ports"
   ]
 }
