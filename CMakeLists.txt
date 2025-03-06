@@ -129,8 +129,8 @@ elseif(APPLE)
     include(FetchContent)
     FetchContent_Declare(
         moltenVK
-        URL https://github.com/KhronosGroup/MoltenVK/releases/download/v1.2.9/MoltenVK-all.tar # TODO: upgrade to v1.2.11
-        URL_HASH MD5=1219a051a60c0cf71021983a91b82c0a
+        URL https://github.com/KhronosGroup/MoltenVK/releases/download/v1.2.11-artifacts/MoltenVK-all.tar
+        URL_HASH MD5=d88d601e6db0966930b94a18266584e4
         GIT_PROGRESS TRUE
     )
     FetchContent_MakeAvailable(moltenVK)

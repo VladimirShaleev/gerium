@@ -634,7 +634,7 @@ const CAMetalLayer* MacOSApplication::layer() const noexcept {
 }
 
 void MacOSApplication::changeState(gerium_application_state_t newState) {
-    Application::changeState(newState, true);
+    Application::changeState(newState);
 }
 
 void MacOSApplication::frame() {

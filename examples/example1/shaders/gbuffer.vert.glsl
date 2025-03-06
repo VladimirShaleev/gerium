@@ -1,7 +1,5 @@
 #version 450
 
-#extension GL_ARB_shader_draw_parameters : require
-
 #include "common/types.h"
 
 layout(location = 0) out vec2 texcoord;
@@ -34,9 +32,7 @@ layout(std430, binding = 4, set = INSTANCES_DATA_SET) readonly buffer CommandsSS
 void main() {
     MeshInstance instance = instances[gl_InstanceIndex];
 
-    uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + gl_DrawIDARB;
-
-    uint lodIndex = commands[commandIndex].lodIndex;
+    uint lodIndex = commands[gl_InstanceIndex].lodIndex;
 
     MeshLod mesh = meshes[instance.mesh].lods[lodIndex];
 

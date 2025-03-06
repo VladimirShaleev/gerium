@@ -100,7 +100,7 @@ if(IMGUI_BUILD_SDL2_RENDERER_BINDING)
 endif()
 
 if(IMGUI_BUILD_VULKAN_BINDING)
-    find_package(Vulkan REQUIRED)
+    find_package(VulkanHeaders REQUIRED)
     target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Headers)
     target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
     target_compile_definitions(${PROJECT_NAME} PRIVATE VK_NO_PROTOTYPES)

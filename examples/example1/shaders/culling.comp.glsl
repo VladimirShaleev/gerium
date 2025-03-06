@@ -65,6 +65,6 @@ void main() {
         commands[commandIndex].instanceCount = 1;
         commands[commandIndex].firstVertex   = 0;
         commands[commandIndex].firstInstance = index;
-        commands[commandIndex].lodIndex      = lodIndex;
+        commands[index].lodIndex             = lodIndex;
     }
 }
