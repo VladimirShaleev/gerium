@@ -322,7 +322,7 @@ BufferHandle Device::createBuffer(const BufferCreation& creation) {
     VmaAllocationCreateFlags vmaFlags;
     switch (creation.usage) {
         case ResourceUsageType::Immutable:
-            if (creation.initialData) {
+            if (creation.initialData || creation.hasFillValue) {
                 vmaFlags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
                            VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT |
                            VMA_ALLOCATION_CREATE_MAPPED_BIT;

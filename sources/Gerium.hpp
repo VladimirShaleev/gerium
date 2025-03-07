@@ -62,7 +62,6 @@ CMRC_DECLARE(gerium::resources);
 # define VK_USE_PLATFORM_ANDROID_KHR
 #elif defined(GERIUM_PLATFORM_LINUX)
 # define VK_USE_PLATFORM_XCB_KHR
-# define VK_USE_PLATFORM_WAYLAND_KHR
 #else
 # error unsupported platform
 #endif

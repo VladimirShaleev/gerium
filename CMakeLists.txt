@@ -3,11 +3,11 @@ cmake_policy(SET CMP0135 NEW)
 
 include(cmake/version.cmake)
 include(cmake/vcpkg.cmake)
+
+project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 include(cmake/x11.cmake)
 include(cmake/properties.cmake)
 include(CMakeDependentOption)
-
-project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 
 option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
