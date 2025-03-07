@@ -1056,22 +1056,9 @@ void MacOSApplication::onInitImGui() {
     MTKView* view                    = ((__bridge MTKView*) _view);
     WindowViewController* controller = ((__bridge WindowViewController*) _viewController);
     ImGui_ImplOSX_Init(view);
-    [controller.window makeFirstResponder:controller];
 }
 
 void MacOSApplication::onShutdownImGui() {
-    struct ImGui_ImplOSX_Data {
-        CFTimeInterval Time;
-        NSCursor* MouseCursors[ImGuiMouseCursor_COUNT];
-        bool MouseCursorHidden;
-        NSObject* Observer;
-    };
-    
-    NSObject* observer = reinterpret_cast<ImGui_ImplOSX_Data*>(ImGui::GetIO().BackendPlatformUserData)->Observer;
-    
-    [[NSNotificationCenter defaultCenter] removeObserver:observer name:NSApplicationDidBecomeActiveNotification object:nil];
-    [[NSNotificationCenter defaultCenter] removeObserver:observer name:NSApplicationDidResignActiveNotification object:nil];
-    
     ImGui_ImplOSX_Shutdown();
 }
 
