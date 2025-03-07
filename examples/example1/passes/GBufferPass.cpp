@@ -19,12 +19,23 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     gerium_buffer_h commands{ UndefinedHandle };
     gerium_buffer_h commandCounts{ UndefinedHandle };
     CompatCommands compatCommands{};
-    if (renderService().drawIndirectCountSupported()) {
+    if (renderService().bindlessSupported() && renderService().drawIndirectCountSupported()) {
         check(gerium_renderer_get_buffer(renderer, "commands", &commands));
         check(gerium_renderer_get_buffer(renderer, "command_counts", &commandCounts));
     } else {
         compatCommands = compatCullingInstances();
-        compatCullingBuffer(renderer, compatCommands, &commands);
+        if (compatCommands.drawCommands.empty()) {
+            return;
+        }
+        auto size = compatCommands.drawCommands.size() * sizeof(IndirectDraw);
+        gerium_buffer_h buffer;
+        check(gerium_renderer_create_buffer(renderer,
+                                            GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_INDIRECT_BIT,
+                                            true,
+                                            "",
+                                            compatCommands.drawCommands.data(),
+                                            size,
+                                            &commands));
         gerium_renderer_bind_buffer(renderer, instancesData, 4, commands);
     }
 
@@ -87,7 +98,7 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         }
     }
 
-    if (!renderService().drawIndirectCountSupported()) {
+    if (!renderService().bindlessSupported() || !renderService().drawIndirectCountSupported()) {
         gerium_renderer_destroy_buffer(renderer, commands);
     }
 }
@@ -99,6 +110,7 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
 
     std::vector<IndirectDraw> draws;
     std::vector<gerium_uint32_t> drawCounts;
+    drawCounts.resize(renderService().techniques().size());
     for (gerium_uint32_t index = 0; index < instances.size(); ++index) {
         const auto& instance = instances[index];
         const auto meshIndex = instance.mesh;
@@ -127,10 +139,6 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
                 }
             }
 
-            if (drawCounts.size() <= instance.technique) {
-                drawCounts.resize(instance.technique + 1);
-            }
-
             uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + drawCounts[instance.technique]++;
 
             if (draws.size() <= commandIndex || draws.size() <= index) {
@@ -153,20 +161,4 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
     }
 
     return { draws, drawCounts };
-}
-
-void GBufferPass::compatCullingBuffer(gerium_renderer_t renderer,
-                                      const CompatCommands& compatCommands,
-                                      gerium_buffer_h* commands) {
-    if (!compatCommands.drawCommands.empty()) {
-        auto size = compatCommands.drawCommands.size() * sizeof(IndirectDraw);
-        gerium_buffer_h buffer;
-        check(gerium_renderer_create_buffer(renderer,
-                                            GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_INDIRECT_BIT,
-                                            true,
-                                            "",
-                                            compatCommands.drawCommands.data(),
-                                            size,
-                                            commands));
-    }
 }

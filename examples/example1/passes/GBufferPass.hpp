@@ -21,9 +21,6 @@ private:
     };
 
     CompatCommands compatCullingInstances();
-    void compatCullingBuffer(gerium_renderer_t renderer,
-                             const CompatCommands& compatCommands,
-                             gerium_buffer_h* commands);
 };
 
 #endif
