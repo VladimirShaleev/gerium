@@ -45,9 +45,9 @@ void RenderService::start() {
 #endif
 
     // Requested features needed for this example
-    constexpr auto features = GERIUM_FEATURE_DRAW_INDIRECT_BIT /* | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT */ |
-                              /* GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT | */
-                              GERIUM_FEATURE_BINDLESS_BIT;
+    constexpr auto features = /* GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT | */
+        /* GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT | */
+        GERIUM_FEATURE_BINDLESS_BIT;
 
     // Initializes the gerium rendering system
     check(gerium_renderer_create(application().handle(), features, &options, &_renderer));

@@ -16,12 +16,14 @@ public:
 
 private:
     struct CompatCommands {
-        gerium_uint32_t drawCount;
         std::vector<IndirectDraw> drawCommands;
+        std::vector<gerium_uint32_t> drawCounts;
     };
 
     CompatCommands compatCullingInstances();
-    gerium_uint32_t compatCullingBuffer(gerium_renderer_t renderer, gerium_buffer_h* commands);
+    void compatCullingBuffer(gerium_renderer_t renderer,
+                             const CompatCommands& compatCommands,
+                             gerium_buffer_h* commands);
 };
 
 #endif

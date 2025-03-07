@@ -10,22 +10,21 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
     const auto instancesData = renderService().instancesData();
     const auto textures      = renderService().textures();
     const auto& techniques   = renderService().techniques();
-    auto instancesCount      = renderService().instancesCount();
+    auto drawCount           = renderService().instancesCount();
 
-    if (instancesCount == 0) {
+    if (drawCount == 0) {
         return;
     }
 
     gerium_buffer_h commands{ UndefinedHandle };
     gerium_buffer_h commandCounts{ UndefinedHandle };
+    CompatCommands compatCommands{};
     if (renderService().drawIndirectCountSupported()) {
-    check(gerium_renderer_get_buffer(renderer, "commands", &commands));
+        check(gerium_renderer_get_buffer(renderer, "commands", &commands));
         check(gerium_renderer_get_buffer(renderer, "command_counts", &commandCounts));
     } else {
-        instancesCount = compatCullingBuffer(renderer, &commands);
-        if (instancesCount == 0) {
-            return;
-        }
+        compatCommands = compatCullingInstances();
+        compatCullingBuffer(renderer, compatCommands, &commands);
         gerium_renderer_bind_buffer(renderer, instancesData, 4, commands);
     }
 
@@ -33,13 +32,31 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         const auto& technique     = techniques[i];
         const auto countOffset    = i * 4;
         const auto commandsOffset = i * MAX_INSTANCES_PER_TECHNIQUE * sizeof(IndirectDraw);
+        if (!renderService().drawIndirectCountSupported()) {
+            drawCount = compatCommands.drawCounts[i];
+            if (drawCount == 0) {
+                continue;
+            }
+        }
         gerium_command_buffer_bind_technique(commandBuffer, technique);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, sceneData, SCENE_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, clusterData, CLUSTER_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, instancesData, INSTANCES_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, textures, TEXTURES_SET);
-        gerium_command_buffer_draw_indirect(
-            commandBuffer, commands, commandsOffset, commandCounts, countOffset, instancesCount, sizeof(IndirectDraw));
+        if (renderService().drawIndirectSupported()) {
+            gerium_command_buffer_draw_indirect(
+                commandBuffer, commands, commandsOffset, commandCounts, countOffset, drawCount, sizeof(IndirectDraw));
+        } else {
+            drawCount = compatCommands.drawCounts[i];
+            for (gerium_uint32_t commandIndex = 0; commandIndex < drawCount; ++commandIndex) {
+                const auto& command = compatCommands.drawCommands[i * MAX_INSTANCES_PER_TECHNIQUE + commandIndex];
+                gerium_command_buffer_draw(commandBuffer,
+                                           command.firstVertex,
+                                           command.vertexCount,
+                                           command.firstInstance,
+                                           command.instanceCount);
+            }
+        }
     }
 
     if (!renderService().drawIndirectCountSupported()) {
@@ -52,8 +69,8 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
     const auto& meshes    = renderService().compatMeshes();
     const auto& instances = renderService().compatInstances();
 
-    gerium_uint32_t drawCount = 0;
     std::vector<IndirectDraw> draws;
+    std::vector<gerium_uint32_t> drawCounts;
     for (gerium_uint32_t index = 0; index < instances.size(); ++index) {
         const auto& instance = instances[index];
         const auto meshIndex = instance.mesh;
@@ -82,13 +99,15 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
                 }
             }
 
-            uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + drawCount;
-            ++drawCount;
+            if (drawCounts.size() <= instance.technique) {
+                drawCounts.resize(instance.technique + 1);
+            }
+
+            uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + drawCounts[instance.technique]++;
 
             if (draws.size() <= commandIndex || draws.size() <= index) {
                 draws.resize(std::max(commandIndex, index) + 1);
             }
-
             draws[commandIndex].vertexCount   = meshes[meshIndex].lods[lodIndex].primitiveCount;
             draws[commandIndex].instanceCount = 1;
             draws[commandIndex].firstVertex   = 0;
@@ -105,23 +124,21 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
         }
     }
 
-    return { drawCount, draws };
+    return { draws, drawCounts };
 }
 
-gerium_uint32_t GBufferPass::compatCullingBuffer(gerium_renderer_t renderer, gerium_buffer_h* commands) {
-    const auto [drawCount, drawCommands] = compatCullingInstances();
-
-    if (!drawCommands.empty()) {
-        auto size = drawCommands.size() * sizeof(IndirectDraw);
+void GBufferPass::compatCullingBuffer(gerium_renderer_t renderer,
+                                      const CompatCommands& compatCommands,
+                                      gerium_buffer_h* commands) {
+    if (!compatCommands.drawCommands.empty()) {
+        auto size = compatCommands.drawCommands.size() * sizeof(IndirectDraw);
         gerium_buffer_h buffer;
         check(gerium_renderer_create_buffer(renderer,
                                             GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_INDIRECT_BIT,
                                             true,
                                             "",
-                                            drawCommands.data(),
+                                            compatCommands.drawCommands.data(),
                                             size,
                                             commands));
     }
-
-    return drawCount;
 }
