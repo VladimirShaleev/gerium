@@ -115,7 +115,6 @@ void Device::create(Application* application,
                     gerium_feature_flags_t features,
                     const gerium_renderer_options_t& options,
                     bool autoRotation) {
-    _appVersion        = options.app_version;
     _autoRotation      = autoRotation;
     _enableValidations = options.debug_mode;
     _enableDebugNames  = options.debug_mode;
@@ -128,7 +127,7 @@ void Device::create(Application* application,
     createInstance(application->getTitle(), options.app_version);
     createSurface();
     createPhysicalDevice();
-    createDevice(application->workerThreadCount(), options.command_buffers_per_frame, features);
+    createDevice(application->workerThreadCount(), options.command_buffers_per_frame, features, options.app_version);
     createProfiler(64);
     createDescriptorPools(options);
     createVmaAllocator();
@@ -1645,7 +1644,8 @@ void Device::createPhysicalDevice() {
 
 void Device::createDevice(gerium_uint32_t threadCount,
                           gerium_uint32_t numBuffersPerFrame,
-                          gerium_feature_flags_t featureFlags) {
+                          gerium_feature_flags_t featureFlags,
+                          gerium_uint32_t appVersion) {
     const float priorities[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     const auto layers        = selectValidationLayers();
     const auto extensions    = selectDeviceExtensions(_physicalDevice, featureFlags & GERIUM_FEATURE_MESH_SHADER_BIT);
@@ -1835,6 +1835,8 @@ void Device::createDevice(gerium_uint32_t threadCount,
 
     _commandBufferPool.create(*this, threadCount, numBuffersPerFrame, QueueType::Graphics);
     _frameCommandBuffer = getPrimaryCommandBuffer(false);
+
+    _deviceHash = deviceHash(appVersion);
 }
 
 void Device::createProfiler(uint16_t gpuTimeQueriesPerFrame) {
@@ -3280,10 +3282,10 @@ void Device::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverit
     });
 }
 
-gerium_uint64_t Device::deviceHash() noexcept {
+gerium_uint64_t Device::deviceHash(gerium_uint32_t appVersion) noexcept {
     gerium_uint64_t seed = hash(GERIUM_VERSION);
 
-    seed = hash(_appVersion, seed);
+    seed = hash(appVersion, seed);
     seed = hash(_bindlessSupported, seed);
     seed = hash(_fidelityFXSupported, seed);
     seed = hash(_geometryShaderSupported, seed);
@@ -3298,7 +3300,7 @@ gerium_uint64_t Device::deviceHash() noexcept {
 }
 
 gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexcept {
-    gerium_uint64_t seed = hash(deviceHash());
+    gerium_uint64_t seed = _deviceHash;
 
     seed = hash(*creation.rasterization, seed);
     seed = hash(*creation.depthStencil, seed);

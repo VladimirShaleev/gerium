@@ -361,7 +361,8 @@ private:
     void createPhysicalDevice();
     void createDevice(gerium_uint32_t threadCount,
                       gerium_uint32_t numBuffersPerFrame,
-                      gerium_feature_flags_t featureFlags);
+                      gerium_feature_flags_t featureFlags,
+                      gerium_uint32_t appVersion);
     void createProfiler(uint16_t gpuTimeQueriesPerFrame);
     void createDescriptorPools(const gerium_renderer_options_t& options);
     void createVmaAllocator();
@@ -419,7 +420,7 @@ private:
                        VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData);
 
-    gerium_uint64_t deviceHash() noexcept;
+    gerium_uint64_t deviceHash(gerium_uint32_t appVersion) noexcept;
     gerium_uint64_t calcPipelineHash(const PipelineCreation& creation) noexcept;
     static gerium_uint64_t calcSamplerHash(const SamplerCreation& creation) noexcept;
     static gerium_uint32_t calcBindingKey(gerium_uint16_t binding, gerium_uint16_t element) noexcept;
@@ -442,7 +443,7 @@ private:
                                             gerium_float32_t& fontSize) const noexcept;
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
-    gerium_uint32_t _appVersion{};
+    gerium_uint64_t _deviceHash{};
     bool _enableValidations{};
     bool _enableDebugNames{};
     gerium_uint32_t _maxPoolElements{};
