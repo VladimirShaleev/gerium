@@ -21,17 +21,3 @@ frame graph:
         format: GERIUM_FORMAT_D32_SFLOAT
         render pass op: GERIUM_RENDER_PASS_OP_CLEAR
         clear depth stencil attachment: [1.0, 0]
-
-  - name: culling_pass
-    compute: true
-    outputs:
-      # max_techniques = 50
-      # max_instances_per_technique = 500
-      - type: GERIUM_RESOURCE_TYPE_BUFFER
-        name: command_counts
-        size: 200 # max_techniques * 4
-        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
-      - type: GERIUM_RESOURCE_TYPE_BUFFER
-        name: commands
-        size: 500000 # max_techniques * max_instances_per_technique * 20
-        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]

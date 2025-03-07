@@ -1,0 +1,14 @@
+frame graph:
+  - name: culling_pass
+    compute: true
+    outputs:
+      # MAX_TECHNIQUES = 50
+      # MAX_INSTANCES_PER_TECHNIQUE = 500
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: command_counts
+        size: 200 # MAX_TECHNIQUES * 4
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: commands
+        size: 500000 # MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE * 20
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT, GERIUM_BUFFER_USAGE_INDIRECT_BIT]

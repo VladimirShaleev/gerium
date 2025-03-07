@@ -670,6 +670,13 @@ DescriptorSetHandle Device::createDescriptorSet(const DescriptorSetCreation& cre
 }
 
 DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetLayoutCreation& creation) {
+    const auto key = creation.setLayout->hash;
+
+    if (auto it = _descriptorSetLayoutCache.find(key); it != _descriptorSetLayoutCache.end()) {
+        _descriptorSetLayouts.addReference(it->second);
+        return it->second;
+    }
+
     auto [handle, descriptorSetLayout] = _descriptorSetLayouts.obtain_and_access();
 
     descriptorSetLayout->data                      = *creation.setLayout;
@@ -681,6 +688,9 @@ DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetL
 
     check(_vkTable.vkCreateDescriptorSetLayout(
         _device, &descriptorSetLayout->data.createInfo, getAllocCalls(), &descriptorSetLayout->vkDescriptorSetLayout));
+
+    _descriptorSetLayoutCache[key] = handle;
+
     return handle;
 }
 
@@ -830,6 +840,9 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 layout.hash = hash(layoutBinding.descriptorCount, layout.hash);
                 layout.hash = hash(layoutBinding.stageFlags, layout.hash);
             }
+            std::sort(layout.bindings.begin(), layout.bindings.end(), [](const auto& b1, const auto& b2) {
+                return b1.binding < b2.binding;
+            });
             layout.setNumber               = reflSet.set;
             layout.createInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             layout.createInfo.bindingCount = (uint32_t) layout.bindings.size();
@@ -2842,6 +2855,7 @@ void Device::deleteResources(bool forceDelete) {
             case ResourceType::DescriptorSetLayout:
                 if (_descriptorSetLayouts.references(DescriptorSetLayoutHandle{ resource.handle }) == 1) {
                     auto layout = _descriptorSetLayouts.access(resource.handle);
+                    _descriptorSetLayoutCache.erase(layout->data.hash);
                     _vkTable.vkDestroyDescriptorSetLayout(_device, layout->vkDescriptorSetLayout, getAllocCalls());
                 }
                 _descriptorSetLayouts.release(resource.handle);

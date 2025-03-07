@@ -1,0 +1,12 @@
+frame graph:
+  - name: merge_instances_pass
+    compute: true
+    outputs:
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: command_counts
+        size: 4
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]
+      - type: GERIUM_RESOURCE_TYPE_BUFFER
+        name: commands
+        size: 4
+        usage: [GERIUM_BUFFER_USAGE_STORAGE_BIT]

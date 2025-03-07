@@ -10,7 +10,7 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
     gerium_buffer_h commandCounts;
     check(gerium_renderer_get_buffer(renderer, "command_counts", &commandCounts));
 
-    gerium_command_buffer_bind_technique(commandBuffer, renderService().baseTechnique());
+    gerium_command_buffer_bind_technique(commandBuffer, renderService().resourceManager().loadTechnique(TECH_BASE_ID));
     gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().sceneData(), SCENE_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().clusterData(), CLUSTER_DATA_SET);
     gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().instancesData(), INSTANCES_DATA_SET);

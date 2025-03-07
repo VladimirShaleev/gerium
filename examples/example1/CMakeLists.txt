@@ -6,6 +6,7 @@ file(GLOB GERIUM_EXAMPLE
     "passes/*.hpp" "passes/*.cpp"
     "events/*.hpp" "events/*.cpp"
     "components/*.hpp" "components/*.cpp")
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_EXAMPLE})
 
 file(GLOB GERIUM_GRAPH_RESOURCES "frame-graphs/*.yaml")
 file(GLOB GERIUM_TECH_RESOURCES "techniques/*.yaml")
@@ -40,8 +41,6 @@ set(TECH_IDS "${ARRAY_IDS}")
 gen_ids(RESOURCES ${GERIUM_MODEL_RESOURCES} PREFIX MODEL)
 set(MODEL_IDS "${ARRAY_IDS}")
 configure_file(utils/Resources.hpp.in Resources.hpp @ONLY)
-
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX example FILES ${GERIUM_EXAMPLE})
 
 find_package(imgui CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)

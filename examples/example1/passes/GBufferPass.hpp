@@ -13,6 +13,15 @@ public:
                 gerium_command_buffer_t commandBuffer,
                 gerium_uint32_t worker,
                 gerium_uint32_t totalWorkers) override;
+
+private:
+    struct CompatCommands {
+        gerium_uint32_t drawCount;
+        std::vector<IndirectDraw> drawCommands;
+    };
+
+    CompatCommands compatCullingInstances();
+    gerium_uint32_t compatCullingBuffer(gerium_renderer_t renderer, gerium_buffer_h* commands);
 };
 
 #endif

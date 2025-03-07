@@ -65,6 +65,14 @@ void main() {
         commands[commandIndex].instanceCount = 1;
         commands[commandIndex].firstVertex   = 0;
         commands[commandIndex].firstInstance = index;
-        commands[index].lodIndex             = lodIndex;
+
+        // The LOD index is stored in the command buffer not by `commandIndex`, but by `index`.
+        // This is necessary so that the vertex shader can access the command data by
+        // `gl_InstanceIndex`. This will work because the instance index is unique within
+        // a pass. In reality, it would be more correct to store the LOD by `commandIndex`,
+        // and then get the command used for rendering in the vertex shader using `gl_DrawIDARB`
+        // (as `uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + gl_DrawIDARB`).
+        // But `GL_ARB_shader_draw_parameters` is not supported everywhere.
+        commands[index].lodIndex = lodIndex;
     }
 }

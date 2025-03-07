@@ -151,13 +151,14 @@ void SceneService::onAddModel(const AddModelEvent& event) {
                 auto& renderable = registry.get_or_emplace<Renderable>(node);
                 renderable.meshes.push_back({});
 
+                static int ii = 0;
                 auto& meshData = renderable.meshes.back();
                 meshData.model = model.name;
                 meshData.mesh  = mesh.meshIndex;
                 meshData.node  = (gerium_uint32_t) mesh.nodeIndex;
                 if (!model.materials.empty()) {
                     meshData.material      = model.materials[mesh.materialIndex];
-                    meshData.material.name = TECH_PBR_ID; // TODO: remove
+                    meshData.material.name = (ii++) % 2 == 0 ? TECH_PBR_ID : TECH_OTHER_ID; // TODO: remove
                 }
             }
         }

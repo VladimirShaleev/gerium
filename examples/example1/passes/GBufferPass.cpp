@@ -5,18 +5,29 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    gerium_buffer_h commandCounts;
-    gerium_buffer_h commands;
-    check(gerium_renderer_get_buffer(renderer, "command_counts", &commandCounts));
+    const auto sceneData     = renderService().sceneData();
+    const auto clusterData   = renderService().clusterData();
+    const auto instancesData = renderService().instancesData();
+    const auto textures      = renderService().textures();
+    const auto& techniques   = renderService().techniques();
+    auto instancesCount      = renderService().instancesCount();
+
+    if (instancesCount == 0) {
+        return;
+    }
+
+    gerium_buffer_h commands{ UndefinedHandle };
+    gerium_buffer_h commandCounts{ UndefinedHandle };
+    if (renderService().drawIndirectCountSupported()) {
     check(gerium_renderer_get_buffer(renderer, "commands", &commands));
-
-    const auto sceneData      = renderService().sceneData();
-    const auto clusterData    = renderService().clusterData();
-    const auto instancesData  = renderService().instancesData();
-    const auto instancesCount = renderService().instancesCount();
-    const auto textures       = renderService().textures();
-
-    const auto& techniques = renderService().techniques();
+        check(gerium_renderer_get_buffer(renderer, "command_counts", &commandCounts));
+    } else {
+        instancesCount = compatCullingBuffer(renderer, &commands);
+        if (instancesCount == 0) {
+            return;
+        }
+        gerium_renderer_bind_buffer(renderer, instancesData, 4, commands);
+    }
 
     for (gerium_uint32_t i = 0; i < techniques.size(); ++i) {
         const auto& technique     = techniques[i];
@@ -30,4 +41,87 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         gerium_command_buffer_draw_indirect(
             commandBuffer, commands, commandsOffset, commandCounts, countOffset, instancesCount, sizeof(IndirectDraw));
     }
+
+    if (!renderService().drawIndirectCountSupported()) {
+        gerium_renderer_destroy_buffer(renderer, commands);
+    }
+}
+
+GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
+    const auto& scene     = renderService().compatSceneData();
+    const auto& meshes    = renderService().compatMeshes();
+    const auto& instances = renderService().compatInstances();
+
+    gerium_uint32_t drawCount = 0;
+    std::vector<IndirectDraw> draws;
+    for (gerium_uint32_t index = 0; index < instances.size(); ++index) {
+        const auto& instance = instances[index];
+        const auto meshIndex = instance.mesh;
+
+        auto center =
+            (scene.view * instance.world *
+             glm::vec4(meshes[meshIndex].center[0], meshes[meshIndex].center[1], meshes[meshIndex].center[2], 1.0f))
+                .xyz();
+        auto radius = instance.scale * meshes[meshIndex].radius;
+
+        auto visible = true;
+        visible      = visible && center.z * scene.frustum.y - glm::abs(center.x) * scene.frustum.x > -radius;
+        visible      = visible && center.z * scene.frustum.w - glm::abs(center.y) * scene.frustum.z > -radius;
+        visible      = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
+
+        if (visible) {
+            glm::uint lodCount = meshes[meshIndex].lodCount;
+            glm::uint lodIndex = 0;
+
+            auto distance  = glm::max(glm::length(center) - radius, 0.0f);
+            auto threshold = distance * scene.lodTarget / instance.scale;
+
+            for (uint i = 1; i < lodCount; ++i) {
+                if (meshes[meshIndex].lods[i].lodError < threshold) {
+                    lodIndex = i;
+                }
+            }
+
+            uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + drawCount;
+            ++drawCount;
+
+            if (draws.size() <= commandIndex || draws.size() <= index) {
+                draws.resize(std::max(commandIndex, index) + 1);
+            }
+
+            draws[commandIndex].vertexCount   = meshes[meshIndex].lods[lodIndex].primitiveCount;
+            draws[commandIndex].instanceCount = 1;
+            draws[commandIndex].firstVertex   = 0;
+            draws[commandIndex].firstInstance = index;
+
+            // The LOD index is stored in the command buffer not by `commandIndex`, but by `index`.
+            // This is necessary so that the vertex shader can access the command data by
+            // `gl_InstanceIndex`. This will work because the instance index is unique within
+            // a pass. In reality, it would be more correct to store the LOD by `commandIndex`,
+            // and then get the command used for rendering in the vertex shader using `gl_DrawIDARB`
+            // (as `uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + gl_DrawIDARB`).
+            // But `GL_ARB_shader_draw_parameters` is not supported everywhere.
+            draws[index].lodIndex = lodIndex;
+        }
+    }
+
+    return { drawCount, draws };
+}
+
+gerium_uint32_t GBufferPass::compatCullingBuffer(gerium_renderer_t renderer, gerium_buffer_h* commands) {
+    const auto [drawCount, drawCommands] = compatCullingInstances();
+
+    if (!drawCommands.empty()) {
+        auto size = drawCommands.size() * sizeof(IndirectDraw);
+        gerium_buffer_h buffer;
+        check(gerium_renderer_create_buffer(renderer,
+                                            GERIUM_BUFFER_USAGE_STORAGE_BIT | GERIUM_BUFFER_USAGE_INDIRECT_BIT,
+                                            true,
+                                            "",
+                                            drawCommands.data(),
+                                            size,
+                                            commands));
+    }
+
+    return drawCount;
 }
