@@ -115,6 +115,7 @@ void Device::create(Application* application,
                     gerium_feature_flags_t features,
                     const gerium_renderer_options_t& options,
                     bool autoRotation) {
+    _appVersion        = options.app_version;
     _autoRotation      = autoRotation;
     _enableValidations = options.debug_mode;
     _enableDebugNames  = options.debug_mode;
@@ -1569,6 +1570,8 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
         _enableDebugNames = false;
     }
 
+    constexpr auto engineVersion =
+        VK_MAKE_API_VERSION(0, GERIUM_VERSION_MAJOR, GERIUM_VERSION_MINOR, GERIUM_VERSION_MICRO);
     constexpr auto messageSeverity =
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -1583,7 +1586,7 @@ void Device::createInstance(gerium_utf8_t appName, gerium_uint32_t version) {
     appInfo.pApplicationName   = appName;
     appInfo.applicationVersion = appVersion;
     appInfo.pEngineName        = "gerium";
-    appInfo.engineVersion      = VK_MAKE_API_VERSION(0, 1, 0, 0);
+    appInfo.engineVersion      = engineVersion;
     appInfo.apiVersion         = VK_API_VERSION_1_2;
 
     VkDebugUtilsMessengerCreateInfoEXT debugInfo{ VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
@@ -3277,8 +3280,25 @@ void Device::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverit
     });
 }
 
-gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexcept {
+gerium_uint64_t Device::deviceHash() noexcept {
     gerium_uint64_t seed = hash(GERIUM_VERSION);
+
+    seed = hash(_appVersion, seed);
+    seed = hash(_bindlessSupported, seed);
+    seed = hash(_fidelityFXSupported, seed);
+    seed = hash(_geometryShaderSupported, seed);
+    seed = hash(_meshShaderSupported, seed);
+    seed = hash(_samplerFilterMinmaxSupported, seed);
+    seed = hash(_multiDrawIndirectSupported, seed);
+    seed = hash(_drawIndirectSupported, seed);
+    seed = hash(_drawIndirectCountSupported, seed);
+    seed = hash(_8BitStorageSupported, seed);
+    seed = hash(_16BitStorageSupported, seed);
+    return seed;
+}
+
+gerium_uint64_t Device::calcPipelineHash(const PipelineCreation& creation) noexcept {
+    gerium_uint64_t seed = hash(deviceHash());
 
     seed = hash(*creation.rasterization, seed);
     seed = hash(*creation.depthStencil, seed);

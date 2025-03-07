@@ -419,7 +419,8 @@ private:
                        VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData);
 
-    static gerium_uint64_t calcPipelineHash(const PipelineCreation& creation) noexcept;
+    gerium_uint64_t deviceHash() noexcept;
+    gerium_uint64_t calcPipelineHash(const PipelineCreation& creation) noexcept;
     static gerium_uint64_t calcSamplerHash(const SamplerCreation& creation) noexcept;
     static gerium_uint32_t calcBindingKey(gerium_uint16_t binding, gerium_uint16_t element) noexcept;
 
@@ -441,6 +442,7 @@ private:
                                             gerium_float32_t& fontSize) const noexcept;
     virtual VkSurfaceKHR onCreateSurface(Application* application) const = 0;
 
+    gerium_uint32_t _appVersion{};
     bool _enableValidations{};
     bool _enableDebugNames{};
     gerium_uint32_t _maxPoolElements{};
