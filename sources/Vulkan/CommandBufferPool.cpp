@@ -621,8 +621,15 @@ void CommandBuffer::bindDescriptorSets() {
                     if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
                         binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
                         const auto key = Device::calcBindingKey(binding.binding, 0);
-                        offsets[numOffsets++] =
-                            _device->_buffers.access(descriptorSet->bindings[key].handle)->globalOffset;
+                        if (auto it = find(descriptorSet->bindings, key); it != descriptorSet->bindings.end()) {
+                            offsets[numOffsets++] = _device->_buffers.access(it->second.handle)->globalOffset;
+                        } else {
+                            offsets[numOffsets++] = 0;
+                            _device->_logger->print(GERIUM_LOGGER_LEVEL_WARNING,
+                                                    [binding = binding.binding, set](auto& stream) {
+                                stream << "Binding " << binding << " not found for descriptor set " << set;
+                            });
+                        }
                     }
                 }
                 descriptorSets[numDescriptorSets++] = vkDescriptorSet;

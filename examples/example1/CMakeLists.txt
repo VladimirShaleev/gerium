@@ -71,6 +71,7 @@ target_include_directories(example1 PRIVATE ${Stb_INCLUDE_DIR})
 target_include_directories(example1 PRIVATE ${WYHASH_INCLUDE_DIRS})
 target_include_directories(example1 PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
+target_precompile_headers(example1 PRIVATE "Common.hpp")
 target_compile_features(example1 PRIVATE cxx_std_20)
 set_target_properties(example1 PROPERTIES
     CXX_STANDARD_REQUIRED ON

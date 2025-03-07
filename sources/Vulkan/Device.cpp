@@ -1351,7 +1351,7 @@ void Device::bind(DescriptorSetHandle handle,
                 DescriptorSet tempDescriptorSet{};
                 tempDescriptorSet.vkDescriptorSet = descriptorSet->vkDescriptorSet;
 
-                auto& item         = tempDescriptorSet.bindings[key];
+                auto& item         = getOrEmplace(tempDescriptorSet.bindings, key);
                 item.binding       = binding;
                 item.element       = element;
                 item.resource      = internResourceInput;
@@ -1369,7 +1369,7 @@ void Device::bind(DescriptorSetHandle handle,
         }
     }
 
-    if (auto it = descriptorSet->bindings.find(key); it != descriptorSet->bindings.end()) {
+    if (auto it = find(descriptorSet->bindings, key); it != descriptorSet->bindings.end()) {
         if (it->second.binding != binding || it->second.element != element ||
             it->second.resource != internResourceInput || it->second.handle != resource ||
             it->second.previousFrame != fromPreviousFrame) {
@@ -1378,13 +1378,12 @@ void Device::bind(DescriptorSetHandle handle,
             it->second.resource      = internResourceInput;
             it->second.previousFrame = fromPreviousFrame;
             it->second.handle        = resource;
-
             if (!descriptorSet->changed) {
                 descriptorSet->changed = !dynamic;
             }
         }
     } else {
-        auto& item         = descriptorSet->bindings[key];
+        auto& item         = getOrEmplace(descriptorSet->bindings, key);
         item.binding       = binding;
         item.element       = element;
         item.resource      = internResourceInput;

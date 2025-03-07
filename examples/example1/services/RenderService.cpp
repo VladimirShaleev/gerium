@@ -45,9 +45,9 @@ void RenderService::start() {
 #endif
 
     // Requested features needed for this example
-    constexpr auto features = /* GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT | */
-        /* GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT | */
-        GERIUM_FEATURE_BINDLESS_BIT;
+    constexpr auto features = GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT |
+                              GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
+                              GERIUM_FEATURE_BINDLESS_BIT;
 
     // Initializes the gerium rendering system
     check(gerium_renderer_create(application().handle(), features, &options, &_renderer));
@@ -64,7 +64,7 @@ void RenderService::start() {
     _drawIndirectCountSupported  = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT;
     _8and16BitStorageSupported   = (supportedFeatures & GERIUM_FEATURE_8_BIT_STORAGE_BIT) &&
                                  (supportedFeatures & GERIUM_FEATURE_16_BIT_STORAGE_BIT);
-    _isModernPipeline = _drawIndirectSupported && _drawIndirectCountSupported;
+    _isModernPipeline = _bindlessSupported && _drawIndirectSupported && _drawIndirectCountSupported;
 
     // Creates an object to manage Frame Graph rendering
     check(gerium_frame_graph_create(_renderer, &_frameGraph));
@@ -173,6 +173,7 @@ void RenderService::stop() {
         _materials                   = {};
         _instances                   = {};
         _compatInstances             = {};
+        _compatMaterials             = {};
         _compatMeshes                = {};
         _compatSceneData             = {};
         _dynamicMaterials            = {};
@@ -226,10 +227,8 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
 }
 
 void RenderService::createCluster(const Cluster& cluster) {
-    _cluster         = {};
-    _compatSceneData = {};
-    _compatMeshes    = {};
-    _compatInstances = {};
+    _cluster      = {};
+    _compatMeshes = {};
     _resourceManager.update(0);
 
     if (!_drawIndirectCountSupported) {
@@ -333,6 +332,8 @@ void RenderService::createStaticInstances() {
         buffer = {};
     }
 
+    _compatMaterials.clear();
+    _compatInstances.clear();
     _staticInstancesCount  = 0;
     _dynamicInstancesCount = 0;
     _staticMaterialsCount  = 0;

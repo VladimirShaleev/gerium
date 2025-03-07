@@ -30,6 +30,7 @@ public:
 
     [[nodiscard]] const SceneData& compatSceneData() const noexcept;
     [[nodiscard]] const std::vector<MeshNonCompressed>& compatMeshes() const noexcept;
+    [[nodiscard]] const std::vector<MaterialNonCompressed>& compatMaterials() const noexcept;
     [[nodiscard]] const std::vector<MeshInstance>& compatInstances() const noexcept;
 
     void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
@@ -129,6 +130,7 @@ protected:
     Buffer _dynamicMaterials{};
     SceneData _compatSceneData{};
     std::vector<MeshNonCompressed> _compatMeshes{};
+    std::vector<MaterialNonCompressed> _compatMaterials{};
     std::vector<MeshInstance> _compatInstances{};
     std::vector<Buffer> _instances{};
     std::vector<Buffer> _materials{};
@@ -215,6 +217,10 @@ inline const std::vector<MeshNonCompressed>& RenderService::compatMeshes() const
     return _compatMeshes;
 }
 
+inline const std::vector<MaterialNonCompressed>& RenderService::compatMaterials() const noexcept {
+    return _compatMaterials;
+}
+
 inline const std::vector<MeshInstance>& RenderService::compatInstances() const noexcept {
     return _compatInstances;
 }
@@ -269,7 +275,8 @@ inline std::pair<gerium_uint32_t, gerium_uint32_t> RenderService::getMaterial(co
                 gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, texture.index, texture);
                 return texture.index;
             }
-            return { UndefinedHandle };
+            gerium_texture_h emptyTexture = _emptyTexture;
+            return emptyTexture.index;
         };
 
         mat.baseColorFactor[0]       = pred(material.baseColorFactor.x);
@@ -288,6 +295,27 @@ inline std::pair<gerium_uint32_t, gerium_uint32_t> RenderService::getMaterial(co
         mat.normalTexture            = loadTexture(material.normalTexture);
         mat.occlusionTexture         = loadTexture(material.occlusionTexture);
         mat.emissiveTexture          = loadTexture(material.emissiveTexture);
+
+        if (!_bindlessSupported) {
+            _compatMaterials.push_back({});
+            auto& compatMaterial                    = _compatMaterials.back();
+            compatMaterial.baseColorFactor[0]       = material.baseColorFactor.x;
+            compatMaterial.baseColorFactor[1]       = material.baseColorFactor.y;
+            compatMaterial.baseColorFactor[2]       = material.baseColorFactor.z;
+            compatMaterial.baseColorFactor[3]       = material.baseColorFactor.w;
+            compatMaterial.emissiveFactor[0]        = material.emissiveFactor.x;
+            compatMaterial.emissiveFactor[1]        = material.emissiveFactor.y;
+            compatMaterial.emissiveFactor[2]        = material.emissiveFactor.z;
+            compatMaterial.metallicFactor           = material.metallicFactor;
+            compatMaterial.roughnessFactor          = material.roughnessFactor;
+            compatMaterial.occlusionStrength        = material.occlusionStrength;
+            compatMaterial.alphaCutoff              = material.alphaCutoff;
+            compatMaterial.baseColorTexture         = mat.baseColorTexture;
+            compatMaterial.metallicRoughnessTexture = mat.metallicRoughnessTexture;
+            compatMaterial.normalTexture            = mat.normalTexture;
+            compatMaterial.occlusionTexture         = mat.occlusionTexture;
+            compatMaterial.emissiveTexture          = mat.emissiveTexture;
+        }
     }
 
     return { techniqueIndex, materialIndex };

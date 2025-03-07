@@ -43,13 +43,41 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         gerium_command_buffer_bind_descriptor_set(commandBuffer, clusterData, CLUSTER_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, instancesData, INSTANCES_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, textures, TEXTURES_SET);
-        if (renderService().drawIndirectSupported()) {
+        if (renderService().bindlessSupported() && renderService().drawIndirectSupported()) {
             gerium_command_buffer_draw_indirect(
                 commandBuffer, commands, commandsOffset, commandCounts, countOffset, drawCount, sizeof(IndirectDraw));
         } else {
+            gerium_uint64_t lastTexturesHash = 0;
+
             drawCount = compatCommands.drawCounts[i];
             for (gerium_uint32_t commandIndex = 0; commandIndex < drawCount; ++commandIndex) {
                 const auto& command = compatCommands.drawCommands[i * MAX_INSTANCES_PER_TECHNIQUE + commandIndex];
+                if (!renderService().bindlessSupported()) {
+                    const auto materialIndex = renderService().compatInstances()[command.firstInstance].material;
+                    const auto& material     = renderService().compatMaterials()[materialIndex];
+
+                    auto seed = RAPID_SEED;
+                    seed      = rapidhash_withSeed(&material.baseColorTexture, sizeof(glm::uint), seed);
+                    seed      = rapidhash_withSeed(&material.metallicRoughnessTexture, sizeof(glm::uint), seed);
+                    seed      = rapidhash_withSeed(&material.normalTexture, sizeof(glm::uint), seed);
+                    seed      = rapidhash_withSeed(&material.occlusionTexture, sizeof(glm::uint), seed);
+                    seed      = rapidhash_withSeed(&material.emissiveTexture, sizeof(glm::uint), seed);
+                    if (seed != lastTexturesHash) {
+                        auto textureSet = renderService().resourceManager().createDescriptorSet("");
+                        gerium_renderer_bind_texture(
+                            renderer, textureSet, 0, 0, { gerium_uint16_t(material.baseColorTexture) });
+                        gerium_renderer_bind_texture(
+                            renderer, textureSet, 1, 0, { gerium_uint16_t(material.metallicRoughnessTexture) });
+                        gerium_renderer_bind_texture(
+                            renderer, textureSet, 2, 0, { gerium_uint16_t(material.normalTexture) });
+                        gerium_renderer_bind_texture(
+                            renderer, textureSet, 3, 0, { gerium_uint16_t(material.occlusionTexture) });
+                        gerium_renderer_bind_texture(
+                            renderer, textureSet, 4, 0, { gerium_uint16_t(material.emissiveTexture) });
+                        gerium_command_buffer_bind_descriptor_set(commandBuffer, textureSet, TEXTURES_SET);
+                        lastTexturesHash = seed;
+                    }
+                }
                 gerium_command_buffer_draw(commandBuffer,
                                            command.firstVertex,
                                            command.vertexCount,

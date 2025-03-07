@@ -166,7 +166,9 @@ gerium_inline gerium_uint64_t hash(const T& data, gerium_uint64_t seed = RAPID_S
     return rapidhash_withSeed(&data, sizeof(T), seed);
 }
 
-gerium_inline gerium_uint64_t hash(gerium_cdata_t data, gerium_uint32_t size, gerium_uint64_t seed = RAPID_SEED) noexcept {
+gerium_inline gerium_uint64_t hash(gerium_cdata_t data,
+                                   gerium_uint32_t size,
+                                   gerium_uint64_t seed = RAPID_SEED) noexcept {
     return rapidhash_withSeed(data, size, seed);
 }
 
@@ -1472,6 +1474,30 @@ gerium_inline bool contains(const std::vector<const char*>& v, const char* item)
     return std::find_if(v.cbegin(), v.cend(), [item](const auto value) {
         return value == item || strcmp(value, item) == 0;
     }) != v.cend();
+}
+
+template <typename K, typename V, typename Cmp = std::less<>>
+gerium_inline auto find(std::vector<std::pair<K, V>>& sortedMap, const K& key, Cmp&& cmp = {}) {
+    auto it = std::lower_bound(sortedMap.begin(), sortedMap.end(), key, [cmp](const auto& item, const auto& key) {
+        return cmp(item.first, key);
+    });
+    if (it != sortedMap.end() && it->first == key) {
+        return it;
+    }
+    return sortedMap.end();
+}
+
+template <typename K, typename V, typename Cmp = std::less<>>
+gerium_inline V& getOrEmplace(std::vector<std::pair<K, V>>& sortedMap, const K& key, Cmp&& cmp = {}) {
+    auto it = std::lower_bound(sortedMap.begin(), sortedMap.end(), key, [cmp](const auto& item, const auto& key) {
+        return cmp(item.first, key);
+    });
+    if (it != sortedMap.end() && it->first == key) {
+        return it->second;
+    }
+    const auto index = std::distance(sortedMap.begin(), it);
+    sortedMap.emplace(it, key, V{});
+    return sortedMap[index].second;
 }
 
 gerium_inline gerium_uint32_t calcTextureSize(gerium_uint16_t width,

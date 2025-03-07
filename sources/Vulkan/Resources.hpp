@@ -350,12 +350,14 @@ struct DescriptorSet {
         bool            previousFrame;
         Handle          handle;
     };
-    VkDescriptorSet                    vkDescriptorSet;
-    DescriptorSetLayoutHandle          layout;
-    std::map<gerium_uint32_t, Binding> bindings;
-    gerium_uint8_t                     absoluteFrame;
-    gerium_uint8_t                     changed;
-    gerium_uint8_t                     global;
+    using Bindings = std::vector<std::pair<gerium_uint32_t, Binding>>;
+
+    VkDescriptorSet           vkDescriptorSet;
+    DescriptorSetLayoutHandle layout;
+    Bindings                  bindings;
+    gerium_uint8_t            absoluteFrame;
+    gerium_uint8_t            changed;
+    gerium_uint8_t            global;
 };
 
 struct DescriptorSetLayout {
