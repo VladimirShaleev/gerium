@@ -402,8 +402,15 @@ public:
 
     T* addReference(T* resource) noexcept {
         checkInit();
+#if defined(__GNUC__) || defined(__clang__)
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
         constexpr auto offset = offsetof(Resource, obj);
-        auto& owner           = *reinterpret_cast<Resource*>((char*) resource - offset);
+#if defined(__GNUC__) || defined(__clang__)
+# pragma GCC diagnostic pop
+#endif
+        auto& owner = *reinterpret_cast<Resource*>((char*) resource - offset);
         ++owner.references;
         return &owner.obj;
     }
@@ -439,8 +446,15 @@ public:
     }
 
     Handle handle(const T* resource) const noexcept {
+#if defined(__GNUC__) || defined(__clang__)
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
         constexpr auto offset = offsetof(Resource, obj);
-        const auto& owner     = *reinterpret_cast<const Resource*>((const char*) resource - offset);
+#if defined(__GNUC__) || defined(__clang__)
+# pragma GCC diagnostic pop
+#endif
+        const auto& owner = *reinterpret_cast<const Resource*>((const char*) resource - offset);
         return { owner.handle };
     }
 
