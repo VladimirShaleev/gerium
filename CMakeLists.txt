@@ -145,6 +145,15 @@ elseif(APPLE)
         "-framework Metal"
         "-framework IOSurface"
         "-framework GameController")
+elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -z noexecstack")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -z noexecstack")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -z noexecstack")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR 
+        CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR
+        CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        add_compile_options(-Wa,--noexecstack)
+    endif()
 elseif(ANDROID)
     enable_language(C)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
