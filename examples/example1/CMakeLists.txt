@@ -5,7 +5,8 @@ file(GLOB GERIUM_EXAMPLE
     "services/*.hpp" "services/*.cpp"
     "passes/*.hpp" "passes/*.cpp"
     "events/*.hpp" "events/*.cpp"
-    "components/*.hpp" "components/*.cpp")
+    "components/*.hpp" "components/*.cpp"
+    "develop/*.hpp" "develop/*.cpp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_EXAMPLE})
 
 file(GLOB GERIUM_GRAPH_RESOURCES "frame-graphs/*.yaml")

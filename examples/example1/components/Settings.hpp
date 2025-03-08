@@ -10,6 +10,7 @@ struct Settings {
         Load
     };
 
+    bool showProfiler{};
     State state{};
 };
 
