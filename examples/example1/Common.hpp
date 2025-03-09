@@ -78,6 +78,9 @@
 #include <rfl/capnproto.hpp>
 #include <rfl/json.hpp>
 
+// Implementation for UUIDs
+#include <stduuid/uuid.h>
+
 // Fast and reliable entity component system (ECS)
 #include <entt/entt.hpp>
 

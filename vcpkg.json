@@ -49,6 +49,7 @@
     "argparse",
     "assimp",
     "gli",
+    "stduuid",
     "joltphysics",
     "capnproto",
     {

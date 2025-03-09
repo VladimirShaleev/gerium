@@ -151,7 +151,7 @@ void SceneService::onAddModel(const AddModelEvent& event) {
                 auto& renderable = registry.get_or_emplace<Renderable>(node);
                 renderable.meshes.push_back({});
 
-                static int ii = 0;
+                static int ii  = 0;
                 auto& meshData = renderable.meshes.back();
                 meshData.model = model.name;
                 meshData.mesh  = mesh.meshIndex;
@@ -167,6 +167,27 @@ void SceneService::onAddModel(const AddModelEvent& event) {
             if (model.nodes[i].level == childLevel && model.nodes[i].parent == nodeIndex) {
                 nodesToVisit.emplace(i, model.nodes[i].level + 1, node, transform.matrix, transform.scale);
             }
+        }
+    }
+}
+
+void SceneService::onAddNodeName(const AddNodeNameEvent& event) {
+    if (entityRegistry().any_of<Name>(event.entity)) {
+        throw std::runtime_error("Node already added component Name");
+    }
+    entityRegistry().emplace<Name>(event.entity).name = event.name;
+    checkAndAddNode(event.entity, { event.name });
+}
+
+void SceneService::onChangeNodeName(const ChangeNodeNameEvent& event) {
+    if (auto it = _nodes.find(event.oldName); it != _nodes.end()) {
+        auto entity = it->second;
+        _nodes.erase(it);
+        if (event.newName != ""_hs) {
+            _nodes[event.newName]                   = entity;
+            entityRegistry().get<Name>(entity).name = event.newName;
+        } else {
+            entityRegistry().erase<Name>(entity);
         }
     }
 }
@@ -231,6 +252,8 @@ void SceneService::start() {
         _nodes[ROOT] = root;
     }
     application().dispatcher().sink<AddModelEvent>().connect<&SceneService::onAddModel>(*this);
+    application().dispatcher().sink<AddNodeNameEvent>().connect<&SceneService::onAddNodeName>(*this);
+    application().dispatcher().sink<ChangeNodeNameEvent>().connect<&SceneService::onChangeNodeName>(*this);
     application().dispatcher().sink<DeleteNodeEvent>().connect<&SceneService::onDeleteNode>(*this);
     application().dispatcher().sink<DeleteNodeByNameEvent>().connect<&SceneService::onDeleteNodeByName>(*this);
 }
@@ -238,6 +261,8 @@ void SceneService::start() {
 void SceneService::stop() {
     application().dispatcher().sink<DeleteNodeByNameEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeEvent>().disconnect(this);
+    application().dispatcher().sink<ChangeNodeNameEvent>().disconnect(this);
+    application().dispatcher().sink<AddNodeNameEvent>().disconnect(this);
     application().dispatcher().sink<AddModelEvent>().disconnect(this);
     _models.clear();
     _nodes.clear();

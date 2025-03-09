@@ -15,8 +15,8 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
-    if (!_developUI) {
-        _developUI = std::make_unique<DevelopUI>(entityRegistry(), renderService().application().dispatcher());
+    if (!_developerUI) {
+        _developerUI = std::make_unique<DeveloperUI>(entityRegistry(), renderService().application().dispatcher());
     }
-    _developUI->show(commandBuffer);
+    _developerUI->show(commandBuffer);
 }

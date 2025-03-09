@@ -1,22 +1,26 @@
-#include "DevelopUI.hpp"
+#include "DeveloperUI.hpp"
 #include "../components/Settings.hpp"
 #include "../events/AddModelEvent.hpp"
+#include "../events/AddNodeNameEvent.hpp"
+#include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 
 using namespace entt::literals;
 
-DevelopUI::DevelopUI(entt::registry& registry, entt::dispatcher& dispatcher) noexcept :
+#define ComponentTypes Name, Transform, Static, Collider, RigidBody, Camera, Renderable, Vehicle, VehicleController
+
+DeveloperUI::DeveloperUI(entt::registry& registry, entt::dispatcher& dispatcher) noexcept :
     _registry(registry),
     _dispatcher(dispatcher) {
 }
 
-void DevelopUI::show(gerium_command_buffer_t commandBuffer) {
+void DeveloperUI::show(gerium_command_buffer_t commandBuffer) {
     showProfiler(commandBuffer);
     showSettings();
     showSceneGraph();
 }
 
-void DevelopUI::showProfiler(gerium_command_buffer_t commandBuffer) {
+void DeveloperUI::showProfiler(gerium_command_buffer_t commandBuffer) {
     auto& settings = _registry.ctx().get<Settings>();
     if (settings.showProfiler) {
         gerium_bool_t show = settings.showProfiler ? 1 : 0;
@@ -25,7 +29,7 @@ void DevelopUI::showProfiler(gerium_command_buffer_t commandBuffer) {
     }
 }
 
-void DevelopUI::showSettings() {
+void DeveloperUI::showSettings() {
     if (ImGui::Begin("Settings")) {
         auto& settings = _registry.ctx().get<Settings>();
         ImGui::Checkbox("Show Profiler", &settings.showProfiler);
@@ -39,7 +43,7 @@ void DevelopUI::showSettings() {
     ImGui::End();
 }
 
-void DevelopUI::showSceneGraph() {
+void DeveloperUI::showSceneGraph() {
     if (ImGui::Begin("Scene Graph")) {
         if (ImGui::BeginTable("mygrid", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("Hierarhy");
@@ -77,7 +81,10 @@ void DevelopUI::showSceneGraph() {
                 const auto name     = _registry.try_get<Name>(entity);
                 const auto isUnique = name != nullptr;
                 const auto isRoot   = entity == root;
-                const auto nodeName = name ? (isRoot ? "root" : name->name.data()) : node.name.data();
+                auto nodeName       = name ? (isRoot ? "root" : name->name.data()) : node.name.data();
+                if (!nodeName) {
+                    nodeName = "node";
+                }
 
                 ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow;
                 if (node.childs.empty()) {
@@ -117,7 +124,7 @@ void DevelopUI::showSceneGraph() {
                     if (ImGui::MenuItem("Add model")) {
                         _action            = AddModel;
                         _selected          = entity;
-                        _addModelIndex     = 0;
+                        _index             = 0;
                         _addModelNameValid = false;
                         memset(_addModelName, 0, sizeof(_addModelName));
                     }
@@ -180,18 +187,14 @@ void DevelopUI::showSceneGraph() {
             ImGui::TableSetColumnIndex(1);
 
             if (_selected != entt::null) {
-                if (ImGui::Button("Add component", ImVec2(-1, 0))) {
+                const auto missing = missingComponents<ComponentTypes>(_selected);
+                if (!missing.empty() && ImGui::Button("Add component", ImVec2(-1, 0))) {
+                    _index             = 0;
+                    _action            = AddComponent;
+                    _missingComponents = std::move(missing);
                 }
 
-                showComponents<Name,
-                               Transform,
-                               Static,
-                               Collider,
-                               RigidBody,
-                               Camera,
-                               Renderable,
-                               Vehicle,
-                               VehicleController>(_selected);
+                showComponents<ComponentTypes>(_selected);
             }
 
             ImGui::EndTable();
@@ -226,7 +229,7 @@ void DevelopUI::showSceneGraph() {
                     }
                 }
                 ImGui::PopStyleColor(validText);
-                ImGui::ListBox("Models", &_addModelIndex, [](auto _, auto index) {
+                ImGui::ListBox("Models", &_index, [](auto _, auto index) {
                     return modelIds[index].data();
                 }, nullptr, std::size(modelIds));
                 if (!_addModelNameValid) {
@@ -234,7 +237,7 @@ void DevelopUI::showSceneGraph() {
                 }
                 if (ImGui::Button("Add", ImVec2(120, 0))) {
                     auto name = hashed_string_owner(_addModelName, strlen(_addModelName));
-                    _dispatcher.enqueue<AddModelEvent>(_selected, name, modelIds[_addModelIndex]);
+                    _dispatcher.enqueue<AddModelEvent>(_selected, name, modelIds[_index]);
                     _action   = None;
                     _selected = entt::null;
                     ImGui::CloseCurrentPopup();
@@ -270,12 +273,30 @@ void DevelopUI::showSceneGraph() {
                 ImGui::EndPopup();
             }
         }
+        if (_action == AddComponent) {
+            ImGui::OpenPopup("Add component");
+            if (ImGui::BeginPopupModal("Add component", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                std::vector<const char*> components(_missingComponents.begin(), _missingComponents.end());
+                ImGui::ListBox("Components", &_index, components.data(), (int) components.size());
+                if (ImGui::Button("Add", ImVec2(120, 0))) {
+                    addComponents<ComponentTypes>(_selected, components[_index]);
+                    _action = None;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                    _action = None;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+        }
 
         ImGui::End();
     }
 }
 
-void DevelopUI::showComponent(entt::entity entity, Name& name) {
+void DeveloperUI::showComponent(entt::entity entity, Name& name) {
     auto isValidName = [this, entity](const char* buffer) {
         if (strlen(buffer) == 0) {
             return false;
@@ -315,7 +336,10 @@ void DevelopUI::showComponent(entt::entity entity, Name& name) {
     strcpy(buffer, trim(str).c_str());
     _isValidName = isValidName(buffer);
     if (_isValidName) {
-        name.name = hashed_string_owner(buffer, strlen(buffer));
+        auto newName = hashed_string_owner(buffer, strlen(buffer));
+        if (name.name != newName) {
+            _dispatcher.trigger<ChangeNodeNameEvent>({ name.name, newName });
+        }
     }
 
     if (!valid) {
@@ -323,7 +347,7 @@ void DevelopUI::showComponent(entt::entity entity, Name& name) {
     }
 }
 
-void DevelopUI::showComponent(entt::entity entity, Transform& transform) {
+void DeveloperUI::showComponent(entt::entity entity, Transform& transform) {
     float availableWidth = ImGui::GetContentRegionAvail().x;
 
     auto label1     = "Position";
@@ -346,10 +370,10 @@ void DevelopUI::showComponent(entt::entity entity, Transform& transform) {
     ImGui::DragFloat3(label2, scale, 0.001f, -10000.0f, 10000.0f, "%.6f");
 }
 
-void DevelopUI::showComponent(entt::entity entity, Static& isStatic) {
+void DeveloperUI::showComponent(entt::entity entity, Static& isStatic) {
 }
 
-void DevelopUI::showComponent(entt::entity entity, Collider& collider) {
+void DeveloperUI::showComponent(entt::entity entity, Collider& collider) {
     float availableWidth = ImGui::GetContentRegionAvail().x;
 
     auto label1      = "Shape";
@@ -410,7 +434,7 @@ void DevelopUI::showComponent(entt::entity entity, Collider& collider) {
     }
 }
 
-void DevelopUI::showComponent(entt::entity entity, RigidBody& rigidBody) {
+void DeveloperUI::showComponent(entt::entity entity, RigidBody& rigidBody) {
     float availableWidth = ImGui::GetContentRegionAvail().x;
 
     auto label1     = "Mass";
@@ -439,14 +463,70 @@ void DevelopUI::showComponent(entt::entity entity, RigidBody& rigidBody) {
     ImGui::Checkbox(label4, &isKinematic);
 }
 
-void DevelopUI::showComponent(entt::entity entity, Camera& camera) {
+void DeveloperUI::showComponent(entt::entity entity, Camera& camera) {
 }
 
-void DevelopUI::showComponent(entt::entity entity, Renderable& renderable) {
+void DeveloperUI::showComponent(entt::entity entity, Renderable& renderable) {
 }
 
-void DevelopUI::showComponent(entt::entity entity, Vehicle& vehicle) {
+void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
 }
 
-void DevelopUI::showComponent(entt::entity entity, VehicleController& vehicleController) {
+void DeveloperUI::showComponent(entt::entity entity, VehicleController& vehicleController) {
+}
+
+void DeveloperUI::addComponent(entt::entity entity, Name&) {
+    std::random_device rd;
+    auto seedData = std::array<int, std::mt19937::state_size>{};
+    std::generate(std::begin(seedData), std::end(seedData), std::ref(rd));
+    std::seed_seq seq(std::begin(seedData), std::end(seedData));
+    std::mt19937 generator(seq);
+    uuids::uuid_random_generator gen{ generator };
+
+    const uuids::uuid id = gen();
+    std::string uuidStr  = uuids::to_string(id);
+
+    _dispatcher.trigger<AddNodeNameEvent>({
+        entity, hashed_string_owner{ uuidStr.data(), uuidStr.length() }
+    });
+}
+
+void DeveloperUI::addComponent(entt::entity entity, Collider& collider) {
+}
+
+void DeveloperUI::addComponent(entt::entity entity, RigidBody& rigidBody) {
+}
+
+void DeveloperUI::addComponent(entt::entity entity, Camera& camera) {
+}
+
+void DeveloperUI::addComponent(entt::entity entity, Renderable& renderable) {
+}
+
+void DeveloperUI::addComponent(entt::entity entity, Vehicle& vehicle) {
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, Name& name) {
+    _dispatcher.trigger<ChangeNodeNameEvent>({ name.name, ""_hs });
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, Static& isStatic) {
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, Collider& collider) {
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, RigidBody& rigidBody) {
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, Camera& camera) {
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, Renderable& renderable) {
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, Vehicle& vehicle) {
+}
+
+void DeveloperUI::deleteComponent(entt::entity entity, VehicleController& vehicleController) {
 }

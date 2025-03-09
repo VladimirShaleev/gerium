@@ -1,7 +1,7 @@
 #ifndef PRESENT_PASS_HPP
 #define PRESENT_PASS_HPP
 
-#include "../develop/DevelopUI.hpp"
+#include "../develop/DeveloperUI.hpp"
 #include "RenderPass.hpp"
 
 class PresentPass final : public RenderPass {
@@ -16,7 +16,7 @@ public:
                 gerium_uint32_t totalWorkers) override;
 
 private:
-    std::unique_ptr<DevelopUI> _developUI{};
+    std::unique_ptr<DeveloperUI> _developerUI{};
 };
 
 #endif

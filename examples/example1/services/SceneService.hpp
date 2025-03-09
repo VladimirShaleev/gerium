@@ -5,6 +5,8 @@
 #include "../ResourceManager.hpp"
 #include "../components/Name.hpp"
 #include "../events/AddModelEvent.hpp"
+#include "../events/AddNodeNameEvent.hpp"
+#include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/DeleteNodeByNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 #include "ServiceManager.hpp"
@@ -14,6 +16,8 @@ private:
     static constexpr entt::hashed_string ROOT = { "" };
 
     void onAddModel(const AddModelEvent& event);
+    void onAddNodeName(const AddNodeNameEvent& event);
+    void onChangeNodeName(const ChangeNodeNameEvent& event);
     void onDeleteNode(const DeleteNodeEvent& event);
     void onDeleteNodeByName(const DeleteNodeByNameEvent& event);
 
