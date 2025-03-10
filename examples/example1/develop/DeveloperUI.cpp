@@ -4,6 +4,7 @@
 #include "../events/AddNodeNameEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
+#include "../events/TransformNodeEvent.hpp"
 
 using namespace entt::literals;
 
@@ -359,15 +360,33 @@ void DeveloperUI::showComponent(entt::entity entity, Transform& transform) {
     auto width      = availableWidth -
                  (std::max(std::max(labelSize1, labelSize2), labelSize3) + ImGui::GetStyle().FramePadding.x * 2);
 
-    static float position[3]{};
-    static float scale[3]{};
-    static float rotation[3]{};
+    glm::vec3 tanslation;
+    glm::vec3 scale;
+    glm::quat orientation;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    glm::decompose(transform.matrix, scale, orientation, tanslation, skew, perspective);
+    glm::vec3 euler = glm::degrees(glm::eulerAngles(orientation));
+    auto hasChanges = false;
+    
     ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat3(label1, position, 0.001f, -10000.0f, 10000.0f, "%.6f");
+    if (ImGui::DragFloat3(label1, &tanslation.x, 0.001f, -10000.0f, 10000.0f, "%.6f")) {
+        hasChanges = true;
+    }
+    
     ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat3(label3, rotation, 0.001f, -10000.0f, 10000.0f, "%.6f");
+    if (ImGui::DragFloat3(label3, &euler.x, 0.01f, -360.0f, 360.0f, "%.6f")) {
+        hasChanges = true;
+    }
+    
     ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat3(label2, scale, 0.001f, -10000.0f, 10000.0f, "%.6f");
+    if (ImGui::DragFloat3(label2, &scale.x, 0.001f, -10000.0f, 10000.0f, "%.6f")) {
+        hasChanges = true;
+    }
+    
+    if (hasChanges) {
+        _dispatcher.enqueue<TransformNodeEvent>(entity, tanslation, glm::quat(glm::radians(euler)), scale, true);
+    }
 }
 
 void DeveloperUI::showComponent(entt::entity entity, Static& isStatic) {
@@ -389,7 +408,7 @@ void DeveloperUI::showComponent(entt::entity entity, Collider& collider) {
 
     constexpr auto values = magic_enum::enum_names<Shape>();
 
-    int selected = magic_enum::enum_index(collider.shape).value();
+    auto selected = (int) magic_enum::enum_index(collider.shape).value();
 
     ImGui::SetNextItemWidth(width);
     if (ImGui::BeginCombo(label1, values[selected].data(), ImGuiComboFlags_HeightRegular)) {

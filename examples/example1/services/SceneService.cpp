@@ -224,6 +224,38 @@ void SceneService::onDeleteNodeByName(const DeleteNodeByNameEvent& event) {
     }
 }
 
+void SceneService::onTransformNode(const TransformNodeEvent& event) {
+    auto& transform = entityRegistry().get<Transform>(event.entity);
+    if (event.transformChilds && !_transformChanges.contains(event.entity)) {
+        auto parent = entityRegistry().get<Node>(event.entity).parent;
+        auto parentMatrix = parent != entt::null
+            ? entityRegistry().get<Transform>(parent).matrix
+            : glm::identity<glm::mat4>();
+        auto parentScale = parent != entt::null
+            ? entityRegistry().get<Transform>(parent).scale
+            : glm::vec3(1.0f);
+        
+        std::queue<std::tuple<entt::entity, glm::mat4, glm::vec3>> visit;
+        visit.emplace(event.entity, glm::inverse(parentMatrix), 1.0f / parentScale);
+        
+        while (!visit.empty()) {
+            auto [entity, parentInvOldMatrix, parentInvOldScale] = visit.front();
+            visit.pop();
+            
+            if (auto it = _transformChanges.find(entity); it == _transformChanges.end()) {
+                auto& t = entityRegistry().get<Transform>(entity);
+                t.prevMatrix = t.matrix;
+                _transformChanges[entity] = { parentInvOldMatrix, parentInvOldScale };
+                for (const auto child : entityRegistry().get<Node>(entity).childs) {
+                    visit.emplace(child, glm::inverse(t.matrix), 1.0f / t.scale);
+                }
+            }
+        }
+    }
+    transform.matrix = calcMatrix(event.position, event.rotation, event.scale);
+    transform.scale  = event.scale;
+}
+
 void SceneService::checkAndAddNode(entt::entity entity, const Name& name) {
     if (auto it = _nodes.find(name.name); it == _nodes.end()) {
         _nodes[name.name] = entity;
@@ -256,9 +288,11 @@ void SceneService::start() {
     application().dispatcher().sink<ChangeNodeNameEvent>().connect<&SceneService::onChangeNodeName>(*this);
     application().dispatcher().sink<DeleteNodeEvent>().connect<&SceneService::onDeleteNode>(*this);
     application().dispatcher().sink<DeleteNodeByNameEvent>().connect<&SceneService::onDeleteNodeByName>(*this);
+    application().dispatcher().sink<TransformNodeEvent>().connect<&SceneService::onTransformNode>(*this);
 }
 
 void SceneService::stop() {
+    application().dispatcher().sink<TransformNodeEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeByNameEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeEvent>().disconnect(this);
     application().dispatcher().sink<ChangeNodeNameEvent>().disconnect(this);
@@ -269,6 +303,11 @@ void SceneService::stop() {
 }
 
 void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
+    if (!_transformChanges.empty()) {
+        updateTransformations();
+        _transformChanges.clear();
+    }
+    
     _models.clear();
     auto view = entityRegistry().view<Camera>();
 
@@ -308,4 +347,23 @@ void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
         camera.view               = glm::lookAt(camera.position, camera.position + camera.front, camera.up);
         camera.viewProjection     = camera.projection * camera.view;
     }
+}
+
+void SceneService::updateTransformations() {
+    for (const auto& [entity, inv] : _transformChanges) {
+        auto parent = entityRegistry().get<Node>(entity).parent;
+        auto parentMatrix = parent != entt::null
+            ? entityRegistry().get<Transform>(parent).matrix
+            : glm::identity<glm::mat4>();
+        auto parentScale = parent != entt::null
+            ? entityRegistry().get<Transform>(parent).scale
+            : glm::vec3(1.0f);
+        auto& transform = entityRegistry().get<Transform>(entity);
+        const auto localMatrix = inv.invParentMatrix * transform.matrix;
+        const auto localScale  = inv.invParentScale * transform.scale;
+        transform.matrix = parentMatrix * localMatrix;
+        transform.scale  = parentScale * localScale;
+        entityRegistry().replace<Transform>(entity, transform);
+    }
+    _transformChanges.clear();
 }

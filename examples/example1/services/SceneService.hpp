@@ -9,10 +9,16 @@
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/DeleteNodeByNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
+#include "../events/TransformNodeEvent.hpp"
 #include "ServiceManager.hpp"
 
 class SceneService final : public Service {
 private:
+    struct InvParentTransform {
+        glm::mat4 invParentMatrix;
+        glm::vec3 invParentScale;
+    };
+    
     static constexpr entt::hashed_string ROOT = { "" };
 
     void onAddModel(const AddModelEvent& event);
@@ -20,6 +26,7 @@ private:
     void onChangeNodeName(const ChangeNodeNameEvent& event);
     void onDeleteNode(const DeleteNodeEvent& event);
     void onDeleteNodeByName(const DeleteNodeByNameEvent& event);
+    void onTransformNode(const TransformNodeEvent& event);
 
     void checkAndAddNode(entt::entity entity, const Name& name);
     const Model& getModel(const entt::hashed_string& modelId);
@@ -27,9 +34,12 @@ private:
     void start() override;
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
+    
+    void updateTransformations();
 
     std::map<entt::hashed_string, entt::entity> _nodes{};
     std::map<entt::hashed_string, Model> _models{};
+    std::map<entt::entity, InvParentTransform> _transformChanges{};
 };
 
 #endif

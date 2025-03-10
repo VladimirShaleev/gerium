@@ -139,13 +139,16 @@ void RenderService::start() {
     // Makes storage react to creation and destruction of objects of the Renderable
     entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT).on_construct<Renderable>();
     entityRegistry().storage<entt::reactive>(STORAGE_DESTROY).on_destroy<Renderable>();
+    entityRegistry().storage<entt::reactive>(STORAGE_UPDATE_TRANSFORM).on_update<Transform>();
 }
 
 void RenderService::stop() {
-    auto& storageConstruct = entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT);
-    auto& storageDestroy   = entityRegistry().storage<entt::reactive>(STORAGE_DESTROY);
+    auto& storageConstruct       = entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT);
+    auto& storageDestroy         = entityRegistry().storage<entt::reactive>(STORAGE_DESTROY);
+    auto& storageUpdateTransform = entityRegistry().storage<entt::reactive>(STORAGE_UPDATE_TRANSFORM);
     entityRegistry().on_construct<Renderable>().disconnect(&storageConstruct);
     entityRegistry().on_destroy<Renderable>().disconnect(&storageDestroy);
+    entityRegistry().on_update<Transform>().disconnect(&storageUpdateTransform);
 
     _modelsDestroyed     = 0;
     _renderableDestroyed = 0;
@@ -405,9 +408,10 @@ void RenderService::createStaticInstances() {
 }
 
 void RenderService::updateCluster() {
-    auto& registry       = entityRegistry();
-    auto& storageCreate  = registry.storage<entt::reactive>(STORAGE_CONSTRUCT);
-    auto& storageDestroy = registry.storage<entt::reactive>(STORAGE_DESTROY);
+    auto& registry         = entityRegistry();
+    auto& storageCreate    = registry.storage<entt::reactive>(STORAGE_CONSTRUCT);
+    auto& storageDestroy   = registry.storage<entt::reactive>(STORAGE_DESTROY);
+    auto& storageTransform = registry.storage<entt::reactive>(STORAGE_UPDATE_TRANSFORM);
 
     auto needReloadCluster         = false;
     auto needUpdateStaticInstances = false;
@@ -468,6 +472,16 @@ void RenderService::updateCluster() {
         needUpdateStaticInstances = true;
         _modelsDestroyed          = 0;
     }
+    
+    if (!needUpdateStaticInstances && !storageTransform.empty()) {
+        for (auto entity : storageTransform) {
+            if (entityRegistry().any_of<Static>(entity)) {
+                needUpdateStaticInstances = true;
+                break;
+            }
+        }
+    }
+    storageTransform.clear();
 
     if (needReloadCluster) {
         _modelsInCluster.clear();

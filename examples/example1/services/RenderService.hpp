@@ -38,6 +38,7 @@ public:
 protected:
     static constexpr entt::hashed_string STORAGE_CONSTRUCT         = { "create_renderable" };
     static constexpr entt::hashed_string STORAGE_DESTROY           = { "destroy_renderable" };
+    static constexpr entt::hashed_string STORAGE_UPDATE_TRANSFORM  = { "update_transform" };
     static constexpr gerium_uint32_t deletionsToCheckUpdateCluster = 1;
 
     struct ClusterData {
