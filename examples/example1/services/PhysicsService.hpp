@@ -14,6 +14,7 @@ class PhysicsService final : public Service {
 private:
     static constexpr entt::hashed_string STORAGE_CONSTRUCT = { "create_rigid_bodies" };
     static constexpr entt::hashed_string STORAGE_DESTROY   = { "destroy_rigid_bodies" };
+    static constexpr entt::hashed_string STORAGE_MOVE      = { "move_rigid_bodies" };
 
     void start() override;
     void stop() override;
@@ -22,6 +23,7 @@ private:
 
     void destroyBodies();
     void createBodies();
+    void moveBodies();
     void createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody);
 
     entt::hashed_string stateName() const noexcept override;

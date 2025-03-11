@@ -34,6 +34,7 @@ void DeveloperUI::showSettings() {
     if (ImGui::Begin("Settings")) {
         auto& settings = _registry.ctx().get<Settings>();
         ImGui::Checkbox("Show Profiler", &settings.showProfiler);
+        ImGui::Checkbox("Transform affects child nodes", &settings.transformChilds);
         if (ImGui::Button("Save state")) {
             settings.state = Settings::Save;
         }
@@ -141,7 +142,7 @@ void DeveloperUI::showSceneGraph() {
                     ImGui::Text("Moving %s", nodeName);
                     ImGui::EndDragDropSource();
                 }
-                if (!isRoot && ImGui::BeginDragDropTarget()) {
+                if (ImGui::BeginDragDropTarget()) {
                     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TREE_NODE")) {
                         IM_ASSERT(payload->DataSize == sizeof(entt::entity));
                         auto source = *(entt::entity*) payload->Data;
@@ -385,7 +386,8 @@ void DeveloperUI::showComponent(entt::entity entity, Transform& transform) {
     }
     
     if (hasChanges) {
-        _dispatcher.enqueue<TransformNodeEvent>(entity, tanslation, glm::quat(glm::radians(euler)), scale, true);
+        auto& settings = _registry.ctx().get<Settings>();
+        _dispatcher.enqueue<TransformNodeEvent>(entity, tanslation, glm::quat(glm::radians(euler)), scale, settings.transformChilds);
     }
 }
 

@@ -10,6 +10,7 @@ constexpr float mRequestedDeltaTime = 1.0f / mUpdateFrequency;
 void PhysicsService::start() {
     entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT).on_construct<RigidBody>();
     entityRegistry().storage<entt::reactive>(STORAGE_DESTROY).on_destroy<RigidBody>();
+    entityRegistry().storage<entt::reactive>(STORAGE_MOVE).on_update<Transform>();
 
     JPH::RegisterDefaultAllocator();
 
@@ -90,6 +91,8 @@ void PhysicsService::stop() {
 
     auto& storageConstruct = entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT);
     auto& storageDestroy   = entityRegistry().storage<entt::reactive>(STORAGE_DESTROY);
+    auto& storageMove      = entityRegistry().storage<entt::reactive>(STORAGE_MOVE);
+    entityRegistry().on_update<Transform>().disconnect(&storageMove);
     entityRegistry().on_construct<RigidBody>().disconnect(&storageConstruct);
     entityRegistry().on_destroy<RigidBody>().disconnect(&storageDestroy);
 }
@@ -97,6 +100,7 @@ void PhysicsService::stop() {
 void PhysicsService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t elapsed) {
     destroyBodies();
     createBodies();
+    moveBodies();
 
     float worldDeltaTime = 0.0f;
 
@@ -192,7 +196,9 @@ void PhysicsService::createBodies() {
             const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
 
             auto shape = getShape(collider, entityRegistry().try_get<Renderable>(entity));
-            shape->ScaleShape(JPH::Vec3(transform.scale.x, transform.scale.y, transform.scale.z));
+            if (transform.scale != glm::vec3(1.0f)) {
+                shape = shape->ScaleShape(JPH::Vec3(transform.scale.x, transform.scale.y, transform.scale.z)).Get();
+            }
 
             JPH::BodyCreationSettings settings(shape,
                                                position,
@@ -223,6 +229,25 @@ void PhysicsService::createBodies() {
     if (updated) {
         _physicsSystem->OptimizeBroadPhase();
     }
+}
+
+void PhysicsService::moveBodies() {
+    auto& registry = entityRegistry();
+    auto& storage  = registry.storage<entt::reactive>(STORAGE_MOVE);
+    auto& bodyInterface = _physicsSystem->GetBodyInterface();
+    for (auto [entity, rigidBody, transform] : (entt::basic_view{ storage } | entityRegistry().view<RigidBody, Transform>()).each()) {
+        auto body = _mapBodies[rigidBody.bodyID];
+        glm::vec3 scale;
+        glm::quat orientation;
+        glm::vec3 translation;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(transform.matrix, scale, orientation, translation, skew, perspective);
+        const auto position = JPH::Vec3(translation.x, translation.y, translation.z);
+        const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
+        bodyInterface.SetPositionAndRotation(body->GetID(), position, rotation, JPH::EActivation::DontActivate);
+    }
+    storage.clear();
 }
 
 void PhysicsService::createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody) {

@@ -226,7 +226,7 @@ void SceneService::onDeleteNodeByName(const DeleteNodeByNameEvent& event) {
 
 void SceneService::onTransformNode(const TransformNodeEvent& event) {
     auto& transform = entityRegistry().get<Transform>(event.entity);
-    if (event.transformChilds && !_transformChanges.contains(event.entity)) {
+    if (!_transformChanges.contains(event.entity)) {
         auto parent = entityRegistry().get<Node>(event.entity).parent;
         auto parentMatrix = parent != entt::null
             ? entityRegistry().get<Transform>(parent).matrix
@@ -246,6 +246,12 @@ void SceneService::onTransformNode(const TransformNodeEvent& event) {
                 auto& t = entityRegistry().get<Transform>(entity);
                 t.prevMatrix = t.matrix;
                 _transformChanges[entity] = { parentInvOldMatrix, parentInvOldScale };
+                if (!event.transformChilds) {
+                    break;
+                }
+                if (entityRegistry().any_of<Renderable>(entity) && !entityRegistry().any_of<Static>(entity)) {
+                    break;
+                }
                 for (const auto child : entityRegistry().get<Node>(entity).childs) {
                     visit.emplace(child, glm::inverse(t.matrix), 1.0f / t.scale);
                 }
@@ -303,10 +309,7 @@ void SceneService::stop() {
 }
 
 void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
-    if (!_transformChanges.empty()) {
-        updateTransformations();
-        _transformChanges.clear();
-    }
+    updateTransformations();
     
     _models.clear();
     auto view = entityRegistry().view<Camera>();
@@ -364,6 +367,15 @@ void SceneService::updateTransformations() {
         transform.matrix = parentMatrix * localMatrix;
         transform.scale  = parentScale * localScale;
         entityRegistry().replace<Transform>(entity, transform);
+        /*if (entityRegistry().any_of<Static>(entity)) {
+            if (auto rigidBody = entityRegistry().try_get<RigidBody>(entity)) {
+                auto body = *rigidBody;
+                entityRegistry().erase<RigidBody>(entity);
+                entityRegistry().emplace<RigidBody>(entity, body);
+            }
+        } else {
+            
+        }*/
     }
     _transformChanges.clear();
 }
