@@ -11,6 +11,7 @@ struct Settings {
     };
 
     bool showProfiler{};
+    bool transforming{false};
     bool transformChilds{true};
     State state{};
 };

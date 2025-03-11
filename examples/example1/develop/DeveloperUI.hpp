@@ -8,6 +8,7 @@
 #include "../components/Node.hpp"
 #include "../components/Renderable.hpp"
 #include "../components/RigidBody.hpp"
+#include "../components/Settings.hpp"
 #include "../components/Static.hpp"
 #include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
@@ -141,6 +142,9 @@ private:
                 }
             }
             ImGui::EndChild();
+            if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+                _registry.ctx().get<Settings>().transforming = false;
+            }
         }
     }
 

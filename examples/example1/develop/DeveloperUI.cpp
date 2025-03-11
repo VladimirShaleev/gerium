@@ -1,5 +1,4 @@
 #include "DeveloperUI.hpp"
-#include "../components/Settings.hpp"
 #include "../events/AddModelEvent.hpp"
 #include "../events/AddNodeNameEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
@@ -369,25 +368,27 @@ void DeveloperUI::showComponent(entt::entity entity, Transform& transform) {
     glm::decompose(transform.matrix, scale, orientation, tanslation, skew, perspective);
     glm::vec3 euler = glm::degrees(glm::eulerAngles(orientation));
     auto hasChanges = false;
-    
+
     ImGui::SetNextItemWidth(width);
     if (ImGui::DragFloat3(label1, &tanslation.x, 0.001f, -10000.0f, 10000.0f, "%.6f")) {
         hasChanges = true;
     }
-    
+
     ImGui::SetNextItemWidth(width);
     if (ImGui::DragFloat3(label3, &euler.x, 0.01f, -360.0f, 360.0f, "%.6f")) {
         hasChanges = true;
     }
-    
+
     ImGui::SetNextItemWidth(width);
     if (ImGui::DragFloat3(label2, &scale.x, 0.001f, -10000.0f, 10000.0f, "%.6f")) {
         hasChanges = true;
     }
-    
+
     if (hasChanges) {
-        auto& settings = _registry.ctx().get<Settings>();
-        _dispatcher.enqueue<TransformNodeEvent>(entity, tanslation, glm::quat(glm::radians(euler)), scale, settings.transformChilds);
+        auto& settings        = _registry.ctx().get<Settings>();
+        settings.transforming = true;
+        _dispatcher.enqueue<TransformNodeEvent>(
+            entity, tanslation, glm::quat(glm::radians(euler)), scale, settings.transformChilds);
     }
 }
 

@@ -1,5 +1,6 @@
 #include "PhysicsService.hpp"
 #include "../Application.hpp"
+#include "../components/Settings.hpp"
 #include "../components/Static.hpp"
 
 using namespace entt::literals;
@@ -232,22 +233,42 @@ void PhysicsService::createBodies() {
 }
 
 void PhysicsService::moveBodies() {
-    auto& registry = entityRegistry();
-    auto& storage  = registry.storage<entt::reactive>(STORAGE_MOVE);
+    auto& registry      = entityRegistry();
+    auto& settings      = registry.ctx().get<Settings>();
+    auto& storage       = registry.storage<entt::reactive>(STORAGE_MOVE);
     auto& bodyInterface = _physicsSystem->GetBodyInterface();
-    for (auto [entity, rigidBody, transform] : (entt::basic_view{ storage } | entityRegistry().view<RigidBody, Transform>()).each()) {
-        auto body = _mapBodies[rigidBody.bodyID];
-        glm::vec3 scale;
-        glm::quat orientation;
-        glm::vec3 translation;
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::decompose(transform.matrix, scale, orientation, translation, skew, perspective);
-        const auto position = JPH::Vec3(translation.x, translation.y, translation.z);
-        const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
-        bodyInterface.SetPositionAndRotation(body->GetID(), position, rotation, JPH::EActivation::DontActivate);
+    if (!storage.empty()) {
+        for (auto [_, rigidBody] : registry.view<RigidBody>(entt::exclude<::Static, Wheel>).each()) {
+            auto body = _mapBodies[rigidBody.bodyID];
+            bodyInterface.ActivateBody(body->GetID());
+        }
+        for (auto [entity, rigidBody, transform] :
+             (entt::basic_view{ storage } | registry.view<RigidBody, Transform>(entt::exclude<Wheel>)).each()) {
+            auto body = _mapBodies[rigidBody.bodyID];
+            glm::vec3 scale;
+            glm::quat orientation;
+            glm::vec3 translation;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(transform.matrix, scale, orientation, translation, skew, perspective);
+            const auto position = JPH::Vec3(translation.x, translation.y, translation.z);
+            const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
+            bodyInterface.DeactivateBody(body->GetID());
+            bodyInterface.SetPositionAndRotation(body->GetID(), position, rotation, JPH::EActivation::DontActivate);
+        }
+        storage.clear();
     }
-    storage.clear();
+    static bool prevTransforming = false;
+    if (settings.transforming) {
+        prevTransforming = true;
+    }
+    if (!settings.transforming && prevTransforming) {
+        prevTransforming = false;
+        for (auto [_, rigidBody] : registry.view<RigidBody>(entt::exclude<::Static, Wheel>).each()) {
+            auto body = _mapBodies[rigidBody.bodyID];
+            bodyInterface.ActivateBody(body->GetID());
+        }
+    }
 }
 
 void PhysicsService::createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody) {
