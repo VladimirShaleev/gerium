@@ -255,6 +255,14 @@ void PhysicsService::moveBodies() {
             const auto rotation = JPH::Quat(orientation.x, orientation.y, orientation.z, orientation.w);
             bodyInterface.DeactivateBody(body->GetID());
             bodyInterface.SetPositionAndRotation(body->GetID(), position, rotation, JPH::EActivation::DontActivate);
+
+            if (auto collider = registry.try_get<Collider>(entity)) {
+                auto shape = getShape(*collider, registry.try_get<Renderable>(entity));
+                if (transform.scale != glm::vec3(1.0f)) {
+                    shape = shape->ScaleShape(JPH::Vec3(transform.scale.x, transform.scale.y, transform.scale.z)).Get();
+                }
+                bodyInterface.SetShape(body->GetID(), shape, true, JPH::EActivation::DontActivate);
+            }
         }
         storage.clear();
     }

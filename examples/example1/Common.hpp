@@ -7,6 +7,10 @@
 // Dear ImGui: Bloat-free Graphical User interface
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
+#include <imgui_internal.h>
+
+// Immediate mode 3D gizmo for scene editing
+#include <ImGuizmo.h>
 
 // Standard C++ libraries
 #include <cmath>

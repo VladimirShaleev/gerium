@@ -10,9 +10,17 @@ struct Settings {
         Load
     };
 
+    enum Transfrom {
+        Translate,
+        Rotate,
+        Scale
+    };
+
     bool showProfiler{};
-    bool transforming{false};
-    bool transformChilds{true};
+    bool transforming{ false };
+    bool transformChilds{ true };
+    bool snapToGrid{ false };
+    Transfrom transform{ Translate };
     State state{};
 };
 

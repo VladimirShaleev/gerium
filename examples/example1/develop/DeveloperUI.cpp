@@ -34,6 +34,25 @@ void DeveloperUI::showSettings() {
         auto& settings = _registry.ctx().get<Settings>();
         ImGui::Checkbox("Show Profiler", &settings.showProfiler);
         ImGui::Checkbox("Transform affects child nodes", &settings.transformChilds);
+        ImGui::Checkbox("Snap to grid", &settings.snapToGrid);
+
+        constexpr auto values = magic_enum::enum_names<Settings::Transfrom>();
+
+        auto selected = (int) magic_enum::enum_index(settings.transform).value();
+
+        if (ImGui::BeginCombo("Transform", values[selected].data(), ImGuiComboFlags_HeightRegular)) {
+            for (size_t i = 0; i < values.size(); ++i) {
+                auto isSelected = selected == i;
+                if (ImGui::Selectable(values[i].data(), isSelected)) {
+                    settings.transform = magic_enum::enum_values<Settings::Transfrom>()[i];
+                }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
         if (ImGui::Button("Save state")) {
             settings.state = Settings::Save;
         }
@@ -45,6 +64,8 @@ void DeveloperUI::showSettings() {
 }
 
 void DeveloperUI::showSceneGraph() {
+    auto& settings = _registry.ctx().get<Settings>();
+
     if (ImGui::Begin("Scene Graph")) {
         if (ImGui::BeginTable("mygrid", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("Hierarhy");
@@ -294,6 +315,63 @@ void DeveloperUI::showSceneGraph() {
         }
 
         ImGui::End();
+    }
+
+    if (_selected != entt::null && !_registry.any_of<Wheel>(_selected)) {
+        Camera* camera = nullptr;
+        for (auto [_, c] : _registry.view<Camera>().each()) {
+            if (c.active) {
+                camera = &c;
+                break;
+            }
+        }
+        assert(camera);
+
+        glm::mat4 identity = glm::identity<glm::mat4>();
+
+        auto world = _registry.get<Transform>(_selected).matrix;
+
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::BeginFrame();
+
+        ImGuiIO& io               = ImGui::GetIO();
+        float viewManipulateRight = io.DisplaySize.x;
+        float viewManipulateTop   = 0;
+
+        ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+        ImGuizmo::DrawGrid(&camera->view[0][0], &camera->projection[0][0], &identity[0][0], 100.f);
+
+        ImGuizmo::OPERATION operation;
+        switch (settings.transform) {
+            case Settings::Translate:
+                operation = ImGuizmo::OPERATION::TRANSLATE;
+                break;
+            case Settings::Rotate:
+                operation = ImGuizmo::OPERATION::ROTATE;
+                break;
+            case Settings::Scale:
+                operation = ImGuizmo::OPERATION::SCALE;
+                break;
+        }
+
+        static float snap[3] = { 10.0f, 10.0f, 10.0f };
+        if (ImGuizmo::Manipulate(&camera->view[0][0],
+                                 &camera->projection[0][0],
+                                 operation,
+                                 ImGuizmo::MODE::LOCAL,
+                                 &world[0][0],
+                                 settings.snapToGrid ? snap : nullptr)) {
+            glm::vec3 tanslation;
+            glm::vec3 scale;
+            glm::quat orientation;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(world, scale, orientation, tanslation, skew, perspective);
+
+            settings.transforming = true;
+            _dispatcher.enqueue<TransformNodeEvent>(
+                _selected, tanslation, orientation, scale, settings.transformChilds);
+        }
     }
 }
 

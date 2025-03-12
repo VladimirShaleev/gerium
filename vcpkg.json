@@ -42,6 +42,7 @@
     },
 
     "yaml-cpp",
+    "imguizmo",
     "glm",
     "entt",
     "magic-enum",

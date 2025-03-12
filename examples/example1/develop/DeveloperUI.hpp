@@ -13,6 +13,7 @@
 #include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
 #include "../components/VehicleController.hpp"
+#include "../components/Wheel.hpp"
 
 template <typename>
 struct ComponentInfo;
@@ -91,6 +92,10 @@ private:
             return;
         }
 
+        if (std::is_same_v<T, Transform> && _registry.any_of<Wheel>(entity)) {
+            return;
+        }
+
         T* component = nullptr;
         if constexpr (std::is_same_v<T, Static> || std::is_same_v<T, VehicleController>) {
             static T instance;
@@ -142,7 +147,7 @@ private:
                 }
             }
             ImGui::EndChild();
-            if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+            if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) || _selected == entt::null) {
                 _registry.ctx().get<Settings>().transforming = false;
             }
         }
