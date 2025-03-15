@@ -7,7 +7,7 @@
 
 using namespace entt::literals;
 
-#define ComponentTypes Name, Transform, Static, Collider, RigidBody, Camera, Renderable, Vehicle, VehicleController
+#define ComponentTypes Name, Transform, Static, Collider, RigidBody, Renderable, Vehicle, VehicleController
 
 DeveloperUI::DeveloperUI(entt::registry& registry, entt::dispatcher& dispatcher) noexcept :
     _registry(registry),
@@ -563,9 +563,6 @@ void DeveloperUI::showComponent(entt::entity entity, RigidBody& rigidBody) {
     ImGui::Checkbox(label4, &isKinematic);
 }
 
-void DeveloperUI::showComponent(entt::entity entity, Camera& camera) {
-}
-
 void DeveloperUI::showComponent(entt::entity entity, Renderable& renderable) {
 }
 
@@ -597,9 +594,6 @@ void DeveloperUI::addComponent(entt::entity entity, Collider& collider) {
 void DeveloperUI::addComponent(entt::entity entity, RigidBody& rigidBody) {
 }
 
-void DeveloperUI::addComponent(entt::entity entity, Camera& camera) {
-}
-
 void DeveloperUI::addComponent(entt::entity entity, Renderable& renderable) {
 }
 
@@ -617,9 +611,6 @@ void DeveloperUI::deleteComponent(entt::entity entity, Collider& collider) {
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, RigidBody& rigidBody) {
-}
-
-void DeveloperUI::deleteComponent(entt::entity entity, Camera& camera) {
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Renderable& renderable) {

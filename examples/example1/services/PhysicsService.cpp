@@ -14,9 +14,7 @@ void PhysicsService::start() {
     entityRegistry().storage<entt::reactive>(STORAGE_MOVE).on_update<Transform>();
 
     JPH::RegisterDefaultAllocator();
-
     JPH::Factory::sInstance = new JPH::Factory();
-
     JPH::RegisterTypes();
 
     auto numThreads = std::thread::hardware_concurrency() - 1;
@@ -86,7 +84,6 @@ void PhysicsService::stop() {
     _allocator                     = nullptr;
 
     JPH::UnregisterTypes();
-
     delete JPH::Factory::sInstance;
     JPH::Factory::sInstance = nullptr;
 
@@ -183,8 +180,11 @@ void PhysicsService::createBodies() {
                  .each()) {
             updated = true;
 
-            const auto vehicle   = entityRegistry().try_get<Vehicle>(entity);
-            const auto isDynamic = !entityRegistry().any_of<::Static>(entity);
+            const auto vehicle  = entityRegistry().try_get<Vehicle>(entity);
+            const auto isStatic = entityRegistry().any_of<::Static>(entity);
+            const auto motionType =
+                isStatic ? JPH::EMotionType::Static
+                         : (rigidBody.isKinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Dynamic);
 
             glm::vec3 scale;
             glm::quat orientation;
@@ -201,11 +201,7 @@ void PhysicsService::createBodies() {
                 shape = shape->ScaleShape(JPH::Vec3(transform.scale.x, transform.scale.y, transform.scale.z)).Get();
             }
 
-            JPH::BodyCreationSettings settings(shape,
-                                               position,
-                                               rotation,
-                                               isDynamic ? JPH::EMotionType::Dynamic : JPH::EMotionType::Static,
-                                               isDynamic ? Dynamic : Static);
+            JPH::BodyCreationSettings settings(shape, position, rotation, motionType, isStatic ? Static : Dynamic);
 
             settings.mOverrideMassProperties       = JPH::EOverrideMassProperties::CalculateInertia;
             settings.mMassPropertiesOverride.mMass = rigidBody.mass;
@@ -218,7 +214,7 @@ void PhysicsService::createBodies() {
             _mapBodies[rigidBody.bodyID] = body;
 
             _physicsSystem->GetBodyInterface().AddBody(
-                body->GetID(), isDynamic ? JPH::EActivation::Activate : JPH::EActivation::DontActivate);
+                body->GetID(), isStatic ? JPH::EActivation::DontActivate : JPH::EActivation::Activate);
 
             if (vehicle) {
                 createVehicleConstraints(entity, *vehicle, rigidBody);
@@ -398,7 +394,6 @@ std::vector<gerium_uint8_t> PhysicsService::saveState() {
     };
 
     Stream stream;
-
     JPH::BodyIDVector bodies;
     _physicsSystem->GetBodies(bodies);
     stream.Write(gerium_uint32_t(bodies.size()));
@@ -443,7 +438,6 @@ void PhysicsService::restoreState(const std::vector<gerium_uint8_t>& data) {
     };
 
     Stream stream(data);
-
     gerium_uint32_t bodyCount = 0;
     stream.Read(bodyCount);
     std::vector<gerium_uint32_t> ids;
@@ -471,7 +465,6 @@ void PhysicsService::restoreState(const std::vector<gerium_uint8_t>& data) {
     }
 
     auto view = entityRegistry().view<Vehicle, RigidBody>(entt::exclude<::Static, Wheel>);
-
     for (auto entity : view) {
         auto& vehicle   = view.get<Vehicle>(entity);
         auto& rigidBody = view.get<RigidBody>(entity);

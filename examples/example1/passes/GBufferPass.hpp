@@ -21,6 +21,11 @@ private:
     };
 
     CompatCommands compatCullingInstances();
+
+    void compatBindTextures(gerium_renderer_t renderer,
+                            gerium_command_buffer_t commandBuffer,
+                            gerium_uint32_t instance,
+                            gerium_uint64_t& lastTexturesHash);
 };
 
 #endif

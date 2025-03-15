@@ -11,11 +11,16 @@ class RenderPass;
 
 class RenderService final : public Service {
 public:
+    // Returns an object for resource management
     [[nodiscard]] ResourceManager& resourceManager() noexcept;
 
+    // Returns the frame number (absolute) and frame index
     [[nodiscard]] gerium_uint64_t frame() const noexcept;
     [[nodiscard]] gerium_uint32_t frameIndex() const noexcept;
 
+    // Return descriptor sets of with binded resources for: camera, cluster
+    // with all geometries, instances and materials, as well as bindless
+    // textures (if supported).Also returns a list of techniques in the current scene.
     [[nodiscard]] gerium_descriptor_set_h sceneData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h clusterData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h instancesData() const noexcept;
@@ -23,31 +28,38 @@ public:
     [[nodiscard]] gerium_uint32_t instancesCount() const noexcept;
     [[nodiscard]] const std::vector<Technique>& techniques() const noexcept;
 
+    // Checking supported features
     [[nodiscard]] bool bindlessSupported() const noexcept;
     [[nodiscard]] bool drawIndirectSupported() const noexcept;
     [[nodiscard]] bool drawIndirectCountSupported() const noexcept;
     [[nodiscard]] bool is8and16BitStorageSupported() const noexcept;
 
+    // If the device does not support modern rendering, we also save data on the CPU side
+    // to support compatibility, which can be obtained through these methods. Then we
+    // can use this data for legacy rendering with draw calls.
     [[nodiscard]] const SceneData& compatSceneData() const noexcept;
     [[nodiscard]] const std::vector<MeshNonCompressed>& compatMeshes() const noexcept;
     [[nodiscard]] const std::vector<MaterialNonCompressed>& compatMaterials() const noexcept;
     [[nodiscard]] const std::vector<MeshInstance>& compatInstances() const noexcept;
 
+    // Merges dynamic instances buffer into the current instances buffer
     void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
 
 protected:
     static constexpr entt::hashed_string STORAGE_CONSTRUCT         = { "create_renderable" };
     static constexpr entt::hashed_string STORAGE_DESTROY           = { "destroy_renderable" };
-    static constexpr entt::hashed_string STORAGE_UPDATE_TRANSFORM  = { "update_transform" };
-    static constexpr gerium_uint32_t deletionsToCheckUpdateCluster = 1;
+    static constexpr entt::hashed_string STORAGE_UPDATE            = { "update_renderable" };
+    static constexpr gerium_uint32_t deletionsToCheckUpdateCluster = 10;
 
+    // Packed geometry of the current scene (unique models and LODs)
     struct ClusterData {
-        Buffer vertices;
-        Buffer indices;
-        Buffer meshes;
-        DescriptorSet ds;
+        Buffer vertices;  // linear vertex data for all geometry
+        Buffer indices;   // linear index data for all geometry
+        Buffer meshes;    // linear mesh and lods data for all geometry
+        DescriptorSet ds; // a set of these buffers
     };
 
+    // A structure for indexing GPU meshes on a CPU for model nodes
     struct MeshIndices {
         struct Node {
             gerium_sint32_t nodeIndex;
@@ -57,28 +69,9 @@ protected:
         std::vector<Node> indices;
     };
 
+    // Adds a pass to the frame graph
     template <typename RP, typename... Args>
     void addPass(Args&&... args);
-
-    template <typename M, typename Pred>
-    std::pair<gerium_uint32_t, gerium_uint32_t> getMaterial(const MaterialData& material,
-                                                            std::vector<M>& result,
-                                                            Pred&& pred);
-
-    template <typename Pred, typename M>
-    void getMaterialsAndInstances(const Renderable& renderable,
-                                  const Transform& transform,
-                                  std::vector<M>& materials,
-                                  std::vector<MeshInstance>& instances,
-                                  Pred&& pred);
-    void getMaterialsAndInstances(const Renderable& renderable,
-                                  const Transform& transform,
-                                  std::vector<Material>& materials,
-                                  std::vector<MeshInstance>& instances);
-    void getMaterialsAndInstances(const Renderable& renderable,
-                                  const Transform& transform,
-                                  std::vector<MaterialNonCompressed>& materials,
-                                  std::vector<MeshInstance>& instances);
 
     void start() override;
     void stop() override;
@@ -91,6 +84,13 @@ protected:
     void updateActiveSceneData();
     void updateDynamicInstances();
     void updateInstancesData();
+
+    std::vector<MeshInstance> getInstances(bool isStatic);
+    void emplaceInstance(const Renderable& renderable,
+                         const Transform& transform,
+                         std::vector<MeshInstance>& instances);
+    gerium_uint32_t getOrEmplaceTechnique(const MaterialData& material);
+    gerium_uint32_t getOrEmplaceMaterial(const MaterialData& material);
 
     static gerium_uint64_t materialDataHash(const MaterialData& material) noexcept;
 
@@ -106,56 +106,78 @@ protected:
                                 gerium_uint32_t totalWorkers,
                                 gerium_data_t data);
 
+    // In case of an error from the C-callback, we will save the exception here
     std::exception_ptr _error{};
+
+    // Objects for manipulating the render and getting data from the profiler
     gerium_renderer_t _renderer{};
     gerium_profiler_t _profiler{};
+
+    // Object for working with frame graph
     gerium_frame_graph_t _frameGraph{};
+
+    // Supported features of the selected GPU
     bool _bindlessSupported{};
     bool _drawIndirectSupported{};
     bool _drawIndirectCountSupported{};
     bool _8and16BitStorageSupported{};
-    bool _isModernPipeline{};
-    gerium_uint32_t _maxFramesInFlight{};
-    gerium_uint32_t _frameIndex{};
-    gerium_uint64_t _frame{};
-    gerium_uint16_t _width{};
-    gerium_uint16_t _height{};
-    ResourceManager _resourceManager{};
-    Texture _emptyTexture{};
-    DescriptorSet _bindlessTextures{};
-    Technique _baseTechnique{};
-    ClusterData _cluster{};
+    bool _isModernPipeline{}; // _bindlessSupported && _drawIndirectSupported && _drawIndirectCountSupported
 
-    Buffer _drawData{};
-    Buffer _dynamicInstances{};
-    Buffer _dynamicMaterials{};
-    SceneData _compatSceneData{};
-    std::vector<MeshNonCompressed> _compatMeshes{};
-    std::vector<MaterialNonCompressed> _compatMaterials{};
-    std::vector<MeshInstance> _compatInstances{};
-    std::vector<Buffer> _instances{};
-    std::vector<Buffer> _materials{};
+    gerium_uint32_t _maxFramesInFlight{}; // number of frames in flight
+    gerium_uint32_t _frameIndex{};        // current frame index [0.._maxFramesInFlight)
+    gerium_uint64_t _frame{};             // absolute number of frames
+    gerium_uint16_t _width{};             // current width
+    gerium_uint16_t _height{};            // current height
+
+    // Counting references to used resources
+    ResourceManager _resourceManager{};
+
+    // Rendering passes for frame graph
+    std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
+    std::map<uint32_t, RenderPass*> _renderPassesCache{};
+
+    Texture _emptyTexture{};           // placeholder in case texture is not set
+    DescriptorSet _bindlessTextures{}; // set of textures if _bindlessSupported is true
+
+    // Current geometry data on GPU
+    ClusterData _cluster{};
+    // Mesh indices in the current cluster
+    std::map<entt::hashed_string, MeshIndices> _modelsInCluster{};
+
+    // We count the removed components so that when enough meshes in the cluster
+    // are no longer used we can rebuild the cluster without those meshes
+    gerium_uint32_t _renderableDestroyed{};
+    gerium_uint32_t _modelsDestroyed{};
+
+    Buffer _activeScene{};            // GPU data of SceneData (camera)
+    DescriptorSet _activeSceneData{}; // SceneData
+
+    Buffer _drawData{};               // GPU data of the DrawData structure
+    Buffer _dynamicInstances{};       // GPU data of the dynamic instances
+    Buffer _dynamicMaterials{};       // GPU data of the materials for dynamic instances
+    std::vector<Buffer> _instances{}; // GPU data of all instances (static and dynamic)
+    std::vector<Buffer> _materials{}; // GPU data of all materials (static and dynamic)
+    DescriptorSet _instancesData{};   // DrawData, commands buffer, instances and materials
+
     gerium_uint32_t _staticInstancesCount{};
     gerium_uint32_t _dynamicInstancesCount{};
     gerium_uint32_t _staticMaterialsCount{};
     gerium_uint32_t _dynamicMaterialsCount{};
+
+    // Cache and indexing of techniques and materials
+    std::vector<Technique> _techniques{};
+    std::set<Texture> _textures{}; // keeping references to textures so they don't get unloaded from memory
     std::map<gerium_uint32_t, gerium_uint32_t> _techniquesTable{};
     std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};
-    std::vector<MaterialNonCompressed> _compatDynamicMaterialsCache{};
-    std::vector<Material> _dynamicMaterialsCache{};
-    std::vector<Technique> _techniques{};
-    std::set<Texture> _textures{};
-    DescriptorSet _instancesData{};
+    std::vector<Material> _materialsCompressed{};
+    std::vector<Material> _materialsNonCompressed{};
 
-    Buffer _activeScene{};
-    DescriptorSet _activeSceneData{};
-
-    std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
-    std::map<uint32_t, RenderPass*> _renderPassesCache{};
-
-    std::map<entt::hashed_string, MeshIndices> _modelsInCluster{};
-    gerium_uint32_t _renderableDestroyed{};
-    gerium_uint32_t _modelsDestroyed{};
+    // In modern rendering these vectors will be empty, they are
+    // filled if a particular feature is not supported
+    SceneData _compatSceneData{};
+    std::vector<MeshNonCompressed> _compatMeshes{};
+    std::vector<MaterialNonCompressed> _compatMaterials{};
+    std::vector<MeshInstance> _compatInstances{};
 };
 
 inline ResourceManager& RenderService::resourceManager() noexcept {
@@ -183,6 +205,7 @@ inline gerium_descriptor_set_h RenderService::instancesData() const noexcept {
 }
 
 inline gerium_descriptor_set_h RenderService::textures() const noexcept {
+    assert(_bindlessSupported && "Only available if bindless is supported");
     return _bindlessTextures;
 }
 
@@ -211,18 +234,22 @@ inline bool RenderService::is8and16BitStorageSupported() const noexcept {
 }
 
 inline const SceneData& RenderService::compatSceneData() const noexcept {
+    assert(_drawIndirectCountSupported == false && "Only available if indirect rendering is not supported.");
     return _compatSceneData;
 }
 
 inline const std::vector<MeshNonCompressed>& RenderService::compatMeshes() const noexcept {
+    assert(_drawIndirectCountSupported == false && "Only available if indirect rendering is not supported.");
     return _compatMeshes;
 }
 
 inline const std::vector<MaterialNonCompressed>& RenderService::compatMaterials() const noexcept {
+    assert(_bindlessSupported == false && "Only available if bindless is not supported");
     return _compatMaterials;
 }
 
 inline const std::vector<MeshInstance>& RenderService::compatInstances() const noexcept {
+    assert(_drawIndirectCountSupported == false && "Only available if indirect rendering is not supported.");
     return _compatInstances;
 }
 
@@ -238,129 +265,6 @@ inline void RenderService::addPass(Args&&... args) {
 
     _renderPassesCache[entt::type_index<RP>::value()] = renderPass.get();
     _renderPasses.push_back(std::move(renderPass));
-}
-
-template <typename M, typename Pred>
-inline std::pair<gerium_uint32_t, gerium_uint32_t> RenderService::getMaterial(const MaterialData& material,
-                                                                              std::vector<M>& result,
-                                                                              Pred&& pred) {
-    gerium_uint32_t techniqueIndex;
-    if (auto it = _techniquesTable.find(material.name); it != _techniquesTable.end()) {
-        techniqueIndex = it->second;
-    } else {
-        auto technique = _resourceManager.loadTechnique(material.name);
-
-        techniqueIndex = (gerium_uint32_t) _techniques.size();
-        _techniques.push_back(technique);
-        _techniquesTable.insert({ material.name, techniqueIndex });
-
-        assert(_techniques.size() < MAX_TECHNIQUES);
-    }
-
-    const auto hash = materialDataHash(material);
-
-    gerium_uint32_t materialIndex = 0;
-    if (auto it = _materialsTable.find(hash); it != _materialsTable.end()) {
-        materialIndex = it->second;
-    } else {
-        materialIndex = (gerium_uint32_t) _materialsTable.size();
-        _materialsTable.insert({ hash, materialIndex });
-        result.push_back({});
-        auto& mat = result.back();
-
-        auto loadTexture = [this](const entt::hashed_string& name) -> gerium_uint16_t {
-            if (name.size()) {
-                Texture result = _resourceManager.loadTexture(name);
-                _textures.insert(result);
-                gerium_texture_h texture = result;
-                gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, texture.index, texture);
-                return texture.index;
-            }
-            gerium_texture_h emptyTexture = _emptyTexture;
-            return emptyTexture.index;
-        };
-
-        mat.baseColorFactor[0]       = pred(material.baseColorFactor.x);
-        mat.baseColorFactor[1]       = pred(material.baseColorFactor.y);
-        mat.baseColorFactor[2]       = pred(material.baseColorFactor.z);
-        mat.baseColorFactor[3]       = pred(material.baseColorFactor.w);
-        mat.emissiveFactor[0]        = pred(material.emissiveFactor.x);
-        mat.emissiveFactor[1]        = pred(material.emissiveFactor.y);
-        mat.emissiveFactor[2]        = pred(material.emissiveFactor.z);
-        mat.metallicFactor           = pred(material.metallicFactor);
-        mat.roughnessFactor          = pred(material.roughnessFactor);
-        mat.occlusionStrength        = pred(material.occlusionStrength);
-        mat.alphaCutoff              = pred(material.alphaCutoff);
-        mat.baseColorTexture         = loadTexture(material.baseColorTexture);
-        mat.metallicRoughnessTexture = loadTexture(material.metallicRoughnessTexture);
-        mat.normalTexture            = loadTexture(material.normalTexture);
-        mat.occlusionTexture         = loadTexture(material.occlusionTexture);
-        mat.emissiveTexture          = loadTexture(material.emissiveTexture);
-
-        if (!_bindlessSupported) {
-            _compatMaterials.push_back({});
-            auto& compatMaterial                    = _compatMaterials.back();
-            compatMaterial.baseColorFactor[0]       = material.baseColorFactor.x;
-            compatMaterial.baseColorFactor[1]       = material.baseColorFactor.y;
-            compatMaterial.baseColorFactor[2]       = material.baseColorFactor.z;
-            compatMaterial.baseColorFactor[3]       = material.baseColorFactor.w;
-            compatMaterial.emissiveFactor[0]        = material.emissiveFactor.x;
-            compatMaterial.emissiveFactor[1]        = material.emissiveFactor.y;
-            compatMaterial.emissiveFactor[2]        = material.emissiveFactor.z;
-            compatMaterial.metallicFactor           = material.metallicFactor;
-            compatMaterial.roughnessFactor          = material.roughnessFactor;
-            compatMaterial.occlusionStrength        = material.occlusionStrength;
-            compatMaterial.alphaCutoff              = material.alphaCutoff;
-            compatMaterial.baseColorTexture         = mat.baseColorTexture;
-            compatMaterial.metallicRoughnessTexture = mat.metallicRoughnessTexture;
-            compatMaterial.normalTexture            = mat.normalTexture;
-            compatMaterial.occlusionTexture         = mat.occlusionTexture;
-            compatMaterial.emissiveTexture          = mat.emissiveTexture;
-        }
-    }
-
-    return { techniqueIndex, materialIndex };
-}
-
-template <typename Pred, typename M>
-inline void RenderService::getMaterialsAndInstances(const Renderable& renderable,
-                                                    const Transform& transform,
-                                                    std::vector<M>& materials,
-                                                    std::vector<MeshInstance>& instances,
-                                                    Pred&& pred) {
-    for (const auto& meshData : renderable.meshes) {
-        const auto [techniqueIndex, materialIndex] =
-            getMaterial<M, Pred>(meshData.material, materials, std::move(pred));
-
-        instances.push_back({});
-        auto& instance = instances.back();
-
-        const auto scale = glm::max(glm::max(transform.scale.x, transform.scale.y), transform.scale.z);
-
-        instance.world        = transform.matrix;
-        instance.prevWorld    = transform.prevMatrix;
-        instance.normalMatrix = glm::transpose(glm::inverse(transform.matrix));
-        instance.scale        = scale;
-        instance.mesh         = meshData.mesh;
-        instance.technique    = techniqueIndex;
-        instance.material     = materialIndex;
-    }
-}
-
-inline void RenderService::getMaterialsAndInstances(const Renderable& renderable,
-                                                    const Transform& transform,
-                                                    std::vector<Material>& materials,
-                                                    std::vector<MeshInstance>& instances) {
-    getMaterialsAndInstances(renderable, transform, materials, instances, meshopt_quantizeHalf);
-}
-
-inline void RenderService::getMaterialsAndInstances(const Renderable& renderable,
-                                                    const Transform& transform,
-                                                    std::vector<MaterialNonCompressed>& materials,
-                                                    std::vector<MeshInstance>& instances) {
-    getMaterialsAndInstances(renderable, transform, materials, instances, [](const auto value) {
-        return value;
-    });
 }
 
 #endif
