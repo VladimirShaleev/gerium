@@ -11,80 +11,108 @@ class RenderPass;
 
 class RenderService final : public Service {
 public:
-    // Returns an object for resource management
+    // Returns the resource manager for managing assets
     [[nodiscard]] ResourceManager& resourceManager() noexcept;
 
-    // Returns the frame number (absolute) and frame index
-    [[nodiscard]] gerium_uint64_t frame() const noexcept;
-    [[nodiscard]] gerium_uint32_t frameIndex() const noexcept;
+    // Returns the absolute frame number (total frames rendered since start) and the current frame index.
+    [[nodiscard]] gerium_uint64_t frame() const noexcept;      // Absolute frame count
+    [[nodiscard]] gerium_uint32_t frameIndex() const noexcept; // Current frame index [0, _maxFramesInFlight)
 
-    // Return descriptor sets of with binded resources for: camera, cluster
-    // with all geometries, instances and materials, as well as bindless
-    // textures (if supported).Also returns a list of techniques in the current scene.
+    // Returns descriptor sets for GPU resources:
+    // - sceneData: Camera and scene-related data (e.g., view matrices).
+    // - clusterData: Cluster data (e.g., vertices, indices).
+    // - instancesData: Per-instance data (e.g., transforms, materials).
+    // - textures: Bindless texture array.
     [[nodiscard]] gerium_descriptor_set_h sceneData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h clusterData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h instancesData() const noexcept;
     [[nodiscard]] gerium_descriptor_set_h textures() const noexcept;
+
+    // Returns the total number of instances in the current scene.
     [[nodiscard]] gerium_uint32_t instancesCount() const noexcept;
+
+    // Returns the list of rendering techniques used in the current scene.
     [[nodiscard]] const std::vector<Technique>& techniques() const noexcept;
 
-    // Checking supported features
+    // Checks if the GPU supports specific features:
+    // - bindlessSupported: Whether bindless textures are supported.
+    // - drawIndirectSupported: Whether indirect draw calls are supported.
+    // - drawIndirectCountSupported: Whether indirect draw calls with count are supported.
+    // - is8and16BitStorageSupported: Whether 8-bit and 16-bit storage is supported.
     [[nodiscard]] bool bindlessSupported() const noexcept;
     [[nodiscard]] bool drawIndirectSupported() const noexcept;
     [[nodiscard]] bool drawIndirectCountSupported() const noexcept;
     [[nodiscard]] bool is8and16BitStorageSupported() const noexcept;
 
-    // If the device does not support modern rendering, we also save data on the CPU side
-    // to support compatibility, which can be obtained through these methods. Then we
-    // can use this data for legacy rendering with draw calls.
+    // Fallback data for compatibility when modern GPU features are not supported:
+    // - compatSceneData: Scene data (e.g., camera matrices) for CPU-side processing.
+    // - compatMeshes: Mesh data for CPU-side processing.
+    // - compatMaterials: Material data for CPU-side processing.
+    // - compatInstances: Instance data for CPU-side processing.
     [[nodiscard]] const SceneData& compatSceneData() const noexcept;
     [[nodiscard]] const std::vector<MeshNonCompressed>& compatMeshes() const noexcept;
     [[nodiscard]] const std::vector<MaterialNonCompressed>& compatMaterials() const noexcept;
     [[nodiscard]] const std::vector<MeshInstance>& compatInstances() const noexcept;
 
-    // Merges dynamic instances buffer into the current instances buffer
+    // Merges dynamic instances (e.g., moving objects) into the current instances buffer.
+    // This is necessary for rendering objects efficiently.
     void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
 
 protected:
-    static constexpr entt::hashed_string STORAGE_CONSTRUCT         = { "create_renderable" };
-    static constexpr entt::hashed_string STORAGE_DESTROY           = { "destroy_renderable" };
-    static constexpr entt::hashed_string STORAGE_UPDATE            = { "update_renderable" };
+    // Constants for event handling in the ECS (Entity-Component-System) framework.
+    static constexpr entt::hashed_string STORAGE_CONSTRUCT = { "create_renderable" };
+    static constexpr entt::hashed_string STORAGE_DESTROY   = { "destroy_renderable" };
+    static constexpr entt::hashed_string STORAGE_UPDATE    = { "update_renderable" };
+
+    // Threshold for rebuilding the cluster after deletions
     static constexpr gerium_uint32_t deletionsToCheckUpdateCluster = 10;
 
-    // Packed geometry of the current scene (unique models and LODs)
+    // Represents the geometry data for the current scene, including vertices, indices, and meshes.
     struct ClusterData {
-        Buffer vertices;  // linear vertex data for all geometry
-        Buffer indices;   // linear index data for all geometry
-        Buffer meshes;    // linear mesh and lods data for all geometry
-        DescriptorSet ds; // a set of these buffers
+        Buffer vertices;  // Linear vertex data for all geometry
+        Buffer indices;   // Linear index data for all geometry
+        Buffer meshes;    // Linear mesh and LOD data for all geometry
+        DescriptorSet ds; // Descriptor set for accessing these buffers
     };
 
-    // A structure for indexing GPU meshes on a CPU for model nodes
+    // Represents the mapping between model nodes and their corresponding mesh indices.
     struct MeshIndices {
         struct Node {
-            gerium_sint32_t nodeIndex;
-            gerium_uint32_t meshIndex;
+            gerium_sint32_t nodeIndex; // Index of the node in the model
+            gerium_uint32_t meshIndex; // Index of the mesh in the cluster
         };
 
-        std::vector<Node> indices;
+        std::vector<Node> indices; // List of node-to-mesh mappings
     };
 
-    // Adds a pass to the frame graph
+    // Adds a rendering pass to the frame graph.
     template <typename RP, typename... Args>
     void addPass(Args&&... args);
 
+    // Lifecycle methods for starting, stopping, and updating the render service.
     void start() override;
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
-    void createCluster(const Cluster& cluster);
-    void createStaticInstances();
+    void reloadCluster();                       // Reload cluster
+    void createCluster(const Cluster& cluster); // Creates a new cluster from the provided geometry
+    void createStaticInstances();               // Creates static instances (e.g., non-moving objects)
 
-    void updateCluster();
-    void updateActiveSceneData();
-    void updateDynamicInstances();
-    void updateInstancesData();
+    void updateCluster();          // Updates the cluster data (e.g., after deletions or changes)
+    void updateActiveSceneData();  // Updates scene data (e.g., camera matrices)
+    void updateDynamicInstances(); // Updates dynamic instances (e.g., moving objects)
+    void updateInstancesData();    // Updates bindings of instances
 
+    // Check for update cluster or static instances
+    void checkNewComponents(bool& needReloadCluster, bool& needUpdateStaticInstances);
+    void checkDestroyedComponents(bool& needReloadCluster, bool& needUpdateStaticInstances);
+    void checkUpdatedComponents(bool& needReloadCluster, bool& needUpdateStaticInstances);
+
+    // Helper methods for managing instances and materials:
+    // - getInstances: Retrieves instances (static or dynamic).
+    // - emplaceInstance Adds an instance to the list (instances).
+    // - getOrEmplaceTechnique: Retrieves index or creates a technique for a material
+    // - getOrEmplaceMaterial: Retrieves index or creates a material
     std::vector<MeshInstance> getInstances(bool isStatic);
     void emplaceInstance(const Renderable& renderable,
                          const Transform& transform,
@@ -92,6 +120,7 @@ protected:
     gerium_uint32_t getOrEmplaceTechnique(const MaterialData& material);
     gerium_uint32_t getOrEmplaceMaterial(const MaterialData& material);
 
+    // Computes a hash for material data to enable efficient lookups.
     static gerium_uint64_t materialDataHash(const MaterialData& material) noexcept;
 
     static gerium_uint32_t prepare(gerium_frame_graph_t frameGraph,
@@ -106,78 +135,81 @@ protected:
                                 gerium_uint32_t totalWorkers,
                                 gerium_data_t data);
 
-    // In case of an error from the C-callback, we will save the exception here
+    // Stores exceptions from C-callbacks for error handling.
     std::exception_ptr _error{};
 
-    // Objects for manipulating the render and getting data from the profiler
+    // Handles to the renderer and profiler for managing rendering and performance metrics.
     gerium_renderer_t _renderer{};
     gerium_profiler_t _profiler{};
 
-    // Object for working with frame graph
+    // Handle to the frame graph for managing rendering passes.
     gerium_frame_graph_t _frameGraph{};
 
-    // Supported features of the selected GPU
-    bool _bindlessSupported{};
-    bool _drawIndirectSupported{};
-    bool _drawIndirectCountSupported{};
-    bool _8and16BitStorageSupported{};
-    bool _isModernPipeline{}; // _bindlessSupported && _drawIndirectSupported && _drawIndirectCountSupported
+    // Flags indicating supported GPU features:
+    bool _bindlessSupported{};          // Whether bindless textures are supported
+    bool _drawIndirectSupported{};      // Whether indirect draw calls are supported
+    bool _drawIndirectCountSupported{}; // Whether indirect draw calls with count are supported
+    bool _8and16BitStorageSupported{};  // Whether 8-bit and 16-bit storage is supported
+    bool _isModernPipeline{}; // Whether all modern features are supported (_bindlessSupported && _drawIndirectSupported
+                              // && _drawIndirectCountSupported)
 
-    gerium_uint32_t _maxFramesInFlight{}; // number of frames in flight
-    gerium_uint32_t _frameIndex{};        // current frame index [0.._maxFramesInFlight)
-    gerium_uint64_t _frame{};             // absolute number of frames
-    gerium_uint16_t _width{};             // current width
-    gerium_uint16_t _height{};            // current height
+    // Frame management:
+    gerium_uint32_t _maxFramesInFlight{}; // Number of frames in flight (for multi-buffering)
+    gerium_uint32_t _frameIndex{};        // Current frame index [0, _maxFramesInFlight)
+    gerium_uint64_t _frame{};             // Absolute frame count
+    gerium_uint16_t _width{};             // Current screen width
+    gerium_uint16_t _height{};            // Current screen height
 
-    // Counting references to used resources
-    ResourceManager _resourceManager{};
+    // Resource management:
+    ResourceManager _resourceManager{}; // Manages assets like textures, buffers, etc
 
-    // Rendering passes for frame graph
-    std::vector<std::unique_ptr<RenderPass>> _renderPasses{};
-    std::map<uint32_t, RenderPass*> _renderPassesCache{};
+    // Rendering passes:
+    std::vector<std::unique_ptr<RenderPass>> _renderPasses{}; // List of rendering passes
+    std::map<uint32_t, RenderPass*> _renderPassesCache{};     // Cache for quick access to rendering passes
 
-    Texture _emptyTexture{};           // placeholder in case texture is not set
-    DescriptorSet _bindlessTextures{}; // set of textures if _bindlessSupported is true
+    // Textures:
+    Texture _emptyTexture{};           // Placeholder texture for fallback cases
+    DescriptorSet _bindlessTextures{}; // Bindless texture array (if supported)
 
-    // Current geometry data on GPU
-    ClusterData _cluster{};
-    // Mesh indices in the current cluster
-    std::map<entt::hashed_string, MeshIndices> _modelsInCluster{};
+    // Geometry data:
+    ClusterData _cluster{};                                        // Current geometry data (vertices, indices, meshes)
+    std::map<entt::hashed_string, MeshIndices> _modelsInCluster{}; // Mapping of model names to mesh indices
 
-    // We count the removed components so that when enough meshes in the cluster
-    // are no longer used we can rebuild the cluster without those meshes
-    gerium_uint32_t _renderableDestroyed{};
-    gerium_uint32_t _modelsDestroyed{};
+    // Counters for tracking deletions:
+    gerium_uint32_t _renderableDestroyed{}; // Number of renderable entities destroyed
+    gerium_uint32_t _modelsDestroyed{};     // Number of models destroyed
 
-    Buffer _activeScene{};            // GPU data of SceneData (camera)
-    DescriptorSet _activeSceneData{}; // SceneData
+    // Scene data:
+    Buffer _activeScene{};            // GPU buffer for scene data (e.g., camera matrices)
+    DescriptorSet _activeSceneData{}; // Descriptor set for scene data
 
-    Buffer _drawData{};               // GPU data of the DrawData structure
-    Buffer _dynamicInstances{};       // GPU data of the dynamic instances
-    Buffer _dynamicMaterials{};       // GPU data of the materials for dynamic instances
-    std::vector<Buffer> _instances{}; // GPU data of all instances (static and dynamic)
-    std::vector<Buffer> _materials{}; // GPU data of all materials (static and dynamic)
-    DescriptorSet _instancesData{};   // DrawData, commands buffer, instances and materials
+    // Draw and instances data:
+    Buffer _drawData{};               // GPU buffer for draw data (e.g., draw counts)
+    Buffer _dynamicInstances{};       // GPU buffer for dynamic instances
+    Buffer _dynamicMaterials{};       // GPU buffer for dynamic materials
+    std::vector<Buffer> _instances{}; // GPU buffers for all instances (static and dynamic)
+    std::vector<Buffer> _materials{}; // GPU buffers for all materials (static and dynamic)
+    DescriptorSet _instancesData{};   // Descriptor set for draw data, instances, and materials
 
-    gerium_uint32_t _staticInstancesCount{};
-    gerium_uint32_t _dynamicInstancesCount{};
-    gerium_uint32_t _staticMaterialsCount{};
-    gerium_uint32_t _dynamicMaterialsCount{};
+    // Counters for instances and materials:
+    gerium_uint32_t _staticInstancesCount{};  // Number of static instances
+    gerium_uint32_t _dynamicInstancesCount{}; // Number of dynamic instances
+    gerium_uint32_t _staticMaterialsCount{};  // Number of static materials
+    gerium_uint32_t _dynamicMaterialsCount{}; // Number of dynamic materials
 
-    // Cache and indexing of techniques and materials
-    std::vector<Technique> _techniques{};
-    std::set<Texture> _textures{}; // keeping references to textures so they don't get unloaded from memory
-    std::map<gerium_uint32_t, gerium_uint32_t> _techniquesTable{};
-    std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};
-    std::vector<Material> _materialsCompressed{};
-    std::vector<Material> _materialsNonCompressed{};
+    // Caches for techniques and materials:
+    std::vector<Technique> _techniques{};                          // List of rendering techniques
+    std::set<Texture> _textures{};                                 // Set of textures to prevent unloading
+    std::map<gerium_uint32_t, gerium_uint32_t> _techniquesTable{}; // Mapping of technique IDs to indices
+    std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};  // Mapping of material hashes to indices
+    std::vector<Material> _materialsCompressed{};                  // Compressed material data (if supported)
+    std::vector<Material> _materialsNonCompressed{};               // Uncompressed material data (fallback)
 
-    // In modern rendering these vectors will be empty, they are
-    // filled if a particular feature is not supported
-    SceneData _compatSceneData{};
-    std::vector<MeshNonCompressed> _compatMeshes{};
-    std::vector<MaterialNonCompressed> _compatMaterials{};
-    std::vector<MeshInstance> _compatInstances{};
+    // Compatibility data for CPU-side processing (used when modern GPU features are not supported):
+    SceneData _compatSceneData{};                          // Scene data for CPU-side processing
+    std::vector<MeshNonCompressed> _compatMeshes{};        // Mesh data for CPU-side processing
+    std::vector<MaterialNonCompressed> _compatMaterials{}; // Material data for CPU-side processing
+    std::vector<MeshInstance> _compatInstances{};          // Instance data for CPU-side processing
 };
 
 inline ResourceManager& RenderService::resourceManager() noexcept {
