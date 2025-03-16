@@ -3,6 +3,9 @@
 
 #include "RenderPass.hpp"
 
+// CullingPass is a rendering pass responsible for performing frustum culling and LOD selection.
+// It uses a compute shader to determine which instances are visible and generates indirect draw commands
+// for the visible geometry.
 class CullingPass final : public RenderPass {
 public:
     CullingPass() : RenderPass("culling_pass") {

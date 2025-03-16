@@ -1,48 +1,46 @@
 #include "GBufferPass.hpp"
 
-// This method demonstrates modern rendering with indirect draw call for all geometry,
-// as well as a workaround if a particular feature is not supported.
+// This method handles rendering of the GBuffer pass, utilizing indirect draw calls for geometry rendering.
+// It also provides a fallback path for cases where certain GPU features (like bindless textures or indirect draw count)
+// are not supported.
 void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_renderer_t renderer,
                          gerium_command_buffer_t commandBuffer,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
-    const auto sceneData     = renderService().sceneData();      // descriptor set of camera
-    const auto clusterData   = renderService().clusterData();    // descriptor set of claster
-    const auto instancesData = renderService().instancesData();  // descriptor set of instances
-    const auto& techniques   = renderService().techniques();     // vector of techniques using in the scene
-    auto drawCount           = renderService().instancesCount(); // total instances in scene
+    // Retrieve scene data, cluster data, and instances data from the render service.
+    const auto sceneData     = renderService().sceneData();      // Descriptor set for camera data
+    const auto clusterData   = renderService().clusterData();    // Descriptor set for cluster data
+    const auto instancesData = renderService().instancesData();  // Descriptor set for instances data
+    const auto& techniques   = renderService().techniques();     // List of rendering techniques used in the scene
+    auto drawCount           = renderService().instancesCount(); // Total number of instances in the scene
+    auto needDestroyBuffer   = false;
 
-    // If the scene is empty, you don't need to make any rendering calls.
+    // If there are no instances to render, exit early.
     if (drawCount == 0) {
         return;
     }
 
+    // Handles for GPU buffers storing draw commands and draw counts.
     gerium_buffer_h commands{ UndefinedHandle };
     gerium_buffer_h commandCounts{ UndefinedHandle };
-    CompatCommands compatCommands{};
+    CompatCommands compatCommands{}; // Fallback structure for CPU-side culling and command generation
 
-    // If the device supports bindless textures and indirect rendering with draw count SSBO,
-    // then we get a SSBO with draw commands and a SSBO with draw count.
+    // Check if the GPU supports bindless textures and indirect draw count.
     if (renderService().bindlessSupported() && renderService().drawIndirectCountSupported()) {
-        // These SSBO buffers are filled with pass in the compute shader. This compute shader
-        // produces GPU frustum culling, as well as the selection of the mesh lod. The resulting
-        // commands buffer will contain the rendering commands with the mesh lod index. And in
-        // command_counts, the number of visible meshes on the screen.
-        //
-        // This is a fairly efficient rendering, because we send a command buffer to the GPU in one call.
-        // And already the GPU itself will form the drawing commands for the visible geometry, after which
-        // it will begin to draw them. Apart from updating the camera, the CPU may not be used at all for
-        // scene rendering, much less data synchronization.
+        // If supported, retrieve the GPU buffers for draw commands and draw counts.
+        // These buffers are populated by a compute shader that performs GPU frustum culling and LOD selection.
+        // The GPU generates the draw commands and counts visible meshes, reducing CPU overhead.
         check(gerium_renderer_get_buffer(renderer, "commands", &commands));
         check(gerium_renderer_get_buffer(renderer, "command_counts", &commandCounts));
     } else {
-        // If we cannot use indirect rendering, we need to perform frustum culling on the CPU side.
+        // If indirect rendering is not supported, perform frustum culling on the CPU.
         compatCommands = compatCullingInstances();
         if (compatCommands.drawCommands.empty()) {
-            return; // if no one mesh is visible (no drawing commands), then we do not do any drawings
+            return; // Skip rendering if no meshes are visible.
         }
-        // Fill the dynamic SSBO with drawing commands
+
+        // Upload the CPU-generated draw commands to a GPU buffer.
         auto size = compatCommands.drawCommands.size() * sizeof(IndirectDraw);
         gerium_buffer_h buffer;
         check(gerium_renderer_create_buffer(renderer,
@@ -53,57 +51,54 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                                             size,
                                             &commands));
         gerium_renderer_bind_buffer(renderer, instancesData, 4, commands);
+        needDestroyBuffer = true;
 
-        // It is also worth noting that commandCounts remains UndefinedHandle, because we have already counted the
-        // number of draws (visible grids) for each technique on the CPU side, and if indirect rendering is supported,
-        // then when calling the gerium_command_buffer_draw_indirect function with draw_count_handle equal to
-        // UndefinedHandle, the draw_count argument will be used as the number of draws for indirect rendering.
-        // Otherwise, the number of draws is taken from draw_count_handle, and draw_count indicates the maximum
-        // possible number of draws. And as you can see, this branching is exactly what is needed for the case
-        // when we cannot use draw_count_handle.
+        // Note: commandCounts remains UndefinedHandle because the CPU has already counted the visible meshes.
     }
 
-    // Need to go through each material in the scene
+    // Iterate over each rendering technique in the scene.
     for (gerium_uint32_t i = 0; i < techniques.size(); ++i) {
         const auto& technique = techniques[i];
-        // Offsets in command_counts and commands for current technique
+
+        // Calculate offsets for the current technique in the command and count buffers.
         const auto countOffset    = i * 4;
         const auto commandsOffset = i * MAX_INSTANCES_PER_TECHNIQUE * sizeof(IndirectDraw);
-        if (!renderService().drawIndirectCountSupported()) { // if draw indirect is not supported
+
+        // If indirect draw count is not supported, use the CPU-computed draw count.
+        if (!renderService().drawIndirectCountSupported()) {
             drawCount = compatCommands.drawCounts[i];
             if (drawCount == 0) {
-                continue; // if there are no renderings for the current technique, we move on to the next technique
+                continue; // Skip if no instances are visible for this technique.
             }
         }
-        // Bind current technique and descriptor sets
-        // (if the descriptor set or technique is already bind, it will not be bind again)
+
+        // Bind the current technique and descriptor sets.
+        // These calls are optimized to avoid redundant bindings.
         gerium_command_buffer_bind_technique(commandBuffer, technique);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, sceneData, SCENE_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, clusterData, CLUSTER_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, instancesData, INSTANCES_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().textures(), TEXTURES_SET);
 
-        // If bindless textures is supported and indirect draw is supported
+        // If bindless textures and indirect draw are supported, issue a single indirect draw call.
         if (renderService().bindlessSupported() && renderService().drawIndirectSupported()) {
-            // We draw all the geometry for this technique in one call
             gerium_command_buffer_draw_indirect(
                 commandBuffer, commands, commandsOffset, commandCounts, countOffset, drawCount, sizeof(IndirectDraw));
         } else {
-            // Otherwise we'll have to make a separate draw call for each mesh
-
+            // Otherwise, issue individual draw calls for each mesh.
             gerium_uint64_t lastTexturesHash = 0;
 
-            // Enumerate the draw commands for the current technique
+            // Iterate over the draw commands for the current technique.
             drawCount = compatCommands.drawCounts[i];
             for (gerium_uint32_t commandIndex = 0; commandIndex < drawCount; ++commandIndex) {
                 const auto& command = compatCommands.drawCommands[i * MAX_INSTANCES_PER_TECHNIQUE + commandIndex];
 
-                // If bindless textures not supported
+                // If bindless textures are not supported, bind textures manually.
                 if (!renderService().bindlessSupported()) {
                     compatBindTextures(renderer, commandBuffer, command.firstInstance, lastTexturesHash);
                 }
 
-                // Draw call
+                // Issue the draw call for the current mesh.
                 gerium_command_buffer_draw(commandBuffer,
                                            command.firstVertex,
                                            command.vertexCount,
@@ -113,13 +108,14 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         }
     }
 
-    // If we filled the command buffer from the CPU side in this frame, we will queue it for deletion
-    if (!renderService().bindlessSupported() || !renderService().drawIndirectCountSupported()) {
+    // Clean up the temporary GPU buffer if it was created for CPU-side culling.
+    if (needDestroyBuffer) {
         gerium_renderer_destroy_buffer(renderer, commands);
     }
 }
 
-// Frustum culling on the CPU side (for devices with legacy pipeline)
+// Performs CPU-side frustum culling and generates draw commands for visible instances.
+// This is used as a fallback when GPU culling is not supported.
 GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
     const auto& scene     = renderService().compatSceneData();
     const auto& meshes    = renderService().compatMeshes();
@@ -180,7 +176,8 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
     return { draws, drawCounts };
 }
 
-// Bind textures (for devices with legacy pipeline)
+// Binds textures manually for a specific instance when bindless textures are not supported.
+// This is used as a fallback for older hardware.
 void GBufferPass::compatBindTextures(gerium_renderer_t renderer,
                                      gerium_command_buffer_t commandBuffer,
                                      gerium_uint32_t instance,

@@ -3,6 +3,7 @@
 
 #include "RenderPass.hpp"
 
+// MergeInstancesPass merges static and dynamic instances into a single buffer.
 class MergeInstancesPass final : public RenderPass {
 public:
     MergeInstancesPass() : RenderPass("merge_instances_pass") {
