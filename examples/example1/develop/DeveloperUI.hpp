@@ -57,7 +57,7 @@ struct ComponentInfo<Camera> {
 template <>
 struct ComponentInfo<Renderable> {
     static constexpr char name[]    = "renderable";
-    static constexpr bool deletable = true;
+    static constexpr bool deletable = false;
 };
 
 template <>
@@ -157,7 +157,7 @@ private:
     std::set<const char*> missingComponents(entt::entity entity) {
         std::set<const char*> components;
         std::set<const char*> hasComponents;
-        (components.insert(ComponentInfo<Types>::name), ...);
+        (components.insert(ComponentInfo<Types>::deletable ? ComponentInfo<Types>::name : nullptr), ...);
         (components.erase(_registry.any_of<Types>(entity) ? ComponentInfo<Types>::name : nullptr), ...);
         return components;
     }

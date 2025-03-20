@@ -37,8 +37,8 @@ void PhysicsService::start() {
     settings.mManifoldToleranceSq                  = 0.001f;
     settings.mMaxPenetrationDistance               = 0.2f;
     settings.mBodyPairCacheMaxDeltaPositionSq      = 0.000001f;
-    settings.mBodyPairCacheCosMaxDeltaRotationDiv2 = 0.99984769515639123915701155881391f;
-    settings.mContactNormalCosMaxDeltaRotation     = 0.99619469809174553229501040247389f;
+    settings.mBodyPairCacheCosMaxDeltaRotationDiv2 = 0.9998477f;
+    settings.mContactNormalCosMaxDeltaRotation     = 0.9961947f;
     settings.mContactPointPreserveLambdaMaxDistSq  = 0.0001f;
     settings.mNumVelocitySteps                     = 10;
     settings.mNumPositionSteps                     = 2;

@@ -12,4 +12,6 @@
 
 @MODEL_IDS@
 
+@TEX_IDS@
+
 #endif

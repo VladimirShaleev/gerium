@@ -35,7 +35,7 @@ struct Vehicle {
     gerium_float32_t maxHandBrakeTorque{ 4000.0f };
     gerium_float32_t maxSteeringAngle{ glm::radians(30.0f) };
     gerium_float32_t angularDamping{ 0.8f };
-    gerium_float32_t antiRollbar{ true };
+    bool antiRollbar{ true };
     gerium_float32_t maxTorque{ 500.0f };
     gerium_float32_t minRPM{ 1000.0f };
     gerium_float32_t maxRPM{ 6000.0f };
