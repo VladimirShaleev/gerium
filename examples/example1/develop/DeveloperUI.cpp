@@ -3,7 +3,7 @@
 #include "../events/AddNodeNameEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
-#include "../events/TransformNodeEvent.hpp"
+#include "../events/MoveNodeEvent.hpp"
 
 using namespace std::string_literals;
 using namespace entt::literals;
@@ -67,6 +67,21 @@ void DeveloperUI::showSettings() {
 void DeveloperUI::showSceneGraph() {
     auto& settings = _registry.ctx().get<Settings>();
 
+    entt::entity root = entt::null;
+    auto view         = _registry.view<Node, Name>();
+    for (auto entity : view) {
+        auto& node = view.get<Node>(entity);
+        auto& name = view.get<Name>(entity);
+        if (name.name == ""_hs) {
+            root = entity;
+            break;
+        }
+    }
+
+    if (root == entt::null) {
+        return;
+    }
+
     if (ImGui::Begin("Scene Graph")) {
         if (ImGui::BeginTable("mygrid", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("Hierarhy");
@@ -75,21 +90,6 @@ void DeveloperUI::showSceneGraph() {
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-
-            entt::entity root = entt::null;
-            auto view         = _registry.view<Node, Name>();
-            for (auto entity : view) {
-                auto& node = view.get<Node>(entity);
-                auto& name = view.get<Name>(entity);
-                if (name.name == ""_hs) {
-                    root = entity;
-                    break;
-                }
-            }
-
-            if (root == entt::null) {
-                return;
-            }
 
             // if (ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemHovered()) {
             //     selected = entt::null;
@@ -369,8 +369,7 @@ void DeveloperUI::showSceneGraph() {
             glm::decompose(world, scale, orientation, tanslation, skew, perspective);
 
             settings.transforming = true;
-            _dispatcher.enqueue<TransformNodeEvent>(
-                _selected, tanslation, orientation, scale, settings.transformChilds);
+            _dispatcher.enqueue<MoveNodeEvent>(_selected, tanslation, orientation, scale, settings.transformChilds);
         }
     }
 }
@@ -465,7 +464,7 @@ void DeveloperUI::showComponent(entt::entity entity, Transform& transform) {
     if (hasChanges) {
         auto& settings        = _registry.ctx().get<Settings>();
         settings.transforming = true;
-        _dispatcher.enqueue<TransformNodeEvent>(
+        _dispatcher.enqueue<MoveNodeEvent>(
             entity, tanslation, glm::quat(glm::radians(euler)), scale, settings.transformChilds);
     }
 }

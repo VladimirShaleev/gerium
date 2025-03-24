@@ -1,5 +1,6 @@
 #include "PresentPass.hpp"
 #include "../Application.hpp"
+#include "../components/Settings.hpp"
 
 void PresentPass::render(gerium_frame_graph_t frameGraph,
                          gerium_renderer_t renderer,
@@ -15,8 +16,12 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
-    if (!_developerUI) {
-        _developerUI = std::make_unique<DeveloperUI>(entityRegistry(), renderService().application().dispatcher());
+    if (entityRegistry().ctx().get<Settings>().developerMode) {
+        if (!_developerUI) {
+            _developerUI = std::make_unique<DeveloperUI>(entityRegistry(), renderService().application().dispatcher());
+        }
+        _developerUI->show(commandBuffer);
+    } else {
+        _developerUI = nullptr;
     }
-    _developerUI->show(commandBuffer);
 }

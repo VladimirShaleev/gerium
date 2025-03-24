@@ -57,7 +57,7 @@ struct ComponentInfo<Camera> {
 template <>
 struct ComponentInfo<Renderable> {
     static constexpr char name[]    = "renderable";
-    static constexpr bool deletable = false;
+    static constexpr bool deletable = true;
 };
 
 template <>

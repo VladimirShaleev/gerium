@@ -17,6 +17,7 @@ struct Settings {
     };
 
     bool showProfiler{};
+    bool developerMode{ true };
     bool transforming{ false };
     bool transformChilds{ true };
     bool snapToGrid{ false };

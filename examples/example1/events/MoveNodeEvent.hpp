@@ -1,9 +1,9 @@
-#ifndef EVENTS_TRANSFORM_NODE_EVENT_HPP
-#define EVENTS_TRANSFORM_NODE_EVENT_HPP
+#ifndef EVENTS_MOVE_NODE_EVENT_HPP
+#define EVENTS_MOVE_NODE_EVENT_HPP
 
 #include "../Common.hpp"
 
-struct TransformNodeEvent {
+struct MoveNodeEvent {
     entt::entity entity;
     glm::vec3 position;
     glm::quat rotation;
@@ -11,4 +11,4 @@ struct TransformNodeEvent {
     bool transformChilds;
 };
 
-#endif // EVENTS_TRANSFORM_NODE_EVENT_HPP
+#endif // EVENTS_MOVE_NODE_EVENT_HPP

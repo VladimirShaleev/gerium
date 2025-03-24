@@ -5,6 +5,7 @@
 #include "../ResourceManager.hpp"
 #include "../components/Renderable.hpp"
 #include "../components/Transform.hpp"
+#include "../events/DirtySceneEvent.hpp"
 #include "ServiceManager.hpp"
 
 class RenderPass;
@@ -59,13 +60,8 @@ public:
     void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
 
 protected:
-    // Constants for event handling in the ECS (Entity-Component-System) framework.
-    static constexpr entt::hashed_string STORAGE_CONSTRUCT = { "create_renderable" };
-    static constexpr entt::hashed_string STORAGE_DESTROY   = { "destroy_renderable" };
-    static constexpr entt::hashed_string STORAGE_UPDATE    = { "update_renderable" };
-
     // Threshold for rebuilding the cluster after deletions
-    static constexpr gerium_uint32_t deletionsToCheckUpdateCluster = 10;
+    static constexpr gerium_uint32_t deletionsToUpdateCluster = 10;
 
     // Represents the geometry data for the current scene, including vertices, indices, and meshes.
     struct ClusterData {
@@ -82,12 +78,15 @@ protected:
             gerium_uint32_t meshIndex; // Index of the mesh in the cluster
         };
 
-        std::vector<Node> indices; // List of node-to-mesh mappings
+        std::vector<Node> indices;  // List of node-to-mesh mappings
+        gerium_uint32_t references; // Counting the number of instances
     };
 
     // Adds a rendering pass to the frame graph.
     template <typename RP, typename... Args>
     void addPass(Args&&... args);
+
+    void onDirtyScene(const DirtySceneEvent& event);
 
     // Lifecycle methods for starting, stopping, and updating the render service.
     void start() override;
@@ -104,21 +103,30 @@ protected:
     void updateInstancesData();    // Updates bindings of instances
 
     // Check for update cluster or static instances
-    void checkNewComponents(bool& needReloadCluster, bool& needUpdateStaticInstances);
-    void checkDestroyedComponents(bool& needReloadCluster, bool& needUpdateStaticInstances);
-    void checkUpdatedComponents(bool& needReloadCluster, bool& needUpdateStaticInstances);
+    bool isNeedUpdateCluster();
+    bool isNeedUpdateStatics() const;
 
     // Helper methods for managing instances and materials:
     // - getInstances: Retrieves instances (static or dynamic).
     // - emplaceInstance Adds an instance to the list (instances).
     // - getOrEmplaceTechnique: Retrieves index or creates a technique for a material
     // - getOrEmplaceMaterial: Retrieves index or creates a material
-    std::vector<MeshInstance> getInstances(bool isStatic);
+    void getInstances(bool isStatic,
+                      std::vector<MeshInstance>& instances,
+                      std::vector<MaterialNonCompressed>& materials);
     void emplaceInstance(const Renderable& renderable,
                          const Transform& transform,
-                         std::vector<MeshInstance>& instances);
+                         std::vector<MeshInstance>& instances,
+                         std::vector<MaterialNonCompressed>& materials);
     gerium_uint32_t getOrEmplaceTechnique(const MaterialData& material);
-    gerium_uint32_t getOrEmplaceMaterial(const MaterialData& material);
+    gerium_uint32_t getOrEmplaceMaterial(const MaterialData& material, std::vector<MaterialNonCompressed>& materials);
+
+    std::pair<gerium_uint32_t, gerium_cdata_t> getInstanceData(std::vector<MeshInstance>& instances,
+                                                               gerium_uint32_t maxCount);
+    std::pair<gerium_uint32_t, gerium_cdata_t> getMaterialData(std::vector<MaterialNonCompressed>& materials,
+                                                               std::vector<Material>& tmp,
+                                                               gerium_uint32_t count,
+                                                               gerium_uint32_t maxCount);
 
     // Computes a hash for material data to enable efficient lookups.
     static gerium_uint64_t materialDataHash(const MaterialData& material) noexcept;
@@ -159,6 +167,9 @@ protected:
     gerium_uint64_t _frame{};             // Absolute frame count
     gerium_uint16_t _width{};             // Current screen width
     gerium_uint16_t _height{};            // Current screen height
+    DirtyFlags _dirtyFlags{};
+    bool _isDirtyScene{ true };
+    bool _isDirtyStatics{ true };
 
     // Resource management:
     ResourceManager _resourceManager{}; // Manages assets like textures, buffers, etc
@@ -174,10 +185,6 @@ protected:
     // Geometry data:
     ClusterData _cluster{};                                        // Current geometry data (vertices, indices, meshes)
     std::map<entt::hashed_string, MeshIndices> _modelsInCluster{}; // Mapping of model names to mesh indices
-
-    // Counters for tracking deletions:
-    gerium_uint32_t _renderableDestroyed{}; // Number of renderable entities destroyed
-    gerium_uint32_t _modelsDestroyed{};     // Number of models destroyed
 
     // Scene data:
     Buffer _activeScene{};            // GPU buffer for scene data (e.g., camera matrices)
@@ -202,8 +209,7 @@ protected:
     std::set<Texture> _textures{};                                 // Set of textures to prevent unloading
     std::map<gerium_uint32_t, gerium_uint32_t> _techniquesTable{}; // Mapping of technique IDs to indices
     std::map<gerium_uint64_t, gerium_uint32_t> _materialsTable{};  // Mapping of material hashes to indices
-    std::vector<Material> _materialsCompressed{};                  // Compressed material data (if supported)
-    std::vector<Material> _materialsNonCompressed{};               // Uncompressed material data (fallback)
+    std::vector<MaterialNonCompressed> _dynamicMaterialData{};     // Materials for dynamic instances only
 
     // Compatibility data for CPU-side processing (used when modern GPU features are not supported):
     SceneData _compatSceneData{};                          // Scene data for CPU-side processing

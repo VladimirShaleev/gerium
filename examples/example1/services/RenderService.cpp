@@ -36,6 +36,13 @@ void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t comma
     }
 }
 
+void RenderService::onDirtyScene(const DirtySceneEvent& event) {
+    _dirtyFlags   = event.falgs;
+    _isDirtyScene = (event.falgs & DirtyFlags::Added) == DirtyFlags::Added ||
+                    (event.falgs & DirtyFlags::Deleted) == DirtyFlags::Deleted;
+    _isDirtyStatics = event.hasStatics;
+}
+
 // Initializes the RenderService, setting up the renderer, frame graph, and resources.
 void RenderService::start() {
     // We will explicitly set some parameters necessary, which are sufficient
@@ -146,31 +153,12 @@ void RenderService::start() {
     _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
     gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
 
-    // Set up reactive storage for handling entity creation, updates, and destruction.
-    entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT).on_construct<Renderable>().on_update<Renderable>();
-    entityRegistry().storage<entt::reactive>(STORAGE_DESTROY).on_destroy<Renderable>().on_destroy<Static>();
-    entityRegistry()
-        .storage<entt::reactive>(STORAGE_UPDATE)
-        .on_construct<Static>()
-        .on_construct<Transform>()
-        .on_update<Transform>()
-        .on_destroy<Transform>();
+    application().dispatcher().sink<DirtySceneEvent>().connect<&RenderService::onDirtyScene>(*this);
 }
 
 // Cleans up resources and shuts down the RenderService.
 void RenderService::stop() {
-    // Disconnect reactive storage handlers.
-    auto& storageConstruct = entityRegistry().storage<entt::reactive>(STORAGE_CONSTRUCT);
-    auto& storageDestroy   = entityRegistry().storage<entt::reactive>(STORAGE_DESTROY);
-    auto& storageUpdate    = entityRegistry().storage<entt::reactive>(STORAGE_UPDATE);
-    entityRegistry().on_construct<Renderable>().disconnect(&storageConstruct);
-    entityRegistry().on_update<Renderable>().disconnect(&storageConstruct);
-    entityRegistry().on_destroy<Renderable>().disconnect(&storageDestroy);
-    entityRegistry().on_destroy<Static>().disconnect(&storageDestroy);
-    entityRegistry().on_construct<Static>().disconnect(&storageUpdate);
-    entityRegistry().on_construct<Transform>().disconnect(&storageUpdate);
-    entityRegistry().on_update<Transform>().disconnect(&storageUpdate);
-    entityRegistry().on_destroy<Transform>().disconnect(&storageUpdate);
+    application().dispatcher().sink<DirtySceneEvent>().disconnect(this);
 
     if (_renderer) {
         // Uninitialize all rendering passes.
@@ -185,12 +173,11 @@ void RenderService::stop() {
         _compatSceneData = {};
 
         // Clear materials, techniques, and textures.
-        _textures               = {};
-        _materialsNonCompressed = {};
-        _materialsCompressed    = {};
-        _materialsTable         = {};
-        _techniquesTable        = {};
-        _techniques             = {};
+        _textures            = {};
+        _dynamicMaterialData = {};
+        _materialsTable      = {};
+        _techniquesTable     = {};
+        _techniques          = {};
 
         // Clear instance data.
         _dynamicMaterialsCount = {};
@@ -207,10 +194,6 @@ void RenderService::stop() {
         // Clear scene data.
         _activeSceneData = {};
         _activeScene     = {};
-
-        // Reset counters.
-        _modelsDestroyed     = 0;
-        _renderableDestroyed = 0;
 
         // Clear cluster data.
         _modelsInCluster.clear();
@@ -268,6 +251,9 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     updateDynamicInstances(); // Update dynamic instances (e.g., moving objects).
     updateInstancesData();    // Bind instance data to the descriptor set for rendering.
 
+    _isDirtyScene   = false;
+    _isDirtyStatics = false;
+
     // Execute the frame graph to render the current frame.
     gerium_renderer_render(_renderer, _frameGraph);
     gerium_renderer_present(_renderer);
@@ -313,6 +299,7 @@ void RenderService::reloadCluster() {
                 if (reloadMesh.nodeIndex == mesh.node) {
                     // Update the mesh index in the Renderable component.
                     mesh.mesh = reloadMesh.meshIndex;
+                    break;
                 }
             }
         }
@@ -458,8 +445,7 @@ void RenderService::createStaticInstances() {
     _textures.clear();
     _techniquesTable.clear();
     _materialsTable.clear();
-    _materialsCompressed.clear();
-    _materialsNonCompressed.clear();
+    _dynamicMaterialData.clear();
     _compatMaterials.clear();
     _compatInstances.clear();
 
@@ -467,56 +453,42 @@ void RenderService::createStaticInstances() {
     _resourceManager.update(0);
 
     // Get static instances and index their materials.
-    std::vector<MeshInstance> instances = getInstances(true);
-
-    // Prepare material data for GPU upload.
-    gerium_cdata_t materialData;
-    gerium_uint32_t materialSize;
-    if (_8and16BitStorageSupported) {
-        _staticMaterialsCount = (gerium_uint32_t) _materialsCompressed.size();
-        // Reserve space for dynamic materials.
-        _materialsCompressed.resize(_materialsCompressed.size() + MAX_DYNAMIC_MATERIALS);
-        materialData = _materialsCompressed.data();
-        materialSize = gerium_uint32_t(_materialsCompressed.size() * sizeof(_materialsCompressed[0]));
-    } else {
-        _staticMaterialsCount = (gerium_uint32_t) _materialsNonCompressed.size();
-        // Reserve space for dynamic materials.
-        _materialsNonCompressed.resize(_materialsNonCompressed.size() + MAX_DYNAMIC_MATERIALS);
-        materialData = _materialsNonCompressed.data();
-        materialSize = gerium_uint32_t(_materialsNonCompressed.size() * sizeof(_materialsNonCompressed[0]));
-    }
-
-    // Save the number of static instances.
-    _staticInstancesCount = (gerium_uint32_t) instances.size();
+    std::vector<MeshInstance> instances;
+    std::vector<MaterialNonCompressed> materials;
+    getInstances(true, instances, materials);
 
     // If indirect draw count is not supported, store instances on the CPU for fallback rendering.
     if (!_drawIndirectCountSupported) {
         _compatInstances = instances;
     }
 
-    // Reserve space for dynamic instances in the instance buffer.
-    instances.resize(instances.size() + MAX_DYNAMIC_INSTANCES);
-    assert(instances.size() < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
-
-    // Create GPU buffers for materials and instances, with space for both static and dynamic data.
-    for (size_t i = 0; i < _materials.size(); ++i) {
-        const auto name = "materials_" + std::to_string(i);
-        _materials[i]   = _resourceManager.createBuffer(
-            GERIUM_BUFFER_USAGE_STORAGE_BIT, false, { name.c_str(), name.length() }, materialData, materialSize, 0);
+    // If bindless textures are not supported, store the material on the CPU for fallback rendering.
+    if (!_bindlessSupported) {
+        _compatMaterials = materials;
     }
+
+    // Save the number of static instances.
+    _staticInstancesCount = (gerium_uint32_t) instances.size();
+    _staticMaterialsCount = (gerium_uint32_t) materials.size();
+
+    std::vector<Material> tmp;
+    const auto [instSize, instData] = getInstanceData(instances, _staticInstancesCount + MAX_DYNAMIC_INSTANCES);
+    const auto [matSize, matData] =
+        getMaterialData(materials, tmp, _staticMaterialsCount, _staticMaterialsCount + MAX_DYNAMIC_MATERIALS);
+
     for (size_t i = 0; i < _instances.size(); ++i) {
         const auto name = "instances_" + std::to_string(i);
-        _instances[i]   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                      false,
-                                                        { name.c_str(), name.length() },
-                                                      (gerium_cdata_t) instances.data(),
-                                                      (gerium_uint32_t) (instances.size() * sizeof(instances[0])),
-                                                      0);
+        const auto hash = entt::hashed_string{ name.c_str(), name.length() };
+        _instances[i] =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, instData, instSize, 0);
     }
 
-    // Clear CPU-side material data after uploading to the GPU.
-    _materialsCompressed.clear();
-    _materialsNonCompressed.clear();
+    for (size_t i = 0; i < _materials.size(); ++i) {
+        const auto name = "materials_" + std::to_string(i);
+        const auto hash = entt::hashed_string{ name.c_str(), name.length() };
+        _materials[i] =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, matData, matSize, 0);
+    }
 }
 
 // This method checks whether the entire cluster needs to be updated (and
@@ -526,22 +498,13 @@ void RenderService::createStaticInstances() {
 // Basically, the cluster and statics will only update in developer mode
 // when creating a map, during gameplay, the statics will not change
 void RenderService::updateCluster() {
-    // By default, assume that neither the cluster nor the static instances need to be updated.
-    auto needReloadCluster         = false;
-    auto needUpdateStaticInstances = false;
-
-    // Check for new, destroyed, and updated components.
-    checkNewComponents(needReloadCluster, needUpdateStaticInstances);
-    checkDestroyedComponents(needReloadCluster, needUpdateStaticInstances);
-    checkUpdatedComponents(needReloadCluster, needUpdateStaticInstances);
-
     // Reload the cluster if necessary.
-    if (needReloadCluster) {
+    if (isNeedUpdateCluster()) {
         reloadCluster();
     }
 
     // Update static instances if necessary.
-    if (needUpdateStaticInstances) {
+    if (isNeedUpdateStatics()) {
         createStaticInstances();
     }
 }
@@ -600,46 +563,28 @@ void RenderService::updateActiveSceneData() {
 // Updates dynamic instances, fills dynamic GPU buffers (optimal for writing every frame
 // from the CPU side) with materials and instances.
 void RenderService::updateDynamicInstances() {
-    // Pointer and size for material data to be uploaded to the GPU.
-    gerium_cdata_t materialData;
-    gerium_uint32_t materialSize;
-
     // Retrieve dynamic instances (e.g., moving objects) from the scene.
-    std::vector<MeshInstance> instances = getInstances(false); // `false` indicates dynamic instances.
-
-    // Ensure the total number of instances (static + dynamic) does not exceed the maximum allowed.
-    assert(_staticInstancesCount + instances.size() < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
+    std::vector<MeshInstance> instances;
+    getInstances(false, instances, _dynamicMaterialData); // `false` indicates dynamic instances.
 
     // Save the number of dynamic instances for later use.
     _dynamicInstancesCount = (gerium_uint32_t) instances.size();
-
-    // Determine which material buffer to use based on GPU feature support.
-    if (_8and16BitStorageSupported) {
-        // Use compressed materials if 8-bit and 16-bit storage is supported.
-        _dynamicMaterialsCount = (gerium_uint32_t) _materialsCompressed.size();
-        materialData           = _materialsCompressed.data();
-        materialSize           = gerium_uint32_t(_materialsCompressed.size() * sizeof(Material));
-    } else {
-        // Use uncompressed materials as a fallback.
-        _dynamicMaterialsCount = (gerium_uint32_t) _materialsNonCompressed.size();
-        materialData           = _materialsNonCompressed.data();
-        materialSize           = gerium_uint32_t(_materialsNonCompressed.size() * sizeof(MaterialNonCompressed));
-    }
+    _dynamicMaterialsCount = (gerium_uint32_t) _dynamicMaterialData.size();
 
     // If there are dynamic materials, create a GPU buffer for them.
     if (_dynamicMaterialsCount) {
+        std::vector<Material> tmp;
+        const auto [matSize, matData] =
+            getMaterialData(_dynamicMaterialData, tmp, _dynamicMaterialsCount, _dynamicMaterialsCount);
         _dynamicMaterials =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", materialData, materialSize, 0);
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", matData, matSize, 0);
     }
 
     // If there are dynamic instances, create a GPU buffer for them.
     if (_dynamicInstancesCount) {
-        _dynamicInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                                          true,
-                                                          "",
-                                                          (gerium_cdata_t) instances.data(),
-                                                          (gerium_uint32_t) (instances.size() * sizeof(instances[0])),
-                                                          0);
+        const auto [instSize, instData] = getInstanceData(instances, _dynamicInstancesCount);
+        _dynamicInstances =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", instData, instSize, 0);
     }
 
     // If indirect draw count is not supported, store dynamic instances on the CPU side for fallback rendering.
@@ -650,8 +595,13 @@ void RenderService::updateDynamicInstances() {
         }
     }
 
-    // Note: We do not clear _materialsCompressed and _materialsNonCompressed here because they are needed
-    // to update dynamic materials every frame. New dynamic materials will be appended to these buffers.
+    // If bindless textures are not supported, store the material on the CPU for fallback rendering.
+    if (!_bindlessSupported) {
+        _compatMaterials.resize(_staticMaterialsCount + _dynamicMaterialsCount);
+        for (gerium_uint32_t i = 0; i < _dynamicMaterialsCount; ++i) {
+            _compatMaterials[_staticMaterialsCount + i] = _dynamicMaterialData[i];
+        }
+    }
 }
 
 // Updates data for the camera and re-binds the SSBO for materials and instances to the descriptor set.
@@ -665,124 +615,58 @@ void RenderService::updateInstancesData() {
     gerium_renderer_bind_buffer(_renderer, _instancesData, 2, _instances[_frameIndex]);
 }
 
-// Check for update cluster or static instances
-void RenderService::checkNewComponents(bool& needReloadCluster, bool& needUpdateStaticInstances) {
-    auto& registry = entityRegistry();
-    auto& storage  = registry.storage<entt::reactive>(STORAGE_CONSTRUCT);
-
-    // Check for new or updated Renderable components in the reactive storage.
-    for (auto entity : storage) {
-        auto& renderable    = registry.get<Renderable>(entity);
-        const auto isStatic = registry.any_of<Static>(entity);
-
-        // If the entity has a Static component, static instances need to be updated.
-        if (isStatic) {
-            needUpdateStaticInstances = true;
+bool RenderService::isNeedUpdateCluster() {
+    if (_isDirtyScene) {
+        for (auto& [_, meshIndices] : _modelsInCluster) {
+            meshIndices.references = 0;
         }
 
-        // Check if the meshes referenced by the Renderable are in the current GPU cluster.
-        for (auto& mesh : renderable.meshes) {
-            // If the mesh is in the cluster, update its index in the Renderable component.
-            if (auto it = _modelsInCluster.find(mesh.model); it != _modelsInCluster.end()) {
-                for (const auto& index : it->second.indices) {
-                    if (mesh.node == index.nodeIndex) {
-                        mesh.mesh = index.meshIndex;
-                        break;
+        for (auto [_, renderable] : entityRegistry().view<Renderable>().each()) {
+            for (auto& mesh : renderable.meshes) {
+                if (auto it = _modelsInCluster.find(mesh.model); it != _modelsInCluster.end()) {
+                    ++it->second.references;
+                    for (const auto& index : it->second.indices) {
+                        if (mesh.node == index.nodeIndex) {
+                            mesh.mesh = index.meshIndex;
+                            break;
+                        }
                     }
-                }
-            } else {
-                // If the mesh is not in the cluster, the entire cluster and static instances need to be updated.
-                needReloadCluster         = true;
-                needUpdateStaticInstances = true;
-                break;
-            }
-        }
-
-        // If the cluster needs to be reloaded, no further checks are needed.
-        if (needReloadCluster) {
-            break;
-        }
-    }
-    storage.clear(); // Clear the create storage after processing.
-}
-
-// Check for update cluster or static instances
-void RenderService::checkDestroyedComponents(bool& needReloadCluster, bool& needUpdateStaticInstances) {
-    auto& registry = entityRegistry();
-    auto& storage  = registry.storage<entt::reactive>(STORAGE_DESTROY);
-
-    // If static instances don't need to be updated yet, check for destroyed Renderable or Static components.
-    if (!needUpdateStaticInstances && !storage.empty()) {
-        // Count the current number of static instances in the registry.
-        gerium_uint32_t currentStaticInstancesCount = 0;
-        for (auto _ : registry.view<Renderable, Static>()) {
-            ++currentStaticInstancesCount;
-        }
-
-        // If the number of static instances has changed, update the static instances.
-        needUpdateStaticInstances = currentStaticInstancesCount != _staticInstancesCount;
-    }
-
-    // Track the number of destroyed Renderable components.
-    _renderableDestroyed += (gerium_uint32_t) storage.size();
-
-    // If the number of destroyed components exceeds a threshold, check for unused models in the cluster.
-    if (_renderableDestroyed >= deletionsToCheckUpdateCluster) {
-        std::set<entt::hashed_string> removedModels;
-        for (const auto& [key, _] : _modelsInCluster) {
-            removedModels.insert(key);
-        }
-
-        // Save only removed models in removedModels.
-        for (auto [entity, renderable] : registry.view<Renderable>().each()) {
-            for (const auto& mesh : renderable.meshes) {
-                if (auto it = removedModels.find(mesh.model); it != removedModels.end()) {
-                    removedModels.erase(it);
+                } else {
+                    _isDirtyStatics = true;
+                    return true;
                 }
             }
         }
 
-        // Track the number of removed models.
-        _modelsDestroyed += (gerium_uint32_t) removedModels.size();
-        _renderableDestroyed = 0; // Reset the counter.
-    }
-    storage.clear(); // Clear the destroy storage after processing.
-
-    // If the number of removed models exceeds a threshold, reload the cluster and update static instances.
-    if (_modelsDestroyed >= deletionsToCheckUpdateCluster) {
-        needReloadCluster         = true;
-        needUpdateStaticInstances = true;
-        _modelsDestroyed          = 0; // Reset the counter.
-    }
-}
-
-// Check for update cluster or static instances
-void RenderService::checkUpdatedComponents(bool& /* needReloadCluster */, bool& needUpdateStaticInstances) {
-    auto& registry = entityRegistry();
-    auto& storage  = registry.storage<entt::reactive>(STORAGE_UPDATE);
-
-    // Check for updates to entities with Static or Transform components.
-    if (!needUpdateStaticInstances && !storage.empty()) {
-        for (auto entity : storage) {
-            if (entityRegistry().any_of<Static>(entity)) {
-                needUpdateStaticInstances = true;
-                break;
+        gerium_uint32_t deleted = 0;
+        for (const auto& [_, meshIndices] : _modelsInCluster) {
+            if (meshIndices.references == 0) {
+                ++deleted;
             }
         }
+
+        if (deleted >= deletionsToUpdateCluster) {
+            _isDirtyStatics = true;
+            return true;
+        }
     }
-    storage.clear(); // Clear the update storage after processing.
+    return false;
+}
+
+bool RenderService::isNeedUpdateStatics() const {
+    return _isDirtyStatics;
 }
 
 // Returns a list of static or dynamic instances (meshes with transforms) from the scene.
-std::vector<MeshInstance> RenderService::getInstances(bool isStatic) {
-    std::vector<MeshInstance> instances;
-
+void RenderService::getInstances(bool isStatic,
+                                 std::vector<MeshInstance>& instances,
+                                 std::vector<MaterialNonCompressed>& materials) {
     // Helper lambda to iterate over entities and add their instances to the list.
-    auto emplace = [this, &instances](auto&& view) {
+    auto emplace = [this, &instances, &materials](auto&& view) {
         for (auto entity : view) {
             auto& renderable = view.get<Renderable>(entity);
             auto& transform  = view.get<Transform>(entity);
-            emplaceInstance(renderable, transform, instances);
+            emplaceInstance(renderable, transform, instances, materials);
         }
     };
 
@@ -794,13 +678,13 @@ std::vector<MeshInstance> RenderService::getInstances(bool isStatic) {
         // Get all entities with Renderable and Transform components, excluding those with Static.
         emplace(entityRegistry().view<Renderable, Transform>(entt::exclude<Static>));
     }
-    return instances;
 }
 
 // Adds an instance (mesh with transform) to the list of instances.
 void RenderService::emplaceInstance(const Renderable& renderable,
                                     const Transform& transform,
-                                    std::vector<MeshInstance>& instances) {
+                                    std::vector<MeshInstance>& instances,
+                                    std::vector<MaterialNonCompressed>& materials) {
     // Iterate over all meshes in the Renderable component.
     for (const auto& meshData : renderable.meshes) {
         instances.push_back({}); // Add a new instance to the list.
@@ -810,11 +694,11 @@ void RenderService::emplaceInstance(const Renderable& renderable,
         // Fill the instance data:
         instance.world        = transform.matrix;     // World transformation matrix.
         instance.prevWorld    = transform.prevMatrix; // Previous frame's world matrix (for motion vectors).
-        instance.normalMatrix = glm::transpose(glm::inverse(transform.matrix)); // Normal matrix for lighting.
-        instance.scale        = scale;                                          // Scale factor.
-        instance.mesh         = meshData.mesh;                                  // Index of the mesh in the cluster.
-        instance.technique    = getOrEmplaceTechnique(meshData.material);       // Index of the rendering technique.
-        instance.material     = getOrEmplaceMaterial(meshData.material);        // Index of the material.
+        instance.normalMatrix = glm::transpose(glm::inverse(transform.matrix));     // Normal matrix for lighting.
+        instance.scale        = scale;                                              // Scale factor.
+        instance.mesh         = meshData.mesh;                                      // Index of the mesh in the cluster.
+        instance.technique    = getOrEmplaceTechnique(meshData.material);           // Index of the rendering technique.
+        instance.material     = getOrEmplaceMaterial(meshData.material, materials); // Index of the material.
     }
 }
 
@@ -841,7 +725,8 @@ gerium_uint32_t RenderService::getOrEmplaceTechnique(const MaterialData& materia
 }
 
 // Loads and indexes a material. If the material is already loaded, returns its index.
-gerium_uint32_t RenderService::getOrEmplaceMaterial(const MaterialData& material) {
+gerium_uint32_t RenderService::getOrEmplaceMaterial(const MaterialData& material,
+                                                    std::vector<MaterialNonCompressed>& materials) {
     // Compute a hash for the material data to enable efficient lookups.
     const auto hash = materialDataHash(material);
 
@@ -856,7 +741,7 @@ gerium_uint32_t RenderService::getOrEmplaceMaterial(const MaterialData& material
         _materialsTable.insert({ hash, materialIndex });
 
         // Helper lambda to load a texture and bind it if bindless textures are supported.
-        auto loadTexture = [this](const entt::hashed_string& name) -> gerium_uint16_t {
+        auto loadTexture = [this](const entt::hashed_string& name) -> glm::uint {
             if (name.size()) {
                 // Load the texture from the resource manager.
                 Texture result = _resourceManager.loadTexture(name);
@@ -876,48 +761,69 @@ gerium_uint32_t RenderService::getOrEmplaceMaterial(const MaterialData& material
             return emptyTexture.index;
         };
 
-        // Helper lambda to create and populate a material structure.
-        auto emplaceMaterial = [this, &loadTexture](auto& materials, const MaterialData& material, auto pred) {
-            materials.push_back({}); // Add a new material to the list.
-            auto& mat = materials.back();
+        materials.push_back({}); // Add a new material to the list.
+        auto& mat = materials.back();
 
-            // Fill the material data:
-            mat.baseColorFactor[0]       = pred(material.baseColorFactor.x); // Base color (R).
-            mat.baseColorFactor[1]       = pred(material.baseColorFactor.y); // Base color (G).
-            mat.baseColorFactor[2]       = pred(material.baseColorFactor.z); // Base color (B).
-            mat.baseColorFactor[3]       = pred(material.baseColorFactor.w); // Base color (A).
-            mat.emissiveFactor[0]        = pred(material.emissiveFactor.x);  // Emissive color (R).
-            mat.emissiveFactor[1]        = pred(material.emissiveFactor.y);  // Emissive color (G).
-            mat.emissiveFactor[2]        = pred(material.emissiveFactor.z);  // Emissive color (B).
-            mat.metallicFactor           = pred(material.metallicFactor);    // Metallic factor.
-            mat.roughnessFactor          = pred(material.roughnessFactor);   // Roughness factor.
-            mat.occlusionStrength        = pred(material.occlusionStrength); // Occlusion strength.
-            mat.alphaCutoff              = pred(material.alphaCutoff);       // Alpha cutoff.
-            mat.baseColorTexture         = loadTexture(material.baseColorTexture);
-            mat.metallicRoughnessTexture = loadTexture(material.metallicRoughnessTexture);
-            mat.normalTexture            = loadTexture(material.normalTexture);
-            mat.occlusionTexture         = loadTexture(material.occlusionTexture);
-            mat.emissiveTexture          = loadTexture(material.emissiveTexture);
-            return mat;
-        };
-
-        // Add the material to the appropriate buffer (compressed or uncompressed).
-        if (_8and16BitStorageSupported) {
-            emplaceMaterial(_materialsCompressed, material, meshopt_quantizeHalf); // Use compressed format.
-        } else {
-            emplaceMaterial(_materialsNonCompressed, material, [](const auto value) {
-                return value; // Use uncompressed format.
-            });
-        }
-
-        // If bindless textures are not supported, store the material on the CPU for fallback rendering.
-        if (!_bindlessSupported) {
-            emplaceMaterial(_compatMaterials, material, [](const auto value) {
-                return value; // Use uncompressed format.
-            });
-        }
+        // Fill the material data:
+        mat.baseColorFactor[0]       = material.baseColorFactor.x; // Base color (R).
+        mat.baseColorFactor[1]       = material.baseColorFactor.y; // Base color (G).
+        mat.baseColorFactor[2]       = material.baseColorFactor.z; // Base color (B).
+        mat.baseColorFactor[3]       = material.baseColorFactor.w; // Base color (A).
+        mat.emissiveFactor[0]        = material.emissiveFactor.x;  // Emissive color (R).
+        mat.emissiveFactor[1]        = material.emissiveFactor.y;  // Emissive color (G).
+        mat.emissiveFactor[2]        = material.emissiveFactor.z;  // Emissive color (B).
+        mat.metallicFactor           = material.metallicFactor;    // Metallic factor.
+        mat.roughnessFactor          = material.roughnessFactor;   // Roughness factor.
+        mat.occlusionStrength        = material.occlusionStrength; // Occlusion strength.
+        mat.alphaCutoff              = material.alphaCutoff;       // Alpha cutoff.
+        mat.baseColorTexture         = loadTexture(material.baseColorTexture);
+        mat.metallicRoughnessTexture = loadTexture(material.metallicRoughnessTexture);
+        mat.normalTexture            = loadTexture(material.normalTexture);
+        mat.occlusionTexture         = loadTexture(material.occlusionTexture);
+        mat.emissiveTexture          = loadTexture(material.emissiveTexture);
     }
     return materialIndex;
+}
+
+std::pair<gerium_uint32_t, gerium_cdata_t> RenderService::getInstanceData(std::vector<MeshInstance>& instances,
+                                                                          gerium_uint32_t maxCount) {
+    assert(maxCount < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
+    instances.resize(maxCount);
+    return { gerium_uint32_t(instances.size() * sizeof(MeshInstance)), gerium_cdata_t(instances.data()) };
+}
+
+std::pair<gerium_uint32_t, gerium_cdata_t> RenderService::getMaterialData(std::vector<MaterialNonCompressed>& materials,
+                                                                          std::vector<Material>& tmp,
+                                                                          gerium_uint32_t count,
+                                                                          gerium_uint32_t maxCount) {
+    assert(maxCount < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
+    if (_8and16BitStorageSupported) {
+        tmp.resize(maxCount);
+        for (gerium_uint32_t i = 0; i < count; ++i) {
+            const auto& material = materials[i];
+
+            tmp[i].baseColorFactor[0]       = meshopt_quantizeHalf(material.baseColorFactor[0]); // Base color (R).
+            tmp[i].baseColorFactor[1]       = meshopt_quantizeHalf(material.baseColorFactor[1]); // Base color (G).
+            tmp[i].baseColorFactor[2]       = meshopt_quantizeHalf(material.baseColorFactor[2]); // Base color (B).
+            tmp[i].baseColorFactor[3]       = meshopt_quantizeHalf(material.baseColorFactor[3]); // Base color (A).
+            tmp[i].emissiveFactor[0]        = meshopt_quantizeHalf(material.emissiveFactor[0]);  // Emissive color (R).
+            tmp[i].emissiveFactor[1]        = meshopt_quantizeHalf(material.emissiveFactor[1]);  // Emissive color (G).
+            tmp[i].emissiveFactor[2]        = meshopt_quantizeHalf(material.emissiveFactor[2]);  // Emissive color (B).
+            tmp[i].metallicFactor           = meshopt_quantizeHalf(material.metallicFactor);     // Metallic factor.
+            tmp[i].roughnessFactor          = meshopt_quantizeHalf(material.roughnessFactor);    // Roughness factor.
+            tmp[i].occlusionStrength        = meshopt_quantizeHalf(material.occlusionStrength);  // Occlusion strength.
+            tmp[i].alphaCutoff              = meshopt_quantizeHalf(material.alphaCutoff);        // Alpha cutoff.
+            tmp[i].baseColorTexture         = uint16_t(material.baseColorTexture);
+            tmp[i].metallicRoughnessTexture = uint16_t(material.metallicRoughnessTexture);
+            tmp[i].normalTexture            = uint16_t(material.normalTexture);
+            tmp[i].occlusionTexture         = uint16_t(material.occlusionTexture);
+            tmp[i].emissiveTexture          = uint16_t(material.emissiveTexture);
+        }
+        return { gerium_uint32_t(tmp.size() * sizeof(Material)), gerium_cdata_t(tmp.data()) };
+    } else {
+        materials.resize(maxCount);
+        return { gerium_uint32_t(materials.size() * sizeof(MaterialNonCompressed)), gerium_cdata_t(materials.data()) };
+    }
 }
 
 // Computes a hash for the material data to enable efficient lookups and caching.

@@ -5,11 +5,13 @@
 #include "../components/Node.hpp"
 #include "../components/Renderable.hpp"
 #include "../components/RigidBody.hpp"
+#include "../components/Settings.hpp"
 #include "../components/Static.hpp"
 #include "../components/Transform.hpp"
 #include "../components/Vehicle.hpp"
 #include "../components/VehicleController.hpp"
 #include "../components/Wheel.hpp"
+#include "../events/DirtySceneEvent.hpp"
 #include "TimeService.hpp"
 
 using namespace entt::literals;
@@ -169,6 +171,8 @@ void SceneService::onAddModel(const AddModelEvent& event) {
             }
         }
     }
+
+    application().dispatcher().trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::Added, isStatic });
 }
 
 void SceneService::onAddNodeName(const AddNodeNameEvent& event) {
@@ -195,6 +199,7 @@ void SceneService::onChangeNodeName(const ChangeNodeNameEvent& event) {
 void SceneService::onDeleteNode(const DeleteNodeEvent& event) {
     auto& registry = entityRegistry();
 
+    auto hasStatics    = false;
     auto parent        = registry.get<Node>(event.entity).parent;
     auto& parentChilds = registry.get<Node>(parent).childs;
     parentChilds.erase(std::find(parentChilds.begin(), parentChilds.end(), event.entity));
@@ -214,8 +219,13 @@ void SceneService::onDeleteNode(const DeleteNodeEvent& event) {
                 _nodes.erase(it);
             }
         }
+        if (!hasStatics && registry.any_of<Static>(entity)) {
+            hasStatics = true;
+        }
         registry.destroy(entity);
     }
+
+    application().dispatcher().trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::Deleted, hasStatics });
 }
 
 void SceneService::onDeleteNodeByName(const DeleteNodeByNameEvent& event) {
@@ -224,27 +234,29 @@ void SceneService::onDeleteNodeByName(const DeleteNodeByNameEvent& event) {
     }
 }
 
-void SceneService::onTransformNode(const TransformNodeEvent& event) {
+void SceneService::onMoveNode(const MoveNodeEvent& event) {
+    auto hasStatics = false;
     auto& transform = entityRegistry().get<Transform>(event.entity);
     if (!_transformChanges.contains(event.entity)) {
         auto parent = entityRegistry().get<Node>(event.entity).parent;
-        auto parentMatrix = parent != entt::null
-            ? entityRegistry().get<Transform>(parent).matrix
-            : glm::identity<glm::mat4>();
-        auto parentScale = parent != entt::null
-            ? entityRegistry().get<Transform>(parent).scale
-            : glm::vec3(1.0f);
-        
+        auto parentMatrix =
+            parent != entt::null ? entityRegistry().get<Transform>(parent).matrix : glm::identity<glm::mat4>();
+        auto parentScale = parent != entt::null ? entityRegistry().get<Transform>(parent).scale : glm::vec3(1.0f);
+
         std::queue<std::tuple<entt::entity, glm::mat4, glm::vec3>> visit;
         visit.emplace(event.entity, glm::inverse(parentMatrix), 1.0f / parentScale);
-        
+
         while (!visit.empty()) {
             auto [entity, parentInvOldMatrix, parentInvOldScale] = visit.front();
             visit.pop();
-            
+
             if (auto it = _transformChanges.find(entity); it == _transformChanges.end()) {
-                auto& t = entityRegistry().get<Transform>(entity);
-                t.prevMatrix = t.matrix;
+                if (!hasStatics && entityRegistry().any_of<Static>(entity)) {
+                    hasStatics = true;
+                }
+
+                auto& t                   = entityRegistry().get<Transform>(entity);
+                t.prevMatrix              = t.matrix;
                 _transformChanges[entity] = { parentInvOldMatrix, parentInvOldScale };
                 if (!event.transformChilds) {
                     break;
@@ -260,6 +272,8 @@ void SceneService::onTransformNode(const TransformNodeEvent& event) {
     }
     transform.matrix = calcMatrix(event.position, event.rotation, event.scale);
     transform.scale  = event.scale;
+
+    application().dispatcher().trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::Moved, hasStatics });
 }
 
 void SceneService::checkAndAddNode(entt::entity entity, const Name& name) {
@@ -294,11 +308,11 @@ void SceneService::start() {
     application().dispatcher().sink<ChangeNodeNameEvent>().connect<&SceneService::onChangeNodeName>(*this);
     application().dispatcher().sink<DeleteNodeEvent>().connect<&SceneService::onDeleteNode>(*this);
     application().dispatcher().sink<DeleteNodeByNameEvent>().connect<&SceneService::onDeleteNodeByName>(*this);
-    application().dispatcher().sink<TransformNodeEvent>().connect<&SceneService::onTransformNode>(*this);
+    application().dispatcher().sink<MoveNodeEvent>().connect<&SceneService::onMoveNode>(*this);
 }
 
 void SceneService::stop() {
-    application().dispatcher().sink<TransformNodeEvent>().disconnect(this);
+    application().dispatcher().sink<MoveNodeEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeByNameEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeEvent>().disconnect(this);
     application().dispatcher().sink<ChangeNodeNameEvent>().disconnect(this);
@@ -310,7 +324,7 @@ void SceneService::stop() {
 
 void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
     updateTransformations();
-    
+
     _models.clear();
     auto view = entityRegistry().view<Camera>();
 
@@ -355,17 +369,14 @@ void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
 void SceneService::updateTransformations() {
     for (const auto& [entity, inv] : _transformChanges) {
         auto parent = entityRegistry().get<Node>(entity).parent;
-        auto parentMatrix = parent != entt::null
-            ? entityRegistry().get<Transform>(parent).matrix
-            : glm::identity<glm::mat4>();
-        auto parentScale = parent != entt::null
-            ? entityRegistry().get<Transform>(parent).scale
-            : glm::vec3(1.0f);
-        auto& transform = entityRegistry().get<Transform>(entity);
+        auto parentMatrix =
+            parent != entt::null ? entityRegistry().get<Transform>(parent).matrix : glm::identity<glm::mat4>();
+        auto parentScale       = parent != entt::null ? entityRegistry().get<Transform>(parent).scale : glm::vec3(1.0f);
+        auto& transform        = entityRegistry().get<Transform>(entity);
         const auto localMatrix = inv.invParentMatrix * transform.matrix;
         const auto localScale  = inv.invParentScale * transform.scale;
-        transform.matrix = parentMatrix * localMatrix;
-        transform.scale  = parentScale * localScale;
+        transform.matrix       = parentMatrix * localMatrix;
+        transform.scale        = parentScale * localScale;
         entityRegistry().replace<Transform>(entity, transform);
         /*if (entityRegistry().any_of<Static>(entity)) {
             if (auto rigidBody = entityRegistry().try_get<RigidBody>(entity)) {
@@ -374,7 +385,7 @@ void SceneService::updateTransformations() {
                 entityRegistry().emplace<RigidBody>(entity, body);
             }
         } else {
-            
+
         }*/
     }
     _transformChanges.clear();
