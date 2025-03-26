@@ -241,15 +241,15 @@ static void appendMesh(Cluster& cluster, Cache& cache, Model& model, const aiSce
     while (meshLods.lodCount < std::size(meshLods.lods)) {
         auto& lod = meshLods.lods[meshLods.lodCount++];
 
-        const auto primitiveOffset = cluster.primitiveIndices.size();
+        const auto indexOffset = cluster.indices.size();
 
         for (unsigned int i = 0; i < indices.size(); ++i) {
-            cluster.primitiveIndices.push_back(indices[i]);
+            cluster.indices.push_back(indices[i]);
         }
 
-        lod.primitiveOffset = primitiveOffset;
-        lod.primitiveCount  = indices.size();
-        lod.lodError        = lodError * lodScale;
+        lod.indexOffset = indexOffset;
+        lod.indexCount  = indices.size();
+        lod.lodError    = lodError * lodScale;
 
         if (meshLods.lodCount < std::size(meshLods.lods)) {
             size_t nextIndicesTarget = size_t(double(indices.size()) * 0.75);

@@ -20,8 +20,8 @@ struct ConvexHullCollider {
 
 struct Cluster {
     std::vector<VertexNonCompressed> vertices;
+    std::vector<uint32_t> indices;
     std::vector<MeshNonCompressed> meshes;
-    std::vector<uint32_t> primitiveIndices;
     std::vector<MeshCollider> meshColliders;
     std::vector<ConvexHullCollider> convexHullColliders;
 };

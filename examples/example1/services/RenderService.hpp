@@ -60,9 +60,6 @@ public:
     void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
 
 protected:
-    // Threshold for rebuilding the cluster after deletions
-    static constexpr gerium_uint32_t deletionsToUpdateCluster = 10;
-
     // Represents the geometry data for the current scene, including vertices, indices, and meshes.
     struct ClusterData {
         Buffer vertices;  // Linear vertex data for all geometry
@@ -78,14 +75,14 @@ protected:
             gerium_uint32_t meshIndex; // Index of the mesh in the cluster
         };
 
-        std::vector<Node> indices;  // List of node-to-mesh mappings
-        gerium_uint32_t references; // Counting the number of instances
+        std::vector<Node> indices; // List of node-to-mesh mappings
     };
 
     // Adds a rendering pass to the frame graph.
     template <typename RP, typename... Args>
     void addPass(Args&&... args);
 
+    // Marks statics as changed
     void onDirtyScene(const DirtySceneEvent& event);
 
     // Lifecycle methods for starting, stopping, and updating the render service.
@@ -93,18 +90,16 @@ protected:
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
-    void reloadCluster();                       // Reload cluster
+    void loadCluster();                         // Load all geometry
     void createCluster(const Cluster& cluster); // Creates a new cluster from the provided geometry
-    void createStaticInstances();               // Creates static instances (e.g., non-moving objects)
+    void uploadCluster(std::span<const gerium_uint8_t> vertices,
+                       std::span<const gerium_uint8_t> indices,
+                       std::span<const gerium_uint8_t> meshes);
 
-    void updateCluster();          // Updates the cluster data (e.g., after deletions or changes)
     void updateActiveSceneData();  // Updates scene data (e.g., camera matrices)
+    void updateStaticInstances();  // Update static instances (e.g., non-moving objects)
     void updateDynamicInstances(); // Updates dynamic instances (e.g., moving objects)
     void updateInstancesData();    // Updates bindings of instances
-
-    // Check for update cluster or static instances
-    bool isNeedUpdateCluster();
-    bool isNeedUpdateStatics() const;
 
     // Helper methods for managing instances and materials:
     // - getInstances: Retrieves instances (static or dynamic).
@@ -121,6 +116,7 @@ protected:
     gerium_uint32_t getOrEmplaceTechnique(const MaterialData& material);
     gerium_uint32_t getOrEmplaceMaterial(const MaterialData& material, std::vector<MaterialNonCompressed>& materials);
 
+    // Returns the size and a pointer to the data.
     std::pair<gerium_uint32_t, gerium_cdata_t> getInstanceData(std::vector<MeshInstance>& instances,
                                                                gerium_uint32_t maxCount);
     std::pair<gerium_uint32_t, gerium_cdata_t> getMaterialData(std::vector<MaterialNonCompressed>& materials,
@@ -167,9 +163,7 @@ protected:
     gerium_uint64_t _frame{};             // Absolute frame count
     gerium_uint16_t _width{};             // Current screen width
     gerium_uint16_t _height{};            // Current screen height
-    DirtyFlags _dirtyFlags{};
-    bool _isDirtyScene{ true };
-    bool _isDirtyStatics{ true };
+    bool _isDirtyStatics{};               // Statics changed
 
     // Resource management:
     ResourceManager _resourceManager{}; // Manages assets like textures, buffers, etc

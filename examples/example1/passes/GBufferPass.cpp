@@ -157,7 +157,7 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
             if (draws.size() <= commandIndex || draws.size() <= index) {
                 draws.resize(std::max(commandIndex, index) + 1);
             }
-            draws[commandIndex].vertexCount   = meshes[meshIndex].lods[lodIndex].primitiveCount;
+            draws[commandIndex].vertexCount   = meshes[meshIndex].lods[lodIndex].indexCount;
             draws[commandIndex].instanceCount = 1;
             draws[commandIndex].firstVertex   = 0;
             draws[commandIndex].firstInstance = index;

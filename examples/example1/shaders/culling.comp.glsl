@@ -61,7 +61,7 @@ void main() {
 
         uint commandIndex = instance.technique * MAX_INSTANCES_PER_TECHNIQUE + atomicAdd(commandCounts[instance.technique], 1);
 
-        commands[commandIndex].vertexCount   = meshes[meshIndex].lods[lodIndex].primitiveCount;
+        commands[commandIndex].vertexCount   = meshes[meshIndex].lods[lodIndex].indexCount;
         commands[commandIndex].instanceCount = 1;
         commands[commandIndex].firstVertex   = 0;
         commands[commandIndex].firstInstance = index;

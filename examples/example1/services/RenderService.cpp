@@ -37,10 +37,9 @@ void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t comma
 }
 
 void RenderService::onDirtyScene(const DirtySceneEvent& event) {
-    _dirtyFlags   = event.falgs;
-    _isDirtyScene = (event.falgs & DirtyFlags::Added) == DirtyFlags::Added ||
-                    (event.falgs & DirtyFlags::Deleted) == DirtyFlags::Deleted;
-    _isDirtyStatics = event.hasStatics;
+    if (event.hasStatics) {
+        _isDirtyStatics = true;
+    }
 }
 
 // Initializes the RenderService, setting up the renderer, frame graph, and resources.
@@ -48,7 +47,7 @@ void RenderService::start() {
     // We will explicitly set some parameters necessary, which are sufficient
     // for this example. If the option is not set, the default value will be used
     gerium_renderer_options_t options{};
-    options.app_version               = GERIUM_VERSION_ENCODE(1, 0, 0);
+    options.app_version               = entityRegistry().ctx().get<Settings>().version;
     options.command_buffers_per_frame = 5;
     options.descriptor_sets_pool_size = 128;
     options.descriptor_pool_elements  = 128;
@@ -153,7 +152,11 @@ void RenderService::start() {
     _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
     gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
 
+    // Subscribe to scene change events
     application().dispatcher().sink<DirtySceneEvent>().connect<&RenderService::onDirtyScene>(*this);
+
+    // Load all geometry into the SSBO linear buffer
+    loadCluster();
 }
 
 // Cleans up resources and shuts down the RenderService.
@@ -246,13 +249,10 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     _resourceManager.update(elapsedMs);
 
     // Update GPU resources as needed:
-    updateCluster();          // Update the cluster data if geometry or statics have changed.
     updateActiveSceneData();  // Update scene data (e.g., camera matrices).
+    updateStaticInstances();  // Update static instances (e.g., non-moving objects).
     updateDynamicInstances(); // Update dynamic instances (e.g., moving objects).
     updateInstancesData();    // Bind instance data to the descriptor set for rendering.
-
-    _isDirtyScene   = false;
-    _isDirtyStatics = false;
 
     // Execute the frame graph to render the current frame.
     gerium_renderer_render(_renderer, _frameGraph);
@@ -264,60 +264,23 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     }
 }
 
-// Reloads the cluster by loading models and creating GPU buffers.
-void RenderService::reloadCluster() {
-    _modelsInCluster.clear(); // Clear the current model indices.
-
+void RenderService::loadCluster() {
     Cluster cluster;
-    std::map<entt::hashed_string, Model> models;
+    for (const auto& modelId : modelIds) {
+        const auto model = loadModel(cluster, modelId);
 
-    // Helper function to load a model and add its meshes to the cluster.
-    auto getModel = [this, &cluster, &models](const entt::hashed_string& modelId) -> const Model& {
-        if (auto it = models.find(modelId); it != models.end()) {
-            return it->second;
-        }
-
-        // Load the model if it hasn't been loaded yet.
-        models[modelId] = loadModel(cluster, modelId);
-        auto& model     = models[modelId];
-        auto& indices   = _modelsInCluster[modelId].indices;
+        auto& indices = _modelsInCluster[modelId].indices;
 
         // Store the node and mesh indices for the model.
         for (const auto& mesh : model.meshes) {
             indices.emplace_back(mesh.nodeIndex, mesh.meshIndex);
         }
-        return model;
-    };
-
-    // Iterate over all Renderable entities and update their mesh indices.
-    auto& registry = entityRegistry();
-    for (auto entity : registry.view<Renderable>()) {
-        auto& renderable = registry.get<Renderable>(entity);
-        for (auto& mesh : renderable.meshes) {
-            const auto& model = getModel(mesh.model); // Load the model if necessary.
-            for (const auto& reloadMesh : model.meshes) {
-                if (reloadMesh.nodeIndex == mesh.node) {
-                    // Update the mesh index in the Renderable component.
-                    mesh.mesh = reloadMesh.meshIndex;
-                    break;
-                }
-            }
-        }
     }
 
     // If the cluster contains data, create GPU buffers for it.
-    if (!cluster.vertices.empty()) {
-        createCluster(cluster);
+    if (cluster.vertices.empty()) {
+        return;
     }
-}
-
-// Creates a GPU cluster from the provided geometry data, filling SSBO buffers with vertex, index, and mesh data.
-void RenderService::createCluster(const Cluster& cluster) {
-    // Clear references to old GPU cluster data.
-    _cluster = {};
-    _resourceManager.update(0); // Free up unused resources.
-
-    // If indirect draw count is not supported, store mesh data on the CPU for fallback rendering.
     if (!_drawIndirectCountSupported) {
         _compatMeshes = cluster.meshes;
     }
@@ -365,13 +328,12 @@ void RenderService::createCluster(const Cluster& cluster) {
 
     // Fill the GPU buffer with index data.
     {
-        _cluster.indices =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
-                                          false,
-                                          "cluster_indices",
-                                          (gerium_cdata_t) cluster.primitiveIndices.data(),
-                                          (gerium_uint32_t) (cluster.primitiveIndices.size() * sizeof(uint32_t)),
-                                          0);
+        _cluster.indices = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                         false,
+                                                         "cluster_indices",
+                                                         (gerium_cdata_t) cluster.indices.data(),
+                                                         (gerium_uint32_t) (cluster.indices.size() * sizeof(uint32_t)),
+                                                         0);
     }
 
     // Fill the GPU buffer with mesh data (e.g., vertex offsets, bounding boxes, LODs).
@@ -421,92 +383,6 @@ void RenderService::createCluster(const Cluster& cluster) {
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 0, _cluster.vertices);
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 1, _cluster.indices);
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 2, _cluster.meshes);
-}
-
-// Fills GPU SSBO buffers with static instances and their materials.
-// Static instances and materials do not change, so their allocation is done once at startup.
-void RenderService::createStaticInstances() {
-    // Clear previous instance and material buffers.
-    for (auto& buffer : _instances) {
-        buffer = {};
-    }
-    for (auto& buffer : _materials) {
-        buffer = {};
-    }
-
-    // Reset instance and material counters.
-    _staticInstancesCount  = 0;
-    _dynamicInstancesCount = 0;
-    _staticMaterialsCount  = 0;
-    _dynamicMaterialsCount = 0;
-
-    // Clear cached data for techniques, textures, and materials.
-    _techniques.clear();
-    _textures.clear();
-    _techniquesTable.clear();
-    _materialsTable.clear();
-    _dynamicMaterialData.clear();
-    _compatMaterials.clear();
-    _compatInstances.clear();
-
-    // Free up unused resources.
-    _resourceManager.update(0);
-
-    // Get static instances and index their materials.
-    std::vector<MeshInstance> instances;
-    std::vector<MaterialNonCompressed> materials;
-    getInstances(true, instances, materials);
-
-    // If indirect draw count is not supported, store instances on the CPU for fallback rendering.
-    if (!_drawIndirectCountSupported) {
-        _compatInstances = instances;
-    }
-
-    // If bindless textures are not supported, store the material on the CPU for fallback rendering.
-    if (!_bindlessSupported) {
-        _compatMaterials = materials;
-    }
-
-    // Save the number of static instances.
-    _staticInstancesCount = (gerium_uint32_t) instances.size();
-    _staticMaterialsCount = (gerium_uint32_t) materials.size();
-
-    std::vector<Material> tmp;
-    const auto [instSize, instData] = getInstanceData(instances, _staticInstancesCount + MAX_DYNAMIC_INSTANCES);
-    const auto [matSize, matData] =
-        getMaterialData(materials, tmp, _staticMaterialsCount, _staticMaterialsCount + MAX_DYNAMIC_MATERIALS);
-
-    for (size_t i = 0; i < _instances.size(); ++i) {
-        const auto name = "instances_" + std::to_string(i);
-        const auto hash = entt::hashed_string{ name.c_str(), name.length() };
-        _instances[i] =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, instData, instSize, 0);
-    }
-
-    for (size_t i = 0; i < _materials.size(); ++i) {
-        const auto name = "materials_" + std::to_string(i);
-        const auto hash = entt::hashed_string{ name.c_str(), name.length() };
-        _materials[i] =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, matData, matSize, 0);
-    }
-}
-
-// This method checks whether the entire cluster needs to be updated (and
-// starts recreating it if necessary). It also checks whether static data
-// needs to be updated (and recreates it if necessary).
-//
-// Basically, the cluster and statics will only update in developer mode
-// when creating a map, during gameplay, the statics will not change
-void RenderService::updateCluster() {
-    // Reload the cluster if necessary.
-    if (isNeedUpdateCluster()) {
-        reloadCluster();
-    }
-
-    // Update static instances if necessary.
-    if (isNeedUpdateStatics()) {
-        createStaticInstances();
-    }
 }
 
 // Updates the _activeScene UBO buffer with camera data.
@@ -560,6 +436,70 @@ void RenderService::updateActiveSceneData() {
     }
 }
 
+// Fills GPU SSBO buffers with static instances and their materials.
+// Static instances and materials do not change, so their allocation is done once at startup.
+void RenderService::updateStaticInstances() {
+    if (!_isDirtyStatics) {
+        return;
+    }
+    _isDirtyStatics = false;
+
+    // Clear previous instance and material buffers.
+    for (auto& buffer : _instances) {
+        buffer = {};
+    }
+    for (auto& buffer : _materials) {
+        buffer = {};
+    }
+
+    // Clear cached data for techniques, textures, and materials.
+    _techniques.clear();
+    _techniquesTable.clear();
+    _materialsTable.clear();
+    _dynamicMaterialData.clear();
+    _compatMaterials.clear();
+    _compatInstances.clear();
+
+    // Free up unused resources.
+    _resourceManager.update(0);
+    _textures.clear();
+
+    // Get static instances and index their materials.
+    std::vector<MeshInstance> instances;
+    std::vector<MaterialNonCompressed> materials;
+    getInstances(true, instances, materials);
+
+    // If indirect draw count is not supported, store instances on the CPU for fallback rendering.
+    if (!_drawIndirectCountSupported) {
+        _compatInstances = instances;
+    }
+
+    // If bindless textures are not supported, store the material on the CPU for fallback rendering.
+    if (!_bindlessSupported) {
+        _compatMaterials = materials;
+    }
+
+    // Save the number of static instances.
+    _staticInstancesCount = (gerium_uint32_t) instances.size();
+    _staticMaterialsCount = (gerium_uint32_t) materials.size();
+
+    std::vector<Material> tmp;
+    const auto maxMaterials   = _staticMaterialsCount + MAX_DYNAMIC_MATERIALS;
+    const auto maxInstances   = _staticInstancesCount + MAX_DYNAMIC_INSTANCES;
+    const auto [mSize, mData] = getMaterialData(materials, tmp, _staticMaterialsCount, maxMaterials);
+    const auto [iSize, iData] = getInstanceData(instances, maxInstances);
+    for (size_t i = 0; i < _materials.size(); ++i) {
+        const auto name = "materials_" + std::to_string(i);
+        const auto hash = entt::hashed_string{ name.c_str(), name.length() };
+        _materials[i]   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, mData, mSize, 0);
+    }
+    for (size_t i = 0; i < _instances.size(); ++i) {
+        const auto name = "instances_" + std::to_string(i);
+        const auto hash = entt::hashed_string{ name.c_str(), name.length() };
+        _instances[i]   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, iData, iSize, 0);
+    }
+}
+
 // Updates dynamic instances, fills dynamic GPU buffers (optimal for writing every frame
 // from the CPU side) with materials and instances.
 void RenderService::updateDynamicInstances() {
@@ -574,33 +514,24 @@ void RenderService::updateDynamicInstances() {
     // If there are dynamic materials, create a GPU buffer for them.
     if (_dynamicMaterialsCount) {
         std::vector<Material> tmp;
-        const auto [matSize, matData] =
-            getMaterialData(_dynamicMaterialData, tmp, _dynamicMaterialsCount, _dynamicMaterialsCount);
-        _dynamicMaterials =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", matData, matSize, 0);
+        auto [size, data] = getMaterialData(_dynamicMaterialData, tmp, _dynamicMaterialsCount, _dynamicMaterialsCount);
+        _dynamicMaterials = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", data, size, 0);
     }
 
     // If there are dynamic instances, create a GPU buffer for them.
     if (_dynamicInstancesCount) {
-        const auto [instSize, instData] = getInstanceData(instances, _dynamicInstancesCount);
-        _dynamicInstances =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", instData, instSize, 0);
+        const auto [size, data] = getInstanceData(instances, _dynamicInstancesCount);
+        _dynamicInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", data, size, 0);
     }
 
     // If indirect draw count is not supported, store dynamic instances on the CPU side for fallback rendering.
     if (!_drawIndirectCountSupported) {
-        _compatInstances.resize(_staticInstancesCount + _dynamicInstancesCount);
-        for (gerium_uint32_t i = 0; i < _dynamicInstancesCount; ++i) {
-            _compatInstances[_staticInstancesCount + i] = instances[i];
-        }
+        _compatInstances.insert(_compatInstances.end(), instances.begin(), instances.end());
     }
 
     // If bindless textures are not supported, store the material on the CPU for fallback rendering.
     if (!_bindlessSupported) {
-        _compatMaterials.resize(_staticMaterialsCount + _dynamicMaterialsCount);
-        for (gerium_uint32_t i = 0; i < _dynamicMaterialsCount; ++i) {
-            _compatMaterials[_staticMaterialsCount + i] = _dynamicMaterialData[i];
-        }
+        _compatMaterials.insert(_compatMaterials.end(), _dynamicMaterialData.begin(), _dynamicMaterialData.end());
     }
 }
 
@@ -615,48 +546,6 @@ void RenderService::updateInstancesData() {
     gerium_renderer_bind_buffer(_renderer, _instancesData, 2, _instances[_frameIndex]);
 }
 
-bool RenderService::isNeedUpdateCluster() {
-    if (_isDirtyScene) {
-        for (auto& [_, meshIndices] : _modelsInCluster) {
-            meshIndices.references = 0;
-        }
-
-        for (auto [_, renderable] : entityRegistry().view<Renderable>().each()) {
-            for (auto& mesh : renderable.meshes) {
-                if (auto it = _modelsInCluster.find(mesh.model); it != _modelsInCluster.end()) {
-                    ++it->second.references;
-                    for (const auto& index : it->second.indices) {
-                        if (mesh.node == index.nodeIndex) {
-                            mesh.mesh = index.meshIndex;
-                            break;
-                        }
-                    }
-                } else {
-                    _isDirtyStatics = true;
-                    return true;
-                }
-            }
-        }
-
-        gerium_uint32_t deleted = 0;
-        for (const auto& [_, meshIndices] : _modelsInCluster) {
-            if (meshIndices.references == 0) {
-                ++deleted;
-            }
-        }
-
-        if (deleted >= deletionsToUpdateCluster) {
-            _isDirtyStatics = true;
-            return true;
-        }
-    }
-    return false;
-}
-
-bool RenderService::isNeedUpdateStatics() const {
-    return _isDirtyStatics;
-}
-
 // Returns a list of static or dynamic instances (meshes with transforms) from the scene.
 void RenderService::getInstances(bool isStatic,
                                  std::vector<MeshInstance>& instances,
@@ -664,9 +553,23 @@ void RenderService::getInstances(bool isStatic,
     // Helper lambda to iterate over entities and add their instances to the list.
     auto emplace = [this, &instances, &materials](auto&& view) {
         for (auto entity : view) {
-            auto& renderable = view.get<Renderable>(entity);
-            auto& transform  = view.get<Transform>(entity);
-            emplaceInstance(renderable, transform, instances, materials);
+            auto& renderable  = view.get<Renderable>(entity);
+            auto& transform   = view.get<Transform>(entity);
+            auto existsMeshes = false;
+            for (auto& mesh : renderable.meshes) {
+                if (auto it = _modelsInCluster.find(mesh.model); it != _modelsInCluster.end()) {
+                    for (const auto& index : it->second.indices) {
+                        if (mesh.node == index.nodeIndex) {
+                            mesh.mesh    = index.meshIndex; // reassign mesh index
+                            existsMeshes = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (existsMeshes) {
+                emplaceInstance(renderable, transform, instances, materials);
+            }
         }
     };
 

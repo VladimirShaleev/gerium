@@ -39,9 +39,9 @@ struct SHADER_ALIGN MeshInstance {
 
 // MeshLod contains level of detail (LOD) data for a mesh.
 struct MeshLod {
-    uint  primitiveOffset; // Offset to the first primitive in the LOD
-    uint  primitiveCount;  // Number of primitives in the LOD
-    float lodError;        // Error metric for this LOD (used for LOD selection)
+    uint  indexOffset; // Offset to the first primitive in the LOD
+    uint  indexCount;  // Number of indices in the LOD
+    float lodError;    // Error metric for this LOD (used for LOD selection)
 };
 
 // VertexNonCompressed contains uncompressed vertex data.

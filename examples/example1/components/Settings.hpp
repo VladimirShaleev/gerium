@@ -16,6 +16,7 @@ struct Settings {
         Scale
     };
 
+    gerium_uint32_t version{ GERIUM_VERSION_ENCODE(1, 0, 0) };
     bool showProfiler{};
     bool developerMode{ true };
     bool transforming{ false };

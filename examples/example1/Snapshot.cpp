@@ -297,7 +297,6 @@ std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry,
                                            std::basic_string<std::byte>((const std::byte*) value.data(), value.size()));
             }
             SnapshotCapnproto snapshotCapnproto{ std::move(serviceStates), std::move(snapshotData) };
-            auto schema = rfl::capnproto::to_schema2<SnapshotCapnproto>().str();
             return rfl::capnproto::write2(snapshotCapnproto);
         }
         default: {

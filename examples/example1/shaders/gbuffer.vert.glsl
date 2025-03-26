@@ -36,7 +36,7 @@ void main() {
 
     MeshLod mesh = meshes[instance.mesh].lods[lodIndex];
 
-    uint index    = indices[mesh.primitiveOffset + gl_VertexIndex];
+    uint index    = indices[mesh.indexOffset + gl_VertexIndex];
     uint vertex   = meshes[instance.mesh].vertexOffset + index;
     vec4 position = vec4(vertices[vertex].px, vertices[vertex].py, vertices[vertex].pz, 1.0);
     
