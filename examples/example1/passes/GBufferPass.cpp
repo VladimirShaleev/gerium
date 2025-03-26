@@ -78,7 +78,9 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
         gerium_command_buffer_bind_descriptor_set(commandBuffer, sceneData, SCENE_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, clusterData, CLUSTER_DATA_SET);
         gerium_command_buffer_bind_descriptor_set(commandBuffer, instancesData, INSTANCES_DATA_SET);
-        gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().textures(), TEXTURES_SET);
+        if (renderService().bindlessSupported()) {
+            gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().textures(), TEXTURES_SET);
+        }
 
         // If bindless textures and indirect draw are supported, issue a single indirect draw call.
         if (renderService().bindlessSupported() && renderService().drawIndirectSupported()) {
@@ -140,8 +142,8 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
         visible      = visible && center.z + radius > scene.farNear.y && center.z - radius < scene.farNear.x;
 
         if (visible) {
-            glm::uint lodCount = meshes[meshIndex].lodCount;
-            glm::uint lodIndex = 0;
+            uint lodCount = meshes[meshIndex].lodCount;
+            uint lodIndex = 0;
 
             auto distance  = glm::max(glm::length(center) - radius, 0.0f);
             auto threshold = distance * scene.lodTarget / instance.scale;
@@ -172,7 +174,6 @@ GBufferPass::CompatCommands GBufferPass::compatCullingInstances() {
             draws[index].lodIndex = lodIndex;
         }
     }
-
     return { draws, drawCounts };
 }
 

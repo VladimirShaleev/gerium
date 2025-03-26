@@ -36,6 +36,7 @@ void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t comma
     }
 }
 
+// Marks statics as changed
 void RenderService::onDirtyScene(const DirtySceneEvent& event) {
     if (event.hasStatics) {
         _isDirtyStatics = true;
@@ -199,7 +200,6 @@ void RenderService::stop() {
         _activeScene     = {};
 
         // Clear cluster data.
-        _modelsInCluster.clear();
         _cluster = {};
 
         // Clear bindless textures and the empty texture.
@@ -268,114 +268,55 @@ void RenderService::loadCluster() {
     Cluster cluster;
     for (const auto& modelId : modelIds) {
         const auto model = loadModel(cluster, modelId);
-
-        auto& indices = _modelsInCluster[modelId].indices;
-
+        auto& nodes      = _cluster.models[modelId].nodes;
         // Store the node and mesh indices for the model.
         for (const auto& mesh : model.meshes) {
-            indices.emplace_back(mesh.nodeIndex, mesh.meshIndex);
+            nodes.emplace_back(mesh.nodeIndex, mesh.meshIndex);
         }
     }
 
-    // If the cluster contains data, create GPU buffers for it.
+    // Skip empty clusters
     if (cluster.vertices.empty()) {
         return;
     }
-    if (!_drawIndirectCountSupported) {
+
+    // If indirect draw count or bindless textures is not supported, store mesh data on
+    // the CPU for fallback rendering.
+    if (!_isModernPipeline) {
         _compatMeshes = cluster.meshes;
     }
 
     // Fill the GPU buffer with vertex data.
     {
-        gerium_cdata_t data;
-        gerium_uint32_t size;
-        std::vector<Vertex> vertices;
-
-        // If 8-bit and 16-bit storage is supported, compress vertex data for efficiency.
-        if (_8and16BitStorageSupported) {
-            vertices.resize(cluster.vertices.size());
-            for (size_t i = 0; i < cluster.vertices.size(); ++i) {
-                const auto& v = cluster.vertices[i];
-                const auto n  = glm::vec3(v.nx, v.ny, v.nz) * 127.0f + 127.5f; // Normalize and quantize normals.
-                const auto t  = glm::vec3(v.tx, v.ty, v.tz) * 127.0f + 127.5f; // Normalize and quantize tangents.
-                const auto s  = v.ts < 0.0f ? -1 : 1;                          // Determine tangent sign.
-
-                vertices[i].px = meshopt_quantizeHalf(v.px); // Quantize vertex position.
-                vertices[i].py = meshopt_quantizeHalf(v.py);
-                vertices[i].pz = meshopt_quantizeHalf(v.pz);
-                vertices[i].nx = uint8_t(n.x); // Store quantized normal.
-                vertices[i].ny = uint8_t(n.y);
-                vertices[i].nz = uint8_t(n.z);
-                vertices[i].tx = uint8_t(t.x); // Store quantized tangent.
-                vertices[i].ty = uint8_t(t.y);
-                vertices[i].tz = uint8_t(t.z);
-                vertices[i].ts = int8_t(s);                  // Store tangent sign.
-                vertices[i].tu = meshopt_quantizeHalf(v.tu); // Quantize texture coordinates.
-                vertices[i].tv = meshopt_quantizeHalf(v.tv);
-            }
-            data = (gerium_cdata_t) vertices.data();
-            size = (gerium_uint32_t) (vertices.size() * sizeof(vertices[0]));
-        } else {
-            // Use uncompressed vertex data if compression is not supported.
-            data = (gerium_cdata_t) cluster.vertices.data();
-            size = (gerium_uint32_t) (cluster.vertices.size() * sizeof(cluster.vertices[0]));
-        }
-
-        // Create a GPU buffer for vertex data.
-        _cluster.vertices =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "cluster_vertices", data, size, 0);
+        const auto vertices = prepareVertices(cluster);
+        _cluster.vertices   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                          false,
+                                                          "cluster_vertices",
+                                                          (gerium_cdata_t) vertices.data(),
+                                                          (gerium_uint32_t) vertices.size(),
+                                                          0);
     }
 
     // Fill the GPU buffer with index data.
     {
-        _cluster.indices = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+        const auto indices = prepareIndices(cluster);
+        _cluster.indices   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
                                                          false,
                                                          "cluster_indices",
-                                                         (gerium_cdata_t) cluster.indices.data(),
-                                                         (gerium_uint32_t) (cluster.indices.size() * sizeof(uint32_t)),
+                                                         (gerium_cdata_t) indices.data(),
+                                                         (gerium_uint32_t) indices.size(),
                                                          0);
     }
 
     // Fill the GPU buffer with mesh data (e.g., vertex offsets, bounding boxes, LODs).
     {
-        gerium_cdata_t data;
-        gerium_uint32_t size;
-        std::vector<Mesh> meshes;
-
-        // If 8-bit and 16-bit storage is supported, compress mesh data for efficiency.
-        if (_8and16BitStorageSupported) {
-            meshes.resize(cluster.meshes.size());
-            for (size_t i = 0; i < cluster.meshes.size(); ++i) {
-                const auto& m = cluster.meshes[i];
-
-                meshes[i].center[0]    = meshopt_quantizeHalf(m.center[0]); // Quantize bounding sphere center.
-                meshes[i].center[1]    = meshopt_quantizeHalf(m.center[1]);
-                meshes[i].center[2]    = meshopt_quantizeHalf(m.center[2]);
-                meshes[i].radius       = meshopt_quantizeHalf(m.radius);     // Quantize bounding sphere radius.
-                meshes[i].bboxMin[0]   = meshopt_quantizeHalf(m.bboxMin[0]); // Quantize AABB min bounds.
-                meshes[i].bboxMin[1]   = meshopt_quantizeHalf(m.bboxMin[1]);
-                meshes[i].bboxMin[2]   = meshopt_quantizeHalf(m.bboxMin[2]);
-                meshes[i].bboxMax[0]   = meshopt_quantizeHalf(m.bboxMax[0]); // Quantize AABB max bounds.
-                meshes[i].bboxMax[1]   = meshopt_quantizeHalf(m.bboxMax[1]);
-                meshes[i].bboxMax[2]   = meshopt_quantizeHalf(m.bboxMax[2]);
-                meshes[i].vertexOffset = m.vertexOffset;      // Store vertex offset.
-                meshes[i].vertexCount  = m.vertexCount;       // Store vertex count.
-                meshes[i].lodCount     = uint8_t(m.lodCount); // Store LOD count.
-                for (int l = 0; l < std::size(m.lods); ++l) {
-                    meshes[i].lods[l] = m.lods[l]; // Store LOD data.
-                }
-            }
-            data = (gerium_cdata_t) meshes.data();
-            size = (gerium_uint32_t) (meshes.size() * sizeof(meshes[0]));
-        } else {
-            // Use uncompressed mesh data if compression is not supported.
-            data = (gerium_cdata_t) cluster.meshes.data();
-            size = (gerium_uint32_t) (cluster.meshes.size() * sizeof(cluster.meshes[0]));
-        }
-
-        // Create a GPU buffer for mesh data.
-        _cluster.meshes =
-            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, "cluster_meshes", data, size, 0);
+        const auto meshes = prepareMeshes(cluster);
+        _cluster.meshes   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT,
+                                                        false,
+                                                        "cluster_meshes",
+                                                        (gerium_cdata_t) meshes.data(),
+                                                        (gerium_uint32_t) meshes.size(),
+                                                        0);
     }
 
     // Create a descriptor set for the cluster data and bind the vertex, index, and mesh buffers.
@@ -383,6 +324,81 @@ void RenderService::loadCluster() {
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 0, _cluster.vertices);
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 1, _cluster.indices);
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 2, _cluster.meshes);
+}
+
+std::vector<gerium_uint8_t> RenderService::prepareMeshes(const Cluster& cluster) const {
+    std::vector<gerium_uint8_t> buffer;
+    // If 8-bit and 16-bit storage is supported, compress mesh data for efficiency.
+    if (_8and16BitStorageSupported) {
+        size_t offset = 0;
+        buffer.resize(cluster.meshes.size() * sizeof(Mesh));
+        for (const auto& m : cluster.meshes) {
+            Mesh result;
+            result.center[0]    = meshopt_quantizeHalf(m.center[0]); // Quantize bounding sphere center.
+            result.center[1]    = meshopt_quantizeHalf(m.center[1]);
+            result.center[2]    = meshopt_quantizeHalf(m.center[2]);
+            result.radius       = meshopt_quantizeHalf(m.radius);     // Quantize bounding sphere radius.
+            result.bboxMin[0]   = meshopt_quantizeHalf(m.bboxMin[0]); // Quantize AABB min bounds.
+            result.bboxMin[1]   = meshopt_quantizeHalf(m.bboxMin[1]);
+            result.bboxMin[2]   = meshopt_quantizeHalf(m.bboxMin[2]);
+            result.bboxMax[0]   = meshopt_quantizeHalf(m.bboxMax[0]); // Quantize AABB max bounds.
+            result.bboxMax[1]   = meshopt_quantizeHalf(m.bboxMax[1]);
+            result.bboxMax[2]   = meshopt_quantizeHalf(m.bboxMax[2]);
+            result.vertexOffset = m.vertexOffset;      // Store vertex offset.
+            result.vertexCount  = m.vertexCount;       // Store vertex count.
+            result.lodCount     = uint8_t(m.lodCount); // Store LOD count.
+            for (int l = 0; l < std::size(m.lods); ++l) {
+                result.lods[l] = m.lods[l]; // Store LOD data.
+            }
+            memcpy(buffer.data() + offset, &result, sizeof(result));
+            offset += sizeof(result);
+        }
+    } else {
+        // Use uncompressed mesh data if compression is not supported.
+        buffer.resize(cluster.meshes.size() * sizeof(cluster.meshes[0]));
+        memcpy(buffer.data(), cluster.meshes.data(), buffer.size());
+    }
+    return buffer;
+}
+
+std::vector<gerium_uint8_t> RenderService::prepareVertices(const Cluster& cluster) const {
+    std::vector<gerium_uint8_t> buffer;
+    // If 8-bit and 16-bit storage is supported, compress vertex data for efficiency.
+    if (_8and16BitStorageSupported) {
+        size_t offset = 0;
+        buffer.resize(cluster.vertices.size() * sizeof(Vertex));
+        for (const auto& v : cluster.vertices) {
+            const auto n = glm::vec3(v.nx, v.ny, v.nz) * 127.0f + 127.5f; // Normalize and quantize normals.
+            const auto t = glm::vec3(v.tx, v.ty, v.tz) * 127.0f + 127.5f; // Normalize and quantize tangents.
+            const auto s = v.ts < 0.0f ? -1 : 1;                          // Determine tangent sign.
+
+            Vertex result;
+            result.px = meshopt_quantizeHalf(v.px); // Quantize vertex position.
+            result.py = meshopt_quantizeHalf(v.py);
+            result.pz = meshopt_quantizeHalf(v.pz);
+            result.nx = uint8_t(n.x); // Store quantized normal.
+            result.ny = uint8_t(n.y);
+            result.nz = uint8_t(n.z);
+            result.tx = uint8_t(t.x); // Store quantized tangent.
+            result.ty = uint8_t(t.y);
+            result.tz = uint8_t(t.z);
+            result.ts = int8_t(s);                  // Store tangent sign.
+            result.tu = meshopt_quantizeHalf(v.tu); // Quantize texture coordinates.
+            result.tv = meshopt_quantizeHalf(v.tv);
+            memcpy(buffer.data() + offset, &result, sizeof(result));
+            offset += sizeof(result);
+        }
+    } else {
+        // Use uncompressed vertices data if compression is not supported.
+        buffer.resize(cluster.vertices.size() * sizeof(cluster.vertices[0]));
+        memcpy(buffer.data(), cluster.vertices.data(), buffer.size());
+    }
+    return buffer;
+}
+
+std::span<const gerium_uint8_t> RenderService::prepareIndices(const Cluster& cluster) const {
+    return std::span{ (const gerium_uint8_t*) cluster.indices.data(),
+                      cluster.indices.size() * sizeof(cluster.indices[0]) };
 }
 
 // Updates the _activeScene UBO buffer with camera data.
@@ -430,8 +446,9 @@ void RenderService::updateActiveSceneData() {
     memcpy(data, &sceneData, sizeof(SceneData));
     gerium_renderer_unmap_buffer(_renderer, _activeScene);
 
-    // If indirect draw count is not supported, store the scene data on the CPU for fallback rendering.
-    if (!_drawIndirectCountSupported) {
+    // If indirect draw count or bindless textures is not supported, store the scene data
+    // on the CPU for fallback rendering.
+    if (!_isModernPipeline) {
         _compatSceneData = sceneData;
     }
 }
@@ -469,8 +486,9 @@ void RenderService::updateStaticInstances() {
     std::vector<MaterialNonCompressed> materials;
     getInstances(true, instances, materials);
 
-    // If indirect draw count is not supported, store instances on the CPU for fallback rendering.
-    if (!_drawIndirectCountSupported) {
+    // If indirect draw count or bindless textures is not supported, store instances on
+    // the CPU for fallback rendering.
+    if (!_isModernPipeline) {
         _compatInstances = instances;
     }
 
@@ -524,13 +542,16 @@ void RenderService::updateDynamicInstances() {
         _dynamicInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", data, size, 0);
     }
 
-    // If indirect draw count is not supported, store dynamic instances on the CPU side for fallback rendering.
-    if (!_drawIndirectCountSupported) {
+    // If indirect draw count or bindless textures is not supported, store dynamic instances on
+    // the CPU side for fallback rendering.
+    if (!_isModernPipeline) {
+        _compatInstances.resize(_staticInstancesCount);
         _compatInstances.insert(_compatInstances.end(), instances.begin(), instances.end());
     }
 
     // If bindless textures are not supported, store the material on the CPU for fallback rendering.
     if (!_bindlessSupported) {
+        _compatMaterials.resize(_staticMaterialsCount);
         _compatMaterials.insert(_compatMaterials.end(), _dynamicMaterialData.begin(), _dynamicMaterialData.end());
     }
 }
@@ -557,10 +578,10 @@ void RenderService::getInstances(bool isStatic,
             auto& transform   = view.get<Transform>(entity);
             auto existsMeshes = false;
             for (auto& mesh : renderable.meshes) {
-                if (auto it = _modelsInCluster.find(mesh.model); it != _modelsInCluster.end()) {
-                    for (const auto& index : it->second.indices) {
-                        if (mesh.node == index.nodeIndex) {
-                            mesh.mesh    = index.meshIndex; // reassign mesh index
+                if (auto it = _cluster.models.find(mesh.model); it != _cluster.models.end()) {
+                    for (const auto& node : it->second.nodes) {
+                        if (mesh.node == node.nodeIndex) {
+                            mesh.mesh    = node.meshIndex; // reassign mesh index
                             existsMeshes = true;
                             break;
                         }

@@ -60,22 +60,24 @@ public:
     void mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer);
 
 protected:
-    // Represents the geometry data for the current scene, including vertices, indices, and meshes.
-    struct ClusterData {
-        Buffer vertices;  // Linear vertex data for all geometry
-        Buffer indices;   // Linear index data for all geometry
-        Buffer meshes;    // Linear mesh and LOD data for all geometry
-        DescriptorSet ds; // Descriptor set for accessing these buffers
-    };
-
     // Represents the mapping between model nodes and their corresponding mesh indices.
-    struct MeshIndices {
+    struct ModelIndices {
         struct Node {
             gerium_sint32_t nodeIndex; // Index of the node in the model
             gerium_uint32_t meshIndex; // Index of the mesh in the cluster
         };
 
-        std::vector<Node> indices; // List of node-to-mesh mappings
+        std::vector<Node> nodes; // List of node-to-mesh mappings
+    };
+
+    // Represents the geometry data for the current scene, including vertices, indices, and meshes.
+    struct ClusterData {
+        typedef std::map<entt::hashed_string, ModelIndices> MapModelIndices;
+        MapModelIndices models; // Mapping of model names to mesh indices
+        Buffer vertices;        // Linear vertex data for all geometry
+        Buffer indices;         // Linear index data for all geometry
+        Buffer meshes;          // Linear mesh and LOD data for all geometry
+        DescriptorSet ds;       // Descriptor set for accessing these buffers
     };
 
     // Adds a rendering pass to the frame graph.
@@ -90,11 +92,11 @@ protected:
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
-    void loadCluster();                         // Load all geometry
-    void createCluster(const Cluster& cluster); // Creates a new cluster from the provided geometry
-    void uploadCluster(std::span<const gerium_uint8_t> vertices,
-                       std::span<const gerium_uint8_t> indices,
-                       std::span<const gerium_uint8_t> meshes);
+    // Load all geometry
+    void loadCluster();
+    std::vector<gerium_uint8_t> prepareMeshes(const Cluster& cluster) const;
+    std::vector<gerium_uint8_t> prepareVertices(const Cluster& cluster) const;
+    std::span<const gerium_uint8_t> prepareIndices(const Cluster& cluster) const;
 
     void updateActiveSceneData();  // Updates scene data (e.g., camera matrices)
     void updateStaticInstances();  // Update static instances (e.g., non-moving objects)
@@ -177,8 +179,7 @@ protected:
     DescriptorSet _bindlessTextures{}; // Bindless texture array (if supported)
 
     // Geometry data:
-    ClusterData _cluster{};                                        // Current geometry data (vertices, indices, meshes)
-    std::map<entt::hashed_string, MeshIndices> _modelsInCluster{}; // Mapping of model names to mesh indices
+    ClusterData _cluster{}; // Current geometry data (vertices, indices, meshes)
 
     // Scene data:
     Buffer _activeScene{};            // GPU buffer for scene data (e.g., camera matrices)
@@ -266,12 +267,12 @@ inline bool RenderService::is8and16BitStorageSupported() const noexcept {
 }
 
 inline const SceneData& RenderService::compatSceneData() const noexcept {
-    assert(_drawIndirectCountSupported == false && "Only available if indirect rendering is not supported.");
+    assert(_isModernPipeline == false && "Only available if indirect rendering or bindless textures is not supported.");
     return _compatSceneData;
 }
 
 inline const std::vector<MeshNonCompressed>& RenderService::compatMeshes() const noexcept {
-    assert(_drawIndirectCountSupported == false && "Only available if indirect rendering is not supported.");
+    assert(_isModernPipeline == false && "Only available if indirect rendering or bindless textures is not supported.");
     return _compatMeshes;
 }
 
@@ -281,7 +282,7 @@ inline const std::vector<MaterialNonCompressed>& RenderService::compatMaterials(
 }
 
 inline const std::vector<MeshInstance>& RenderService::compatInstances() const noexcept {
-    assert(_drawIndirectCountSupported == false && "Only available if indirect rendering is not supported.");
+    assert(_isModernPipeline == false && "Only available if indirect rendering or bindless textures is not supported.");
     return _compatInstances;
 }
 
