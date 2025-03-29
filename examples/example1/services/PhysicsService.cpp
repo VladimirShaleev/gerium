@@ -34,7 +34,7 @@ void PhysicsService::start() {
     settings.mPenetrationSlop                      = 0.02f;
     settings.mLinearCastThreshold                  = 0.75f;
     settings.mLinearCastMaxPenetration             = 0.25f;
-    settings.mManifoldToleranceSq                  = 0.001f;
+    settings.mManifoldTolerance                    = 0.001f;
     settings.mMaxPenetrationDistance               = 0.2f;
     settings.mBodyPairCacheMaxDeltaPositionSq      = 0.000001f;
     settings.mBodyPairCacheCosMaxDeltaRotationDiv2 = 0.9998477f;

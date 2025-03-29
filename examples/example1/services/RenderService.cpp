@@ -14,150 +14,57 @@ using namespace entt::literals;
 // Merges dynamic instances and materials into the current static buffers.
 // This is necessary to combine static and dynamic data into a single buffer for rendering.
 void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t commandBuffer) {
-    if (_dynamicMaterialsCount) {
+    if (_instances.dynamicMaterialsCount) {
         // If there are dynamic materials, copy them to the end of the static materials buffer.
         // The size of each material depends on whether 8-bit and 16-bit storage is supported.
-        const auto size = _8and16BitStorageSupported ? sizeof(Material) : sizeof(MaterialNonCompressed);
+        const auto size = _features._8and16BitStorage ? sizeof(Material) : sizeof(MaterialNonCompressed);
         gerium_command_buffer_copy_buffer(commandBuffer,
-                                          _dynamicMaterials,
+                                          _instances.dynamicMaterials,
                                           0,
-                                          _materials[_frameIndex],
-                                          _staticMaterialsCount * size,
-                                          _dynamicMaterialsCount * size);
+                                          _instances.materials[_frame.frameIndex],
+                                          _instances.staticMaterialsCount * size,
+                                          _instances.dynamicMaterialsCount * size);
     }
-    if (_dynamicInstancesCount) {
+    if (_instances.dynamicInstancesCount) {
         // If there are dynamic instances, copy them to the end of the static instances buffer.
         gerium_command_buffer_copy_buffer(commandBuffer,
-                                          _dynamicInstances,
+                                          _instances.dynamicInstances,
                                           0,
-                                          _instances[_frameIndex],
-                                          _staticInstancesCount * sizeof(MeshInstance),
-                                          _dynamicInstancesCount * sizeof(MeshInstance));
+                                          _instances.instances[_frame.frameIndex],
+                                          _instances.staticInstancesCount * sizeof(MeshInstance),
+                                          _instances.dynamicInstancesCount * sizeof(MeshInstance));
     }
 }
 
 // Marks statics as changed
 void RenderService::onDirtyScene(const DirtySceneEvent& event) {
     if (event.hasStatics) {
-        _isDirtyStatics = true;
+        _instances.isDirtyStatics = true;
     }
 }
 
 // Initializes the RenderService, setting up the renderer, frame graph, and resources.
 void RenderService::start() {
+    const auto& settings = entityRegistry().ctx().get<Settings>();
+
     // We will explicitly set some parameters necessary, which are sufficient
     // for this example. If the option is not set, the default value will be used
     gerium_renderer_options_t options{};
-    options.app_version               = entityRegistry().ctx().get<Settings>().version;
+    options.debug_mode                = settings.debugMode; // Validation layers, GPU object names, and logs
+    options.app_version               = settings.version;
     options.command_buffers_per_frame = 5;
     options.descriptor_sets_pool_size = 128;
     options.descriptor_pool_elements  = 128;
     options.dynamic_ssbo_size         = 64 * 1024 * 1024;
-#ifndef NDEBUG
-    options.debug_mode = true; // Enable debug mode (validation layers, GPU object names, and logs)
-#endif
 
-    // Requested GPU features for this example:
-    // - Indirect draw calls
-    // - Indirect draw calls with count
-    // - 8-bit and 16-bit storage
-    // - Bindless textures
-    constexpr auto features = GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT |
-                              GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
-                              GERIUM_FEATURE_BINDLESS_BIT;
-
-    // Initialize the renderer with the requested features and options.
-    check(gerium_renderer_create(application().handle(), features, &options, &_renderer));
-
-    // Enable the profiler to collect GPU performance metrics.
-    gerium_renderer_set_profiler_enable(_renderer, true);
-    check(gerium_profiler_create(_renderer, &_profiler)); // Profiler is not used in this example
-
-    // Check which requested features are supported by the GPU.
-    const auto supportedFeatures = gerium_renderer_get_enabled_features(_renderer);
-    _bindlessSupported           = supportedFeatures & GERIUM_FEATURE_BINDLESS_BIT;
-    _drawIndirectSupported       = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_BIT;
-    _drawIndirectCountSupported  = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT;
-    _8and16BitStorageSupported   = (supportedFeatures & GERIUM_FEATURE_8_BIT_STORAGE_BIT) &&
-                                 (supportedFeatures & GERIUM_FEATURE_16_BIT_STORAGE_BIT);
-    _isModernPipeline = _bindlessSupported && _drawIndirectSupported && _drawIndirectCountSupported;
-
-    // Create the frame graph for managing rendering passes.
-    check(gerium_frame_graph_create(_renderer, &_frameGraph));
-
-    // Initialize the resource manager for managing textures, buffers, and other resources.
-    _resourceManager.create(_renderer, _frameGraph);
-
-    // Add rendering passes to the frame graph:
-    // - PresentPass: Draws to the swapchain framebuffer and applies post-effects.
-    // - GBufferPass: Generates the G-Buffer for opaque geometry.
-    // - CullingPass: Performs GPU frustum culling (if modern pipeline is supported).
-    // - MergeInstancesPass: Merges instances for CPU-side culling (fallback).
-    addPass<PresentPass>();
-    addPass<GBufferPass>();
-    if (_isModernPipeline) {
-        addPass<CullingPass>();
-    } else {
-        addPass<MergeInstancesPass>();
-    }
-
-    // Load and compile the frame graph for rendering.
-    _resourceManager.loadFrameGraph(GRAPH_MAIN_ID);
-    _resourceManager.loadFrameGraph(_isModernPipeline ? GRAPH_MODERN_ID : GRAPH_COMPAT_ID);
-    check(gerium_frame_graph_compile(_frameGraph));
-
-    // Initialize all rendering passes.
-    for (auto& renderPass : _renderPasses) {
-        renderPass->initialize(_frameGraph, _renderer);
-    }
-
-    // Set up multi-buffering for instances and materials.
-    _maxFramesInFlight = gerium_renderer_get_frames_in_flight(_renderer);
-    _instances.resize(_maxFramesInFlight);
-    _materials.resize(_maxFramesInFlight);
-
-    // Create an empty texture as a placeholder for unset textures.
-    gerium_texture_info_t info{};
-    info.width            = 1;
-    info.height           = 1;
-    info.depth            = 1;
-    info.mipmaps          = 1;
-    info.format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
-    info.type             = GERIUM_TEXTURE_TYPE_2D;
-    info.name             = "empty_texture";
-    gerium_uint32_t white = 0xFF000000;
-    _emptyTexture         = _resourceManager.createTexture(info, (gerium_cdata_t) &white);
-
-    // If bindless textures are supported, initialize the bindless texture array.
-    if (_bindlessSupported) {
-        _bindlessTextures = _resourceManager.createDescriptorSet("", true);
-        for (int i = 0; i < options.descriptor_pool_elements; ++i) {
-            // Bind the empty texture to all slots in the bindless texture array.
-            gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
-        }
-    }
-
-    // Create dynamic buffers for draw data and scene data.
-    _drawData =
-        _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "draw_data", nullptr, sizeof(DrawData), 0);
-    _activeScene = _resourceManager.createBuffer(
-        GERIUM_BUFFER_USAGE_UNIFORM_BIT, true, "active_scene", nullptr, sizeof(SceneData));
-
-    // Create a descriptor set for instance data and bind the draw data and command buffers.
-    _instancesData = _resourceManager.createDescriptorSet("instances_data", true);
-    gerium_renderer_bind_buffer(_renderer, _instancesData, 0, _drawData);
-    gerium_renderer_bind_resource(_renderer, _instancesData, 3, "command_counts", false);
-    gerium_renderer_bind_resource(_renderer, _instancesData, 4, "commands", false);
-
-    // Create a descriptor set for scene data and bind the active scene buffer.
-    _activeSceneData = _resourceManager.createDescriptorSet("scene_data", true);
-    gerium_renderer_bind_buffer(_renderer, _activeSceneData, 0, _activeScene);
+    initRenderer(options);
+    initFrameGraph();
+    initTextures(options.descriptor_pool_elements);
+    initData();
+    initCluster();
 
     // Subscribe to scene change events
     application().dispatcher().sink<DirtySceneEvent>().connect<&RenderService::onDirtyScene>(*this);
-
-    // Load all geometry into the SSBO linear buffer
-    loadCluster();
 }
 
 // Cleans up resources and shuts down the RenderService.
@@ -170,41 +77,18 @@ void RenderService::stop() {
             renderPass->uninitialize(_frameGraph, _renderer);
         }
 
-        // Clear compatibility data for legacy systems.
-        _compatInstances = {};
-        _compatMaterials = {};
-        _compatMeshes    = {};
-        _compatSceneData = {};
+        _compat           = {}; // Clear compatibility data for legacy systems.
+        _instances        = {}; // Clear instances data.
+        _scene            = {}; // Clear scene data.
+        _cluster          = {}; // Clear cluster data.
+        _frame            = {}; // Clear frame data.
+        _bindlessTextures = {}; // Clear bindless textures.
+        _emptyTexture     = {}; // Clear empty texture.
+        _features         = {}; // Clear supported features.
 
-        // Clear materials, techniques, and textures.
-        _textures            = {};
-        _dynamicMaterialData = {};
-        _materialsTable      = {};
-        _techniquesTable     = {};
-        _techniques          = {};
-
-        // Clear instance data.
-        _dynamicMaterialsCount = {};
-        _staticMaterialsCount  = {};
-        _dynamicInstancesCount = {};
-        _staticInstancesCount  = {};
-        _instancesData         = {};
-        _materials             = {};
-        _instances             = {};
-        _dynamicMaterials      = {};
-        _dynamicInstances      = {};
-        _drawData              = {};
-
-        // Clear scene data.
-        _activeSceneData = {};
-        _activeScene     = {};
-
-        // Clear cluster data.
-        _cluster = {};
-
-        // Clear bindless textures and the empty texture.
-        _bindlessTextures = {};
-        _emptyTexture     = {};
+        // Clear cache render passes
+        _renderPassesCache.clear();
+        _renderPasses.clear();
 
         // Destroy all GPU resources managed by the resource manager.
         _resourceManager.destroy();
@@ -213,12 +97,6 @@ void RenderService::stop() {
         if (_frameGraph) {
             gerium_frame_graph_destroy(_frameGraph);
             _frameGraph = nullptr;
-        }
-
-        // Destroy the profiler.
-        if (_profiler) {
-            gerium_profiler_destroy(_profiler);
-            _profiler = nullptr;
         }
 
         // Destroy the renderer.
@@ -240,10 +118,10 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     }
 
     // Get the current size of the render area
-    gerium_application_get_size(application().handle(), &_width, &_height);
+    gerium_application_get_size(application().handle(), &_frame.width, &_frame.height);
 
     // Increment the frame number and update the frame index for multi-buffering.
-    _frameIndex = gerium_uint32_t(_frame++ % _maxFramesInFlight);
+    _frame.frameIndex = gerium_uint32_t(_frame.frame++ % _frame.maxFramesInFlight);
 
     // Remove unused GPU resources to free up memory.
     _resourceManager.update(elapsedMs);
@@ -264,7 +142,111 @@ void RenderService::update(gerium_uint64_t elapsedMs, gerium_float64_t /* elapse
     }
 }
 
-void RenderService::loadCluster() {
+// Create a renderer handle
+void RenderService::initRenderer(const gerium_renderer_options_t& options) {
+    // Requested GPU features for this example:
+    // - Indirect draw calls
+    // - Indirect draw calls with count
+    // - 8-bit and 16-bit storage
+    // - Bindless textures
+    constexpr auto features = GERIUM_FEATURE_DRAW_INDIRECT_BIT | GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT |
+                              GERIUM_FEATURE_8_BIT_STORAGE_BIT | GERIUM_FEATURE_16_BIT_STORAGE_BIT |
+                              GERIUM_FEATURE_BINDLESS_BIT;
+
+    // Initialize the renderer with the requested features and options.
+    check(gerium_renderer_create(application().handle(), features, &options, &_renderer));
+
+    // Check which requested features are supported by the GPU.
+    const auto supportedFeatures = gerium_renderer_get_enabled_features(_renderer);
+    _features.bindless           = supportedFeatures & GERIUM_FEATURE_BINDLESS_BIT;
+    _features.drawIndirect       = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_BIT;
+    _features.drawIndirectCount  = supportedFeatures & GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT;
+    _features._8and16BitStorage  = (supportedFeatures & GERIUM_FEATURE_8_BIT_STORAGE_BIT) &&
+                                  (supportedFeatures & GERIUM_FEATURE_16_BIT_STORAGE_BIT);
+    _features.isModernPipeline = _features.bindless && _features.drawIndirect && _features.drawIndirectCount;
+
+    // Set up multi-buffering for instances and materials.
+    _frame.maxFramesInFlight = gerium_renderer_get_frames_in_flight(_renderer);
+}
+
+// Add render passes, load and compile Frame Graph
+void RenderService::initFrameGraph() {
+    // Create the frame graph for managing rendering passes.
+    check(gerium_frame_graph_create(_renderer, &_frameGraph));
+
+    // Initialize the resource manager for managing textures, buffers, and other resources.
+    _resourceManager.create(_renderer, _frameGraph);
+
+    // Add rendering passes to the frame graph:
+    // - PresentPass: Draws to the swapchain framebuffer and applies post-effects.
+    // - GBufferPass: Generates the G-Buffer for opaque geometry.
+    // - CullingPass: Performs GPU frustum culling (if modern pipeline is supported).
+    // - MergeInstancesPass: Merges instances for CPU-side culling (fallback).
+    addPass<PresentPass>();
+    addPass<GBufferPass>();
+    if (_features.isModernPipeline) {
+        addPass<CullingPass>();
+    } else {
+        addPass<MergeInstancesPass>();
+    }
+
+    // Load and compile the frame graph for rendering.
+    _resourceManager.loadFrameGraph(GRAPH_MAIN_ID);
+    _resourceManager.loadFrameGraph(_features.isModernPipeline ? GRAPH_MODERN_ID : GRAPH_COMPAT_ID);
+    check(gerium_frame_graph_compile(_frameGraph));
+
+    // Initialize all rendering passes.
+    for (auto& renderPass : _renderPasses) {
+        renderPass->initialize(_frameGraph, _renderer);
+    }
+}
+
+// Create an empty texture as a placeholder for unset textures and bindless textures.
+void RenderService::initTextures(gerium_uint32_t elementCount) {
+    gerium_texture_info_t info{};
+    info.width            = 1;
+    info.height           = 1;
+    info.depth            = 1;
+    info.mipmaps          = 1;
+    info.format           = GERIUM_FORMAT_R8G8B8A8_UNORM;
+    info.type             = GERIUM_TEXTURE_TYPE_2D;
+    info.name             = "empty_texture";
+    gerium_uint32_t white = 0xFF000000;
+    _emptyTexture         = _resourceManager.createTexture(info, (gerium_cdata_t) &white);
+
+    // If bindless textures are supported, initialize the bindless texture array.
+    if (_features.bindless) {
+        _bindlessTextures = _resourceManager.createDescriptorSet("", true);
+        for (int i = 0; i < elementCount; ++i) {
+            // Bind the empty texture to all slots in the bindless texture array.
+            gerium_renderer_bind_texture(_renderer, _bindlessTextures, BINDLESS_BINDING, i, _emptyTexture);
+        }
+    }
+}
+
+// Create GPU buffers and Descriptor Sets
+void RenderService::initData() {
+    constexpr auto flags = GERIUM_BUFFER_USAGE_UNIFORM_BIT;
+
+    // Create a descriptor set for scene data and bind the active scene buffer.
+    _scene.ds     = _resourceManager.createDescriptorSet("scene_data", true);
+    _scene.buffer = _resourceManager.createBuffer(flags, true, "active_scene", nullptr, sizeof(SceneData));
+    gerium_renderer_bind_buffer(_renderer, _scene.ds, 0, _scene.buffer);
+
+    // Create a descriptor set for instance data and bind the draw data and command buffers.
+    _instances.ds       = _resourceManager.createDescriptorSet("instances_data", true);
+    _instances.drawData = _resourceManager.createBuffer(flags, true, "draw_data", nullptr, sizeof(DrawData), 0);
+    gerium_renderer_bind_buffer(_renderer, _instances.ds, 0, _instances.drawData);
+    gerium_renderer_bind_resource(_renderer, _instances.ds, 3, "command_counts", false);
+    gerium_renderer_bind_resource(_renderer, _instances.ds, 4, "commands", false);
+
+    // Resize buffers
+    _instances.instances.resize(_frame.maxFramesInFlight);
+    _instances.materials.resize(_frame.maxFramesInFlight);
+}
+
+// Load all geometry
+void RenderService::initCluster() {
     Cluster cluster;
     for (const auto& modelId : modelIds) {
         const auto model = loadModel(cluster, modelId);
@@ -282,8 +264,8 @@ void RenderService::loadCluster() {
 
     // If indirect draw count or bindless textures is not supported, store mesh data on
     // the CPU for fallback rendering.
-    if (!_isModernPipeline) {
-        _compatMeshes = cluster.meshes;
+    if (!_features.isModernPipeline) {
+        _compat.meshes = cluster.meshes;
     }
 
     // Fill the GPU buffer with vertex data.
@@ -324,81 +306,6 @@ void RenderService::loadCluster() {
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 0, _cluster.vertices);
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 1, _cluster.indices);
     gerium_renderer_bind_buffer(_renderer, _cluster.ds, 2, _cluster.meshes);
-}
-
-std::vector<gerium_uint8_t> RenderService::prepareMeshes(const Cluster& cluster) const {
-    std::vector<gerium_uint8_t> buffer;
-    // If 8-bit and 16-bit storage is supported, compress mesh data for efficiency.
-    if (_8and16BitStorageSupported) {
-        size_t offset = 0;
-        buffer.resize(cluster.meshes.size() * sizeof(Mesh));
-        for (const auto& m : cluster.meshes) {
-            Mesh result;
-            result.center[0]    = meshopt_quantizeHalf(m.center[0]); // Quantize bounding sphere center.
-            result.center[1]    = meshopt_quantizeHalf(m.center[1]);
-            result.center[2]    = meshopt_quantizeHalf(m.center[2]);
-            result.radius       = meshopt_quantizeHalf(m.radius);     // Quantize bounding sphere radius.
-            result.bboxMin[0]   = meshopt_quantizeHalf(m.bboxMin[0]); // Quantize AABB min bounds.
-            result.bboxMin[1]   = meshopt_quantizeHalf(m.bboxMin[1]);
-            result.bboxMin[2]   = meshopt_quantizeHalf(m.bboxMin[2]);
-            result.bboxMax[0]   = meshopt_quantizeHalf(m.bboxMax[0]); // Quantize AABB max bounds.
-            result.bboxMax[1]   = meshopt_quantizeHalf(m.bboxMax[1]);
-            result.bboxMax[2]   = meshopt_quantizeHalf(m.bboxMax[2]);
-            result.vertexOffset = m.vertexOffset;      // Store vertex offset.
-            result.vertexCount  = m.vertexCount;       // Store vertex count.
-            result.lodCount     = uint8_t(m.lodCount); // Store LOD count.
-            for (int l = 0; l < std::size(m.lods); ++l) {
-                result.lods[l] = m.lods[l]; // Store LOD data.
-            }
-            memcpy(buffer.data() + offset, &result, sizeof(result));
-            offset += sizeof(result);
-        }
-    } else {
-        // Use uncompressed mesh data if compression is not supported.
-        buffer.resize(cluster.meshes.size() * sizeof(cluster.meshes[0]));
-        memcpy(buffer.data(), cluster.meshes.data(), buffer.size());
-    }
-    return buffer;
-}
-
-std::vector<gerium_uint8_t> RenderService::prepareVertices(const Cluster& cluster) const {
-    std::vector<gerium_uint8_t> buffer;
-    // If 8-bit and 16-bit storage is supported, compress vertex data for efficiency.
-    if (_8and16BitStorageSupported) {
-        size_t offset = 0;
-        buffer.resize(cluster.vertices.size() * sizeof(Vertex));
-        for (const auto& v : cluster.vertices) {
-            const auto n = glm::vec3(v.nx, v.ny, v.nz) * 127.0f + 127.5f; // Normalize and quantize normals.
-            const auto t = glm::vec3(v.tx, v.ty, v.tz) * 127.0f + 127.5f; // Normalize and quantize tangents.
-            const auto s = v.ts < 0.0f ? -1 : 1;                          // Determine tangent sign.
-
-            Vertex result;
-            result.px = meshopt_quantizeHalf(v.px); // Quantize vertex position.
-            result.py = meshopt_quantizeHalf(v.py);
-            result.pz = meshopt_quantizeHalf(v.pz);
-            result.nx = uint8_t(n.x); // Store quantized normal.
-            result.ny = uint8_t(n.y);
-            result.nz = uint8_t(n.z);
-            result.tx = uint8_t(t.x); // Store quantized tangent.
-            result.ty = uint8_t(t.y);
-            result.tz = uint8_t(t.z);
-            result.ts = int8_t(s);                  // Store tangent sign.
-            result.tu = meshopt_quantizeHalf(v.tu); // Quantize texture coordinates.
-            result.tv = meshopt_quantizeHalf(v.tv);
-            memcpy(buffer.data() + offset, &result, sizeof(result));
-            offset += sizeof(result);
-        }
-    } else {
-        // Use uncompressed vertices data if compression is not supported.
-        buffer.resize(cluster.vertices.size() * sizeof(cluster.vertices[0]));
-        memcpy(buffer.data(), cluster.vertices.data(), buffer.size());
-    }
-    return buffer;
-}
-
-std::span<const gerium_uint8_t> RenderService::prepareIndices(const Cluster& cluster) const {
-    return std::span{ (const gerium_uint8_t*) cluster.indices.data(),
-                      cluster.indices.size() * sizeof(cluster.indices[0]) };
 }
 
 // Updates the _activeScene UBO buffer with camera data.
@@ -442,44 +349,44 @@ void RenderService::updateActiveSceneData() {
     sceneData.lodTarget          = (2.0f / p00p11.y) * invResolution.x;
 
     // Map the GPU buffer and copy the scene data to it.
-    auto data = (SceneData*) gerium_renderer_map_buffer(_renderer, _activeScene, 0, sizeof(SceneData));
+    auto data = (SceneData*) gerium_renderer_map_buffer(_renderer, _scene.buffer, 0, sizeof(SceneData));
     memcpy(data, &sceneData, sizeof(SceneData));
-    gerium_renderer_unmap_buffer(_renderer, _activeScene);
+    gerium_renderer_unmap_buffer(_renderer, _scene.buffer);
 
     // If indirect draw count or bindless textures is not supported, store the scene data
     // on the CPU for fallback rendering.
-    if (!_isModernPipeline) {
-        _compatSceneData = sceneData;
+    if (!_features.isModernPipeline) {
+        _compat.sceneData = sceneData;
     }
 }
 
 // Fills GPU SSBO buffers with static instances and their materials.
 // Static instances and materials do not change, so their allocation is done once at startup.
 void RenderService::updateStaticInstances() {
-    if (!_isDirtyStatics) {
+    if (!_instances.isDirtyStatics) {
         return;
     }
-    _isDirtyStatics = false;
+    _instances.isDirtyStatics = false;
 
     // Clear previous instance and material buffers.
-    for (auto& buffer : _instances) {
+    for (auto& buffer : _instances.instances) {
         buffer = {};
     }
-    for (auto& buffer : _materials) {
+    for (auto& buffer : _instances.materials) {
         buffer = {};
     }
 
     // Clear cached data for techniques, textures, and materials.
-    _techniques.clear();
-    _techniquesTable.clear();
-    _materialsTable.clear();
-    _dynamicMaterialData.clear();
-    _compatMaterials.clear();
-    _compatInstances.clear();
+    _instances.techniques.clear();
+    _instances.techniquesTable.clear();
+    _instances.materialsTable.clear();
+    _instances.dynamicMaterialData.clear();
+    _compat.materials.clear();
+    _compat.instances.clear();
 
     // Free up unused resources.
     _resourceManager.update(0);
-    _textures.clear();
+    _instances.textures.clear();
 
     // Get static instances and index their materials.
     std::vector<MeshInstance> instances;
@@ -488,33 +395,39 @@ void RenderService::updateStaticInstances() {
 
     // If indirect draw count or bindless textures is not supported, store instances on
     // the CPU for fallback rendering.
-    if (!_isModernPipeline) {
-        _compatInstances = instances;
+    if (!_features.isModernPipeline) {
+        _compat.instances = instances;
     }
 
     // If bindless textures are not supported, store the material on the CPU for fallback rendering.
-    if (!_bindlessSupported) {
-        _compatMaterials = materials;
+    if (!_features.bindless) {
+        _compat.materials = materials;
     }
 
     // Save the number of static instances.
-    _staticInstancesCount = (gerium_uint32_t) instances.size();
-    _staticMaterialsCount = (gerium_uint32_t) materials.size();
+    _instances.staticInstancesCount = (gerium_uint32_t) instances.size();
+    _instances.staticMaterialsCount = (gerium_uint32_t) materials.size();
 
     std::vector<Material> tmp;
-    const auto maxMaterials   = _staticMaterialsCount + MAX_DYNAMIC_MATERIALS;
-    const auto maxInstances   = _staticInstancesCount + MAX_DYNAMIC_INSTANCES;
-    const auto [mSize, mData] = getMaterialData(materials, tmp, _staticMaterialsCount, maxMaterials);
-    const auto [iSize, iData] = getInstanceData(instances, maxInstances);
-    for (size_t i = 0; i < _materials.size(); ++i) {
+    const auto maxMaterials = _instances.staticMaterialsCount + MAX_DYNAMIC_MATERIALS;
+    const auto maxInstances = _instances.staticInstancesCount + MAX_DYNAMIC_INSTANCES;
+    const auto mSpan        = prepareMaterials(materials, tmp, _instances.staticMaterialsCount, maxMaterials);
+    const auto iSpan        = prepareInstances(instances, maxInstances);
+    for (size_t i = 0; i < _instances.materials.size(); ++i) {
         const auto name = "materials_" + std::to_string(i);
         const auto hash = entt::hashed_string{ name.c_str(), name.length() };
-        _materials[i]   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, mData, mSize, 0);
+        const auto data = (gerium_cdata_t) mSpan.data();
+        const auto size = (gerium_uint32_t) mSpan.size();
+        _instances.materials[i] =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, data, size, 0);
     }
-    for (size_t i = 0; i < _instances.size(); ++i) {
+    for (size_t i = 0; i < _instances.instances.size(); ++i) {
         const auto name = "instances_" + std::to_string(i);
         const auto hash = entt::hashed_string{ name.c_str(), name.length() };
-        _instances[i]   = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, iData, iSize, 0);
+        const auto data = (gerium_cdata_t) iSpan.data();
+        const auto size = (gerium_uint32_t) iSpan.size();
+        _instances.instances[i] =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, false, hash, data, size, 0);
     }
 }
 
@@ -523,48 +436,56 @@ void RenderService::updateStaticInstances() {
 void RenderService::updateDynamicInstances() {
     // Retrieve dynamic instances (e.g., moving objects) from the scene.
     std::vector<MeshInstance> instances;
-    getInstances(false, instances, _dynamicMaterialData); // `false` indicates dynamic instances.
+    getInstances(false, instances, _instances.dynamicMaterialData); // `false` indicates dynamic instances.
 
     // Save the number of dynamic instances for later use.
-    _dynamicInstancesCount = (gerium_uint32_t) instances.size();
-    _dynamicMaterialsCount = (gerium_uint32_t) _dynamicMaterialData.size();
+    _instances.dynamicInstancesCount = (gerium_uint32_t) instances.size();
+    _instances.dynamicMaterialsCount = (gerium_uint32_t) _instances.dynamicMaterialData.size();
 
     // If there are dynamic materials, create a GPU buffer for them.
-    if (_dynamicMaterialsCount) {
+    if (_instances.dynamicMaterialsCount) {
         std::vector<Material> tmp;
-        auto [size, data] = getMaterialData(_dynamicMaterialData, tmp, _dynamicMaterialsCount, _dynamicMaterialsCount);
-        _dynamicMaterials = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", data, size, 0);
+        const auto count = _instances.dynamicMaterialsCount;
+        const auto span  = prepareMaterials(_instances.dynamicMaterialData, tmp, count, count);
+        const auto data  = (gerium_cdata_t) span.data();
+        const auto size  = (gerium_uint32_t) span.size();
+        _instances.dynamicMaterials =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", data, size, 0);
     }
 
     // If there are dynamic instances, create a GPU buffer for them.
-    if (_dynamicInstancesCount) {
-        const auto [size, data] = getInstanceData(instances, _dynamicInstancesCount);
-        _dynamicInstances = _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", data, size, 0);
+    if (_instances.dynamicInstancesCount) {
+        const auto span = prepareInstances(instances, _instances.dynamicInstancesCount);
+        const auto data = (gerium_cdata_t) span.data();
+        const auto size = (gerium_uint32_t) span.size();
+        _instances.dynamicInstances =
+            _resourceManager.createBuffer(GERIUM_BUFFER_USAGE_STORAGE_BIT, true, "", data, size, 0);
     }
 
     // If indirect draw count or bindless textures is not supported, store dynamic instances on
     // the CPU side for fallback rendering.
-    if (!_isModernPipeline) {
-        _compatInstances.resize(_staticInstancesCount);
-        _compatInstances.insert(_compatInstances.end(), instances.begin(), instances.end());
+    if (!_features.isModernPipeline) {
+        _compat.instances.resize(_instances.staticInstancesCount);
+        _compat.instances.insert(_compat.instances.end(), instances.begin(), instances.end());
     }
 
     // If bindless textures are not supported, store the material on the CPU for fallback rendering.
-    if (!_bindlessSupported) {
-        _compatMaterials.resize(_staticMaterialsCount);
-        _compatMaterials.insert(_compatMaterials.end(), _dynamicMaterialData.begin(), _dynamicMaterialData.end());
+    if (!_features.bindless) {
+        _compat.materials.resize(_instances.staticMaterialsCount);
+        _compat.materials.insert(
+            _compat.materials.end(), _instances.dynamicMaterialData.begin(), _instances.dynamicMaterialData.end());
     }
 }
 
 // Updates data for the camera and re-binds the SSBO for materials and instances to the descriptor set.
 void RenderService::updateInstancesData() {
-    auto drawData       = (DrawData*) gerium_renderer_map_buffer(_renderer, _drawData, 0, sizeof(DrawData));
+    auto drawData       = (DrawData*) gerium_renderer_map_buffer(_renderer, _instances.drawData, 0, sizeof(DrawData));
     drawData->drawCount = instancesCount();
-    gerium_renderer_unmap_buffer(_renderer, _drawData);
+    gerium_renderer_unmap_buffer(_renderer, _instances.drawData);
 
     // Re-bind the materials and instances buffers to the descriptor set for rendering.
-    gerium_renderer_bind_buffer(_renderer, _instancesData, 1, _materials[_frameIndex]);
-    gerium_renderer_bind_buffer(_renderer, _instancesData, 2, _instances[_frameIndex]);
+    gerium_renderer_bind_buffer(_renderer, _instances.ds, 1, _instances.materials[_frame.frameIndex]);
+    gerium_renderer_bind_buffer(_renderer, _instances.ds, 2, _instances.instances[_frame.frameIndex]);
 }
 
 // Returns a list of static or dynamic instances (meshes with transforms) from the scene.
@@ -631,19 +552,19 @@ gerium_uint32_t RenderService::getOrEmplaceTechnique(const MaterialData& materia
     gerium_uint32_t techniqueIndex;
 
     // Check if the technique is already in the cache.
-    if (auto it = _techniquesTable.find(material.name); it != _techniquesTable.end()) {
+    if (auto it = _instances.techniquesTable.find(material.name); it != _instances.techniquesTable.end()) {
         techniqueIndex = it->second; // Use the cached index.
     } else {
         // Load the technique from the resource manager.
         auto technique = _resourceManager.loadTechnique(material.name);
 
         // Add the technique to the list and cache its index.
-        techniqueIndex = (gerium_uint32_t) _techniques.size();
-        _techniques.push_back(technique);
-        _techniquesTable.insert({ material.name, techniqueIndex });
+        techniqueIndex = (gerium_uint32_t) _instances.techniques.size();
+        _instances.techniques.push_back(technique);
+        _instances.techniquesTable.insert({ material.name, techniqueIndex });
 
         // Ensure the number of techniques does not exceed the maximum allowed.
-        assert(_techniques.size() < MAX_TECHNIQUES);
+        assert(_instances.techniques.size() < MAX_TECHNIQUES);
     }
     return techniqueIndex;
 }
@@ -657,23 +578,23 @@ gerium_uint32_t RenderService::getOrEmplaceMaterial(const MaterialData& material
     gerium_uint32_t materialIndex = 0;
 
     // Check if the material is already in the cache.
-    if (auto it = _materialsTable.find(hash); it != _materialsTable.end()) {
+    if (auto it = _instances.materialsTable.find(hash); it != _instances.materialsTable.end()) {
         materialIndex = it->second; // Use the cached index.
     } else {
         // Add the material to the cache and assign it a new index.
-        materialIndex = (gerium_uint32_t) _materialsTable.size();
-        _materialsTable.insert({ hash, materialIndex });
+        materialIndex = (gerium_uint32_t) _instances.materialsTable.size();
+        _instances.materialsTable.insert({ hash, materialIndex });
 
         // Helper lambda to load a texture and bind it if bindless textures are supported.
         auto loadTexture = [this](const entt::hashed_string& name) -> glm::uint {
             if (name.size()) {
                 // Load the texture from the resource manager.
                 Texture result = _resourceManager.loadTexture(name);
-                _textures.insert(result);
+                _instances.textures.insert(result);
                 gerium_texture_h texture = result;
 
                 // If bindless textures are supported, bind the texture to the bindless array.
-                if (_bindlessSupported) {
+                if (_features.bindless) {
                     gerium_renderer_bind_texture(
                         _renderer, _bindlessTextures, BINDLESS_BINDING, texture.index, texture);
                 }
@@ -709,19 +630,94 @@ gerium_uint32_t RenderService::getOrEmplaceMaterial(const MaterialData& material
     return materialIndex;
 }
 
-std::pair<gerium_uint32_t, gerium_cdata_t> RenderService::getInstanceData(std::vector<MeshInstance>& instances,
-                                                                          gerium_uint32_t maxCount) {
-    assert(maxCount < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
-    instances.resize(maxCount);
-    return { gerium_uint32_t(instances.size() * sizeof(MeshInstance)), gerium_cdata_t(instances.data()) };
+std::vector<gerium_uint8_t> RenderService::prepareMeshes(const Cluster& cluster) const {
+    std::vector<gerium_uint8_t> buffer;
+    // If 8-bit and 16-bit storage is supported, compress mesh data for efficiency.
+    if (_features._8and16BitStorage) {
+        size_t offset = 0;
+        buffer.resize(cluster.meshes.size() * sizeof(Mesh));
+        for (const auto& m : cluster.meshes) {
+            Mesh result;
+            result.center[0]    = meshopt_quantizeHalf(m.center[0]); // Quantize bounding sphere center.
+            result.center[1]    = meshopt_quantizeHalf(m.center[1]);
+            result.center[2]    = meshopt_quantizeHalf(m.center[2]);
+            result.radius       = meshopt_quantizeHalf(m.radius);     // Quantize bounding sphere radius.
+            result.bboxMin[0]   = meshopt_quantizeHalf(m.bboxMin[0]); // Quantize AABB min bounds.
+            result.bboxMin[1]   = meshopt_quantizeHalf(m.bboxMin[1]);
+            result.bboxMin[2]   = meshopt_quantizeHalf(m.bboxMin[2]);
+            result.bboxMax[0]   = meshopt_quantizeHalf(m.bboxMax[0]); // Quantize AABB max bounds.
+            result.bboxMax[1]   = meshopt_quantizeHalf(m.bboxMax[1]);
+            result.bboxMax[2]   = meshopt_quantizeHalf(m.bboxMax[2]);
+            result.vertexOffset = m.vertexOffset;      // Store vertex offset.
+            result.vertexCount  = m.vertexCount;       // Store vertex count.
+            result.lodCount     = uint8_t(m.lodCount); // Store LOD count.
+            for (int l = 0; l < std::size(m.lods); ++l) {
+                result.lods[l] = m.lods[l]; // Store LOD data.
+            }
+            memcpy(buffer.data() + offset, &result, sizeof(result));
+            offset += sizeof(result);
+        }
+    } else {
+        // Use uncompressed mesh data if compression is not supported.
+        buffer.resize(cluster.meshes.size() * sizeof(cluster.meshes[0]));
+        memcpy(buffer.data(), cluster.meshes.data(), buffer.size());
+    }
+    return buffer;
 }
 
-std::pair<gerium_uint32_t, gerium_cdata_t> RenderService::getMaterialData(std::vector<MaterialNonCompressed>& materials,
-                                                                          std::vector<Material>& tmp,
-                                                                          gerium_uint32_t count,
-                                                                          gerium_uint32_t maxCount) {
+std::vector<gerium_uint8_t> RenderService::prepareVertices(const Cluster& cluster) const {
+    std::vector<gerium_uint8_t> buffer;
+    // If 8-bit and 16-bit storage is supported, compress vertex data for efficiency.
+    if (_features._8and16BitStorage) {
+        size_t offset = 0;
+        buffer.resize(cluster.vertices.size() * sizeof(Vertex));
+        for (const auto& v : cluster.vertices) {
+            const auto n = glm::vec3(v.nx, v.ny, v.nz) * 127.0f + 127.5f; // Normalize and quantize normals.
+            const auto t = glm::vec3(v.tx, v.ty, v.tz) * 127.0f + 127.5f; // Normalize and quantize tangents.
+            const auto s = v.ts < 0.0f ? -1 : 1;                          // Determine tangent sign.
+
+            Vertex result;
+            result.px = meshopt_quantizeHalf(v.px); // Quantize vertex position.
+            result.py = meshopt_quantizeHalf(v.py);
+            result.pz = meshopt_quantizeHalf(v.pz);
+            result.nx = uint8_t(n.x); // Store quantized normal.
+            result.ny = uint8_t(n.y);
+            result.nz = uint8_t(n.z);
+            result.tx = uint8_t(t.x); // Store quantized tangent.
+            result.ty = uint8_t(t.y);
+            result.tz = uint8_t(t.z);
+            result.ts = int8_t(s);                  // Store tangent sign.
+            result.tu = meshopt_quantizeHalf(v.tu); // Quantize texture coordinates.
+            result.tv = meshopt_quantizeHalf(v.tv);
+            memcpy(buffer.data() + offset, &result, sizeof(result));
+            offset += sizeof(result);
+        }
+    } else {
+        // Use uncompressed vertices data if compression is not supported.
+        buffer.resize(cluster.vertices.size() * sizeof(cluster.vertices[0]));
+        memcpy(buffer.data(), cluster.vertices.data(), buffer.size());
+    }
+    return buffer;
+}
+
+std::span<const gerium_uint8_t> RenderService::prepareIndices(const Cluster& cluster) const {
+    return std::span{ (const gerium_uint8_t*) cluster.indices.data(),
+                      cluster.indices.size() * sizeof(cluster.indices[0]) };
+}
+
+std::span<const gerium_uint8_t> RenderService::prepareInstances(std::vector<MeshInstance>& instances,
+                                                                gerium_uint32_t maxCount) {
     assert(maxCount < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
-    if (_8and16BitStorageSupported) {
+    instances.resize(maxCount);
+    return { (gerium_uint8_t*) instances.data(), instances.size() * sizeof(MeshInstance) };
+}
+
+std::span<const gerium_uint8_t> RenderService::prepareMaterials(std::vector<MaterialNonCompressed>& materials,
+                                                                std::vector<Material>& tmp,
+                                                                gerium_uint32_t count,
+                                                                gerium_uint32_t maxCount) {
+    assert(maxCount < MAX_TECHNIQUES * MAX_INSTANCES_PER_TECHNIQUE);
+    if (_features._8and16BitStorage) {
         tmp.resize(maxCount);
         for (gerium_uint32_t i = 0; i < count; ++i) {
             const auto& material = materials[i];
@@ -743,10 +739,10 @@ std::pair<gerium_uint32_t, gerium_cdata_t> RenderService::getMaterialData(std::v
             tmp[i].occlusionTexture         = uint16_t(material.occlusionTexture);
             tmp[i].emissiveTexture          = uint16_t(material.emissiveTexture);
         }
-        return { gerium_uint32_t(tmp.size() * sizeof(Material)), gerium_cdata_t(tmp.data()) };
+        return { (gerium_uint8_t*) tmp.data(), tmp.size() * sizeof(Material) };
     } else {
         materials.resize(maxCount);
-        return { gerium_uint32_t(materials.size() * sizeof(MaterialNonCompressed)), gerium_cdata_t(materials.data()) };
+        return { (gerium_uint8_t*) materials.data(), materials.size() * sizeof(MaterialNonCompressed) };
     }
 }
 

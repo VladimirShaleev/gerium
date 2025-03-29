@@ -51,7 +51,7 @@ void ProfilerUI::draw(Profiler* profiler, bool* show, uint32_t maxFrames) {
         prevPaused = true;
     }
 
-    auto fontSize = ImGui::GetFont()->ConfigData->SizePixels;
+    auto fontSize = ImGui::GetFont()->Sources->SizePixels;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(20 * fontSize, 14 * fontSize));
     if (ImGui::Begin("GPU Profiler", show)) {

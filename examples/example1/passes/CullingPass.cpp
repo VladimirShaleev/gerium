@@ -19,9 +19,9 @@ void CullingPass::render(gerium_frame_graph_t frameGraph,
     // Bind the culling technique (compute shader) and required descriptor sets.
     // These sets provide access to scene data, cluster data, and instances data.
     gerium_command_buffer_bind_technique(commandBuffer, renderService().resourceManager().loadTechnique(TECH_BASE_ID));
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().sceneData(), SCENE_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().clusterData(), CLUSTER_DATA_SET);
-    gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().instancesData(), INSTANCES_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().scene(), SCENE_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().cluster(), CLUSTER_DATA_SET);
+    gerium_command_buffer_bind_descriptor_set(commandBuffer, renderService().instances(), INSTANCES_DATA_SET);
 
     // Clear the command counts buffer to zero before starting the culling process.
     // This ensures that the buffer is in a known state before the compute shader writes to it.

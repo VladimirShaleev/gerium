@@ -2125,7 +2125,7 @@ void Device::createImGui() {
     ImGui::StyleColorsDark();
     _application->initImGui();
 
-    ImGui_ImplVulkan_LoadFunctions(imguiLoaderFunc, this);
+    ImGui_ImplVulkan_LoadFunctions(VK_API_VERSION_1_2, imguiLoaderFunc, this);
 
     ImGui_ImplVulkan_InitInfo initInfo{};
     initInfo.Instance            = _instance;

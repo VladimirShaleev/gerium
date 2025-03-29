@@ -9,9 +9,9 @@ void GBufferPass::render(gerium_frame_graph_t frameGraph,
                          gerium_uint32_t worker,
                          gerium_uint32_t totalWorkers) {
     // Retrieve scene data, cluster data, and instances data from the render service.
-    const auto sceneData     = renderService().sceneData();      // Descriptor set for camera data
-    const auto clusterData   = renderService().clusterData();    // Descriptor set for cluster data
-    const auto instancesData = renderService().instancesData();  // Descriptor set for instances data
+    const auto sceneData     = renderService().scene();          // Descriptor set for camera data
+    const auto clusterData   = renderService().cluster();        // Descriptor set for cluster data
+    const auto instancesData = renderService().instances();      // Descriptor set for instances data
     const auto& techniques   = renderService().techniques();     // List of rendering techniques used in the scene
     auto drawCount           = renderService().instancesCount(); // Total number of instances in the scene
     auto needDestroyBuffer   = false;

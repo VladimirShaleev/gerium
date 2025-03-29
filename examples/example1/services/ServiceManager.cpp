@@ -27,8 +27,12 @@ const entt::registry& Service::entityRegistry() const noexcept {
     return application().entityRegistry();
 }
 
-bool Service::isStopped() const noexcept {
-    return _started == 0;
+entt::dispatcher& Service::dispatcher() noexcept {
+    return application().dispatcher();
+}
+
+const entt::dispatcher& Service::dispatcher() const noexcept {
+    return application().dispatcher();
 }
 
 void Service::start() {
@@ -48,22 +52,12 @@ std::vector<gerium_uint8_t> Service::saveState() {
 void Service::restoreState(const std::vector<gerium_uint8_t>& data) {
 }
 
-void Service::setManager(ServiceManager* manager, uint32_t id) noexcept {
+void Service::setManager(ServiceManager* manager, gerium_uint32_t id) noexcept {
     _manager = manager;
     _id      = id;
 }
 
-void Service::setStopped(bool stop) {
-    _started += stop ? -1 : 1;
-    assert(_started >= 0);
-    if (_started == 0) {
-        this->stop();
-    } else if (_started == 1) {
-        start();
-    }
-}
-
-uint32_t Service::serviceId() const noexcept {
+gerium_uint32_t Service::serviceId() const noexcept {
     return _id;
 }
 
@@ -75,7 +69,7 @@ void ServiceManager::create(Application* application) {
 void ServiceManager::destroy() noexcept {
     for (auto it = _services.rbegin(); it != _services.rend(); ++it) {
         auto service = it->get();
-        service->setStopped(true);
+        service->stop();
     }
     _hashServices.clear();
     _services.clear();
@@ -89,9 +83,7 @@ void ServiceManager::update(gerium_uint64_t elapsedMs) {
 
     for (auto it = _services.begin(); it != _services.end(); ++it) {
         auto service = it->get();
-        if (!service->isStopped()) {
-            service->update(_elapsedMs, _elapsed);
-        }
+        service->update(_elapsedMs, _elapsed);
     }
 }
 

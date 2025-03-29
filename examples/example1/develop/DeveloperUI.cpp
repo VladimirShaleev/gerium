@@ -354,13 +354,8 @@ void DeveloperUI::showSceneGraph() {
                 break;
         }
 
-        static float snap[3] = { 10.0f, 10.0f, 10.0f };
-        if (ImGuizmo::Manipulate(&camera->view[0][0],
-                                 &camera->projection[0][0],
-                                 operation,
-                                 ImGuizmo::MODE::LOCAL,
-                                 &world[0][0],
-                                 settings.snapToGrid ? snap : nullptr)) {
+        if (ImGuizmo::Manipulate(
+                &camera->view[0][0], &camera->projection[0][0], operation, ImGuizmo::MODE::LOCAL, &world[0][0])) {
             glm::vec3 tanslation;
             glm::vec3 scale;
             glm::quat orientation;

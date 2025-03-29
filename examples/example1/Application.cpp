@@ -31,7 +31,13 @@ Application::~Application() {
 }
 
 void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) noexcept {
-    gerium_logger_set_level_by_tag("gerium", GERIUM_LOGGER_LEVEL_VERBOSE);
+    auto settings = _entityRegistry.ctx().emplace<Settings>(Settings{});
+#ifndef NDEBUG
+    settings.debugMode = true;
+#endif
+
+    const auto logLevel = settings.debugMode ? GERIUM_LOGGER_LEVEL_VERBOSE : GERIUM_LOGGER_LEVEL_FATAL;
+    gerium_logger_set_level_by_tag("gerium", logLevel);
     try {
         check(gerium_application_create(title, width, height, &_application));
         gerium_application_set_background_wait(_application, true);
@@ -62,8 +68,6 @@ void Application::addModel(const hashed_string_owner& name,
 }
 
 void Application::initialize() {
-    _entityRegistry.ctx().emplace<Settings>(Settings{});
-
     _serviceManager.create(this);
     _serviceManager.addService<TimeService>();
     _serviceManager.addService<InputService>();
@@ -104,19 +108,16 @@ void Application::uninitialize() {
 void Application::saveState() {
     auto states = _serviceManager.saveState();
     auto result = makeSnapshot(_entityRegistry, states, SnapshotFormat::Capnproto);
-
-    auto path = (std::filesystem::path(gerium_file_get_app_dir()) / "snapshot.bin").string();
+    auto path   = (std::filesystem::path(gerium_file_get_app_dir()) / "snapshot.bin").string();
 
     gerium_file_t file;
     check(gerium_file_create(path.c_str(), 0, &file));
     deferred(gerium_file_destroy(file));
-
     gerium_file_write(file, (gerium_cdata_t) result.data(), result.size());
 }
 
 void Application::loadState() {
     auto path = (std::filesystem::path(gerium_file_get_app_dir()) / "snapshot.bin").string();
-
     if (gerium_file_exists_file(path.c_str())) {
         gerium_file_t file;
         check(gerium_file_open(path.c_str(), true, &file));
@@ -126,8 +127,11 @@ void Application::loadState() {
         gerium_file_read(file, (gerium_data_t) data.data(), data.size());
 
         std::map<hashed_string_owner, std::vector<uint8_t>> states;
-        loadSnapshot(_entityRegistry, states, SnapshotFormat::Capnproto, data);
+        if (!loadSnapshot(_entityRegistry, states, SnapshotFormat::Capnproto, data)) {
+            throw std::runtime_error("Load snapshot failed");
+        }
         _serviceManager.restoreState(states);
+        _dispatcher.trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::None, true });
     }
 }
 
@@ -149,10 +153,6 @@ void Application::frame(gerium_uint64_t elapsedMs) {
 void Application::state(gerium_application_state_t state) {
     const auto stateStr = magic_enum::enum_name(state);
     gerium_logger_print(_logger, GERIUM_LOGGER_LEVEL_DEBUG, stateStr.data());
-
-    gerium_uint16_t width, height;
-    gerium_application_get_size(_application, &width, &height);
-
     switch (state) {
         case GERIUM_APPLICATION_STATE_INITIALIZE:
             initialize();

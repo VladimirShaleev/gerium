@@ -16,10 +16,12 @@ void PresentPass::render(gerium_frame_graph_t frameGraph,
     gerium_command_buffer_bind_descriptor_set(commandBuffer, ds, 0);
     gerium_command_buffer_draw(commandBuffer, 0, 3, 0, 1);
 
-    if (entityRegistry().ctx().get<Settings>().developerMode) {
+    const auto& settings = entityRegistry().ctx().get<Settings>();
+    if (settings.developerMode) {
         if (!_developerUI) {
             _developerUI = std::make_unique<DeveloperUI>(entityRegistry(), renderService().application().dispatcher());
         }
+        gerium_renderer_set_profiler_enable(renderer, settings.showProfiler);
         _developerUI->show(commandBuffer);
     } else {
         _developerUI = nullptr;

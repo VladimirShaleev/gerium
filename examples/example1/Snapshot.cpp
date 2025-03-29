@@ -293,8 +293,8 @@ std::vector<gerium_uint8_t> makeSnapshot(const entt::registry& registry,
         case SnapshotFormat::Capnproto: {
             std::vector<Entry<rfl::Bytestring>> serviceStates;
             for (const auto& [key, value] : states) {
-                serviceStates.emplace_back(key,
-                                           std::basic_string<std::byte>((const std::byte*) value.data(), value.size()));
+                auto it = (const std::byte*) value.data();
+                serviceStates.emplace_back(key, std::vector<std::byte>(it, it + value.size()));
             }
             SnapshotCapnproto snapshotCapnproto{ std::move(serviceStates), std::move(snapshotData) };
             return rfl::capnproto::write2(snapshotCapnproto);

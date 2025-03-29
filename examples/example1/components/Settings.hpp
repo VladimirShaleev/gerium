@@ -17,11 +17,11 @@ struct Settings {
     };
 
     gerium_uint32_t version{ GERIUM_VERSION_ENCODE(1, 0, 0) };
+    bool debugMode{ };
     bool showProfiler{};
     bool developerMode{ true };
-    bool transforming{ false };
+    bool transforming{ };
     bool transformChilds{ true };
-    bool snapToGrid{ false };
     Transfrom transform{ Translate };
     State state{};
 };
