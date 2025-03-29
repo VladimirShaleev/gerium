@@ -495,8 +495,8 @@ void RenderService::getInstances(bool isStatic,
     // Helper lambda to iterate over entities and add their instances to the list.
     auto emplace = [this, &instances, &materials](auto&& view) {
         for (auto entity : view) {
-            auto& renderable  = view.get<Renderable>(entity);
-            auto& transform   = view.get<Transform>(entity);
+            auto& renderable  = view.template get<Renderable>(entity);
+            auto& transform   = view.template get<Transform>(entity);
             auto existsMeshes = false;
             for (auto& mesh : renderable.meshes) {
                 if (auto it = _cluster.models.find(mesh.model); it != _cluster.models.end()) {
