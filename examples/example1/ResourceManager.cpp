@@ -16,53 +16,48 @@ void ResourceManager::destroy() {
 void ResourceManager::update(gerium_uint64_t elapsedMs) {
     _ticks += elapsedMs;
 
-    std::vector<gerium_uint64_t> deleteQueue;
-    for (auto it = _resources.begin(); it != _resources.end(); ++it) {
+    const auto textureId       = getHandleId<gerium_texture_h>();
+    const auto techniqueId     = getHandleId<gerium_technique_h>();
+    const auto bufferId        = getHandleId<gerium_buffer_h>();
+    const auto descriptorSetId = getHandleId<gerium_descriptor_set_h>();
+
+    for (auto it = _resources.begin(); it != _resources.end();) {
         if (it->second.references == 0) {
             if (_ticks - it->second.lastTick >= it->second.retentionMs) {
-                switch (it->second.type) {
-                    case TextureType:
-                        gerium_renderer_destroy_texture(_renderer, { it->second.handle });
-                        break;
-                    case TechniqueType:
-                        gerium_renderer_destroy_technique(_renderer, { it->second.handle });
-                        break;
-                    case BufferType:
-                        gerium_renderer_destroy_buffer(_renderer, { it->second.handle });
-                        break;
-                    case DescriptorSetType:
-                        gerium_renderer_destroy_descriptor_set(_renderer, { it->second.handle });
+                if (it->second.type == textureId) {
+                    gerium_renderer_destroy_texture(_renderer, { it->second.handle });
+                } else if (it->second.type == techniqueId) {
+                    gerium_renderer_destroy_technique(_renderer, { it->second.handle });
+                } else if (it->second.type == bufferId) {
+                    gerium_renderer_destroy_buffer(_renderer, { it->second.handle });
+                } else if (it->second.type == descriptorSetId) {
+                    gerium_renderer_destroy_descriptor_set(_renderer, { it->second.handle });
                 }
-                deleteQueue.push_back(it->first);
+                if (it->second.pathKey) {
+                    _pathes.erase(it->second.pathKey);
+                }
+                if (it->second.nameKey) {
+                    _names.erase(it->second.nameKey);
+                }
+                it = _resources.erase(it);
+                continue;
             }
         } else {
             it->second.lastTick = _ticks;
         }
-    }
-
-    for (const auto key : deleteQueue) {
-        auto it = _resources.find(key);
-        if (it->second.path) {
-            _pathes.erase(it->second.path);
-        }
-        if (it->second.name) {
-            _names.erase(it->second.name);
-        }
-        _resources.erase(it);
+        ++it;
     }
 }
 
 void ResourceManager::loadFrameGraph(const entt::hashed_string& name) {
-    auto path = calcFrameGraphPath(name);
+    const auto path = calcFrameGraphPath(name);
 
     gerium_file_t file;
     check(gerium_file_open(path.c_str(), true, &file));
     deferred(gerium_file_destroy(file));
 
-    auto data = gerium_file_map(file);
-
     YAML::resetBuffer();
-    auto yaml = YAML::Load(std::string((const char*) data, gerium_file_get_size(file)));
+    auto yaml = YAML::Load(std::string((const char*) gerium_file_map(file), gerium_file_get_size(file)));
 
     const auto nodes = yaml["frame graph"].as<std::vector<YAML::FrameGraphNode>>();
 
@@ -97,16 +92,14 @@ Technique ResourceManager::loadTechnique(const entt::hashed_string& name, gerium
         return technique;
     }
 
-    auto path = calcTechniquePath(name);
+    auto fullPath = calcTechniquePath(name);
 
     gerium_file_t file;
-    check(gerium_file_open(path.c_str(), true, &file));
+    check(gerium_file_open(fullPath.c_str(), true, &file));
     deferred(gerium_file_destroy(file));
 
-    auto data = gerium_file_map(file);
-
     YAML::resetBuffer();
-    auto yaml = YAML::Load(std::string((const char*) data, gerium_file_get_size(file)));
+    auto yaml = YAML::Load(std::string((const char*) gerium_file_map(file), gerium_file_get_size(file)));
 
     const auto techName  = yaml["name"].as<std::string>();
     const auto pipelines = yaml["pipelines"].as<std::vector<gerium_pipeline_t>>();
@@ -122,7 +115,7 @@ Technique ResourceManager::loadTechnique(const entt::hashed_string& name, gerium
 Texture ResourceManager::createTexture(const gerium_texture_info_t& info,
                                        gerium_cdata_t data,
                                        gerium_uint64_t retentionMs) {
-    std::string name = info.name ? info.name : "";
+    std::string name = info.name ? info.name : ""s;
 
     entt::hashed_string hashedName = { name.data(), name.length() };
 
@@ -199,39 +192,32 @@ DescriptorSet ResourceManager::createDescriptorSet(const entt::hashed_string& na
     return { this, descriptorSet };
 }
 
-Texture ResourceManager::getTextureByPath(const entt::hashed_string& path) {
+Texture ResourceManager::getTextureByPath(const entt::hashed_string& path) noexcept {
     return getResourceByPath<gerium_texture_h>(path);
 }
 
-Texture ResourceManager::getTextureByName(const entt::hashed_string& name) {
+Texture ResourceManager::getTextureByName(const entt::hashed_string& name) noexcept {
     return getResourceByName<gerium_texture_h>(name);
 }
 
-Technique ResourceManager::getTechniqueByPath(const entt::hashed_string& name) {
-    return getResourceByPath<gerium_technique_h>(name);
+Technique ResourceManager::getTechniqueByPath(const entt::hashed_string& path) noexcept {
+    return getResourceByPath<gerium_technique_h>(path);
 }
 
-Technique ResourceManager::getTechniqueByName(const entt::hashed_string& name) {
+Technique ResourceManager::getTechniqueByName(const entt::hashed_string& name) noexcept {
     return getResourceByName<gerium_technique_h>(name);
 }
 
-Buffer ResourceManager::getBufferByPath(const entt::hashed_string& path) {
+Buffer ResourceManager::getBufferByPath(const entt::hashed_string& path) noexcept {
     return getResourceByPath<gerium_buffer_h>(path);
 }
 
-Buffer ResourceManager::getBufferByName(const entt::hashed_string& name) {
+Buffer ResourceManager::getBufferByName(const entt::hashed_string& name) noexcept {
     return getResourceByName<gerium_buffer_h>(name);
 }
 
-DescriptorSet ResourceManager::getDescriptorSetByName(const entt::hashed_string& name) {
+DescriptorSet ResourceManager::getDescriptorSetByName(const entt::hashed_string& name) noexcept {
     return getResourceByName<gerium_descriptor_set_h>(name);
-}
-
-gerium_uint64_t ResourceManager::calcKey(const entt::hashed_string& str, Type type) noexcept {
-    if (str.size()) {
-        return str.value() | (((uint64_t) type) << 32);
-    }
-    return 0;
 }
 
 std::string ResourceManager::calcFrameGraphPath(const entt::hashed_string& name) noexcept {

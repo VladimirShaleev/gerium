@@ -5,12 +5,12 @@
 
 class ResourceManager;
 
-template <typename T>
+template <typename H>
 class Resource final {
 public:
     Resource() = default;
     Resource(std::nullptr_t) noexcept;
-    Resource(ResourceManager* resourceManager, T handle) noexcept;
+    Resource(ResourceManager* resourceManager, H handle) noexcept;
     ~Resource();
 
     Resource(const Resource& resource) noexcept;
@@ -20,9 +20,9 @@ public:
     Resource& operator=(const Resource& resource) noexcept;
     Resource& operator=(Resource&& resource) noexcept;
 
-    operator T() noexcept;
+    operator H() noexcept;
 
-    operator const T() const noexcept;
+    operator const H() const noexcept;
 
     explicit operator bool() const noexcept;
 
@@ -34,43 +34,13 @@ private:
     void destroy() noexcept;
 
     ResourceManager* _resourceManager{};
-    T _handle{ UndefinedHandle };
+    H _handle{ UndefinedHandle };
 };
 
 using Buffer        = Resource<gerium_buffer_h>;
 using Texture       = Resource<gerium_texture_h>;
 using Technique     = Resource<gerium_technique_h>;
 using DescriptorSet = Resource<gerium_descriptor_set_h>;
-
-enum Type {
-    TextureType       = 1,
-    TechniqueType     = 2,
-    BufferType        = 3,
-    DescriptorSetType = 4
-};
-
-template <typename>
-struct HandleToType {};
-
-template <>
-struct HandleToType<gerium_texture_h> {
-    static constexpr Type type = TextureType;
-};
-
-template <>
-struct HandleToType<gerium_technique_h> {
-    static constexpr Type type = TechniqueType;
-};
-
-template <>
-struct HandleToType<gerium_buffer_h> {
-    static constexpr Type type = BufferType;
-};
-
-template <>
-struct HandleToType<gerium_descriptor_set_h> {
-    static constexpr Type type = DescriptorSetType;
-};
 
 class ResourceManager final {
 public:
@@ -109,13 +79,13 @@ public:
                                       bool global                 = false,
                                       gerium_uint64_t retentionMs = NoRetention);
 
-    Texture getTextureByPath(const entt::hashed_string& path);
-    Texture getTextureByName(const entt::hashed_string& name);
-    Technique getTechniqueByPath(const entt::hashed_string& name);
-    Technique getTechniqueByName(const entt::hashed_string& name);
-    Buffer getBufferByPath(const entt::hashed_string& path);
-    Buffer getBufferByName(const entt::hashed_string& name);
-    DescriptorSet getDescriptorSetByName(const entt::hashed_string& name);
+    Texture getTextureByPath(const entt::hashed_string& path) noexcept;
+    Texture getTextureByName(const entt::hashed_string& name) noexcept;
+    Technique getTechniqueByPath(const entt::hashed_string& path) noexcept;
+    Technique getTechniqueByName(const entt::hashed_string& name) noexcept;
+    Buffer getBufferByPath(const entt::hashed_string& path) noexcept;
+    Buffer getBufferByName(const entt::hashed_string& name) noexcept;
+    DescriptorSet getDescriptorSetByName(const entt::hashed_string& name) noexcept;
 
     gerium_renderer_t renderer() noexcept {
         return _renderer;
@@ -126,23 +96,28 @@ public:
     }
 
 private:
-    template <typename T>
+    template <typename H>
     friend class Resource;
 
     struct ResourceData {
-        Type type;
+        gerium_uint32_t type;
         gerium_uint16_t handle;
         gerium_uint16_t references;
-        gerium_uint64_t path;
-        gerium_uint64_t name;
+        gerium_uint64_t pathKey;
+        gerium_uint64_t nameKey;
         gerium_uint64_t lastTick;
         gerium_uint64_t retentionMs;
     };
 
     template <typename H>
+    static gerium_uint32_t getHandleId() noexcept {
+        return entt::type_index<H>::value();
+    }
+
+    template <typename H>
     Resource<H> getResourceByPath(const entt::hashed_string& path) noexcept {
         if (path.size()) {
-            if (auto it = _pathes.find(calcKey(path, HandleToType<H>::type)); it != _pathes.end()) {
+            if (auto it = _pathes.find(calcKey<H>(path)); it != _pathes.end()) {
                 return { this, H{ it->second->handle } };
             }
         }
@@ -152,7 +127,7 @@ private:
     template <typename H>
     Resource<H> getResourceByName(const entt::hashed_string& name) noexcept {
         if (name.size()) {
-            if (auto it = _names.find(calcKey(name, HandleToType<H>::type)); it != _names.end()) {
+            if (auto it = _names.find(calcKey<H>(name)); it != _names.end()) {
                 return { this, H{ it->second->handle } };
             }
         }
@@ -164,27 +139,25 @@ private:
                      const entt::hashed_string& name,
                      H handle,
                      gerium_uint64_t retentionMs) {
-        auto key = calcHandleKey(handle);
-
-        auto& resource       = _resources[key];
-        resource.type        = HandleToType<H>::type;
+        auto& resource       = _resources[calcHandleKey(handle)];
+        resource.type        = getHandleId<H>();
         resource.handle      = handle.index;
         resource.references  = 0;
-        resource.path        = 0;
-        resource.name        = 0;
+        resource.pathKey     = 0;
+        resource.nameKey     = 0;
         resource.lastTick    = _ticks;
         resource.retentionMs = 0;
 
         bool hasRetention = false;
-        if (auto key = calcKey(path, HandleToType<H>::type)) {
-            resource.path = key;
-            _pathes[key]  = &resource;
-            hasRetention  = true;
+        if (auto key = calcKey<H>(path)) {
+            resource.pathKey = key;
+            _pathes[key]     = &resource;
+            hasRetention     = true;
         }
-        if (auto key = calcKey(name, HandleToType<H>::type)) {
-            resource.name = key;
-            _names[key]   = &resource;
-            hasRetention  = true;
+        if (auto key = calcKey<H>(name)) {
+            resource.nameKey = key;
+            _names[key]      = &resource;
+            hasRetention     = true;
         }
         if (hasRetention) {
             resource.retentionMs = retentionMs;
@@ -192,29 +165,37 @@ private:
     }
 
     template <typename H>
-    void reference(const Resource<H>& ref) noexcept {
+    void addReference(const Resource<H>& ref, gerium_sint16_t add) noexcept {
         const H handle = ref;
         if (auto it = _resources.find(calcHandleKey(handle)); it != _resources.end()) {
-            ++it->second.references;
+            it->second.references = gerium_sint16_t(it->second.references) + add;
         }
+    }
+
+    template <typename H>
+    void reference(const Resource<H>& ref) noexcept {
+        addReference(ref, 1);
     }
 
     template <typename H>
     void destroy(const Resource<H>& ref) noexcept {
-        const H handle = ref;
-        if (auto it = _resources.find(calcHandleKey(handle)); it != _resources.end()) {
-            --it->second.references;
-            it->second.lastTick = _ticks;
-        }
+        addReference(ref, -1);
     }
 
     template <typename H>
     static gerium_uint32_t calcHandleKey(H handle) noexcept {
-        auto type = ((gerium_uint32_t) HandleToType<H>::type) << 16;
-        return type | gerium_uint32_t(handle.index);
+        const auto handleKey = getHandleId<H>();
+        return (gerium_uint32_t(handleKey) << 16) | gerium_uint32_t(handle.index);
     }
 
-    static gerium_uint64_t calcKey(const entt::hashed_string& str, Type type) noexcept;
+    template <typename H>
+    static gerium_uint64_t calcKey(const entt::hashed_string& str) noexcept {
+        if (str.size()) {
+            const auto handleKey = getHandleId<H>();
+            return ((gerium_uint64_t(handleKey)) << 32) | gerium_uint64_t(str.value());
+        }
+        return 0;
+    }
 
     static std::string calcFrameGraphPath(const entt::hashed_string& name) noexcept;
     static std::string calcTexturePath(const entt::hashed_string& filename) noexcept;
@@ -228,12 +209,12 @@ private:
     std::map<gerium_uint64_t, ResourceData*> _names;
 };
 
-template <typename T>
-inline Resource<T>::Resource(std::nullptr_t) noexcept : Resource() {
+template <typename H>
+inline Resource<H>::Resource(std::nullptr_t) noexcept : Resource() {
 }
 
-template <typename T>
-inline Resource<T>::Resource(ResourceManager* resourceManager, T handle) noexcept :
+template <typename H>
+inline Resource<H>::Resource(ResourceManager* resourceManager, H handle) noexcept :
     _resourceManager(resourceManager),
     _handle(handle) {
     if (resourceManager) {
@@ -241,13 +222,13 @@ inline Resource<T>::Resource(ResourceManager* resourceManager, T handle) noexcep
     }
 }
 
-template <typename T>
-inline Resource<T>::~Resource() {
+template <typename H>
+inline Resource<H>::~Resource() {
     destroy();
 }
 
-template <typename T>
-inline Resource<T>::Resource(const Resource& resource) noexcept :
+template <typename H>
+inline Resource<H>::Resource(const Resource& resource) noexcept :
     _resourceManager(resource._resourceManager),
     _handle(resource._handle) {
     if (_resourceManager) {
@@ -255,22 +236,22 @@ inline Resource<T>::Resource(const Resource& resource) noexcept :
     }
 }
 
-template <typename T>
-inline Resource<T>::Resource(Resource&& resource) noexcept :
+template <typename H>
+inline Resource<H>::Resource(Resource&& resource) noexcept :
     _resourceManager(resource._resourceManager),
     _handle(resource._handle) {
     resource._resourceManager = nullptr;
     resource._handle          = { UndefinedHandle };
 }
 
-template <typename T>
-inline Resource<T>& Resource<T>::operator=(std::nullptr_t) noexcept {
+template <typename H>
+inline Resource<H>& Resource<H>::operator=(std::nullptr_t) noexcept {
     destroy();
     return *this;
 }
 
-template <typename T>
-inline Resource<T>& Resource<T>::operator=(const Resource<T>& resource) noexcept {
+template <typename H>
+inline Resource<H>& Resource<H>::operator=(const Resource<H>& resource) noexcept {
     if (_handle.index != resource._handle.index) {
         destroy();
         _resourceManager = resource._resourceManager;
@@ -282,8 +263,8 @@ inline Resource<T>& Resource<T>::operator=(const Resource<T>& resource) noexcept
     return *this;
 }
 
-template <typename T>
-inline Resource<T>& Resource<T>::operator=(Resource<T>&& resource) noexcept {
+template <typename H>
+inline Resource<H>& Resource<H>::operator=(Resource<H>&& resource) noexcept {
     if (_handle.index != resource._handle.index) {
         destroy();
         std::swap(_resourceManager, resource._resourceManager);
@@ -292,38 +273,38 @@ inline Resource<T>& Resource<T>::operator=(Resource<T>&& resource) noexcept {
     return *this;
 }
 
-template <typename T>
-inline Resource<T>::operator T() noexcept {
+template <typename H>
+inline Resource<H>::operator H() noexcept {
     return _handle;
 }
 
-template <typename T>
-inline Resource<T>::operator const T() const noexcept {
+template <typename H>
+inline Resource<H>::operator const H() const noexcept {
     return _handle;
 }
 
-template <typename T>
-inline Resource<T>::operator bool() const noexcept {
+template <typename H>
+inline Resource<H>::operator bool() const noexcept {
     return _resourceManager && _handle.index != UndefinedHandle;
 }
 
-template <typename T>
-inline bool Resource<T>::operator==(const Resource& rhs) const noexcept {
+template <typename H>
+inline bool Resource<H>::operator==(const Resource& rhs) const noexcept {
     return _handle.index == rhs._handle.index;
 }
 
-template <typename T>
-inline bool Resource<T>::operator!=(const Resource& rhs) const noexcept {
+template <typename H>
+inline bool Resource<H>::operator!=(const Resource& rhs) const noexcept {
     return !(*this == rhs);
 }
 
-template <typename T>
-inline auto Resource<T>::operator<=>(const Resource& rhs) const noexcept {
+template <typename H>
+inline auto Resource<H>::operator<=>(const Resource& rhs) const noexcept {
     return _handle.index <=> rhs._handle.index;
 }
 
-template <typename T>
-inline void Resource<T>::destroy() noexcept {
+template <typename H>
+inline void Resource<H>::destroy() noexcept {
     if (_resourceManager) {
         _resourceManager->destroy(*this);
         _resourceManager = nullptr;
@@ -333,10 +314,10 @@ inline void Resource<T>::destroy() noexcept {
 
 namespace std {
 
-template <typename T>
-struct hash<Resource<T>> {
-    size_t operator()(const Resource<T>& resource) const {
-        return T(resource).index;
+template <typename H>
+struct hash<Resource<H>> {
+    size_t operator()(const Resource<H>& resource) const {
+        return H(resource).index;
     }
 };
 
