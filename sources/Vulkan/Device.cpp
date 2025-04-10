@@ -697,7 +697,6 @@ DescriptorSetLayoutHandle Device::createDescriptorSetLayout(const DescriptorSetL
 ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSpirv) {
     auto [handle, program] = _programs.obtain_and_access();
 
-    // VkPipelineShaderStageCreateInfo shaderStageInfo[kMaxShaderStages];
     program->name             = intern(creation.name);
     program->graphicsPipeline = true;
 
@@ -773,7 +772,6 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
             DescriptorSetLayoutData& layout = program->descriptorSets[reflSet.set];
             auto& uniqueBinding             = uniqueBindings[reflSet.set];
 
-            layout.hash = 0;
             for (uint32_t binding = 0; binding < reflSet.binding_count; ++binding) {
                 const SpvReflectDescriptorBinding& reflBinding = *(reflSet.bindings[binding]);
                 if (uniqueBinding.contains(reflBinding.binding)) {
@@ -784,7 +782,6 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                     if (it != layout.bindings.end()) {
                         auto& layoutBinding = *it;
                         layoutBinding.stageFlags |= static_cast<VkShaderStageFlagBits>(module.shader_stage);
-                        layout.hash = hash(layoutBinding.stageFlags, layout.hash);
 
                         auto descriptorType  = static_cast<VkDescriptorType>(reflBinding.descriptor_type);
                         auto descriptorCount = 1;
@@ -834,11 +831,6 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
                 layoutBinding.stageFlags = static_cast<VkShaderStageFlagBits>(module.shader_stage);
 
                 uniqueBinding.insert(reflBinding.binding);
-
-                layout.hash = hash(layoutBinding.binding, layout.hash);
-                layout.hash = hash(layoutBinding.descriptorType, layout.hash);
-                layout.hash = hash(layoutBinding.descriptorCount, layout.hash);
-                layout.hash = hash(layoutBinding.stageFlags, layout.hash);
             }
             std::sort(layout.bindings.begin(), layout.bindings.end(), [](const auto& b1, const auto& b2) {
                 return b1.binding < b2.binding;
@@ -859,6 +851,16 @@ ProgramHandle Device::createProgram(const ProgramCreation& creation, bool saveSp
         setObjectName(VK_OBJECT_TYPE_SHADER_MODULE,
                       (uint64_t) program->shaderStageInfo[program->activeShaders].module,
                       stage.name);
+    }
+
+    for (auto& [set, layout] : program->descriptorSets) {
+        layout.hash = hash(set, layout.hash);
+        for (const auto& binding : layout.bindings) {
+            layout.hash = hash(binding.binding, layout.hash);
+            layout.hash = hash(binding.descriptorType, layout.hash);
+            layout.hash = hash(binding.descriptorCount, layout.hash);
+            layout.hash = hash(binding.stageFlags, layout.hash);
+        }
     }
 
     return handle;
@@ -1426,27 +1428,24 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
 
         if (descriptorSet->vkDescriptorSet && descriptorSet->global && !bindless) {
             _freeDescriptorSetQueue.emplace_back(descriptorSet->vkDescriptorSet, _absoluteFrame);
-            descriptorSet->vkDescriptorSet = VK_NULL_HANDLE;
         }
 
-        if (!descriptorSet->vkDescriptorSet) {
+        if (!descriptorSet->vkDescriptorSet || !bindless) {
             uint32_t maxBinding = _maxPoolElements - 1;
 
             VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{
-                    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
+                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
             };
             countInfo.descriptorSetCount = 1;
-            countInfo.pDescriptorCounts = &maxBinding;
+            countInfo.pDescriptorCounts  = &maxBinding;
 
-            VkDescriptorSetAllocateInfo allocInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-            allocInfo.pNext = _bindlessSupported && bindless ? &countInfo : nullptr;
-            allocInfo.descriptorPool = descriptorSet->global ? _globalDescriptorPool
-                                                             : _descriptorPools[_currentFrame];
+            VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+            allocInfo.pNext          = _bindlessSupported && bindless ? &countInfo : nullptr;
+            allocInfo.descriptorPool = descriptorSet->global ? _globalDescriptorPool : _descriptorPools[_currentFrame];
             allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = &pipelineLayout->vkDescriptorSetLayout;
+            allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
 
-            check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo,
-                                                    &descriptorSet->vkDescriptorSet));
+            check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
         }
 
         const auto [num, updateRequired] = fillWriteDescriptorSets(
@@ -2333,6 +2332,8 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
 
                 if (texture->loadedMips == 0) {
                     texture        = _textures.access(getDefaultTexture(descriptorSetLayout, binding.binding));
+                    updateRequired = true;
+                } else if (texture->loadedMips != texture->mipLevels) {
                     updateRequired = true;
                 }
 

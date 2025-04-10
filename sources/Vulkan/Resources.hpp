@@ -355,7 +355,7 @@ struct DescriptorSet {
     VkDescriptorSet           vkDescriptorSet;
     DescriptorSetLayoutHandle layout;
     Bindings                  bindings;
-    gerium_uint8_t            absoluteFrame;
+    gerium_uint32_t           absoluteFrame;
     gerium_uint8_t            changed;
     gerium_uint8_t            global;
 };
