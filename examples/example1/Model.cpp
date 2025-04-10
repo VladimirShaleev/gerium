@@ -463,6 +463,9 @@ Model loadModel(Cluster& cluster, const entt::hashed_string& name) {
                         case aiOrigin_END:
                             _pos = FileSize() - offset;
                             break;
+                        default:
+                            assert(!"unreachable code");
+                            break;
                     }
                     return aiReturn_SUCCESS;
                 }

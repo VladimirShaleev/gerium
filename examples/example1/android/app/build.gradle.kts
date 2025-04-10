@@ -23,6 +23,7 @@ android {
                 arguments += "-DANDROID_STL=c++_static"
                 arguments += "-DCMAKE_TOOLCHAIN_FILE="
                 cppFlags += "-std=c++20"
+                cppFlags += "-ffp-contract=off"
             }
         }
         ndk {

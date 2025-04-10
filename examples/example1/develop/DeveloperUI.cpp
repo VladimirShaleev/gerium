@@ -615,7 +615,7 @@ void DeveloperUI::showComponent(entt::entity entity, Renderable& renderable) {
         auto& material = renderable.meshes[i].material;
 
         const auto name = "material "s + std::to_string(i);
-        ImGui::Text(name.c_str());
+        ImGui::Text("%s", name.c_str());
         ImGui::Separator();
 
         auto index =

@@ -1360,10 +1360,11 @@ void Device::bind(DescriptorSetHandle handle,
                 VkWriteDescriptorSet descriptorWrite[1]{};
                 VkDescriptorBufferInfo bufferInfo[1]{};
                 VkDescriptorImageInfo imageInfo[1]{};
-                const auto [num, _] =
+                const auto [num, updateRequired] =
                     fillWriteDescriptorSets(*layout, tempDescriptorSet, descriptorWrite, bufferInfo, imageInfo);
 
                 _vkTable.vkUpdateDescriptorSets(_device, num, descriptorWrite, 0, nullptr);
+                descriptorSet->changed = updateRequired;
                 return;
             }
         }
@@ -1423,24 +1424,30 @@ VkDescriptorSet Device::updateDescriptorSet(DescriptorSetHandle handle,
             }
         }
 
-        if (descriptorSet->vkDescriptorSet && descriptorSet->global) {
+        if (descriptorSet->vkDescriptorSet && descriptorSet->global && !bindless) {
             _freeDescriptorSetQueue.emplace_back(descriptorSet->vkDescriptorSet, _absoluteFrame);
+            descriptorSet->vkDescriptorSet = VK_NULL_HANDLE;
         }
-        uint32_t maxBinding = _maxPoolElements - 1;
 
-        VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{
-            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
-        };
-        countInfo.descriptorSetCount = 1;
-        countInfo.pDescriptorCounts  = &maxBinding;
+        if (!descriptorSet->vkDescriptorSet) {
+            uint32_t maxBinding = _maxPoolElements - 1;
 
-        VkDescriptorSetAllocateInfo allocInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-        allocInfo.pNext              = _bindlessSupported && bindless ? &countInfo : nullptr;
-        allocInfo.descriptorPool     = descriptorSet->global ? _globalDescriptorPool : _descriptorPools[_currentFrame];
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts        = &pipelineLayout->vkDescriptorSetLayout;
+            VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{
+                    VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO
+            };
+            countInfo.descriptorSetCount = 1;
+            countInfo.pDescriptorCounts = &maxBinding;
 
-        check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo, &descriptorSet->vkDescriptorSet));
+            VkDescriptorSetAllocateInfo allocInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+            allocInfo.pNext = _bindlessSupported && bindless ? &countInfo : nullptr;
+            allocInfo.descriptorPool = descriptorSet->global ? _globalDescriptorPool
+                                                             : _descriptorPools[_currentFrame];
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = &pipelineLayout->vkDescriptorSetLayout;
+
+            check(_vkTable.vkAllocateDescriptorSets(_device, &allocInfo,
+                                                    &descriptorSet->vkDescriptorSet));
+        }
 
         const auto [num, updateRequired] = fillWriteDescriptorSets(
             *pipelineLayout, *descriptorSet, _descriptorWrite.data(), _bufferInfo.data(), _imageInfo.data());

@@ -4,6 +4,11 @@ cmake_policy(SET CMP0135 NEW)
 include(cmake/version.cmake)
 include(cmake/vcpkg.cmake)
 
+option(GERIUM_BUILD_SAMPLES "Build samples" ON)
+if(GERIUM_BUILD_SAMPLES)
+    list(APPEND VCPKG_MANIFEST_FEATURES "samples")
+endif()
+
 project(gerium VERSION ${GERIUM_VERSION} LANGUAGES CXX)
 include(cmake/x11.cmake)
 include(cmake/properties.cmake)
@@ -12,8 +17,6 @@ include(CMakeDependentOption)
 option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
-cmake_dependent_option(GERIUM_BUILD_SAMPLES "Build samples" ON
-    "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR" OFF)
 
 find_package(mimalloc CONFIG REQUIRED)
 find_package(CMakeRC CONFIG REQUIRED)

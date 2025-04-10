@@ -39,25 +39,6 @@
       "features": [
         "vulkan"
       ]
-    },
-
-    "yaml-cpp",
-    "imguizmo",
-    "glm",
-    "entt",
-    "magic-enum",
-    "meshoptimizer",
-    "argparse",
-    "assimp",
-    "gli",
-    "stduuid",
-    "joltphysics",
-    "capnproto",
-    {
-      "name": "reflectcpp",
-      "features": [
-        "capnproto"
-      ]
     }
   ],
   "overrides": [
@@ -65,5 +46,30 @@
       "name": "ctre",
       "version": "3.8.1"
     }
-  ]
+  ],
+  "features": {
+    "samples": {
+      "description": "Build samples",
+      "dependencies": [
+        "yaml-cpp",
+        "imguizmo",
+        "glm",
+        "entt",
+        "magic-enum",
+        "meshoptimizer",
+        "argparse",
+        "assimp",
+        "gli",
+        "stduuid",
+        "joltphysics",
+        "capnproto",
+        {
+          "name": "reflectcpp",
+          "features": [
+            "capnproto"
+          ]
+        }
+      ]
+    }
+  }
 }
