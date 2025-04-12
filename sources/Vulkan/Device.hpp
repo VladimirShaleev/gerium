@@ -512,7 +512,7 @@ private:
     CommandBufferPool _commandBufferPool{};
     std::queue<ResourceDeletion> _deletionQueue{};
     std::map<gerium_uint64_t, RenderPassHandle> _renderPassCache{};
-    CommandBuffer* _queuedCommandBuffers[16]{};
+    CommandBuffer* _queuedCommandBuffers[32]{};
     CommandBuffer* _frameCommandBuffer{};
     gerium_uint32_t _numQueuedCommandBuffers{};
     std::map<gerium_uint64_t, SamplerHandle> _samplerCache{};

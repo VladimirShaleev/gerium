@@ -13,7 +13,7 @@ void PhysicsService::start() {
     auto numThreads = std::thread::hardware_concurrency() - 1;
 
     _allocator                     = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
-    _jobSystem                     = std::make_unique<JPH::JobSystemThreadPool>(512, 8, numThreads);
+    _jobSystem                     = std::make_unique<JPH::JobSystemThreadPool>(1024, 8, numThreads);
     _broadPhaseLayerInterface      = std::make_unique<BroadPhaseLayerInterface>(this);
     _objectVsBroadPhaseLayerFilter = std::make_unique<ObjectVsBroadPhaseLayerFilter>(this);
     _objectLayerPairFilter         = std::make_unique<ObjectLayerPairFilter>(this);

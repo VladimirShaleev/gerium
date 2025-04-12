@@ -7,6 +7,7 @@
 #include "../events/AddModelEvent.hpp"
 #include "../events/AddNodeNameEvent.hpp"
 #include "../events/ChangeColliderEvent.hpp"
+#include "../events/ChangeMaterialsEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/ChangeRigidBodyEvent.hpp"
 #include "../events/DeleteNodeByNameEvent.hpp"
@@ -31,6 +32,7 @@ private:
     void onMoveNode(const MoveNodeEvent& event);
     void onChangeCollider(const ChangeColliderEvent& event);
     void onChangeRigidBody(const ChangeRigidBodyEvent& event);
+    void onChangeMaterials(const ChangeMaterialsEvent& event);
 
     void checkAndAddNode(entt::entity entity, const Name& name);
     const Model& getModel(const entt::hashed_string& modelId);

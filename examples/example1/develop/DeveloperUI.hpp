@@ -235,6 +235,8 @@ private:
     std::set<const char*> _missingComponents{};
     Cluster _cluster{};
     std::map<entt::hashed_string, Model> _models{};
+    std::vector<hashed_string_owner> _poolTextures{};
+    std::vector<const char*> _textures{};
 };
 
 #endif

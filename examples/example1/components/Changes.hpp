@@ -15,6 +15,7 @@ struct Changes {
     Change transforms{};
     Change rigidBodies{};
     Change colliders{};
+    Change renderables{};
 };
 
 #endif

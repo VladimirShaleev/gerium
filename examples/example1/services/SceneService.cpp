@@ -159,7 +159,8 @@ void SceneService::onAddModel(const AddModelEvent& event) {
                         break;
                 }
 
-                auto& renderable = registry.get_or_emplace<Renderable>(node);
+                auto& renderable   = registry.get_or_emplace<Renderable>(node);
+                renderable.changed = true;
                 renderable.meshes.push_back({});
 
                 static int ii  = 0;
@@ -316,6 +317,20 @@ void SceneService::onChangeRigidBody(const ChangeRigidBodyEvent& event) {
     changes().rigidBodies |= registry.any_of<Static>(event.entity) ? Change::Static : Change::Dynamic;
 }
 
+void SceneService::onChangeMaterials(const ChangeMaterialsEvent& event) {
+    auto& registry = entityRegistry();
+    if (auto renderable = registry.try_get<Renderable>(event.entity)) {
+        auto& renderables = changes().renderables;
+        for (size_t i = 0; i < event.materials.size(); ++i) {
+            renderable->meshes[i].material = event.materials[i];
+            renderable->changed            = true;
+        }
+        if (renderables != Change::All) {
+            renderables |= registry.any_of<Static>(event.entity) ? Change::Static : Change::Dynamic;
+        }
+    }
+}
+
 void SceneService::checkAndAddNode(entt::entity entity, const Name& name) {
     if (auto it = _nodes.find(name.name); it == _nodes.end()) {
         _nodes[name.name] = entity;
@@ -351,9 +366,11 @@ void SceneService::start() {
     application().dispatcher().sink<MoveNodeEvent>().connect<&SceneService::onMoveNode>(*this);
     application().dispatcher().sink<ChangeColliderEvent>().connect<&SceneService::onChangeCollider>(*this);
     application().dispatcher().sink<ChangeRigidBodyEvent>().connect<&SceneService::onChangeRigidBody>(*this);
+    application().dispatcher().sink<ChangeMaterialsEvent>().connect<&SceneService::onChangeMaterials>(*this);
 }
 
 void SceneService::stop() {
+    application().dispatcher().sink<ChangeMaterialsEvent>().disconnect(this);
     application().dispatcher().sink<ChangeRigidBodyEvent>().disconnect(this);
     application().dispatcher().sink<ChangeColliderEvent>().disconnect(this);
     application().dispatcher().sink<MoveNodeEvent>().disconnect(this);

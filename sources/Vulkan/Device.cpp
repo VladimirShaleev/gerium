@@ -228,7 +228,7 @@ void Device::present() {
 
     _frameCommandBuffer = nullptr;
 
-    VkCommandBuffer enqueuedCommandBuffers[16];
+    VkCommandBuffer enqueuedCommandBuffers[sizeof(_queuedCommandBuffers) / sizeof(_queuedCommandBuffers[0])];
     for (uint32_t i = 0; i < _numQueuedCommandBuffers; ++i) {
         auto commandBuffer = _queuedCommandBuffers[i];
         commandBuffer->end();

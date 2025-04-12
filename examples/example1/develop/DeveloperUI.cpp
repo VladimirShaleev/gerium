@@ -2,6 +2,7 @@
 #include "../events/AddModelEvent.hpp"
 #include "../events/AddNodeNameEvent.hpp"
 #include "../events/ChangeColliderEvent.hpp"
+#include "../events/ChangeMaterialsEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/ChangeRigidBodyEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
@@ -15,6 +16,15 @@ using namespace entt::literals;
 DeveloperUI::DeveloperUI(entt::registry& registry, entt::dispatcher& dispatcher) noexcept :
     _registry(registry),
     _dispatcher(dispatcher) {
+    for (const auto& texId : texIds) {
+        const auto path = std::filesystem::path(texId.data()).make_preferred();
+        _poolTextures.push_back(path.string());
+    }
+    _textures.reserve(_poolTextures.size() + 1);
+    _textures.push_back("None");
+    for (const auto& str : _poolTextures) {
+        _textures.push_back(str.data());
+    }
 }
 
 void DeveloperUI::show(gerium_command_buffer_t commandBuffer) {
@@ -604,48 +614,55 @@ void DeveloperUI::showComponent(entt::entity entity, RigidBody& rigidBody) {
 }
 
 void DeveloperUI::showComponent(entt::entity entity, Renderable& renderable) {
-    std::vector<hashed_string_owner> strPool;
-    std::vector<const char*> textures;
-    for (const auto& texId : texIds) {
-        const auto path = std::filesystem::path(texId.data()).make_preferred();
-        strPool.push_back(path.string());
+    std::vector<MaterialData> materials;
+    materials.reserve(renderable.meshes.size());
+    for (const auto& mesh : renderable.meshes) {
+        materials.push_back(mesh.material);
     }
-    textures.reserve(strPool.size() + 1);
-    textures.push_back("None");
-    for (const auto& str : strPool) {
-        textures.push_back(str.data());
-    }
+    auto changed = false;
 
-    std::array labels = { "Name",
-                          "Base Color",
-                          "Metallic Roughness",
-                          "Normal",
-                          "Occlusion",
-                          "Emissive",
-                          "Base Color Factor",
-                          "Emissive Factor",
-                          "Metallic Factor",
-                          "Roughness Factor",
-                          "Occlusion Strength",
-                          "Alpha Cutoff",
-                          "Alpha Mask",
-                          "Double Sided",
-                          "Transparent" };
+    std::array labels = { "Technique",       "Base Color",       "Metallic Roughness", "Normal",
+                          "Occlusion",       "Emissive",         "Base Color Factor",  "Emissive Factor",
+                          "Metallic Factor", "Roughness Factor", "Occlusion Strength", "Alpha Cutoff",
+                          "Alpha Mask",      "Double Sided",     "Transparent" };
 
     const auto width = calcItemWidth(labels);
 
-    auto selectTexture = [width, &strPool, &textures](int id, const char* label, hashed_string_owner& texture) {
-        ImGui::PushID(id);
+    auto technique = [&changed, &labels, width](int id, int label, hashed_string_owner& name) {
+        auto it    = std::find(std::begin(techIds), std::end(techIds), name);
+        auto index = std::distance(std::begin(techIds), it);
 
-        auto findTexture = std::find(strPool.begin(), strPool.end(), texture);
-        auto selected    = findTexture != strPool.end() ? std::distance(strPool.begin(), findTexture) + 1 : 0;
+        ImGui::PushID(id + label);
+        ImGui::SetNextItemWidth(width);
+        if (ImGui::BeginCombo(labels[label], techIds[index].data(), ImGuiComboFlags_HeightRegular)) {
+            for (size_t i = 0; i < std::size(techIds); ++i) {
+                auto isSelected = index == i;
+                if (ImGui::Selectable(techIds[i].data(), isSelected)) {
+                    name    = techIds[i];
+                    changed = true;
+                }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::PopID();
+    };
+
+    auto texture = [this, &changed, &labels, width](int id, int label, hashed_string_owner& tex) {
+        ImGui::PushID(id + label);
+
+        auto findTexture = std::find(_poolTextures.begin(), _poolTextures.end(), tex);
+        auto selected = findTexture != _poolTextures.end() ? std::distance(_poolTextures.begin(), findTexture) + 1 : 0;
 
         ImGui::SetNextItemWidth(width);
-        if (ImGui::BeginCombo(label, textures[selected], ImGuiComboFlags_HeightLarge)) {
-            for (size_t i = 0; i < textures.size(); ++i) {
+        if (ImGui::BeginCombo(labels[label], _textures[selected], ImGuiComboFlags_HeightLarge)) {
+            for (size_t i = 0; i < _textures.size(); ++i) {
                 auto isSelected = selected == i;
-                if (ImGui::Selectable(textures[i], isSelected)) {
-                    texture = i != 0 ? strPool[i - 1] : hashed_string_owner{ "" };
+                if (ImGui::Selectable(_textures[i], isSelected)) {
+                    tex     = i != 0 ? _poolTextures[i - 1] : hashed_string_owner{ "" };
+                    changed = true;
                 }
                 if (isSelected) {
                     ImGui::SetItemDefaultFocus();
@@ -657,97 +674,68 @@ void DeveloperUI::showComponent(entt::entity entity, Renderable& renderable) {
         ImGui::PopID();
     };
 
-    for (size_t i = 0; i < renderable.meshes.size(); ++i) {
-        int sId        = (int) i * 20;
-        auto& material = renderable.meshes[i].material;
+    auto colorEdit = [&changed, &labels, width](int id, int label, gerium_float32_t& value, bool edit4 = false) {
+        ImGui::PushID(id + label);
+        ImGui::SetNextItemWidth(width);
+        if (ImGui::ColorEdit4(labels[label], &value)) {
+            changed = true;
+        }
+        ImGui::PopID();
+    };
 
-        const auto name = "material "s + std::to_string(i);
+    auto dragFloat = [&changed, &labels, width](int id, int label, gerium_float32_t& value) {
+        ImGui::PushID(id + label);
+        ImGui::SetNextItemWidth(width);
+        if (ImGui::DragFloat(labels[label], &value, 0.001f, 0.0f, 1.0f, "%.3f")) {
+            changed = true;
+        }
+        ImGui::PopID();
+    };
+
+    auto checkbox = [&changed, &labels, width](int id, int label, MaterialFlags test, MaterialFlags& flags) {
+        auto check = (flags & test) == test;
+
+        ImGui::PushID(id + label);
+        ImGui::SetNextItemWidth(width);
+        if (ImGui::Checkbox(labels[label], &check)) {
+            changed = true;
+        }
+        ImGui::PopID();
+
+        if (check) {
+            flags |= test;
+        } else {
+            flags &= ~test;
+        }
+    };
+
+    for (size_t m = 0; m < materials.size(); ++m) {
+        int sId        = (int) m * 20;
+        auto& material = materials[m];
+
+        const auto name = "material "s + std::to_string(m);
         ImGui::Text("%s", name.c_str());
         ImGui::Separator();
 
-        auto index =
-            std::distance(std::begin(techIds), std::find(std::begin(techIds), std::end(techIds), material.name));
+        technique(sId, 0, material.name);
+        texture(sId, 1, material.baseColorTexture);
+        texture(sId, 2, material.metallicRoughnessTexture);
+        texture(sId, 3, material.normalTexture);
+        texture(sId, 4, material.occlusionTexture);
+        texture(sId, 5, material.emissiveTexture);
+        colorEdit(sId, 6, material.baseColorFactor.x, true);
+        colorEdit(sId, 7, material.emissiveFactor.x);
+        dragFloat(sId, 8, material.metallicFactor);
+        dragFloat(sId, 9, material.roughnessFactor);
+        dragFloat(sId, 10, material.occlusionStrength);
+        dragFloat(sId, 11, material.alphaCutoff);
+        checkbox(sId, 12, MaterialFlags::AlphaMask, material.flags);
+        checkbox(sId, 13, MaterialFlags::DoubleSided, material.flags);
+        checkbox(sId, 14, MaterialFlags::Transparent, material.flags);
+    }
 
-        ImGui::PushID(sId + 0);
-        ImGui::SetNextItemWidth(width);
-        if (ImGui::BeginCombo(labels[0], techIds[index].data(), ImGuiComboFlags_HeightRegular)) {
-            for (size_t i = 0; i < std::size(techIds); ++i) {
-                auto isSelected = index == i;
-                if (ImGui::Selectable(techIds[i].data(), isSelected)) {
-                    ////
-                }
-                if (isSelected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::PopID();
-
-        selectTexture(sId + 1, labels[1], material.baseColorTexture);
-        selectTexture(sId + 2, labels[2], material.metallicRoughnessTexture);
-        selectTexture(sId + 3, labels[3], material.normalTexture);
-        selectTexture(sId + 4, labels[4], material.occlusionTexture);
-        selectTexture(sId + 5, labels[5], material.emissiveTexture);
-
-        ImGui::PushID(sId + 6);
-        ImGui::SetNextItemWidth(width);
-        ImGui::ColorEdit4(labels[6], &material.baseColorFactor.x);
-        ImGui::PopID();
-        ImGui::PushID(sId + 7);
-        ImGui::SetNextItemWidth(width);
-        ImGui::ColorEdit3(labels[7], &material.emissiveFactor.x);
-        ImGui::PopID();
-        ImGui::PushID(sId + 8);
-        ImGui::SetNextItemWidth(width);
-        ImGui::DragFloat(labels[8], &material.metallicFactor, 0.001f, 0.0f, 1.0f, "%.3f");
-        ImGui::PopID();
-        ImGui::PushID(sId + 9);
-        ImGui::SetNextItemWidth(width);
-        ImGui::DragFloat(labels[9], &material.roughnessFactor, 0.001f, 0.0f, 1.0f, "%.3f");
-        ImGui::PopID();
-        ImGui::PushID(sId + 10);
-        ImGui::SetNextItemWidth(width);
-        ImGui::DragFloat(labels[10], &material.occlusionStrength, 0.001f, 0.0f, 1.0f, "%.3f");
-        ImGui::PopID();
-        ImGui::PushID(sId + 11);
-        ImGui::SetNextItemWidth(width);
-        ImGui::DragFloat(labels[11], &material.alphaCutoff, 0.001f, 0.0f, 1.0f, "%.3f");
-        ImGui::PopID();
-
-        auto alphaMask   = (material.flags & MaterialFlags::AlphaMask) == MaterialFlags::AlphaMask;
-        auto doubleSided = (material.flags & MaterialFlags::DoubleSided) == MaterialFlags::DoubleSided;
-        auto transparent = (material.flags & MaterialFlags::Transparent) == MaterialFlags::Transparent;
-        ImGui::PushID(sId + 12);
-        ImGui::SetNextItemWidth(width);
-        ImGui::Checkbox(labels[12], &alphaMask);
-        ImGui::PopID();
-        ImGui::PushID(sId + 13);
-        ImGui::SetNextItemWidth(width);
-        ImGui::Checkbox(labels[13], &doubleSided);
-        ImGui::PopID();
-        ImGui::PushID(sId + 14);
-        ImGui::SetNextItemWidth(width);
-        ImGui::Checkbox(labels[14], &transparent);
-        ImGui::PopID();
-
-        if (alphaMask) {
-            material.flags |= MaterialFlags::AlphaMask;
-        } else {
-            material.flags &= ~MaterialFlags::AlphaMask;
-        }
-
-        if (doubleSided) {
-            material.flags |= MaterialFlags::DoubleSided;
-        } else {
-            material.flags &= ~MaterialFlags::DoubleSided;
-        }
-
-        if (transparent) {
-            material.flags |= MaterialFlags::Transparent;
-        } else {
-            material.flags &= ~MaterialFlags::Transparent;
-        }
+    if (changed) {
+        _dispatcher.enqueue<ChangeMaterialsEvent>(entity, materials);
     }
 }
 

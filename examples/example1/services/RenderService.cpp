@@ -349,7 +349,10 @@ void RenderService::updateActiveSceneData() {
 // Fills GPU SSBO buffers with static instances and their materials.
 // Static instances and materials do not change, so their allocation is done once at startup.
 void RenderService::updateStaticInstances() {
-    if ((changes().transforms & Change::Static) != Change::Static) {
+    auto needDropMaterialCache = _instances.materialsTable.size() >= (MAX_DYNAMIC_MATERIALS - 10);
+
+    if ((changes().transforms & Change::Static) != Change::Static &&
+        (changes().renderables & Change::Static) != Change::Static && !needDropMaterialCache) {
         return;
     }
 

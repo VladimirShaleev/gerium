@@ -40,6 +40,7 @@ struct MeshData {
 
 struct Renderable {
     std::vector<MeshData> meshes;
+    bool changed;
 };
 
 #endif
