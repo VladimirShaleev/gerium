@@ -35,6 +35,22 @@ const entt::dispatcher& Service::dispatcher() const noexcept {
     return application().dispatcher();
 }
 
+Settings& Service::settings() noexcept {
+    return entityRegistry().ctx().get<Settings>();
+}
+
+const Settings& Service::settings() const noexcept {
+    return entityRegistry().ctx().get<Settings>();
+}
+
+Changes& Service::changes() noexcept {
+    return entityRegistry().ctx().get<Changes>();
+}
+
+const Changes& Service::changes() const noexcept {
+    return entityRegistry().ctx().get<Changes>();
+}
+
 void Service::start() {
 }
 

@@ -11,7 +11,6 @@
 #include "../components/Vehicle.hpp"
 #include "../components/VehicleController.hpp"
 #include "../components/Wheel.hpp"
-#include "../events/DirtySceneEvent.hpp"
 #include "TimeService.hpp"
 
 using namespace entt::literals;
@@ -125,15 +124,25 @@ void SceneService::onAddModel(const AddModelEvent& event) {
             isStatic = false;
         }
 
+        auto isStaticEntity = false;
         if (isStatic) {
+            isStaticEntity = true;
             registry.emplace<Static>(node);
+            changes().transforms |= Change::Static;
+        } else {
+            changes().transforms |= Change::Dynamic;
         }
 
         for (const auto& mesh : model.meshes) {
             if (mesh.nodeIndex == nodeIndex) {
-                auto& collider = registry.get_or_emplace<Collider>(node);
-                auto& body     = registry.get_or_emplace<RigidBody>(node);
-                body.mass      = modelNode.mass;
+                auto& body       = registry.get_or_emplace<RigidBody>(node);
+                auto& collider   = registry.get_or_emplace<Collider>(node);
+                body.mass        = modelNode.mass;
+                body.changed     = true;
+                collider.changed = true;
+
+                changes().rigidBodies |= isStaticEntity ? Change::Static : Change::Dynamic;
+                changes().colliders |= isStaticEntity ? Change::Static : Change::Dynamic;
 
                 switch (modelNode.colliderShape) {
                     case Shape::ConvexHull:
@@ -171,8 +180,6 @@ void SceneService::onAddModel(const AddModelEvent& event) {
             }
         }
     }
-
-    application().dispatcher().trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::Added, isStatic });
 }
 
 void SceneService::onAddNodeName(const AddNodeNameEvent& event) {
@@ -199,7 +206,7 @@ void SceneService::onChangeNodeName(const ChangeNodeNameEvent& event) {
 void SceneService::onDeleteNode(const DeleteNodeEvent& event) {
     auto& registry = entityRegistry();
 
-    auto hasStatics    = false;
+    auto& chs          = changes();
     auto parent        = registry.get<Node>(event.entity).parent;
     auto& parentChilds = registry.get<Node>(parent).childs;
     parentChilds.erase(std::find(parentChilds.begin(), parentChilds.end(), event.entity));
@@ -219,13 +226,18 @@ void SceneService::onDeleteNode(const DeleteNodeEvent& event) {
                 _nodes.erase(it);
             }
         }
-        if (!hasStatics && registry.any_of<Static>(entity)) {
-            hasStatics = true;
+
+        const auto change = registry.any_of<Static>(entity) ? Change::Static : Change::Dynamic;
+        chs.transforms |= change;
+        if (registry.any_of<RigidBody>(entity)) {
+            chs.rigidBodies |= change;
         }
+        if (registry.any_of<Collider>(entity)) {
+            chs.colliders |= change;
+        }
+
         registry.destroy(entity);
     }
-
-    application().dispatcher().trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::Deleted, hasStatics });
 }
 
 void SceneService::onDeleteNodeByName(const DeleteNodeByNameEvent& event) {
@@ -235,45 +247,73 @@ void SceneService::onDeleteNodeByName(const DeleteNodeByNameEvent& event) {
 }
 
 void SceneService::onMoveNode(const MoveNodeEvent& event) {
-    auto hasStatics = false;
-    auto& transform = entityRegistry().get<Transform>(event.entity);
-    if (!_transformChanges.contains(event.entity)) {
-        auto parent = entityRegistry().get<Node>(event.entity).parent;
-        auto parentMatrix =
-            parent != entt::null ? entityRegistry().get<Transform>(parent).matrix : glm::identity<glm::mat4>();
-        auto parentScale = parent != entt::null ? entityRegistry().get<Transform>(parent).scale : glm::vec3(1.0f);
+    auto& transforms = changes().transforms;
+    auto& registry   = entityRegistry();
+    auto& transform  = registry.get<Transform>(event.entity);
+    auto oldScale    = transform.scale;
 
-        std::queue<std::tuple<entt::entity, glm::mat4, glm::vec3>> visit;
-        visit.emplace(event.entity, glm::inverse(parentMatrix), 1.0f / parentScale);
+    transform.prevMatrix = transform.matrix;
+    transform.matrix     = calcMatrix(event.position, event.rotation, event.scale);
+    transform.scale      = event.scale;
+    transform.changed    = true;
+    transforms |= registry.any_of<Static>(event.entity) ? Change::Static : Change::Dynamic;
+
+    if (event.transformChilds) {
+        std::queue<std::tuple<entt::entity, glm::mat4, glm::vec3, glm::mat4, glm::vec3>> visit;
+        for (const auto child : registry.get<Node>(event.entity).childs) {
+            visit.emplace(
+                child, glm::inverse(transform.prevMatrix), 1.0f / oldScale, transform.matrix, transform.scale);
+        }
 
         while (!visit.empty()) {
-            auto [entity, parentInvOldMatrix, parentInvOldScale] = visit.front();
+            auto [entity, parentInvOldMatrix, parentInvOldScale, parentMatrix, parentScale] = visit.front();
             visit.pop();
 
-            if (auto it = _transformChanges.find(entity); it == _transformChanges.end()) {
-                if (!hasStatics && entityRegistry().any_of<Static>(entity)) {
-                    hasStatics = true;
-                }
+            if (transforms != Change::All) {
+                transforms |= registry.any_of<Static>(entity) ? Change::Static : Change::Dynamic;
+            }
 
-                auto& t                   = entityRegistry().get<Transform>(entity);
-                t.prevMatrix              = t.matrix;
-                _transformChanges[entity] = { parentInvOldMatrix, parentInvOldScale };
-                if (!event.transformChilds) {
-                    break;
-                }
-                if (entityRegistry().any_of<Renderable>(entity) && !entityRegistry().any_of<Static>(entity)) {
-                    break;
-                }
-                for (const auto child : entityRegistry().get<Node>(entity).childs) {
-                    visit.emplace(child, glm::inverse(t.matrix), 1.0f / t.scale);
-                }
+            auto& transform = registry.get<Transform>(entity);
+
+            const auto invMatrix   = glm::inverse(transform.matrix);
+            const auto invScale    = 1.0f / transform.scale;
+            const auto localMatrix = parentInvOldMatrix * transform.matrix;
+            const auto localScale  = parentInvOldScale * transform.scale;
+
+            transform.prevMatrix = transform.matrix;
+            transform.matrix     = parentMatrix * localMatrix;
+            transform.scale      = parentScale * localScale;
+            transform.changed    = true;
+
+            if (!event.transformChilds) {
+                break;
+            }
+
+            for (const auto child : registry.get<Node>(entity).childs) {
+                visit.emplace(child, invMatrix, invScale, transform.matrix, transform.scale);
             }
         }
     }
-    transform.matrix = calcMatrix(event.position, event.rotation, event.scale);
-    transform.scale  = event.scale;
+}
 
-    application().dispatcher().trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::Moved, hasStatics });
+void SceneService::onChangeCollider(const ChangeColliderEvent& event) {
+    auto& registry = entityRegistry();
+    if (event.collider) {
+        registry.emplace_or_replace<Collider>(event.entity, event.collider.value()).changed = true;
+    } else {
+        registry.remove<Collider>(event.entity);
+    }
+    changes().colliders |= registry.any_of<Static>(event.entity) ? Change::Static : Change::Dynamic;
+}
+
+void SceneService::onChangeRigidBody(const ChangeRigidBodyEvent& event) {
+    auto& registry = entityRegistry();
+    if (event.rigidBody) {
+        registry.emplace_or_replace<RigidBody>(event.entity, event.rigidBody.value()).changed = true;
+    } else {
+        registry.remove<RigidBody>(event.entity);
+    }
+    changes().rigidBodies |= registry.any_of<Static>(event.entity) ? Change::Static : Change::Dynamic;
 }
 
 void SceneService::checkAndAddNode(entt::entity entity, const Name& name) {
@@ -309,9 +349,13 @@ void SceneService::start() {
     application().dispatcher().sink<DeleteNodeEvent>().connect<&SceneService::onDeleteNode>(*this);
     application().dispatcher().sink<DeleteNodeByNameEvent>().connect<&SceneService::onDeleteNodeByName>(*this);
     application().dispatcher().sink<MoveNodeEvent>().connect<&SceneService::onMoveNode>(*this);
+    application().dispatcher().sink<ChangeColliderEvent>().connect<&SceneService::onChangeCollider>(*this);
+    application().dispatcher().sink<ChangeRigidBodyEvent>().connect<&SceneService::onChangeRigidBody>(*this);
 }
 
 void SceneService::stop() {
+    application().dispatcher().sink<ChangeRigidBodyEvent>().disconnect(this);
+    application().dispatcher().sink<ChangeColliderEvent>().disconnect(this);
     application().dispatcher().sink<MoveNodeEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeByNameEvent>().disconnect(this);
     application().dispatcher().sink<DeleteNodeEvent>().disconnect(this);
@@ -323,10 +367,7 @@ void SceneService::stop() {
 }
 
 void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
-    updateTransformations();
-
     _models.clear();
-    auto view = entityRegistry().view<Camera>();
 
     gerium_uint16_t width, height;
     gerium_application_get_size(application().handle(), &width, &height);
@@ -335,6 +376,7 @@ void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
         return;
     }
 
+    auto view = entityRegistry().view<Camera>();
     for (auto entity : view) {
         auto& camera = view.get<Camera>(entity);
 
@@ -364,29 +406,4 @@ void SceneService::update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) {
         camera.view               = glm::lookAt(camera.position, camera.position + camera.front, camera.up);
         camera.viewProjection     = camera.projection * camera.view;
     }
-}
-
-void SceneService::updateTransformations() {
-    for (const auto& [entity, inv] : _transformChanges) {
-        auto parent = entityRegistry().get<Node>(entity).parent;
-        auto parentMatrix =
-            parent != entt::null ? entityRegistry().get<Transform>(parent).matrix : glm::identity<glm::mat4>();
-        auto parentScale       = parent != entt::null ? entityRegistry().get<Transform>(parent).scale : glm::vec3(1.0f);
-        auto& transform        = entityRegistry().get<Transform>(entity);
-        const auto localMatrix = inv.invParentMatrix * transform.matrix;
-        const auto localScale  = inv.invParentScale * transform.scale;
-        transform.matrix       = parentMatrix * localMatrix;
-        transform.scale        = parentScale * localScale;
-        entityRegistry().replace<Transform>(entity, transform);
-        /*if (entityRegistry().any_of<Static>(entity)) {
-            if (auto rigidBody = entityRegistry().try_get<RigidBody>(entity)) {
-                auto body = *rigidBody;
-                entityRegistry().erase<RigidBody>(entity);
-                entityRegistry().emplace<RigidBody>(entity, body);
-            }
-        } else {
-
-        }*/
-    }
-    _transformChanges.clear();
 }

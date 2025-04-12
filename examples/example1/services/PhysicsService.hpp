@@ -12,18 +12,16 @@
 
 class PhysicsService final : public Service {
 private:
-    static constexpr entt::hashed_string STORAGE_CONSTRUCT = { "create_rigid_bodies" };
-    static constexpr entt::hashed_string STORAGE_DESTROY   = { "destroy_rigid_bodies" };
-    static constexpr entt::hashed_string STORAGE_MOVE      = { "move_rigid_bodies" };
-
     void start() override;
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
-    void step();
+    void step(gerium_float64_t elapsed);
 
-    void destroyBodies();
-    void createBodies();
-    void moveBodies();
+    std::map<entt::entity, JPH::Body*>::iterator destroyBody(entt::entity entity);
+    bool destroyBodies();
+    bool createBodies();
+    bool moveBodies();
+    void activateBodies();
     void createVehicleConstraints(entt::entity entity, Vehicle& vehicle, RigidBody& rigidBody);
 
     entt::hashed_string stateName() const noexcept override;
@@ -34,9 +32,7 @@ private:
     void updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint);
     void syncPhysicsToECS();
 
-    JPH::Ref<JPH::Shape> getShape(const Collider& collider, const Renderable* renderable);
-
-    gerium_uint32_t getNextBodyID();
+    JPH::Ref<JPH::Shape> getShape(const Collider* collider, const Renderable* renderable);
 
     static JPH::WheelSettings* createWheelSettings(const Vehicle& vehicle,
                                                    const Wheel& wheel,
@@ -83,10 +79,10 @@ private:
     std::unique_ptr<JPH::ObjectVsBroadPhaseLayerFilter> _objectVsBroadPhaseLayerFilter{};
     std::unique_ptr<JPH::ObjectLayerPairFilter> _objectLayerPairFilter{};
     std::unique_ptr<JPH::PhysicsSystem> _physicsSystem{};
-    std::map<gerium_uint32_t, JPH::Body*> _mapBodies{};
     JPH::Ref<JPH::VehicleCollisionTester> _vehicleTester{};
-    std::map<entt::entity, JPH::Ref<JPH::VehicleConstraint>> _vehicleConstraints{};
     std::map<entt::hashed_string, JPH::Ref<JPH::Shape>> _colliders{};
+    std::map<entt::entity, JPH::Body*> _mapBodies{};
+    std::map<entt::entity, JPH::Ref<JPH::VehicleConstraint>> _vehicleConstraints{};
 };
 
 #endif

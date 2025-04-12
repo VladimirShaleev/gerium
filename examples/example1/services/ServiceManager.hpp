@@ -2,6 +2,8 @@
 #define SERVICE_MANAGER_HPP
 
 #include "../Common.hpp"
+#include "../components/Settings.hpp"
+#include "../components/Changes.hpp"
 
 class Application;
 class ServiceManager;
@@ -21,6 +23,12 @@ public:
 
     [[nodiscard]] entt::dispatcher& dispatcher() noexcept;
     [[nodiscard]] const entt::dispatcher& dispatcher() const noexcept;
+
+    [[nodiscard]] Settings& settings() noexcept;
+    [[nodiscard]] const Settings& settings() const noexcept;
+
+    [[nodiscard]] Changes& changes() noexcept;
+    [[nodiscard]] const Changes& changes() const noexcept;
 
 protected:
     virtual void start();

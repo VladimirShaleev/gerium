@@ -5,7 +5,6 @@
 #include "../ResourceManager.hpp"
 #include "../components/Renderable.hpp"
 #include "../components/Transform.hpp"
-#include "../events/DirtySceneEvent.hpp"
 #include "ServiceManager.hpp"
 
 class RenderPass;
@@ -126,8 +125,6 @@ protected:
         std::map<gerium_uint32_t, gerium_uint32_t> techniquesTable; // Mapping of technique IDs to indices
         std::map<gerium_uint64_t, gerium_uint32_t> materialsTable;  // Mapping of material hashes to indices
         std::vector<MaterialNonCompressed> dynamicMaterialData;     // Materials for dynamic instances only
-
-        bool isDirtyStatics; // Statics changed
     };
 
     // Compatibility data for CPU-side processing (used when modern GPU features are not supported)
@@ -141,9 +138,6 @@ protected:
     // Adds a rendering pass to the frame graph.
     template <typename RP, typename... Args>
     void addPass(Args&&... args);
-
-    // Marks statics as changed
-    void onDirtyScene(const DirtySceneEvent& event);
 
     // Lifecycle methods for starting, stopping, and updating the render service.
     void start() override;

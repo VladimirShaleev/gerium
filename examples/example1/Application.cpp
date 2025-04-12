@@ -1,4 +1,5 @@
 #include "Application.hpp"
+#include "services/ClearService.hpp"
 #include "services/GameService.hpp"
 #include "services/InputService.hpp"
 #include "services/PhysicsService.hpp"
@@ -7,6 +8,7 @@
 #include "services/TimeService.hpp"
 
 #include "components/Camera.hpp"
+#include "components/Changes.hpp"
 #include "components/Settings.hpp"
 #include "events/AddModelEvent.hpp"
 
@@ -31,6 +33,7 @@ Application::~Application() {
 }
 
 void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_t height) noexcept {
+    _entityRegistry.ctx().emplace<Changes>(Changes{});
     auto settings = _entityRegistry.ctx().emplace<Settings>(Settings{});
 #ifndef NDEBUG
     settings.debugMode = true;
@@ -75,6 +78,7 @@ void Application::initialize() {
     _serviceManager.addService<PhysicsService>();
     _serviceManager.addService<SceneService>();
     _serviceManager.addService<RenderService>();
+    _serviceManager.addService<ClearService>();
 
     auto rotate = glm::rotate(glm::identity<glm::quat>(), glm::radians(150.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -131,7 +135,9 @@ void Application::loadState() {
             throw std::runtime_error("Load snapshot failed");
         }
         _serviceManager.restoreState(states);
-        _dispatcher.trigger<DirtySceneEvent>(DirtySceneEvent{ DirtyFlags::None, true });
+
+        auto& changes      = _entityRegistry.ctx().get<Changes>();
+        changes.transforms = Change::All;
     }
 }
 

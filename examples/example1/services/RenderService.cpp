@@ -36,22 +36,13 @@ void RenderService::mergeStaticAndDynamicInstances(gerium_command_buffer_t comma
     }
 }
 
-// Marks statics as changed
-void RenderService::onDirtyScene(const DirtySceneEvent& event) {
-    if (event.hasStatics) {
-        _instances.isDirtyStatics = true;
-    }
-}
-
 // Initializes the RenderService, setting up the renderer, frame graph, and resources.
 void RenderService::start() {
-    const auto& settings = entityRegistry().ctx().get<Settings>();
-
     // We will explicitly set some parameters necessary, which are sufficient
     // for this example. If the option is not set, the default value will be used
     gerium_renderer_options_t options{};
-    options.debug_mode                = settings.debugMode; // Validation layers, GPU object names, and logs
-    options.app_version               = settings.version;
+    options.debug_mode                = settings().debugMode; // Validation layers, GPU object names, and logs
+    options.app_version               = settings().version;
     options.command_buffers_per_frame = 5;
     options.descriptor_sets_pool_size = 128;
     options.descriptor_pool_elements  = 128;
@@ -62,15 +53,10 @@ void RenderService::start() {
     initTextures(options.descriptor_pool_elements);
     initData();
     initCluster();
-
-    // Subscribe to scene change events
-    application().dispatcher().sink<DirtySceneEvent>().connect<&RenderService::onDirtyScene>(*this);
 }
 
 // Cleans up resources and shuts down the RenderService.
 void RenderService::stop() {
-    application().dispatcher().sink<DirtySceneEvent>().disconnect(this);
-
     if (_renderer) {
         // Uninitialize all rendering passes.
         for (auto& renderPass : std::ranges::reverse_view(_renderPasses)) {
@@ -363,10 +349,9 @@ void RenderService::updateActiveSceneData() {
 // Fills GPU SSBO buffers with static instances and their materials.
 // Static instances and materials do not change, so their allocation is done once at startup.
 void RenderService::updateStaticInstances() {
-    if (!_instances.isDirtyStatics) {
+    if ((changes().transforms & Change::Static) != Change::Static) {
         return;
     }
-    _instances.isDirtyStatics = false;
 
     // Clear previous instance and material buffers.
     for (auto& buffer : _instances.instances) {

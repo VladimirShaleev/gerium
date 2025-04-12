@@ -2,6 +2,7 @@
 #define DEVELOP_DEVELOPER_UI_HPP
 
 #include "../Common.hpp"
+#include "../Model.hpp"
 #include "../components/Camera.hpp"
 #include "../components/Collider.hpp"
 #include "../components/Name.hpp"
@@ -171,12 +172,8 @@ private:
     void addComponent(entt::entity entity, const char* component) {
         if constexpr (ComponentInfo<T>::deletable) {
             if (ComponentInfo<T>::name == component) {
-                if constexpr (std::is_same_v<T, Static> || std::is_same_v<T, VehicleController>) {
-                    _registry.emplace<T>(entity);
-                } else {
-                    T data{};
-                    addComponent(entity, data);
-                }
+                T data{};
+                addComponent(entity, data);
             }
         }
     }
@@ -186,31 +183,43 @@ private:
         (addComponent<Types>(entity, component), ...);
     }
 
+    template <typename A>
+    static float calcItemWidth(const A& labels) noexcept {
+        auto width = 0.0f;
+        for (auto label : labels) {
+            width = std::max(width, ImGui::CalcTextSize(label).x);
+        }
+        const auto availableWidth = ImGui::GetContentRegionAvail().x;
+        return availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
+    }
+
+    std::tuple<BoundingBox, Shape, gerium_float32_t> getBBoxAndShapes(entt::entity entity);
+
     void showProfiler(gerium_command_buffer_t commandBuffer);
     void showSettings();
     void showSceneGraph();
+
     void showComponent(entt::entity entity, Name& name);
     void showComponent(entt::entity entity, Transform& transform);
     void showComponent(entt::entity entity, Static& isStatic);
     void showComponent(entt::entity entity, Collider& collider);
     void showComponent(entt::entity entity, RigidBody& rigidBody);
-    void showComponent(entt::entity entity, Camera& camera);
     void showComponent(entt::entity entity, Renderable& renderable);
     void showComponent(entt::entity entity, Vehicle& vehicle);
     void showComponent(entt::entity entity, VehicleController& vehicleController);
 
     void addComponent(entt::entity entity, Name& name);
+    void addComponent(entt::entity entity, Static& isStatic);
     void addComponent(entt::entity entity, Collider& collider);
     void addComponent(entt::entity entity, RigidBody& rigidBody);
-    void addComponent(entt::entity entity, Camera& camera);
     void addComponent(entt::entity entity, Renderable& renderable);
     void addComponent(entt::entity entity, Vehicle& vehicle);
+    void addComponent(entt::entity entity, VehicleController& vehicleController);
 
     void deleteComponent(entt::entity entity, Name& name);
     void deleteComponent(entt::entity entity, Static& isStatic);
     void deleteComponent(entt::entity entity, Collider& collider);
     void deleteComponent(entt::entity entity, RigidBody& rigidBody);
-    void deleteComponent(entt::entity entity, Camera& camera);
     void deleteComponent(entt::entity entity, Renderable& renderable);
     void deleteComponent(entt::entity entity, Vehicle& vehicle);
     void deleteComponent(entt::entity entity, VehicleController& vehicleController);
@@ -224,6 +233,8 @@ private:
     char _addModelName[256]{};
     bool _isValidName{ true };
     std::set<const char*> _missingComponents{};
+    Cluster _cluster{};
+    std::map<entt::hashed_string, Model> _models{};
 };
 
 #endif

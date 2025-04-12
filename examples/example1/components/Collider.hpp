@@ -17,6 +17,7 @@ struct Collider {
     gerium_float32_t halfHeightOfCylinder;
     gerium_float32_t radius;
     gerium_uint32_t index;
+    bool changed;
 };
 
 #endif

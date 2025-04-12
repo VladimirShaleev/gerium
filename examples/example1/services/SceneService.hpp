@@ -6,7 +6,9 @@
 #include "../components/Name.hpp"
 #include "../events/AddModelEvent.hpp"
 #include "../events/AddNodeNameEvent.hpp"
+#include "../events/ChangeColliderEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
+#include "../events/ChangeRigidBodyEvent.hpp"
 #include "../events/DeleteNodeByNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 #include "../events/MoveNodeEvent.hpp"
@@ -27,6 +29,8 @@ private:
     void onDeleteNode(const DeleteNodeEvent& event);
     void onDeleteNodeByName(const DeleteNodeByNameEvent& event);
     void onMoveNode(const MoveNodeEvent& event);
+    void onChangeCollider(const ChangeColliderEvent& event);
+    void onChangeRigidBody(const ChangeRigidBodyEvent& event);
 
     void checkAndAddNode(entt::entity entity, const Name& name);
     const Model& getModel(const entt::hashed_string& modelId);
@@ -35,11 +39,8 @@ private:
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
 
-    void updateTransformations();
-
     std::map<entt::hashed_string, entt::entity> _nodes{};
     std::map<entt::hashed_string, Model> _models{};
-    std::map<entt::entity, InvParentTransform> _transformChanges{};
 };
 
 #endif

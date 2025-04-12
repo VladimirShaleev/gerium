@@ -1,7 +1,9 @@
 #include "DeveloperUI.hpp"
 #include "../events/AddModelEvent.hpp"
 #include "../events/AddNodeNameEvent.hpp"
+#include "../events/ChangeColliderEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
+#include "../events/ChangeRigidBodyEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 #include "../events/MoveNodeEvent.hpp"
 
@@ -21,6 +23,33 @@ void DeveloperUI::show(gerium_command_buffer_t commandBuffer) {
     showSceneGraph();
 }
 
+std::tuple<BoundingBox, Shape, gerium_float32_t> DeveloperUI::getBBoxAndShapes(entt::entity entity) {
+    BoundingBox bbox{};
+    Shape shape{};
+    gerium_float32_t mass{};
+    if (auto renderable = _registry.try_get<Renderable>(entity)) {
+        for (const auto& mesh : renderable->meshes) {
+            if (!_models.contains(mesh.model)) {
+                _models[mesh.model] = loadModel(_cluster, mesh.model);
+            }
+            const auto& nodes = _models[mesh.model].nodes;
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                if (mesh.node == i) {
+                    bbox  = nodes[i].bbox.combine(bbox);
+                    shape = nodes[i].colliderShape;
+                    mass  = nodes[i].mass;
+                    break;
+                }
+            }
+            if (shape == Shape::ConvexHull || shape == Shape::Mesh) {
+                break;
+            }
+        }
+    }
+    bbox = BoundingBox({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }).combine(bbox);
+    return { bbox, shape, mass };
+}
+
 void DeveloperUI::showProfiler(gerium_command_buffer_t commandBuffer) {
     auto& settings = _registry.ctx().get<Settings>();
     if (settings.showProfiler) {
@@ -35,7 +64,6 @@ void DeveloperUI::showSettings() {
         auto& settings = _registry.ctx().get<Settings>();
         ImGui::Checkbox("Show Profiler", &settings.showProfiler);
         ImGui::Checkbox("Transform affects child nodes", &settings.transformChilds);
-        // ImGui::Checkbox("Snap to grid", &settings.snapToGrid);
 
         constexpr auto values = magic_enum::enum_names<Settings::Transfrom>();
 
@@ -90,10 +118,6 @@ void DeveloperUI::showSceneGraph() {
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-
-            // if (ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemHovered()) {
-            //     selected = entt::null;
-            // }
 
             auto uniqueColor = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             auto color       = uniqueColor;
@@ -396,11 +420,12 @@ void DeveloperUI::showComponent(entt::entity entity, Name& name) {
         _isValidName = isValidName(buffer);
     }
 
-    auto valid       = _isValidName;
-    auto label       = "Unique name";
-    ImVec2 labelSize = ImGui::CalcTextSize(label);
+    auto valid = _isValidName;
 
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - (labelSize.x + ImGui::GetStyle().FramePadding.x * 2));
+    const auto label = "Unique name";
+    const auto width = calcItemWidth(std::array{ label });
+
+    ImGui::SetNextItemWidth(width);
     if (!valid) {
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.0f, 0.0f, 0.5f));
     }
@@ -423,14 +448,10 @@ void DeveloperUI::showComponent(entt::entity entity, Name& name) {
 void DeveloperUI::showComponent(entt::entity entity, Transform& transform) {
     float availableWidth = ImGui::GetContentRegionAvail().x;
 
-    auto label1     = "Position";
-    auto label2     = "Scale";
-    auto label3     = "Rotation";
-    auto labelSize1 = ImGui::CalcTextSize(label1).x;
-    auto labelSize2 = ImGui::CalcTextSize(label2).x;
-    auto labelSize3 = ImGui::CalcTextSize(label3).x;
-    auto width      = availableWidth -
-                 (std::max(std::max(labelSize1, labelSize2), labelSize3) + ImGui::GetStyle().FramePadding.x * 2);
+    const auto label1 = "Position";
+    const auto label2 = "Scale";
+    const auto label3 = "Rotation";
+    const auto width  = calcItemWidth(std::array{ label1, label2, label3 });
 
     glm::vec3 tanslation;
     glm::vec3 scale;
@@ -468,29 +489,55 @@ void DeveloperUI::showComponent(entt::entity entity, Static& isStatic) {
 }
 
 void DeveloperUI::showComponent(entt::entity entity, Collider& collider) {
-    float availableWidth = ImGui::GetContentRegionAvail().x;
+    const auto label1 = "Shape";
+    const auto label2 = "Half extent";
+    const auto label3 = "Radius";
+    const auto label4 = "Half height";
+    const auto width  = calcItemWidth(std::array{ label1 });
+    auto width2       = calcItemWidth(std::array{ label3 });
 
-    auto label1      = "Shape";
-    auto label2      = "Half extent";
-    auto label3      = "Radius";
-    auto label4      = "Half height";
-    auto labelSize1  = ImGui::CalcTextSize(label1).x;
-    auto labelSize2  = ImGui::CalcTextSize(label2).x;
-    auto labelSize3  = ImGui::CalcTextSize(label3).x;
-    auto labelSize4  = ImGui::CalcTextSize(label4).x;
-    auto width       = availableWidth - (labelSize1 + ImGui::GetStyle().FramePadding.x * 2);
-    auto widthRadius = availableWidth - (labelSize3 + ImGui::GetStyle().FramePadding.x * 2);
+    auto newCollider    = collider;
+    newCollider.changed = false;
 
-    constexpr auto values = magic_enum::enum_names<Shape>();
-
-    auto selected = (int) magic_enum::enum_index(collider.shape).value();
+    constexpr auto values       = magic_enum::enum_names<Shape>();
+    const auto selected         = (int) magic_enum::enum_index(newCollider.shape).value();
+    const auto [bbox, shape, _] = getBBoxAndShapes(entity);
 
     ImGui::SetNextItemWidth(width);
     if (ImGui::BeginCombo(label1, values[selected].data(), ImGuiComboFlags_HeightRegular)) {
         for (size_t i = 0; i < values.size(); ++i) {
-            auto isSelected = selected == i;
+            const auto isSelected = selected == i;
+            const auto isEnable   = i < (size_t) Shape::ConvexHull || i == (size_t) shape;
+            if (!isEnable) {
+                ImGui::BeginDisabled();
+            }
             if (ImGui::Selectable(values[i].data(), isSelected)) {
-                collider.shape = magic_enum::enum_values<Shape>()[i];
+                newCollider.changed = true;
+                newCollider.shape   = magic_enum::enum_values<Shape>()[i];
+                switch (newCollider.shape) {
+                    case Shape::Box: {
+                        newCollider.halfExtent = (bbox.max() - bbox.min()) * 0.5f;
+                        break;
+                    }
+                    case Shape::Capsule: {
+                        const auto radius                = bbox.getCentroid() - bbox.min();
+                        newCollider.halfHeightOfCylinder = bbox.getWidth(Axis::Y) * 0.5f;
+                        newCollider.radius               = glm::min(glm::min(radius.x, radius.y), radius.z);
+                        break;
+                    }
+                    case Shape::Sphere: {
+                        const auto radius  = bbox.getCentroid() - bbox.min();
+                        newCollider.radius = glm::max(glm::max(radius.x, radius.y), radius.z);
+                        break;
+                    }
+                    case Shape::ConvexHull:
+                    case Shape::Mesh: {
+                        break;
+                    }
+                }
+            }
+            if (!isEnable) {
+                ImGui::EndDisabled();
             }
             if (isSelected) {
                 ImGui::SetItemDefaultFocus();
@@ -499,23 +546,26 @@ void DeveloperUI::showComponent(entt::entity entity, Collider& collider) {
         ImGui::EndCombo();
     }
 
-    switch (collider.shape) {
+    switch (newCollider.shape) {
         case Shape::Box: {
-            auto widthBox = availableWidth - (labelSize2 + ImGui::GetStyle().FramePadding.x * 2);
-            ImGui::SetNextItemWidth(widthBox);
-            ImGui::DragFloat3(label2, &collider.halfExtent.x, 0.001f, -10000.0f, 10000.0f, "%.6f");
+            ImGui::SetNextItemWidth(calcItemWidth(std::array{ label2 }));
+            if (ImGui::DragFloat3(label2, &newCollider.halfExtent.x, 0.001f, 0.01f, 10000.0f, "%.6f")) {
+                newCollider.changed = true;
+            }
             break;
         }
         case Shape::Capsule: {
-            auto widthHalfHeight = availableWidth - (labelSize4 + ImGui::GetStyle().FramePadding.x * 2);
-            widthRadius = widthHalfHeight = std::min(widthRadius, widthHalfHeight);
-            ImGui::SetNextItemWidth(widthHalfHeight);
-            static float halfHeight{};
-            ImGui::DragFloat(label4, &collider.halfHeightOfCylinder, 0.001f, -10000.0f, 10000.0f, "%.6f");
+            width2 = calcItemWidth(std::array{ label2, label3 });
+            ImGui::SetNextItemWidth(width2);
+            if (ImGui::DragFloat(label4, &newCollider.halfHeightOfCylinder, 0.001f, 0.01f, 10000.0f, "%.6f")) {
+                newCollider.changed = true;
+            }
         }
         case Shape::Sphere: {
-            ImGui::SetNextItemWidth(widthRadius);
-            ImGui::DragFloat(label3, &collider.radius, 0.001f, -10000.0f, 10000.0f, "%.6f");
+            ImGui::SetNextItemWidth(width2);
+            if (ImGui::DragFloat(label3, &newCollider.radius, 0.001f, 0.01f, 10000.0f, "%.6f")) {
+                newCollider.changed = true;
+            }
             break;
         }
         case Shape::ConvexHull:
@@ -524,30 +574,33 @@ void DeveloperUI::showComponent(entt::entity entity, Collider& collider) {
             break;
         }
     }
+
+    if (newCollider.changed) {
+        _dispatcher.enqueue<ChangeColliderEvent>(entity, newCollider);
+    }
 }
 
 void DeveloperUI::showComponent(entt::entity entity, RigidBody& rigidBody) {
-    float availableWidth = ImGui::GetContentRegionAvail().x;
+    const auto label1 = "Mass";
+    const auto label2 = "Linear damping";
+    const auto label3 = "Angular damping";
+    const auto label4 = "Kinematic";
+    const auto width  = calcItemWidth(std::array{ label1, label2, label3, label4 });
 
-    auto label1     = "Mass";
-    auto label2     = "Linear damping";
-    auto label3     = "Angular damping";
-    auto label4     = "Kinematic";
-    auto labelSize1 = ImGui::CalcTextSize(label1).x;
-    auto labelSize2 = ImGui::CalcTextSize(label2).x;
-    auto labelSize3 = ImGui::CalcTextSize(label3).x;
-    auto labelSize4 = ImGui::CalcTextSize(label4).x;
-    auto width      = availableWidth - (std::max(std::max(std::max(labelSize1, labelSize2), labelSize3), labelSize4) +
-                                   ImGui::GetStyle().FramePadding.x * 2);
+    auto newRigidBody    = rigidBody;
+    newRigidBody.changed = false;
 
     ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(label1, &rigidBody.mass, 0.001f, -10000.0f, 10000.0f, "%.6f");
+    newRigidBody.changed |= ImGui::DragFloat(label1, &newRigidBody.mass, 0.01f, 0.0f, 100000.0f, "%.6f");
     ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(label2, &rigidBody.linearDamping, 0.001f, -10000.0f, 10000.0f, "%.6f");
+    newRigidBody.changed |= ImGui::DragFloat(label2, &newRigidBody.linearDamping, 0.001f, 0.0f, 10000.0f, "%.6f");
     ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(label3, &rigidBody.angularDamping, 0.001f, -10000.0f, 10000.0f, "%.6f");
+    newRigidBody.changed |= ImGui::DragFloat(label3, &newRigidBody.angularDamping, 0.001f, 0.0f, 10000.0f, "%.6f");
     ImGui::SetNextItemWidth(width);
-    ImGui::Checkbox(label4, &rigidBody.isKinematic);
+    newRigidBody.changed |= ImGui::Checkbox(label4, &newRigidBody.isKinematic);
+    if (newRigidBody.changed) {
+        _dispatcher.enqueue<ChangeRigidBodyEvent>(entity, newRigidBody);
+    }
 }
 
 void DeveloperUI::showComponent(entt::entity entity, Renderable& renderable) {
@@ -563,29 +616,23 @@ void DeveloperUI::showComponent(entt::entity entity, Renderable& renderable) {
         textures.push_back(str.data());
     }
 
-    constexpr std::array labels = { "Name",
-                                    "Base Color",
-                                    "Metallic Roughness",
-                                    "Normal",
-                                    "Occlusion",
-                                    "Emissive",
-                                    "Base Color Factor",
-                                    "Emissive Factor",
-                                    "Metallic Factor",
-                                    "Roughness Factor",
-                                    "Occlusion Strength",
-                                    "Alpha Cutoff",
-                                    "Alpha Mask",
-                                    "Double Sided",
-                                    "Transparent" };
+    std::array labels = { "Name",
+                          "Base Color",
+                          "Metallic Roughness",
+                          "Normal",
+                          "Occlusion",
+                          "Emissive",
+                          "Base Color Factor",
+                          "Emissive Factor",
+                          "Metallic Factor",
+                          "Roughness Factor",
+                          "Occlusion Strength",
+                          "Alpha Cutoff",
+                          "Alpha Mask",
+                          "Double Sided",
+                          "Transparent" };
 
-    float availableWidth = ImGui::GetContentRegionAvail().x;
-
-    float width = 0;
-    for (size_t i = 0; i < labels.size(); ++i) {
-        width = std::max(width, ImGui::CalcTextSize(labels[i]).x);
-    }
-    width = availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
+    const auto width = calcItemWidth(labels);
 
     auto selectTexture = [width, &strPool, &textures](int id, const char* label, hashed_string_owner& texture) {
         ImGui::PushID(id);
@@ -717,13 +764,7 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
         "Toe",    "Suspension Damping", "Suspension Frequency", "Suspension Max Length",    "Suspension Min Length"
     };
 
-    float availableWidth = ImGui::GetContentRegionAvail().x;
-
-    float width = 0;
-    for (size_t i = 0; i < engineLabels.size(); ++i) {
-        width = std::max(width, ImGui::CalcTextSize(engineLabels[i]).x);
-    }
-    width          = availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
+    auto width     = calcItemWidth(engineLabels);
     auto maxTorque = vehicle.maxTorque;
     auto minRPM    = vehicle.minRPM;
     auto maxRPM    = vehicle.maxRPM;
@@ -736,11 +777,7 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
     ImGui::SetNextItemWidth(width);
     ImGui::DragFloat(engineLabels[2], &maxRPM, 0.001f, -10000.0f, 10000.0f, "%.6f");
 
-    width = 0;
-    for (size_t i = 0; i < constraintLabels.size(); ++i) {
-        width = std::max(width, ImGui::CalcTextSize(constraintLabels[i]).x);
-    }
-    width             = availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
+    width             = calcItemWidth(constraintLabels);
     auto maxRollAngle = glm::degrees(vehicle.maxRollAngle);
     auto antiRollbar  = vehicle.antiRollbar;
     ImGui::Spacing();
@@ -751,11 +788,7 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
     ImGui::SetNextItemWidth(width);
     ImGui::Checkbox(constraintLabels[1], &antiRollbar);
 
-    width = 0;
-    for (size_t i = 0; i < wheelSettingsLabels.size(); ++i) {
-        width = std::max(width, ImGui::CalcTextSize(wheelSettingsLabels[i]).x);
-    }
-    width                          = availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
+    width                          = calcItemWidth(wheelSettingsLabels);
     auto angularDamping            = glm::degrees(vehicle.angularDamping);
     auto maxSteeringAngle          = glm::degrees(vehicle.maxSteeringAngle);
     auto maxHandBrakeTorque        = vehicle.maxHandBrakeTorque;
@@ -784,13 +817,8 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
         ImGui::EndCombo();
     }
 
-    width = 0;
-    for (size_t i = 0; i < transmissionLabels.size(); ++i) {
-        width = std::max(width, ImGui::CalcTextSize(transmissionLabels[i]).x);
-    }
-    width               = availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
-    float inputWidth    = availableWidth - (ImGui::CalcTextSize("Remove").x + ImGui::GetStyle().ItemSpacing.x +
-                                         ImGui::GetStyle().FramePadding.x * 2);
+    width               = calcItemWidth(transmissionLabels);
+    auto inputWidth     = calcItemWidth(std::array{ "Remove" }) - ImGui::GetStyle().ItemSpacing.x * 2.0f;
     auto clutchStrength = vehicle.clutchStrength;
     auto switchTime     = vehicle.switchTime;
     auto gearRatios     = vehicle.gearRatios;
@@ -818,11 +846,7 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
         gearRatios.push_back(0.0f);
     }
 
-    width = 0;
-    for (size_t i = 0; i < differentialLabels.size(); ++i) {
-        width = std::max(width, ImGui::CalcTextSize(differentialLabels[i]).x);
-    }
-    width                           = availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
+    width                           = calcItemWidth(differentialLabels);
     auto limitedSlipRatio           = vehicle.limitedSlipRatio;
     constexpr auto wheelDriveValues = magic_enum::enum_names<WheelDrive>();
     auto wheelDrive                 = (int) magic_enum::enum_index(vehicle.wheelDrive).value();
@@ -845,11 +869,7 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
         ImGui::EndCombo();
     }
 
-    width = 0;
-    for (size_t i = 0; i < driveLabels.size(); ++i) {
-        width = std::max(width, ImGui::CalcTextSize(driveLabels[i]).x);
-    }
-    width                             = availableWidth - (width + ImGui::GetStyle().FramePadding.x * 2);
+    width                             = calcItemWidth(driveLabels);
     auto frontCamber                  = glm::degrees(vehicle.frontCamber);
     auto frontCasterAngle             = glm::degrees(vehicle.frontCasterAngle);
     auto frontKingPinAngle            = glm::degrees(vehicle.frontKingPinAngle);
@@ -978,16 +998,79 @@ void DeveloperUI::addComponent(entt::entity entity, Name&) {
     });
 }
 
+void DeveloperUI::addComponent(entt::entity entity, Static& isStatic) {
+}
+
 void DeveloperUI::addComponent(entt::entity entity, Collider& collider) {
+    const auto [bbox, shape, _] = getBBoxAndShapes(entity);
+    Collider newCollider;
+    newCollider.halfExtent = (bbox.max() - bbox.min()) * 0.5f;
+    newCollider.shape      = shape;
+    newCollider.changed    = true;
+    _dispatcher.enqueue<ChangeColliderEvent>(entity, newCollider);
 }
 
 void DeveloperUI::addComponent(entt::entity entity, RigidBody& rigidBody) {
+    const auto [_1, _2, mass] = getBBoxAndShapes(entity);
+
+    auto& rb = _registry.emplace<RigidBody>(entity);
+    rb.mass  = mass;
 }
 
 void DeveloperUI::addComponent(entt::entity entity, Renderable& renderable) {
 }
 
 void DeveloperUI::addComponent(entt::entity entity, Vehicle& vehicle) {
+    // auto& component       = _registry.emplace<Vehicle>(entity);
+    // const auto& transform = _registry.get<Transform>(entity);
+    // const auto invMatrix  = glm::inverse(transform.matrix);
+    // for (const auto child : _registry.get<Node>(entity).childs) {
+    //     const entt::hashed_string name        = _registry.get<Node>(child).name;
+    //     std::optional<WheelPosition> wheelPos = std::nullopt;
+    //     switch (name) {
+    //         case "wheel_lf"_hs:
+    //             wheelPos = WheelPosition::FrontLeft;
+    //             break;
+    //         case "wheel_rf"_hs:
+    //             wheelPos = WheelPosition::FrontRight;
+    //             break;
+    //         case "wheel_lb"_hs:
+    //             wheelPos = WheelPosition::BackLeft1;
+    //             break;
+    //         case "wheel_rb"_hs:
+    //             wheelPos = WheelPosition::BackRight1;
+    //             break;
+    //         case "wheel_lb2"_hs:
+    //             wheelPos = WheelPosition::BackLeft2;
+    //             break;
+    //         case "wheel_rb2"_hs:
+    //             wheelPos = WheelPosition::BackRight2;
+    //             break;
+    //     }
+
+    //     if (wheelPos) {
+    //         const auto& childTransform = _registry.get<Transform>(child);
+
+    //         const auto localMatrix = invMatrix * childTransform.matrix;
+    //         glm::vec3 tanslation;
+    //         glm::vec3 scale;
+    //         glm::quat orientation;
+    //         glm::vec3 skew;
+    //         glm::vec4 perspective;
+    //         glm::decompose(localMatrix, scale, orientation, tanslation, skew, perspective);
+
+    //         auto& wheel    = _registry.emplace<Wheel>(child);
+    //         wheel.parent   = entity;
+    //         wheel.position = wheelPos.value();
+    //         wheel.point    = tanslation * scale;
+    //         component.wheels.push_back(child);
+    //     }
+    // }
+    // updateBodies();
+}
+
+void DeveloperUI::addComponent(entt::entity entity, VehicleController& vehicleController) {
+    _registry.emplace<VehicleController>(entity);
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Name& name) {
@@ -995,19 +1078,29 @@ void DeveloperUI::deleteComponent(entt::entity entity, Name& name) {
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Static& isStatic) {
+    // _registry.erase<Static>(entity);
+    // updateBodies();
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Collider& collider) {
+    _dispatcher.enqueue<ChangeColliderEvent>(entity, std::nullopt);
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, RigidBody& rigidBody) {
+    _registry.erase<RigidBody>(entity);
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Renderable& renderable) {
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Vehicle& vehicle) {
+    // for (auto wheel : vehicle.wheels) {
+    //     _registry.erase<Wheel>(wheel);
+    // }
+    // _registry.erase<Vehicle>(entity);
+    // updateBodies();
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, VehicleController& vehicleController) {
+    _registry.erase<VehicleController>(entity);
 }
