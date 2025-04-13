@@ -167,7 +167,8 @@ bool PhysicsService::destroyBodies() {
 }
 
 bool PhysicsService::createBodies() {
-    auto hasChanges = changes().rigidBodies != Change::None || changes().colliders != Change::None;
+    auto hasChanges = changes().rigidBodies != Change::None || changes().colliders != Change::None ||
+                      changes().vehicles != Change::None;
 
     if (!hasChanges) {
         return false;
@@ -177,6 +178,7 @@ bool PhysicsService::createBodies() {
     auto& registry = entityRegistry();
     for (auto [entity, rigidBody, transform] : registry.view<RigidBody, Transform>(entt::exclude<Wheel>).each()) {
         const auto collider = registry.try_get<Collider>(entity);
+        const auto vehicle  = registry.try_get<Vehicle>(entity);
 
         if (!collider) {
             gerium_logger_print(application().logger(),
@@ -186,14 +188,14 @@ bool PhysicsService::createBodies() {
 
         const auto rigidBodyChanged = rigidBody.changed;
         const auto colliderChanged  = !collider || collider->changed;
+        const auto vehicleChanged   = !vehicle || vehicle->changed;
 
-        if (!rigidBodyChanged && !colliderChanged) {
+        if (!rigidBodyChanged && !colliderChanged && !vehicleChanged) {
             continue;
         }
 
         destroyBody(entity);
 
-        const auto vehicle    = registry.try_get<Vehicle>(entity);
         const auto isStatic   = registry.any_of<::Static>(entity);
         const auto motionType = isStatic
                                     ? JPH::EMotionType::Static
@@ -523,28 +525,32 @@ void PhysicsService::driverInput(entt::entity entity, Vehicle& vehicle) {
     vehicle.handBrakePressed = false;
 }
 
-void PhysicsService::updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint) {
-    auto controller    = static_cast<JPH::WheeledVehicleController*>(constraint->GetController());
-    auto& engine       = controller->GetEngine();
-    auto& transmission = controller->GetTransmission();
+void PhysicsService::updateVehicleSettings(Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint) {
+    if (vehicle.engineChanged) {
+        vehicle.engineChanged = false;
 
-    engine.mMaxTorque            = vehicle.maxTorque;
-    engine.mMinRPM               = vehicle.minRPM;
-    engine.mMaxRPM               = vehicle.maxRPM;
-    transmission.mClutchStrength = vehicle.clutchStrength;
-    transmission.mSwitchTime     = vehicle.switchTime;
+        auto controller    = static_cast<JPH::WheeledVehicleController*>(constraint->GetController());
+        auto& engine       = controller->GetEngine();
+        auto& transmission = controller->GetTransmission();
 
-    if (transmission.mGearRatios.size() != vehicle.gearRatios.size()) {
-        transmission.mGearRatios.resize(vehicle.gearRatios.size());
-    }
+        engine.mMaxTorque            = vehicle.maxTorque;
+        engine.mMinRPM               = vehicle.minRPM;
+        engine.mMaxRPM               = vehicle.maxRPM;
+        transmission.mClutchStrength = vehicle.clutchStrength;
+        transmission.mSwitchTime     = vehicle.switchTime;
 
-    for (size_t i = 0; i < vehicle.gearRatios.size(); ++i) {
-        transmission.mGearRatios[i] = vehicle.gearRatios[i];
-    }
+        if (transmission.mGearRatios.size() != vehicle.gearRatios.size()) {
+            transmission.mGearRatios.resize(vehicle.gearRatios.size());
+        }
 
-    controller->SetDifferentialLimitedSlipRatio(vehicle.limitedSlipRatio);
-    for (auto& differential : controller->GetDifferentials()) {
-        differential.mLimitedSlipRatio = vehicle.limitedSlipRatio;
+        for (size_t i = 0; i < vehicle.gearRatios.size(); ++i) {
+            transmission.mGearRatios[i] = vehicle.gearRatios[i];
+        }
+
+        controller->SetDifferentialLimitedSlipRatio(vehicle.limitedSlipRatio);
+        for (auto& differential : controller->GetDifferentials()) {
+            differential.mLimitedSlipRatio = vehicle.limitedSlipRatio;
+        }
     }
 }
 
@@ -723,19 +729,19 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
     };
 
     auto getSuspensionMinLength = [&vehicle, isFront]() {
-        return isFront ? vehicle.frontSuspensionMinLength : vehicle.rearSuspensionMinLength;
+        return glm::max(isFront ? vehicle.frontSuspensionMinLength : vehicle.rearSuspensionMinLength, 0.0f);
     };
 
-    auto getSuspensionMaxLength = [&vehicle, isFront]() {
-        return isFront ? vehicle.frontSuspensionMaxLength : vehicle.rearSuspensionMaxLength;
+    auto getSuspensionMaxLength = [&vehicle, isFront](gerium_float32_t maxLength) {
+        return glm::max(isFront ? vehicle.frontSuspensionMaxLength : vehicle.rearSuspensionMaxLength, maxLength);
     };
 
     auto getSuspensionFrequency = [&vehicle, isFront]() {
-        return isFront ? vehicle.frontSuspensionFrequency : vehicle.rearSuspensionFrequency;
+        return glm::max(isFront ? vehicle.frontSuspensionFrequency : vehicle.rearSuspensionFrequency, 0.0f);
     };
 
     auto getSuspensionDamping = [&vehicle, isFront]() {
-        return isFront ? vehicle.frontSuspensionDamping : vehicle.rearSuspensionDamping;
+        return glm::max(isFront ? vehicle.frontSuspensionDamping : vehicle.rearSuspensionDamping, 0.0f);
     };
 
     auto getMaxSteerAngle = [&vehicle, isFront]() {
@@ -761,14 +767,14 @@ JPH::WheelSettings* PhysicsService::createWheelSettings(const Vehicle& vehicle,
     settings->mWheelUp                     = getWheelUp();
     settings->mWheelForward                = getWheelForward();
     settings->mSuspensionMinLength         = getSuspensionMinLength();
-    settings->mSuspensionMaxLength         = getSuspensionMaxLength();
+    settings->mSuspensionMaxLength         = getSuspensionMaxLength(settings->mSuspensionMinLength);
     settings->mSuspensionSpring.mFrequency = getSuspensionFrequency();
     settings->mSuspensionSpring.mDamping   = getSuspensionDamping();
     settings->mMaxSteerAngle               = getMaxSteerAngle();
     settings->mMaxHandBrakeTorque          = getMaxHandBrakeTorque();
     settings->mPosition                    = wPosition;
-    settings->mRadius                      = radius;
-    settings->mWidth                       = width;
+    settings->mRadius                      = glm::max(radius, 0.01f);
+    settings->mWidth                       = glm::max(width, 0.0f);
     return settings;
 }
 

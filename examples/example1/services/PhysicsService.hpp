@@ -29,7 +29,7 @@ private:
     void restoreState(const std::vector<gerium_uint8_t>& data) override;
 
     void driverInput(entt::entity entity, Vehicle& vehicle);
-    void updateVehicleSettings(const Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint);
+    void updateVehicleSettings(Vehicle& vehicle, JPH::Ref<JPH::VehicleConstraint>& constraint);
     void syncPhysicsToECS();
 
     JPH::Ref<JPH::Shape> getShape(const Collider* collider, const Renderable* renderable);

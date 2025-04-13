@@ -10,9 +10,11 @@
 #include "../events/ChangeMaterialsEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/ChangeRigidBodyEvent.hpp"
+#include "../events/ChangeVehicleEvent.hpp"
 #include "../events/DeleteNodeByNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 #include "../events/MoveNodeEvent.hpp"
+#include "../events/VehicleControllerEvent.hpp"
 #include "ServiceManager.hpp"
 
 class SceneService final : public Service {
@@ -33,6 +35,8 @@ private:
     void onChangeCollider(const ChangeColliderEvent& event);
     void onChangeRigidBody(const ChangeRigidBodyEvent& event);
     void onChangeMaterials(const ChangeMaterialsEvent& event);
+    void onChangeVehicle(const ChangeVehicleEvent& event);
+    void onVehicleController(const VehicleControllerEvent& event);
 
     void checkAndAddNode(entt::entity entity, const Name& name);
     const Model& getModel(const entt::hashed_string& modelId);

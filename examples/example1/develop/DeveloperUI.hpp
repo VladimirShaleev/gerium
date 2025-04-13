@@ -23,54 +23,63 @@ template <>
 struct ComponentInfo<Name> {
     static constexpr char name[]    = "name";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = true;
 };
 
 template <>
 struct ComponentInfo<Transform> {
     static constexpr char name[]    = "transform";
     static constexpr bool deletable = false;
+    static constexpr bool addable   = false;
 };
 
 template <>
 struct ComponentInfo<Static> {
     static constexpr char name[]    = "static";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = true;
 };
 
 template <>
 struct ComponentInfo<Collider> {
     static constexpr char name[]    = "collider";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = true;
 };
 
 template <>
 struct ComponentInfo<RigidBody> {
     static constexpr char name[]    = "rigid body";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = true;
 };
 
 template <>
 struct ComponentInfo<Camera> {
     static constexpr char name[]    = "camera";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = true;
 };
 
 template <>
 struct ComponentInfo<Renderable> {
     static constexpr char name[]    = "renderable";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = false;
 };
 
 template <>
 struct ComponentInfo<Vehicle> {
     static constexpr char name[]    = "vehicle";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = true;
 };
 
 template <>
 struct ComponentInfo<VehicleController> {
     static constexpr char name[]    = "vehicle controller";
     static constexpr bool deletable = true;
+    static constexpr bool addable   = true;
 };
 
 class DeveloperUI final {
@@ -158,7 +167,7 @@ private:
     std::set<const char*> missingComponents(entt::entity entity) {
         std::set<const char*> components;
         std::set<const char*> hasComponents;
-        (components.insert(ComponentInfo<Types>::deletable ? ComponentInfo<Types>::name : nullptr), ...);
+        (components.insert(ComponentInfo<Types>::addable ? ComponentInfo<Types>::name : nullptr), ...);
         (components.erase(_registry.any_of<Types>(entity) ? ComponentInfo<Types>::name : nullptr), ...);
         return components;
     }
@@ -170,7 +179,7 @@ private:
 
     template <typename T>
     void addComponent(entt::entity entity, const char* component) {
-        if constexpr (ComponentInfo<T>::deletable) {
+        if constexpr (ComponentInfo<T>::addable) {
             if (ComponentInfo<T>::name == component) {
                 T data{};
                 addComponent(entity, data);
@@ -212,7 +221,6 @@ private:
     void addComponent(entt::entity entity, Static& isStatic);
     void addComponent(entt::entity entity, Collider& collider);
     void addComponent(entt::entity entity, RigidBody& rigidBody);
-    void addComponent(entt::entity entity, Renderable& renderable);
     void addComponent(entt::entity entity, Vehicle& vehicle);
     void addComponent(entt::entity entity, VehicleController& vehicleController);
 

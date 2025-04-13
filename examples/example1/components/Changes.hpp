@@ -14,6 +14,7 @@ GERIUM_FLAGS(Change);
 struct Changes {
     Change transforms{};
     Change rigidBodies{};
+    Change vehicles{};
     Change colliders{};
     Change renderables{};
 };

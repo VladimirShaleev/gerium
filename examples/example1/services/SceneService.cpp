@@ -85,9 +85,12 @@ void SceneService::onAddModel(const AddModelEvent& event) {
         transform.scale      = parentScale * localScale;
 
         if (modelNode.name == "vehicle"_hs) {
-            isStatic = false;
-            vehicle  = node;
-            registry.emplace<Vehicle>(node);
+            isStatic                       = false;
+            vehicle                        = node;
+            auto& vehicleComponent         = registry.emplace<Vehicle>(node);
+            vehicleComponent.changed       = true;
+            vehicleComponent.engineChanged = true;
+            changes().vehicles |= Change::Dynamic;
         } else if (vehicle != entt::null) {
             std::optional<WheelPosition> wheelPos = std::nullopt;
             switch (modelNode.name) {
@@ -233,8 +236,14 @@ void SceneService::onDeleteNode(const DeleteNodeEvent& event) {
         if (registry.any_of<RigidBody>(entity)) {
             chs.rigidBodies |= change;
         }
+        if (registry.any_of<Vehicle>(entity)) {
+            chs.vehicles |= change;
+        }
         if (registry.any_of<Collider>(entity)) {
             chs.colliders |= change;
+        }
+        if (registry.any_of<Renderable>(entity)) {
+            chs.renderables |= change;
         }
 
         registry.destroy(entity);
@@ -300,7 +309,7 @@ void SceneService::onMoveNode(const MoveNodeEvent& event) {
 void SceneService::onChangeCollider(const ChangeColliderEvent& event) {
     auto& registry = entityRegistry();
     if (event.collider) {
-        registry.emplace_or_replace<Collider>(event.entity, event.collider.value()).changed = true;
+        registry.emplace_or_replace<Collider>(event.entity, event.collider.value());
     } else {
         registry.remove<Collider>(event.entity);
     }
@@ -310,7 +319,7 @@ void SceneService::onChangeCollider(const ChangeColliderEvent& event) {
 void SceneService::onChangeRigidBody(const ChangeRigidBodyEvent& event) {
     auto& registry = entityRegistry();
     if (event.rigidBody) {
-        registry.emplace_or_replace<RigidBody>(event.entity, event.rigidBody.value()).changed = true;
+        registry.emplace_or_replace<RigidBody>(event.entity, event.rigidBody.value());
     } else {
         registry.remove<RigidBody>(event.entity);
     }
@@ -321,13 +330,43 @@ void SceneService::onChangeMaterials(const ChangeMaterialsEvent& event) {
     auto& registry = entityRegistry();
     if (auto renderable = registry.try_get<Renderable>(event.entity)) {
         auto& renderables = changes().renderables;
-        for (size_t i = 0; i < event.materials.size(); ++i) {
-            renderable->meshes[i].material = event.materials[i];
-            renderable->changed            = true;
+        if (event.materials.empty()) {
+            registry.erase<Renderable>(event.entity);
+        } else {
+            assert(renderable->meshes.size() == event.materials.size());
+            for (size_t i = 0; i < event.materials.size(); ++i) {
+                renderable->meshes[i].material = event.materials[i];
+                renderable->changed            = true;
+            }
         }
         if (renderables != Change::All) {
             renderables |= registry.any_of<Static>(event.entity) ? Change::Static : Change::Dynamic;
         }
+    }
+}
+
+void SceneService::onChangeVehicle(const ChangeVehicleEvent& event) {
+    auto& registry = entityRegistry();
+    if (event.vehicle) {
+        registry.emplace_or_replace<Vehicle>(event.entity, event.vehicle.value());
+        if (event.vehicle.value().changed) {
+            changes().vehicles |= Change::Dynamic;
+        }
+    } else {
+        registry.remove<Vehicle>(event.entity);
+        changes().vehicles |= Change::Dynamic;
+    }
+}
+
+void SceneService::onVehicleController(const VehicleControllerEvent& event) {
+    auto& registry = entityRegistry();
+    switch (event.action) {
+        case VehicleControllerAction::Attach:
+            registry.emplace_or_replace<VehicleController>(event.entity);
+            break;
+        case VehicleControllerAction::Detach:
+            registry.remove<VehicleController>(event.entity);
+            break;
     }
 }
 
@@ -367,9 +406,13 @@ void SceneService::start() {
     application().dispatcher().sink<ChangeColliderEvent>().connect<&SceneService::onChangeCollider>(*this);
     application().dispatcher().sink<ChangeRigidBodyEvent>().connect<&SceneService::onChangeRigidBody>(*this);
     application().dispatcher().sink<ChangeMaterialsEvent>().connect<&SceneService::onChangeMaterials>(*this);
+    application().dispatcher().sink<ChangeVehicleEvent>().connect<&SceneService::onChangeVehicle>(*this);
+    application().dispatcher().sink<VehicleControllerEvent>().connect<&SceneService::onVehicleController>(*this);
 }
 
 void SceneService::stop() {
+    application().dispatcher().sink<VehicleControllerEvent>().disconnect(this);
+    application().dispatcher().sink<ChangeVehicleEvent>().disconnect(this);
     application().dispatcher().sink<ChangeMaterialsEvent>().disconnect(this);
     application().dispatcher().sink<ChangeRigidBodyEvent>().disconnect(this);
     application().dispatcher().sink<ChangeColliderEvent>().disconnect(this);

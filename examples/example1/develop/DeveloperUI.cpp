@@ -5,8 +5,10 @@
 #include "../events/ChangeMaterialsEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/ChangeRigidBodyEvent.hpp"
+#include "../events/ChangeVehicleEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 #include "../events/MoveNodeEvent.hpp"
+#include "../events/VehicleControllerEvent.hpp"
 
 using namespace std::string_literals;
 using namespace entt::literals;
@@ -752,219 +754,148 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
         "Toe",    "Suspension Damping", "Suspension Frequency", "Suspension Max Length",    "Suspension Min Length"
     };
 
-    auto width     = calcItemWidth(engineLabels);
-    auto maxTorque = vehicle.maxTorque;
-    auto minRPM    = vehicle.minRPM;
-    auto maxRPM    = vehicle.maxRPM;
-    ImGui::Text("engine");
-    ImGui::Separator();
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(engineLabels[0], &maxTorque, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(engineLabels[1], &minRPM, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(engineLabels[2], &maxRPM, 0.001f, -10000.0f, 10000.0f, "%.6f");
+    auto id            = 0;
+    auto width         = 0.0f;
+    auto newVehicle    = vehicle;
+    newVehicle.changed = false;
 
-    width             = calcItemWidth(constraintLabels);
-    auto maxRollAngle = glm::degrees(vehicle.maxRollAngle);
-    auto antiRollbar  = vehicle.antiRollbar;
-    ImGui::Spacing();
-    ImGui::Text("constraints");
-    ImGui::Separator();
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(constraintLabels[0], &maxRollAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    ImGui::Checkbox(constraintLabels[1], &antiRollbar);
-
-    width                          = calcItemWidth(wheelSettingsLabels);
-    auto angularDamping            = glm::degrees(vehicle.angularDamping);
-    auto maxSteeringAngle          = glm::degrees(vehicle.maxSteeringAngle);
-    auto maxHandBrakeTorque        = vehicle.maxHandBrakeTorque;
-    constexpr auto handBrakeValues = magic_enum::enum_names<WheelDrive>();
-    auto handBrake                 = (int) magic_enum::enum_index(vehicle.handBrake).value();
-    ImGui::Spacing();
-    ImGui::Text("wheel settings");
-    ImGui::Separator();
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(wheelSettingsLabels[0], &angularDamping, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(wheelSettingsLabels[1], &maxSteeringAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(wheelSettingsLabels[2], &maxHandBrakeTorque, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    if (ImGui::BeginCombo(wheelSettingsLabels[3], handBrakeValues[handBrake].data(), ImGuiComboFlags_HeightRegular)) {
-        for (size_t i = 0; i < handBrakeValues.size(); ++i) {
-            auto isSelected = handBrake == i;
-            if (ImGui::Selectable(handBrakeValues[i].data(), isSelected)) {
-                ////
-            }
-            if (isSelected) {
-                ImGui::SetItemDefaultFocus();
-            }
+    auto separator = [&width](const char* label, auto& lables, bool addSpacing = true) {
+        if (addSpacing) {
+            ImGui::Spacing();
         }
-        ImGui::EndCombo();
-    }
+        ImGui::Text(label);
+        ImGui::Separator();
+        width = calcItemWidth(lables);
+    };
 
-    width               = calcItemWidth(transmissionLabels);
-    auto inputWidth     = calcItemWidth(std::array{ "Remove" }) - ImGui::GetStyle().ItemSpacing.x * 2.0f;
-    auto clutchStrength = vehicle.clutchStrength;
-    auto switchTime     = vehicle.switchTime;
-    auto gearRatios     = vehicle.gearRatios;
-    ImGui::Spacing();
-    ImGui::Text("transmission");
-    ImGui::Separator();
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(transmissionLabels[0], &clutchStrength, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(transmissionLabels[1], &switchTime, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::Text("%s", transmissionLabels[2]);
-    for (size_t i = 0; i < gearRatios.size(); ++i) {
-        ImGui::PushID(static_cast<int>(i));
-        ImGui::PushItemWidth(inputWidth);
-        ImGui::InputFloat("##input", &gearRatios[i]);
-        ImGui::PopItemWidth();
-        ImGui::SameLine();
-        if (ImGui::Button("Remove")) {
-            gearRatios.erase(gearRatios.begin() + i);
-            --i;
+    auto dragFloat =
+        [&id, &width, &newVehicle](const char* label, bool degrees, gerium_float32_t& value, bool engine = false) {
+        auto v = degrees ? glm::degrees(value) : value;
+        ImGui::PushID(id++);
+        ImGui::SetNextItemWidth(width);
+        const auto bound = degrees ? 360.0f : 10000.0f;
+        if (ImGui::DragFloat(label, &v, 0.001f, -bound, bound, "%.6f")) {
+            value = degrees ? glm::radians(v) : v;
+            if (engine) {
+                newVehicle.engineChanged = true;
+            } else {
+                newVehicle.changed = true;
+            }
         }
         ImGui::PopID();
-    }
-    if (ImGui::Button("Add")) {
-        gearRatios.push_back(0.0f);
-    }
+    };
 
-    width                           = calcItemWidth(differentialLabels);
-    auto limitedSlipRatio           = vehicle.limitedSlipRatio;
-    constexpr auto wheelDriveValues = magic_enum::enum_names<WheelDrive>();
-    auto wheelDrive                 = (int) magic_enum::enum_index(vehicle.wheelDrive).value();
-    ImGui::Spacing();
-    ImGui::Text("differential");
-    ImGui::Separator();
-    ImGui::SetNextItemWidth(width);
-    ImGui::DragFloat(differentialLabels[0], &limitedSlipRatio, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::SetNextItemWidth(width);
-    if (ImGui::BeginCombo(differentialLabels[1], wheelDriveValues[wheelDrive].data(), ImGuiComboFlags_HeightRegular)) {
-        for (size_t i = 0; i < wheelDriveValues.size(); ++i) {
-            auto isSelected = wheelDrive == i;
-            if (ImGui::Selectable(wheelDriveValues[i].data(), isSelected)) {
-                ////
-            }
-            if (isSelected) {
-                ImGui::SetItemDefaultFocus();
-            }
+    auto checkbox = [&id, &width, &newVehicle](const char* label, bool& check) {
+        ImGui::PushID(id++);
+        ImGui::SetNextItemWidth(width);
+        if (ImGui::Checkbox(label, &check)) {
+            newVehicle.changed = true;
         }
-        ImGui::EndCombo();
+        ImGui::PopID();
+    };
+
+    auto combo = [&id, &width, &newVehicle](const char* label, auto& e) {
+        using E               = std::remove_cvref_t<decltype(e)>;
+        constexpr auto values = magic_enum::enum_names<E>();
+        auto selected         = (int) magic_enum::enum_index(e).value();
+
+        ImGui::PushID(id++);
+        ImGui::SetNextItemWidth(width);
+        if (ImGui::BeginCombo(label, values[selected].data(), ImGuiComboFlags_HeightRegular)) {
+            for (size_t i = 0; i < values.size(); ++i) {
+                auto isSelected = selected == i;
+                if (ImGui::Selectable(values[i].data(), isSelected)) {
+                    auto newE = (E) i;
+                    if (newE != e) {
+                        e                  = newE;
+                        newVehicle.changed = true;
+                    }
+                }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::PopID();
+    };
+
+    auto list = [&id, &newVehicle](const char* label, std::vector<gerium_float32_t>& values) {
+        auto inputWidth = calcItemWidth(std::array{ "Remove" }) - ImGui::GetStyle().ItemSpacing.x * 2.0f;
+        ImGui::Text("%s", label);
+        for (size_t i = 0; i < values.size(); ++i) {
+            ImGui::PushID(id++);
+            ImGui::SetNextItemWidth(inputWidth);
+            if (ImGui::DragFloat("##input", &values[i], 0.001f, -10000.0f, 10000.0f, "%.6f")) {
+                newVehicle.engineChanged = true;
+            }
+            ImGui::PopID();
+            ImGui::SameLine();
+            ImGui::PushID(id++);
+            if (ImGui::Button("Remove")) {
+                newVehicle.engineChanged = true;
+                values.erase(values.begin() + i);
+                --i;
+            }
+            ImGui::PopID();
+        }
+        if (ImGui::Button("Add")) {
+            values.push_back(0.0f);
+            newVehicle.engineChanged = true;
+        }
+    };
+
+    separator("engine", engineLabels, false);
+    dragFloat(engineLabels[0], false, newVehicle.maxTorque, true);
+    dragFloat(engineLabels[1], false, newVehicle.minRPM, true);
+    dragFloat(engineLabels[2], false, newVehicle.maxRPM, true);
+
+    separator("constraints", constraintLabels);
+    dragFloat(constraintLabels[0], true, newVehicle.maxRollAngle);
+    checkbox(constraintLabels[1], newVehicle.antiRollbar);
+
+    separator("wheel settings", wheelSettingsLabels);
+    dragFloat(wheelSettingsLabels[0], true, newVehicle.angularDamping);
+    dragFloat(wheelSettingsLabels[1], true, newVehicle.maxSteeringAngle);
+    dragFloat(wheelSettingsLabels[2], false, newVehicle.maxHandBrakeTorque);
+    combo(wheelSettingsLabels[3], newVehicle.handBrake);
+
+    separator("transmission", transmissionLabels);
+    dragFloat(transmissionLabels[0], false, newVehicle.clutchStrength, true);
+    dragFloat(transmissionLabels[1], false, newVehicle.switchTime, true);
+    list(transmissionLabels[2], newVehicle.gearRatios);
+
+    separator("differential", differentialLabels);
+    dragFloat(differentialLabels[0], false, newVehicle.limitedSlipRatio, true);
+    combo(differentialLabels[1], newVehicle.wheelDrive);
+
+    separator("front", driveLabels);
+    dragFloat(driveLabels[0], true, newVehicle.frontCamber);
+    dragFloat(driveLabels[1], true, newVehicle.frontCasterAngle);
+    dragFloat(driveLabels[2], true, newVehicle.frontKingPinAngle);
+    dragFloat(driveLabels[3], true, newVehicle.frontSuspensionForwardAngle);
+    dragFloat(driveLabels[4], true, newVehicle.frontSuspensionSidewaysAngle);
+    dragFloat(driveLabels[5], true, newVehicle.frontToe);
+    dragFloat(driveLabels[6], false, newVehicle.frontSuspensionDamping);
+    dragFloat(driveLabels[7], false, newVehicle.frontSuspensionFrequency);
+    dragFloat(driveLabels[8], false, newVehicle.frontSuspensionMaxLength);
+    dragFloat(driveLabels[9], false, newVehicle.frontSuspensionMinLength);
+
+    separator("rear", driveLabels);
+    dragFloat(driveLabels[0], true, newVehicle.rearCamber);
+    dragFloat(driveLabels[1], true, newVehicle.rearCasterAngle);
+    dragFloat(driveLabels[2], true, newVehicle.rearKingPinAngle);
+    dragFloat(driveLabels[3], true, newVehicle.rearSuspensionForwardAngle);
+    dragFloat(driveLabels[4], true, newVehicle.rearSuspensionSidewaysAngle);
+    dragFloat(driveLabels[5], true, newVehicle.rearToe);
+    dragFloat(driveLabels[6], false, newVehicle.rearSuspensionDamping);
+    dragFloat(driveLabels[7], false, newVehicle.rearSuspensionFrequency);
+    dragFloat(driveLabels[8], false, newVehicle.rearSuspensionMaxLength);
+    dragFloat(driveLabels[9], false, newVehicle.rearSuspensionMinLength);
+
+    if (newVehicle.changed || newVehicle.engineChanged) {
+        _dispatcher.enqueue<ChangeVehicleEvent>(entity, newVehicle);
     }
-
-    width                             = calcItemWidth(driveLabels);
-    auto frontCamber                  = glm::degrees(vehicle.frontCamber);
-    auto frontCasterAngle             = glm::degrees(vehicle.frontCasterAngle);
-    auto frontKingPinAngle            = glm::degrees(vehicle.frontKingPinAngle);
-    auto frontSuspensionForwardAngle  = glm::degrees(vehicle.frontSuspensionForwardAngle);
-    auto frontSuspensionSidewaysAngle = glm::degrees(vehicle.frontSuspensionSidewaysAngle);
-    auto frontToe                     = glm::degrees(vehicle.frontToe);
-    auto frontSuspensionDamping       = vehicle.frontSuspensionDamping;
-    auto frontSuspensionFrequency     = vehicle.frontSuspensionFrequency;
-    auto frontSuspensionMaxLength     = vehicle.frontSuspensionMaxLength;
-    auto frontSuspensionMinLength     = vehicle.frontSuspensionMinLength;
-    ImGui::Spacing();
-    ImGui::Text("front");
-    ImGui::Separator();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(0);
-    ImGui::DragFloat(driveLabels[0], &frontCamber, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(1);
-    ImGui::DragFloat(driveLabels[1], &frontCasterAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(2);
-    ImGui::DragFloat(driveLabels[2], &frontKingPinAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(3);
-    ImGui::DragFloat(driveLabels[3], &frontSuspensionForwardAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(4);
-    ImGui::DragFloat(driveLabels[4], &frontSuspensionSidewaysAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(5);
-    ImGui::DragFloat(driveLabels[5], &frontToe, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(6);
-    ImGui::DragFloat(driveLabels[6], &frontSuspensionDamping, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(7);
-    ImGui::DragFloat(driveLabels[7], &frontSuspensionFrequency, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(8);
-    ImGui::DragFloat(driveLabels[8], &frontSuspensionMaxLength, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(9);
-    ImGui::DragFloat(driveLabels[9], &frontSuspensionMinLength, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
-
-    auto rearCamber                  = glm::degrees(vehicle.rearCamber);
-    auto rearCasterAngle             = glm::degrees(vehicle.rearCasterAngle);
-    auto rearKingPinAngle            = glm::degrees(vehicle.rearKingPinAngle);
-    auto rearSuspensionForwardAngle  = glm::degrees(vehicle.rearSuspensionForwardAngle);
-    auto rearSuspensionSidewaysAngle = glm::degrees(vehicle.rearSuspensionSidewaysAngle);
-    auto rearToe                     = glm::degrees(vehicle.rearToe);
-    auto rearSuspensionDamping       = vehicle.rearSuspensionDamping;
-    auto rearSuspensionFrequency     = vehicle.rearSuspensionFrequency;
-    auto rearSuspensionMaxLength     = vehicle.rearSuspensionMaxLength;
-    auto rearSuspensionMinLength     = vehicle.rearSuspensionMinLength;
-    ImGui::Spacing();
-    ImGui::Text("rear");
-    ImGui::Separator();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(10);
-    ImGui::DragFloat(driveLabels[0], &rearCamber, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(11);
-    ImGui::DragFloat(driveLabels[1], &rearCasterAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(12);
-    ImGui::DragFloat(driveLabels[2], &rearKingPinAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(13);
-    ImGui::DragFloat(driveLabels[3], &rearSuspensionForwardAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(14);
-    ImGui::DragFloat(driveLabels[4], &rearSuspensionSidewaysAngle, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(15);
-    ImGui::DragFloat(driveLabels[5], &rearToe, 0.001f, -360.0f, 360.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(16);
-    ImGui::DragFloat(driveLabels[6], &rearSuspensionDamping, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(17);
-    ImGui::DragFloat(driveLabels[7], &rearSuspensionFrequency, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(18);
-    ImGui::DragFloat(driveLabels[8], &rearSuspensionMaxLength, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
-    ImGui::SetNextItemWidth(width);
-    ImGui::PushID(19);
-    ImGui::DragFloat(driveLabels[9], &rearSuspensionMinLength, 0.001f, -10000.0f, 10000.0f, "%.6f");
-    ImGui::PopID();
 }
 
 void DeveloperUI::showComponent(entt::entity entity, VehicleController& vehicleController) {
@@ -1001,11 +932,10 @@ void DeveloperUI::addComponent(entt::entity entity, Collider& collider) {
 void DeveloperUI::addComponent(entt::entity entity, RigidBody& rigidBody) {
     const auto [_1, _2, mass] = getBBoxAndShapes(entity);
 
-    auto& rb = _registry.emplace<RigidBody>(entity);
-    rb.mass  = mass;
-}
-
-void DeveloperUI::addComponent(entt::entity entity, Renderable& renderable) {
+    RigidBody newRigidBody;
+    newRigidBody.mass    = mass;
+    newRigidBody.changed = true;
+    _dispatcher.enqueue<ChangeRigidBodyEvent>(entity, newRigidBody);
 }
 
 void DeveloperUI::addComponent(entt::entity entity, Vehicle& vehicle) {
@@ -1057,8 +987,8 @@ void DeveloperUI::addComponent(entt::entity entity, Vehicle& vehicle) {
     // updateBodies();
 }
 
-void DeveloperUI::addComponent(entt::entity entity, VehicleController& vehicleController) {
-    _registry.emplace<VehicleController>(entity);
+void DeveloperUI::addComponent(entt::entity entity, VehicleController& /* vehicleController */) {
+    _dispatcher.enqueue<VehicleControllerEvent>(entity, VehicleControllerAction::Attach);
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Name& name) {
@@ -1070,25 +1000,22 @@ void DeveloperUI::deleteComponent(entt::entity entity, Static& isStatic) {
     // updateBodies();
 }
 
-void DeveloperUI::deleteComponent(entt::entity entity, Collider& collider) {
+void DeveloperUI::deleteComponent(entt::entity entity, Collider& /* collider */) {
     _dispatcher.enqueue<ChangeColliderEvent>(entity, std::nullopt);
 }
 
-void DeveloperUI::deleteComponent(entt::entity entity, RigidBody& rigidBody) {
-    _registry.erase<RigidBody>(entity);
+void DeveloperUI::deleteComponent(entt::entity entity, RigidBody& /* rigidBody */) {
+    _dispatcher.enqueue<ChangeRigidBodyEvent>(entity, std::nullopt);
 }
 
-void DeveloperUI::deleteComponent(entt::entity entity, Renderable& renderable) {
+void DeveloperUI::deleteComponent(entt::entity entity, Renderable& /* renderable */) {
+    _dispatcher.enqueue<ChangeMaterialsEvent>(entity, std::vector<MaterialData>{});
 }
 
-void DeveloperUI::deleteComponent(entt::entity entity, Vehicle& vehicle) {
-    // for (auto wheel : vehicle.wheels) {
-    //     _registry.erase<Wheel>(wheel);
-    // }
-    // _registry.erase<Vehicle>(entity);
-    // updateBodies();
+void DeveloperUI::deleteComponent(entt::entity entity, Vehicle& /* vehicle */) {
+    _dispatcher.enqueue<ChangeVehicleEvent>(entity, std::nullopt);
 }
 
-void DeveloperUI::deleteComponent(entt::entity entity, VehicleController& vehicleController) {
-    _registry.erase<VehicleController>(entity);
+void DeveloperUI::deleteComponent(entt::entity entity, VehicleController& /* vehicleController */) {
+    _dispatcher.enqueue<VehicleControllerEvent>(entity, VehicleControllerAction::Detach);
 }
