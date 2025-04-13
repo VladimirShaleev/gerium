@@ -5,6 +5,7 @@
 #include "../events/ChangeMaterialsEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/ChangeRigidBodyEvent.hpp"
+#include "../events/ChangeStaticEvent.hpp"
 #include "../events/ChangeVehicleEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
 #include "../events/MoveNodeEvent.hpp"
@@ -918,6 +919,7 @@ void DeveloperUI::addComponent(entt::entity entity, Name&) {
 }
 
 void DeveloperUI::addComponent(entt::entity entity, Static& isStatic) {
+    _dispatcher.enqueue<ChangeStaticEvent>(entity, true);
 }
 
 void DeveloperUI::addComponent(entt::entity entity, Collider& collider) {
@@ -995,9 +997,8 @@ void DeveloperUI::deleteComponent(entt::entity entity, Name& name) {
     _dispatcher.trigger<ChangeNodeNameEvent>({ name.name, ""_hs });
 }
 
-void DeveloperUI::deleteComponent(entt::entity entity, Static& isStatic) {
-    // _registry.erase<Static>(entity);
-    // updateBodies();
+void DeveloperUI::deleteComponent(entt::entity entity, Static& /* isStatic */) {
+    _dispatcher.enqueue<ChangeStaticEvent>(entity, false);
 }
 
 void DeveloperUI::deleteComponent(entt::entity entity, Collider& /* collider */) {

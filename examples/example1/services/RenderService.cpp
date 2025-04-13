@@ -351,8 +351,8 @@ void RenderService::updateActiveSceneData() {
 void RenderService::updateStaticInstances() {
     auto needDropMaterialCache = _instances.materialsTable.size() >= (MAX_DYNAMIC_MATERIALS - 10);
 
-    if ((changes().transforms & Change::Static) != Change::Static &&
-        (changes().renderables & Change::Static) != Change::Static && !needDropMaterialCache) {
+    if (!isDirtyFlags<Transform>(Change::Static) && !isDirtyFlags<Renderable>(Change::Static) &&
+        !needDropMaterialCache) {
         return;
     }
 

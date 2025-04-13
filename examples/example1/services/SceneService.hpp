@@ -10,6 +10,7 @@
 #include "../events/ChangeMaterialsEvent.hpp"
 #include "../events/ChangeNodeNameEvent.hpp"
 #include "../events/ChangeRigidBodyEvent.hpp"
+#include "../events/ChangeStaticEvent.hpp"
 #include "../events/ChangeVehicleEvent.hpp"
 #include "../events/DeleteNodeByNameEvent.hpp"
 #include "../events/DeleteNodeEvent.hpp"
@@ -36,6 +37,7 @@ private:
     void onChangeRigidBody(const ChangeRigidBodyEvent& event);
     void onChangeMaterials(const ChangeMaterialsEvent& event);
     void onChangeVehicle(const ChangeVehicleEvent& event);
+    void onChangeStatic(const ChangeStaticEvent& event);
     void onVehicleController(const VehicleControllerEvent& event);
 
     void checkAndAddNode(entt::entity entity, const Name& name);
@@ -44,6 +46,17 @@ private:
     void start() override;
     void stop() override;
     void update(gerium_uint64_t elapsedMs, gerium_float64_t elapsed) override;
+
+    Change isStatic(entt::entity entity) const noexcept;
+    void dirtyAll(entt::entity entity, Change flags = Change::All) noexcept;
+
+    template <typename C>
+    void dirty(entt::entity entity, Change flags = Change::All) noexcept {
+        if (auto component = entityRegistry().try_get<C>(entity)) {
+            component->changed = true;
+            changeFlags<C>(flags);
+        }
+    }
 
     std::map<entt::hashed_string, entt::entity> _nodes{};
     std::map<entt::hashed_string, Model> _models{};

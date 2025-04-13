@@ -2,8 +2,8 @@
 #define SERVICE_MANAGER_HPP
 
 #include "../Common.hpp"
-#include "../components/Settings.hpp"
 #include "../components/Changes.hpp"
+#include "../components/Settings.hpp"
 
 class Application;
 class ServiceManager;
@@ -29,6 +29,22 @@ public:
 
     [[nodiscard]] Changes& changes() noexcept;
     [[nodiscard]] const Changes& changes() const noexcept;
+
+    template <typename C>
+    Change changeFlags(Change flags) noexcept {
+        return setChangeFlags<C>(changes(), flags);
+    }
+
+    template <typename C>
+    Change changeFlags(C& component, Change flags) noexcept {
+        component.changed = flags != Change::None;
+        return setChangeFlags<C>(changes(), flags);
+    }
+
+    template <typename C>
+    bool isDirtyFlags(Change flags = Change::All) noexcept {
+        return checkAnyChangeFlags<C>(changes(), flags);
+    }
 
 protected:
     virtual void start();

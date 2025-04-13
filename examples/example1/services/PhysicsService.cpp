@@ -131,7 +131,7 @@ std::map<entt::entity, JPH::Body*>::iterator PhysicsService::destroyBody(entt::e
 }
 
 bool PhysicsService::destroyBodies() {
-    if (changes().rigidBodies == Change::None) {
+    if (!isDirtyFlags<RigidBody>()) {
         return false;
     }
 
@@ -167,9 +167,10 @@ bool PhysicsService::destroyBodies() {
 }
 
 bool PhysicsService::createBodies() {
-    auto hasChanges = changes().rigidBodies != Change::None || changes().colliders != Change::None ||
-                      changes().vehicles != Change::None;
-
+    const auto isDirtyRigidBodies = isDirtyFlags<RigidBody>();
+    const auto isDirtyColliders   = isDirtyFlags<Collider>();
+    const auto isDirtyVehicles    = isDirtyFlags<Vehicle>();
+    const auto hasChanges         = isDirtyRigidBodies || isDirtyColliders || isDirtyVehicles;
     if (!hasChanges) {
         return false;
     }
@@ -187,8 +188,8 @@ bool PhysicsService::createBodies() {
         }
 
         const auto rigidBodyChanged = rigidBody.changed;
-        const auto colliderChanged  = !collider || collider->changed;
-        const auto vehicleChanged   = !vehicle || vehicle->changed;
+        const auto colliderChanged  = isDirtyColliders && (!collider || collider->changed);
+        const auto vehicleChanged   = isDirtyVehicles && (!vehicle || vehicle->changed);
 
         if (!rigidBodyChanged && !colliderChanged && !vehicleChanged) {
             continue;
@@ -244,7 +245,9 @@ bool PhysicsService::createBodies() {
 }
 
 bool PhysicsService::moveBodies() {
-    if (changes().transforms == Change::None && changes().colliders == Change::None) {
+    const auto isDirtyTransforms = isDirtyFlags<Transform>();
+    const auto isDirtyColliders  = isDirtyFlags<Collider>();
+    if (!isDirtyTransforms && !isDirtyColliders) {
         return false;
     }
 
@@ -270,7 +273,10 @@ bool PhysicsService::moveBodies() {
         bodyInterface.SetPositionAndRotation(body->GetID(), position, rotation, JPH::EActivation::DontActivate);
 
         auto collider        = registry.try_get<Collider>(entity);
-        auto colliderChanged = !collider || collider->changed || transform.scale != glm::vec3(1.0f);
+        auto colliderChanged = isDirtyColliders && (!collider || collider->changed);
+        if (transform.scale != glm::vec3(1.0f)) {
+            colliderChanged = true;
+        }
         if (colliderChanged) {
             auto shape = getShape(collider, registry.try_get<Renderable>(entity));
             if (transform.scale != glm::vec3(1.0f)) {
@@ -556,9 +562,7 @@ void PhysicsService::updateVehicleSettings(Vehicle& vehicle, JPH::Ref<JPH::Vehic
 
 void PhysicsService::syncPhysicsToECS() {
     const auto transforming = settings().transforming;
-    auto& transforms        = changes().transforms;
-
-    auto view = entityRegistry().view<RigidBody, Transform>(entt::exclude<::Static, Wheel>);
+    auto view               = entityRegistry().view<RigidBody, Transform>(entt::exclude<::Static, Wheel>);
     for (auto entity : view) {
         auto& rigidBody = view.get<RigidBody>(entity);
         auto& transform = view.get<Transform>(entity);
@@ -572,8 +576,7 @@ void PhysicsService::syncPhysicsToECS() {
 
                 transform.prevMatrix = transform.matrix;
                 memcpy((void*) &transform.matrix, (void*) &mat, sizeof(glm::mat4));
-                transform.changed = true;
-                transforms |= Change::Dynamic;
+                changeFlags(transform, Change::Dynamic);
             }
         }
 
@@ -585,8 +588,7 @@ void PhysicsService::syncPhysicsToECS() {
                     (JPH::uint) wheel.position, JPH::Vec3::sAxisX(), JPH::Vec3::sAxisY());
                 wheelTransform.prevMatrix = wheelTransform.matrix;
                 memcpy((void*) &wheelTransform.matrix, (void*) &wheelMat, sizeof(glm::mat4));
-                wheelTransform.changed = true;
-                transforms |= Change::Dynamic;
+                changeFlags(wheelTransform, Change::Dynamic);
             }
         }
     }
