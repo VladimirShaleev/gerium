@@ -327,8 +327,13 @@ void SceneService::onChangeVehicle(const ChangeVehicleEvent& event) {
             changeFlags(component, Change::Dynamic);
         }
     } else {
-        registry.remove<Vehicle>(event.entity);
-        changeFlags<Vehicle>(Change::Dynamic);
+        if (auto vehicle = registry.try_get<Vehicle>(event.entity)) {
+            for (auto wheel : vehicle->wheels) {
+                registry.erase<Wheel>(wheel);
+            }
+            registry.erase<Vehicle>(event.entity);
+            changeFlags<Vehicle>(Change::Dynamic);
+        }
     }
 }
 
