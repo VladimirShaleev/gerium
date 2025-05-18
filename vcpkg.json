@@ -2,67 +2,60 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "gerium",
   "version": "1.0.0",
-  "builtin-baseline": "b02e341c927f16d991edbd915d8ea43eac52096c",
   "dependencies": [
-    "mimalloc",
-    "cmakerc",
-    "rapidhash",
-    "ctre",
     "abseil",
+    "cmakerc",
+    "ctre",
+    "fidelityfx",
+    "marl",
+    "mimalloc",
+    "rapidhash",
+    "shaderc",
+    "spirv-reflect",
+    "stb",
     "vulkan-headers",
     "vulkan-memory-allocator",
-    "shaderc",
-    "fidelityfx",
-    "spirv-reflect",
-    "marl",
-    "stb",
-    {
-      "name": "imgui",
-      "features": [
-        {
-          "name": "android-binding",
-          "platform": "android"
-        },
-        {
-          "name": "win32-binding",
-          "platform": "windows"
-        },
-        {
-          "name": "osx-binding",
-          "platform": "osx"
-        },
-        "vulkan-binding"
-      ]
-    },
     {
       "name": "ktx",
       "features": [
         "vulkan"
       ]
-    }
-  ],
-  "overrides": [
+    },
     {
-      "name": "ctre",
-      "version": "3.8.1"
+      "name": "imgui",
+      "features": [
+        "vulkan-binding",
+        {
+          "name": "android-binding",
+          "platform": "android"
+        },
+        {
+          "name": "osx-binding",
+          "platform": "osx"
+        },
+        {
+          "name": "win32-binding",
+          "platform": "windows"
+        }
+      ]
     }
   ],
   "features": {
     "samples": {
       "description": "Build samples",
       "dependencies": [
-        "yaml-cpp",
-        "imguizmo",
-        "glm",
-        "entt",
-        "magic-enum",
-        "meshoptimizer",
         "argparse",
         "assimp",
-        "gli",
-        "stduuid",
-        "joltphysics",
         "capnproto",
+        "entt",
+        "gli",
+        "glm",
+        "imguizmo",
+        "joltphysics",
+        "magic-enum",
+        "meshoptimizer",
+        "stduuid",
+        "yaml-cpp",
         {
           "name": "reflectcpp",
           "features": [
@@ -71,5 +64,15 @@
         }
       ]
     }
-  }
+  },
+  "overrides": [
+    {
+      "name": "ctre",
+      "version": "3.8.1"
+    },
+    {
+      "name": "rapidhash",
+      "version": "1.0"
+    }
+  ]
 }

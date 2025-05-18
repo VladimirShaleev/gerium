@@ -1,16 +1,22 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
+  "default-registry": {
+    "kind": "git",
+    "baseline": "f26ec398c25c4980f33a50391f00a75f7ad62ef7",
+    "repository": "https://github.com/microsoft/vcpkg"
+  },
   "registries": [
     {
-      "kind": "filesystem",
-      "path": "cmake/vcpkg",
+      "kind": "git",
+      "baseline": "42548935a129628ec48e4937bd529632ea3f7db7",
+      "reference": "vcpkg-registry",
+      "repository": "https://github.com/VladimirShaleev/gerium-assets",
       "packages": [
+        "fidelityfx",
         "fidelityfx-sc",
-        "fidelityfx"
+        "imgui",
+        "joltphysics"
       ]
     }
-  ],
-  "overlay-ports": [
-    "./cmake/vcpkg/overlay-ports"
   ]
 }

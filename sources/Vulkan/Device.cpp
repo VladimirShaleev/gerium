@@ -2134,6 +2134,7 @@ void Device::createImGui() {
     ImGui_ImplVulkan_LoadFunctions(VK_API_VERSION_1_2, imguiLoaderFunc, this);
 
     ImGui_ImplVulkan_InitInfo initInfo{};
+    initInfo.ApiVersion          = VK_API_VERSION_1_2;
     initInfo.Instance            = _instance;
     initInfo.PhysicalDevice      = _physicalDevice;
     initInfo.Device              = _device;

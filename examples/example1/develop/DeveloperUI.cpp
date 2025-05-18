@@ -764,7 +764,7 @@ void DeveloperUI::showComponent(entt::entity entity, Vehicle& vehicle) {
         if (addSpacing) {
             ImGui::Spacing();
         }
-        ImGui::Text(label);
+        ImGui::Text("%s", label);
         ImGui::Separator();
         width = calcItemWidth(lables);
     };
