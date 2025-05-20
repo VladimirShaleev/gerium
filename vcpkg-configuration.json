@@ -18,5 +18,8 @@
         "joltphysics"
       ]
     }
+  ],
+  "overlay-triplets": [
+    "./cmake/vcpkg/overlay-triplets"
   ]
 }

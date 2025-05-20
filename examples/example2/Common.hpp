@@ -21,11 +21,6 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_LEFT_HANDED
 #define GLM_FORCE_SWIZZLE
-// #define GLM_FORCE_MESSAGES
-// https://github.com/g-truc/glm/issues/1269
-#include <glm/detail/setup.hpp>
-#undef GLM_DEPRECATED
-#define GLM_DEPRECATED [[deprecated]]
 #include <glm/ext.hpp>
 #include <glm/gtc/type_precision.hpp>
 
