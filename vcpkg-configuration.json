@@ -2,13 +2,13 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
   "default-registry": {
     "kind": "git",
-    "baseline": "f26ec398c25c4980f33a50391f00a75f7ad62ef7",
+    "baseline": "0cf34c184ce990471435b5b9c92edcf7424930b1",
     "repository": "https://github.com/microsoft/vcpkg"
   },
   "registries": [
     {
       "kind": "git",
-      "baseline": "42548935a129628ec48e4937bd529632ea3f7db7",
+      "baseline": "83a734102f6e90a4e1e256d29591e1934e803467",
       "reference": "vcpkg-registry",
       "repository": "https://github.com/VladimirShaleev/gerium-assets",
       "packages": [

@@ -494,7 +494,7 @@ typedef enum
     GERIUM_MOUSE_BUTTON_4_UP        = 128,
     GERIUM_MOUSE_BUTTON_5_DOWN      = 256,
     GERIUM_MOUSE_BUTTON_5_UP        = 512,
-    GERIUM_MOUSE_BUTTON_MAX_ENUM = 0x7FFFFFFF
+    GERIUM_MOUSE_BUTTON_MAX_ENUM    = 0x7FFFFFFF
 } gerium_mouse_button_flags_t;
 GERIUM_FLAGS(gerium_mouse_button_flags_t)
 
