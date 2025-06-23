@@ -1,0 +1,56 @@
+@ Application frame update callback.
+@ Called every frame to start rendering passes. [detail]
+@ If *{False}* is returned, the application terminates the event loop. [return]
+callback ApplicationFrameCallback {Bool}
+    arg Application {Application} @ Application instance.
+    arg Data {Data} [userdata] @ User data.
+    arg ElapsedMs {Uint64} @ The elapsed time in milliseconds since the last call to the previous frame.
+
+@ Application state change callback.
+@ Notifies about application state changes. [detail]
+@ If *{False}* is returned, the application terminates the event loop. [return]
+callback ApplicationStateCallback {Bool}
+    arg Application {Application} @ Application instance.
+    arg Data {Data} [userdata] @ User data.
+    arg State {ApplicationState} @ New application state.
+
+@ Application executor callback.
+@ Called to execute work in fiber. [detail]
+callback ApplicationExecutorCallback
+    arg Application {Application} @ Application instance.
+    arg Data {Data} [userdata] @ User data.
+
+@ Frame graph preparation callback.
+@ Called when frame graph begins preparing render passes. [detail]
+@ Should return number of worker threads to use. [return]
+callback FrameGraphPrepareCallback {Uint32}
+    arg FrameGraph {FrameGraph} @ Frame graph instance.
+    arg Renderer {Renderer} @ Associated renderer.
+    arg MaxWorkers {Uint32} @ Maximum available worker threads.
+    arg Data {Data} [userdata] @ User data.
+
+@ Frame graph resize callback.
+@ Notifies about render target size changes. [detail]
+@ If *{False}* is returned, the application terminates the event loop. [return]
+callback FrameGraphResizeCallback {Bool}
+    arg FrameGraph {FrameGraph} @ Frame graph instance.
+    arg Renderer {Renderer} @ Associated renderer.
+    arg Data {Data} [userdata] @ User data.
+
+@ Callback for the rendering pass.
+@ Executes rendering commands for a specific worker or compute work. [detail]
+@ If *{False}* is returned, the application terminates the event loop. [return]
+callback FrameGraphRenderCallback {Bool}
+    arg FrameGraph {FrameGraph} @ Frame graph instance.
+    arg Renderer {Renderer} @ Associated renderer.
+    arg CommandBuffer {CommandBuffer} @ Command buffer for recording.
+    arg Worker {Uint32} @ Current worker index.
+    arg TotalWorkers {Uint32} @ Total number of workers.
+    arg Data {Data} [userdata] @ User data.
+
+@ Texture loaded callback.
+@ Notifies when texture loading completes. [detail]
+callback TextureLoadedCallback
+    arg Renderer {Renderer} @ Associated renderer.
+    arg Texture {Texture} @ Loaded texture handle.
+    arg Data {Data} [userdata] @ User data.

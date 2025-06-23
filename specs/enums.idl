@@ -1,0 +1,908 @@
+@ Result codes.
+@ Status/error codes returned by framework methods. [detail]
+enum Result [errorcode]
+    const Success [noerror] @ Operation completed successfully.
+    const SkipFrame [noerror] @ Should skip rendering the frame if this code returned {Renderer.NewFrame}.
+    const ErrorUnknown @ Unknown error occurred.
+    const ErrorOutOfMemory @ Memory allocation failed.
+    const ErrorNotImplemented @ Functionality not available.
+    const ErrorFileOpen @ Failed to open file.
+    const ErrorFileAllocate @ Failed to allocate file space.
+    const ErrorFileWrite @ File write operation failed.
+    const ErrorApplicationCreate @ Application initialization failed.
+    const ErrorApplicationAlreadyRunning @ Duplicate application instance.
+    const ErrorApplicationNotRunning @ Operation requires running application.
+    const ErrorApplicationTerminated @ Application was terminated.
+    const ErrorNoDisplay @ No display devices found.
+    const ErrorDeviceSelection @ Failed to select graphics device.
+    const ErrorDeviceLost @ Graphics device became unavailable.
+    const ErrorAlreadyExists @ Resource already exists.
+    const ErrorNotFound @ Resource not found.
+    const ErrorFromCallback @ Error originated in callback function.
+    const ErrorFeatureNotSupported @ Hardware feature unavailable.
+    const ErrorFormatNotSupported @ Pixel format not supported.
+    const ErrorFidelityFxNotSupported @ FidelityFX not supported.
+    const ErrorInvalidArgument @ Invalid parameter passed.
+    const ErrorInvalidFrameGraph @ Unable to compile frame graph for given nodes.
+    const ErrorInvalidResource @ Cannot bind external resource because it has a different resource type.
+    const ErrorInvalidOperation @ Illegal operation attempted.
+    const ErrorParseSpirv @ SPIR-V parsing failed.
+    const ErrorDetectShaderLanguage @ Shader language detection failed.
+    const ErrorCompileShader @ Shader compilation error.
+    const ErrorBinding @ Resource binding failed.
+    const ErrorDescriptor @ Descriptor set error.
+    const ErrorLoadTexture @ Texture loading failed.
+    const ErrorChangeDisplayMode @ Display mode change rejected.
+
+@ File seek origins.
+@ Reference positions for file seek operations. [detail]
+enum FileSeek 
+    const Begin   @ Seek from start of file.
+    const Current @ Seek from current position.
+    const End     @ Seek from end of file.
+
+@ Logging severity levels.
+@ Hierarchical message importance classification. [detail]
+enum LoggerLevel
+    const Off     @ No logging output.
+    const Verbose @ Detailed diagnostic messages.
+    const Debug   @ Debugging information.
+    const Info    @ Informational messages.
+    const Warning @ Potentially problematic situations.
+    const Error   @ Recoverable error conditions.
+    const Fatal   @ Critical unrecoverable errors.
+
+@ Runtime platforms.
+@ Supported operating systems and execution environments. [detail]
+enum RuntimePlatform
+    const Unknown @ Undetermined platform.
+    const Android @ Android OS.
+    const IOS     @ Apple iOS.
+    const Web     @ Web browser environment.
+    const Windows @ Microsoft Windows.
+    const Linux   @ Linux operating system.
+    const MacOS   @ Apple macOS.
+
+@ Application state changes.
+@ Lifecycle and visibility states of the application. [detail]
+enum ApplicationState
+    const Unknown      @ Unknown state.
+    const Create       @ Application creation started.
+    const Destroy      @ Application destruction started.
+    const Initialize   @ Window initialized.
+    const Uninitialize @ Window shutting down.
+    const GotFocus     @ Window gained focus.
+    const LostFocus    @ Window lost focus.
+    const Visible      @ Window became visible on screen.
+    const Invisible    @ Window became hidden/minimized.
+    const Normal       @ Restored to normal window state.
+    const Minimize     @ Window minimized.
+    const Maximize     @ Window maximized.
+    const Fullscreen   @ Entered fullscreen mode.
+    const Resize       @ Window resize started.
+    const Resized      @ Window resize completed.
+
+@ Window style flags.
+@ Configurable window decoration and behavior options. [detail]
+enum ApplicationStyle [flags]
+    const None        : 0 @ No special styling.
+    const Resizable   : 1 @ Allow window resizing.
+    const Minimizable : 2 @ Show minimize button and allow minimize.
+    const Maximizable : 4 @ Show maximize button and allow maximizable.
+
+@ Input event types.
+@ Categories of user input events. [detail]
+enum EventType
+    const Keyboard @ Key press/release events.
+    const Mouse    @ Mouse movement/button events.
+
+@ Key state transitions.
+@ Keyboard key action states. [detail]
+enum KeyState
+    const Pressed  @ Key was pressed down.
+    const Released @ Key was released up.
+
+@ Keyboard modifier keys.
+@ Bitmask of active modifier keys. [detail]
+enum KeyMod [flags,hex]
+    const None       : 0    @ No modifiers active.
+    const Lshift     : 1    @ Left Shift key.
+    const Rshift     : 2    @ Right Shift key.
+    const Lctrl      : 4    @ Left Control key.
+    const Rctrl      : 8    @ Right Control key.
+    const Lalt       : 16   @ Left Alt key.
+    const Ralt       : 32   @ Right Alt key.
+    const Lmeta      : 64   @ Left Meta/OS key.
+    const Rmeta      : 128  @ Right Meta/OS key.
+    const NumLock    : 256  @ Num Lock enabled.
+    const CapsLock   : 512  @ Caps Lock enabled.
+    const ScrollLock : 1024 @ Scroll Lock enabled.
+    const Shift      : Lshift, Rshift @ Either Shift key.
+    const Ctrl       : Lctrl, Rctrl   @ Either Control key.
+    const Alt        : Lalt, Ralt     @ Either Alt key.
+    const Meta       : Lmeta, Rmeta   @ Either Meta key.
+
+@ Keyboard scancodes.
+@ Physical key identifiers independent of keyboard layout. [detail]
+@ ```
+    Scancodes are used for controls where it is important to know which key is pressed, 
+    regardless of the keyboard layout. For example, the game uses the WASD keys to 
+    move, which generate the same scancodes on different layouts.``` [note]
+enum Scancode
+    const Unknown @ Unidentified key.
+    const Digit0 [cname(0)] @ 0 key.
+    const Digit1 [cname(1)] @ 1 key.
+    const Digit2 [cname(2)] @ 2 key.
+    const Digit3 [cname(3)] @ 3 key.
+    const Digit4 [cname(4)] @ 4 key.
+    const Digit5 [cname(5)] @ 5 key.
+    const Digit6 [cname(6)] @ 6 key.
+    const Digit7 [cname(7)] @ 7 key.
+    const Digit8 [cname(8)] @ 8 key.
+    const Digit9 [cname(9)] @ 9 key.
+    const A @ A key.
+    const B @ B key.
+    const C @ C key.
+    const D @ D key.
+    const E @ E key.
+    const F @ F key.
+    const G @ G key.
+    const H @ H key.
+    const I @ I key.
+    const J @ J key.
+    const K @ K key.
+    const L @ L key.
+    const M @ M key.
+    const N @ N key.
+    const O @ O key.
+    const P @ P key.
+    const Q @ Q key.
+    const R @ R key.
+    const S @ S key.
+    const T @ T key.
+    const U @ U key.
+    const V @ V key.
+    const W @ W key.
+    const X @ X key.
+    const Y @ Y key.
+    const Z @ Z key.
+    const F1 [tokenizer(0)] @ F1 function key.
+    const F2 [tokenizer(0)] @ F2 function key.
+    const F3 [tokenizer(0)] @ F3 function key.
+    const F4 [tokenizer(0)] @ F4 function key.
+    const F5 [tokenizer(0)] @ F5 function key.
+    const F6 [tokenizer(0)] @ F6 function key.
+    const F7 [tokenizer(0)] @ F7 function key.
+    const F8 [tokenizer(0)] @ F8 function key.
+    const F9 [tokenizer(0)] @ F9 function key.
+    const F10 [tokenizer(0)] @ F10 function key.
+    const F11 [tokenizer(0)] @ F11 function key.
+    const F12 [tokenizer(0)] @ F12 function key.
+    const F13 [tokenizer(0)] @ F13 function key.
+    const F14 [tokenizer(0)] @ F14 function key.
+    const F15 [tokenizer(0)] @ F15 function key.
+    const F16 [tokenizer(0)] @ F16 function key.
+    const F17 [tokenizer(0)] @ F17 function key.
+    const F18 [tokenizer(0)] @ F18 function key.
+    const F19 [tokenizer(0)] @ F19 function key.
+    const F20 [tokenizer(0)] @ F20 function key.
+    const F21 [tokenizer(0)] @ F21 function key.
+    const F22 [tokenizer(0)] @ F22 function key.
+    const F23 [tokenizer(0)] @ F23 function key.
+    const F24 [tokenizer(0)] @ F24 function key.
+    const Numpad0 @ Numpad 0 key.
+    const Numpad1 @ Numpad 1 key.
+    const Numpad2 @ Numpad 2 key.
+    const Numpad3 @ Numpad 3 key.
+    const Numpad4 @ Numpad 4 key.
+    const Numpad5 @ Numpad 5 key.
+    const Numpad6 @ Numpad 6 key.
+    const Numpad7 @ Numpad 7 key.
+    const Numpad8 @ Numpad 8 key.
+    const Numpad9 @ Numpad 9 key.
+    const NumpadComma @ Numpad comma key.
+    const NumpadEnter @ Numpad enter key.
+    const NumpadEqual @ Numpad equals key.
+    const NumpadSubtract @ Numpad subtract key.
+    const NumpadDecimal @ Numpad decimal key.
+    const NumpadAdd @ Numpad add key.
+    const NumpadDivide @ Numpad divide key.
+    const NumpadMultiply @ Numpad multiply key.
+    const NumLock @ Num Lock key.
+    const MediaPlayPause @ Media play/pause key.
+    const MediaTrackPrevious @ Media previous track key.
+    const MediaTrackNext @ Media next track key.
+    const MediaStop @ Media stop key.
+    const LaunchMediaPlayer @ Media player launch key.
+    const AudioVolumeMute @ Volume mute key.
+    const AudioVolumeDown @ Volume down key.
+    const AudioVolumeUp @ Volume up key.
+    const Escape @ Escape key.
+    const Tab @ Tab key.
+    const CapsLock @ Caps Lock key.
+    const Enter @ Enter key.
+    const Backslash @ Backslash key.
+    const Backspace @ Backspace key.
+    const IntlBackslash @ International backslash key.
+    const IntlRo @ Japanese Ro key.
+    const IntlYen @ Japanese Yen key.
+    const Minus @ Minus key.
+    const Colon @ Colon key.
+    const Comma @ Comma key.
+    const Convert @ IME convert key.
+    const Nonconvert @ IME non-convert key.
+    const Equal @ Equals key.
+    const Period @ Period key.
+    const Power @ Power key.
+    const Semicolon @ Semicolon key.
+    const Slash @ Slash key.
+    const Sleep @ Sleep key.
+    const Wake @ Wake key.
+    const Space @ Spacebar.
+    const Quote @ Quote key.
+    const Backquote @ Backquote key.
+    const AltLeft @ Left Alt key.
+    const AltRight @ Right Alt key.
+    const BracketLeft @ Left bracket key.
+    const BracketRight @ Right bracket key.
+    const ControlLeft @ Left Control key.
+    const ControlRight @ Right Control key.
+    const ShiftLeft @ Left Shift key.
+    const ShiftRight @ Right Shift key.
+    const MetaLeft @ Left Meta/OS key.
+    const MetaRight @ Right Meta/OS key.
+    const ArrowUp @ Up arrow key.
+    const ArrowLeft @ Left arrow key.
+    const ArrowRight @ Right arrow key.
+    const ArrowDown @ Down arrow key.
+    const ScrollLock @ Scroll Lock key.
+    const Pause @ Pause key.
+    const CtrlPause @ Ctrl+Pause key combination.
+    const Insert @ Insert key.
+    const Delete @ Delete key.
+    const Home @ Home key.
+    const End @ End key.
+    const PageUp @ Page Up key.
+    const PageDown @ Page Down key.
+    const LaunchMail @ Mail launch key.
+    const Mycomputer @ My Computer key.
+    const ContextMenu @ Context Menu key.
+    const PrintScreen @ Print Screen key.
+    const AltPrintScreen @ Alt+PrintScreen combination.
+    const LaunchApplication1 @ Application 1 launch key.
+    const LaunchApplication2 @ Application 2 launch key.
+    const KanaMode @ Japanese Kana mode key.
+    const BrowserBack @ Browser back key.
+    const BrowserFavorites @ Browser favorites key.
+    const BrowserForward @ Browser forward key.
+    const BrowserHome @ Browser home key.
+    const BrowserRefresh @ Browser refresh key.
+    const BrowserSearch @ Browser search key.
+    const BrowserStop @ Browser stop key.
+
+@ Keyboard key codes.
+@ Logical key identifiers representing actual characters. [detail]
+@ Keycode determines what function a key performs in the context of the current keyboard layout. [note]
+enum KeyCode
+    const Unknown @ Unidentified key.
+    const Digit0 [cname(0)] @ 0 key.
+    const Digit1 [cname(1)] @ 1 key.
+    const Digit2 [cname(2)] @ 2 key.
+    const Digit3 [cname(3)] @ 3 key.
+    const Digit4 [cname(4)] @ 4 key.
+    const Digit5 [cname(5)] @ 5 key.
+    const Digit6 [cname(6)] @ 6 key.
+    const Digit7 [cname(7)] @ 7 key.
+    const Digit8 [cname(8)] @ 8 key.
+    const Digit9 [cname(9)] @ 9 key.
+    const A @ A key.
+    const B @ B key.
+    const C @ C key.
+    const D @ D key.
+    const E @ E key.
+    const F @ F key.
+    const G @ G key.
+    const H @ H key.
+    const I @ I key.
+    const J @ J key.
+    const K @ K key.
+    const L @ L key.
+    const M @ M key.
+    const N @ N key.
+    const O @ O key.
+    const P @ P key.
+    const Q @ Q key.
+    const R @ R key.
+    const S @ S key.
+    const T @ T key.
+    const U @ U key.
+    const V @ V key.
+    const W @ W key.
+    const X @ X key.
+    const Y @ Y key.
+    const Z @ Z key.
+    const F1 [tokenizer(0)] @ F1 function key.
+    const F2 [tokenizer(0)] @ F2 function key.
+    const F3 [tokenizer(0)] @ F3 function key.
+    const F4 [tokenizer(0)] @ F4 function key.
+    const F5 [tokenizer(0)] @ F5 function key.
+    const F6 [tokenizer(0)] @ F6 function key.
+    const F7 [tokenizer(0)] @ F7 function key.
+    const F8 [tokenizer(0)] @ F8 function key.
+    const F9 [tokenizer(0)] @ F9 function key.
+    const F10 [tokenizer(0)] @ F10 function key.
+    const F11 [tokenizer(0)] @ F11 function key.
+    const F12 [tokenizer(0)] @ F12 function key.
+    const F13 [tokenizer(0)] @ F13 function key.
+    const F14 [tokenizer(0)] @ F14 function key.
+    const F15 [tokenizer(0)] @ F15 function key.
+    const F16 [tokenizer(0)] @ F16 function key.
+    const F17 [tokenizer(0)] @ F17 function key.
+    const F18 [tokenizer(0)] @ F18 function key.
+    const F19 [tokenizer(0)] @ F19 function key.
+    const F20 [tokenizer(0)] @ F20 function key.
+    const F21 [tokenizer(0)] @ F21 function key.
+    const F22 [tokenizer(0)] @ F22 function key.
+    const F23 [tokenizer(0)] @ F23 function key.
+    const F24 [tokenizer(0)] @ F24 function key.
+    const Exclaim @ Exclamation mark (`!`).
+    const At @ At symbol (`@`).
+    const Hash @ Hash/pound (`#`).
+    const Dollar @ Dollar sign (`$`).
+    const Percent @ Percent sign (`%`).
+    const Caret @ Caret (`^`).
+    const Ampersand @ Ampersand (`&`).
+    const Asterisk @ Asterisk (`*`).
+    const ParenLeft @ Left parenthesis (`(`).
+    const ParenRight @ Right parenthesis (`)`).
+    const Underscore @ Underscore (`_`).
+    const Numpad0 @ Numpad 0.
+    const Numpad1 @ Numpad 1.
+    const Numpad2 @ Numpad 2.
+    const Numpad3 @ Numpad 3.
+    const Numpad4 @ Numpad 4.
+    const Numpad5 @ Numpad 5.
+    const Numpad6 @ Numpad 6.
+    const Numpad7 @ Numpad 7.
+    const Numpad8 @ Numpad 8.
+    const Numpad9 @ Numpad 9.
+    const Decimal @ Decimal point.
+    const Subtract @ Subtract/minus.
+    const Add @ Add/plus.
+    const Divide @ Divide.
+    const Multiply @ Multiply.
+    const Equal @ Equals sign.
+    const Less @ Less-than (<).
+    const Greater @ Greater-than (>).
+    const NumLock @ Num Lock.
+    const MediaPlayPause @ Media play/pause.
+    const MediaTrackPrevious @ Previous track.
+    const MediaTrackNext @ Next track.
+    const MediaStop @ Media stop.
+    const LaunchMediaPlayer @ Media player.
+    const AudioVolumeMute @ Volume mute.
+    const AudioVolumeDown @ Volume down.
+    const AudioVolumeUp @ Volume up.
+    const Escape @ Escape.
+    const Tab @ Tab.
+    const CapsLock @ Caps Lock.
+    const Enter @ Enter.
+    const Backslash @ Backslash (`\`).
+    const Pipe @ Pipe (`|`).
+    const Question @ Question mark (`?`).
+    const Backspace @ Backspace.
+    const Colon @ Colon (`:`).
+    const Comma @ Comma (`,`).
+    const Convert @ IME convert.
+    const Nonconvert @ IME non-convert.
+    const Period @ Period (.).
+    const Power @ Power.
+    const Semicolon @ Semicolon (`;`).
+    const Slash @ Slash (`/`).
+    const Sleep @ Sleep.
+    const Wake @ Wake.
+    const Space @ Space.
+    const DoubleQuote @ Double quote (`"`).
+    const Quote @ Single quote (').
+    const Backquote @ Backquote (`).
+    const Tilde @ Tilde (`~`).
+    const AltLeft @ Left Alt.
+    const AltRight @ Right Alt.
+    const BracketLeft @ Left bracket (`\[`).
+    const BracketRight @ Right bracket (`\]`).
+    const BraceLeft @ Left brace (`\{`).
+    const BraceRight @ Right brace (`\}`).
+    const ControlLeft @ Left Control.
+    const ControlRight @ Right Control.
+    const ShiftLeft @ Left Shift.
+    const ShiftRight @ Right Shift.
+    const MetaLeft @ Left Meta/OS.
+    const MetaRight @ Right Meta/OS.
+    const ArrowUp @ Up arrow.
+    const ArrowLeft @ Left arrow.
+    const ArrowRight @ Right arrow.
+    const ArrowDown @ Down arrow.
+    const ScrollLock @ Scroll Lock.
+    const Pause @ Pause.
+    const Insert @ Insert.
+    const Delete @ Delete.
+    const Home @ Home.
+    const End @ End.
+    const PageUp @ Page Up.
+    const PageDown @ Page Down.
+    const LaunchMail @ Mail.
+    const ContextMenu @ Context menu.
+    const PrintScreen @ Print Screen.
+    const LaunchApplication1 @ Application 1.
+    const LaunchApplication2 @ Application 2.
+    const KanaMode @ Kana mode.
+    const BrowserBack @ Browser back.
+    const BrowserFavorites @ Browser favorites.
+    const BrowserForward @ Browser forward.
+    const BrowserHome @ Browser home.
+    const BrowserRefresh @ Browser refresh.
+    const BrowserSearch @ Browser search.
+    const BrowserStop @ Browser stop.
+
+@ Mouse button states.
+@ Bitmask representing mouse button press/release events. [detail]
+enum MouseButton [flags,hex]
+    const None        : 0 @ No buttons active.
+    const LeftDown    : 1 @ Left button pressed.
+    const LeftUp      : 2 @ Left button released.
+    const RightDown   : 4 @ Right button pressed.
+    const RightUp     : 8 @ Right button released.
+    const MiddleDown  : 16 @ Middle button pressed.
+    const MiddleUp    : 32 @ Middle button released.
+    const Button4Down : 64 [cname(4_DOWN)] @ Extra button 4 pressed.
+    const Button4Up   : 128 [cname(4_UP)] @ Extra button 4 released.
+    const Button5Down : 256 [cname(5_DOWN)] @ Extra button 5 pressed.
+    const Button5Up   : 512 [cname(5_UP)] @ Extra button 5 released.
+
+@ Measurement units.
+@ Supported dimensional units for layout calculations. [detail]
+enum DimensionUnit
+    const PX  @ Physical pixels (device-dependent)
+    const MM  @ Millimeters (physical size)
+    const DIP @ Density-independent pixels (logical size)
+    const SP  @ Scale-independent pixels (for text)
+    const PT  @ Points (1/72 inch)
+    const IN  @ Inches (physical size)
+
+@ Graphics features.
+@ Bitmask of supported hardware capabilities. [detail]
+@ Features can be requested when creating a renderer object {Renderer.Create}. [see]
+enum Feature [flags,hex]
+    const None                : 0 @ No special features
+    const Bindless            : 1 @ Bindless resource access
+    const GeometryShader      : 2 @ Geometry shader support
+    const MeshShader          : 4 @ Mesh shader support
+    const SamplerFilterMinmax : 8 @ Min/max sampler filtering
+    const DrawIndirect        : 16 @ Indirect drawing
+    const DrawIndirectCount   : 32 @ Indirect count drawing
+    const Storage8Bit         : 64 [cname(8_BIT_STORAGE)] @ 8-bit storage support
+    const Storage16Bit        : 128 [cname(16_BIT_STORAGE)] @ 16-bit storage support
+
+@ Texture formats.
+@ Pixel formats for textures. [detail]
+enum Format
+    const R4G4Unorm [tokenizer(4)] @ 8-bit packed unsigned normalized format that has a 4-bit R component in bits 4..7, and a 4-bit G component in bits 0..3.
+    const R4G4B4A4Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 4-bit R component in bits 12..15, a 4-bit G component in bits 8..11, a 4-bit B component in bits 4..7, and a 4-bit A component in bits 0..3.
+    const R5G5B5A1Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 5-bit R component in bits 11..15, a 5-bit G component in bits 6..10, a 5-bit B component in bits 1..5, and a 1-bit A component in bit 0.
+    const R5G6B5Unorm [tokenizer(6)] @ 16-bit packed unsigned normalized format that has a 5-bit R component in bits 11..15, a 6-bit G component in bits 5..10, and a 5-bit B component in bits 0..4.
+    const R8Unorm [tokenizer(2)] @ 8-bit unsigned normalized format that has a single 8-bit R component.
+    const R8Snorm [tokenizer(2)] @ 8-bit signed normalized format that has a single 8-bit R component.
+    const R8Uint [tokenizer(2)] @ 8-bit unsigned integer format that has a single 8-bit R component.
+    const R8Sint [tokenizer(2)] @ 8-bit signed integer format that has a single 8-bit R component.
+    const R8Srgb [tokenizer(2)] @ 8-bit unsigned normalized format that has a single 8-bit R component stored with sRGB nonlinear encoding.
+    const R8Uscaled [tokenizer(2)] @ 8-bit unsigned scaled integer format that has a single 8-bit R component.
+    const R8Sscaled [tokenizer(2)] @ 8-bit signed scaled integer format that has a single 8-bit R component.
+    const R8G8Unorm [tokenizer(4)] @ 16-bit unsigned normalized format that has an 8-bit R component in byte 0, and an 8-bit G component in byte 1.
+    const R8G8Snorm [tokenizer(4)] @ 16-bit signed normalized format that has an 8-bit R component in byte 0, and an 8-bit G component in byte 1.
+    const R8G8Uint [tokenizer(4)] @ 16-bit unsigned integer format that has an 8-bit R component in byte 0, and an 8-bit G component in byte 1.
+    const R8G8Sint [tokenizer(4)] @ 16-bit signed integer format that has an 8-bit R component in byte 0, and an 8-bit G component in byte 1.
+    const R8G8Srgb [tokenizer(4)] @ 16-bit unsigned normalized format that has an 8-bit R component stored with sRGB nonlinear encoding in byte 0, and an 8-bit G component stored with sRGB nonlinear encoding in byte 1.
+    const R8G8Uscaled [tokenizer(4)] @ 16-bit unsigned scaled integer format that has an 8-bit R component in byte 0, and an 8-bit G component in byte 1.
+    const R8G8Sscaled [tokenizer(4)] @ 16-bit signed scaled integer format that has an 8-bit R component in byte 0, and an 8-bit G component in byte 1.
+    const R8G8B8Unorm [tokenizer(6)] @ 24-bit unsigned normalized format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, and an 8-bit B component in byte 2.
+    const R8G8B8Snorm [tokenizer(6)] @ 24-bit signed normalized format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, and an 8-bit B component in byte 2.
+    const R8G8B8Uint [tokenizer(6)] @ 24-bit unsigned integer format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, and an 8-bit B component in byte 2.
+    const R8G8B8Sint [tokenizer(6)] @ 24-bit signed integer format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, and an 8-bit B component in byte 2.
+    const R8G8B8Srgb [tokenizer(6)] @ 24-bit unsigned normalized format that has an 8-bit R component stored with sRGB nonlinear encoding in byte 0, an 8-bit G component stored with sRGB nonlinear encoding in byte 1, and an 8-bit B component stored with sRGB nonlinear encoding in byte 2.
+    const R8G8B8Uscaled [tokenizer(6)] @ 24-bit unsigned scaled format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, and an 8-bit B component in byte 2.
+    const R8G8B8Sscaled [tokenizer(6)] @ 24-bit signed scaled format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, and an 8-bit B component in byte 2.
+    const R8G8B8A8Unorm [tokenizer(8)] @ 32-bit unsigned normalized format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, an 8-bit B component in byte 2, and an 8-bit A component in byte 3.
+    const R8G8B8A8Snorm [tokenizer(8)] @ 32-bit signed normalized format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, an 8-bit B component in byte 2, and an 8-bit A component in byte 3.
+    const R8G8B8A8Uint [tokenizer(8)] @ 32-bit unsigned integer format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, an 8-bit B component in byte 2, and an 8-bit A component in byte 3.
+    const R8G8B8A8Sint [tokenizer(8)] @ 32-bit signed integer format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, an 8-bit B component in byte 2, and an 8-bit A component in byte 3.
+    const R8G8B8A8Srgb [tokenizer(8)] @ 32-bit unsigned normalized format that has an 8-bit R component stored with sRGB nonlinear encoding in byte 0, an 8-bit G component stored with sRGB nonlinear encoding in byte 1, an 8-bit B component stored with sRGB nonlinear encoding in byte 2, and an 8-bit A component in byte 3.
+    const R8G8B8A8Uscaled [tokenizer(8)] @ 32-bit unsigned scaled format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, an 8-bit B component in byte 2, and an 8-bit A component in byte 3.
+    const R8G8B8A8Sscaled [tokenizer(8)] @ 32-bit signed scaled format that has an 8-bit R component in byte 0, an 8-bit G component in byte 1, an 8-bit B component in byte 2, and an 8-bit A component in byte 3.
+    const R16Unorm [tokenizer(3)] @ 16-bit unsigned normalized format that has a single 16-bit R component.
+    const R16Snorm [tokenizer(3)] @ 16-bit signed normalized format that has a single 16-bit R component.
+    const R16Uint [tokenizer(3)] @ 16-bit unsigned integer format that has a single 16-bit R component.
+    const R16Sint [tokenizer(3)] @ 16-bit signed integer format that has a single 16-bit R component.
+    const R16Sfloat [tokenizer(3)] @ 16-bit signed floating-point format that has a single 16-bit R component.
+    const R16Uscaled [tokenizer(3)] @ 16-bit unsigned scaled integer format that has a single 16-bit R component.
+    const R16Sscaled [tokenizer(3)] @ 16-bit signed scaled integer format that has a single 16-bit R component.
+    const R16G16Unorm [tokenizer(6)] @ 32-bit unsigned normalized format that has a 16-bit R component in bytes 0..1, and a 16-bit G component in bytes 2..3.
+    const R16G16Snorm [tokenizer(6)] @ 32-bit signed normalized format that has a 16-bit R component in bytes 0..1, and a 16-bit G component in bytes 2..3.
+    const R16G16Uint [tokenizer(6)] @ 32-bit unsigned integer format that has a 16-bit R component in bytes 0..1, and a 16-bit G component in bytes 2..3.
+    const R16G16Sint [tokenizer(6)] @ 32-bit signed integer format that has a 16-bit R component in bytes 0..1, and a 16-bit G component in bytes 2..3.
+    const R16G16Sfloat [tokenizer(6)] @ 32-bit signed floating-point format that has a 16-bit R component in bytes 0..1, and a 16-bit G component in bytes 2..3.
+    const R16G16Uscaled [tokenizer(6)] @ 32-bit unsigned scaled integer format that has a 16-bit R component in bytes 0..1, and a 16-bit G component in bytes 2..3.
+    const R16G16Sscaled [tokenizer(6)] @ 32-bit signed scaled integer format that has a 16-bit R component in bytes 0..1, and a 16-bit G component in bytes 2..3.
+    const R16G16B16Unorm [tokenizer(9)] @ 48-bit unsigned normalized format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, and a 16-bit B component in bytes 4..5.
+    const R16G16B16Snorm [tokenizer(9)] @ 48-bit signed normalized format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, and a 16-bit B component in bytes 4..5.
+    const R16G16B16Uint [tokenizer(9)] @ 48-bit unsigned integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, and a 16-bit B component in bytes 4..5.
+    const R16G16B16Sint [tokenizer(9)] @ 48-bit signed integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, and a 16-bit B component in bytes 4..5.
+    const R16G16B16Sfloat [tokenizer(9)] @ 48-bit signed floating-point format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, and a 16-bit B component in bytes 4..5.
+    const R16G16B16Uscaled [tokenizer(9)] @ 48-bit unsigned scaled integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, and a 16-bit B component in bytes 4..5.
+    const R16G16B16Sscaled [tokenizer(9)] @ 48-bit signed scaled integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, and a 16-bit B component in bytes 4..5.
+    const R16G16B16A16Unorm [tokenizer(12)] @ 64-bit unsigned normalized format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, a 16-bit B component in bytes 4..5, and a 16-bit A component in bytes 6..7.
+    const R16G16B16A16Snorm [tokenizer(12)] @ 64-bit signed normalized format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, a 16-bit B component in bytes 4..5, and a 16-bit A component in bytes 6..7.
+    const R16G16B16A16Uint [tokenizer(12)] @ 64-bit unsigned integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, a 16-bit B component in bytes 4..5, and a 16-bit A component in bytes 6..7.
+    const R16G16B16A16Sint [tokenizer(12)] @ 64-bit signed integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, a 16-bit B component in bytes 4..5, and a 16-bit A component in bytes 6..7.
+    const R16G16B16A16Sfloat [tokenizer(12)] @ 64-bit signed floating-point format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, a 16-bit B component in bytes 4..5, and a 16-bit A component in bytes 6..7.
+    const R16G16B16A16Uscaled [tokenizer(12)] @ 64-bit unsigned scaled integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, a 16-bit B component in bytes 4..5, and a 16-bit A component in bytes 6..7.
+    const R16G16B16A16Sscaled [tokenizer(12)] @ 64-bit signed scaled integer format that has a 16-bit R component in bytes 0..1, a 16-bit G component in bytes 2..3, a 16-bit B component in bytes 4..5, and a 16-bit A component in bytes 6..7.
+    const R32Uint [tokenizer(3)] @ 32-bit unsigned integer format that has a single 32-bit R component.
+    const R32Sint [tokenizer(3)] @ 32-bit signed integer format that has a single 32-bit R component.
+    const R32Sfloat [tokenizer(3)] @ 32-bit signed floating-point format that has a single 32-bit R component.
+    const R32G32Uint [tokenizer(6)] @ 64-bit unsigned integer format that has a 32-bit R component in bytes 0..3, and a 32-bit G component in bytes 4..7.
+    const R32G32Sint [tokenizer(6)] @ 64-bit signed integer format that has a 32-bit R component in bytes 0..3, and a 32-bit G component in bytes 4..7.
+    const R32G32Sfloat [tokenizer(6)] @ 64-bit signed floating-point format that has a 32-bit R component in bytes 0..3, and a 32-bit G component in bytes 4..7.
+    const R32G32B32Uint [tokenizer(9)] @ 96-bit unsigned integer format that has a 32-bit R component in bytes 0..3, a 32-bit G component in bytes 4..7, and a 32-bit B component in bytes 8..11.
+    const R32G32B32Sint [tokenizer(9)] @ 96-bit signed integer format that has a 32-bit R component in bytes 0..3, a 32-bit G component in bytes 4..7, and a 32-bit B component in bytes 8..11.
+    const R32G32B32Sfloat [tokenizer(9)] @ 96-bit signed floating-point format that has a 32-bit R component in bytes 0..3, a 32-bit G component in bytes 4..7, and a 32-bit B component in bytes 8..11.
+    const R32G32B32A32Uint [tokenizer(12)] @ 128-bit unsigned integer format that has a 32-bit R component in bytes 0..3, a 32-bit G component in bytes 4..7, a 32-bit B component in bytes 8..11, and a 32-bit A component in bytes 12..15.
+    const R32G32B32A32Sint [tokenizer(12)] @ 128-bit signed integer format that has a 32-bit R component in bytes 0..3, a 32-bit G component in bytes 4..7, a 32-bit B component in bytes 8..11, and a 32-bit A component in bytes 12..15.
+    const R32G32B32A32Sfloat [tokenizer(12)] @ 128-bit signed floating-point format that has a 32-bit R component in bytes 0..3, a 32-bit G component in bytes 4..7, a 32-bit B component in bytes 8..11, and a 32-bit A component in bytes 12..15.
+    const R64Uint [tokenizer(3)] @ 64-bit unsigned integer format that has a single 64-bit R component.
+    const R64Sint [tokenizer(3)] @ 64-bit signed integer format that has a single 64-bit R component.
+    const R64Sfloat [tokenizer(3)] @ 64-bit signed floating-point format that has a single 64-bit R component.
+    const R64G64Uint [tokenizer(6)] @ 128-bit unsigned integer format that has a 64-bit R component in bytes 0..7, and a 64-bit G component in bytes 8..15.
+    const R64G64Sint [tokenizer(6)] @ 128-bit signed integer format that has a 64-bit R component in bytes 0..7, and a 64-bit G component in bytes 8..15.
+    const R64G64Sfloat [tokenizer(6)] @ 128-bit signed floating-point format that has a 64-bit R component in bytes 0..7, and a 64-bit G component in bytes 8..15.
+    const R64G64B64Uint [tokenizer(9)] @ 192-bit unsigned integer format that has a 64-bit R component in bytes 0..7, a 64-bit G component in bytes 8..15, and a 64-bit B component in bytes 16..23.
+    const R64G64B64Sint [tokenizer(9)] @ 192-bit signed integer format that has a 64-bit R component in bytes 0..7, a 64-bit G component in bytes 8..15, and a 64-bit B component in bytes 16..23.
+    const R64G64B64Sfloat [tokenizer(9)] @ 192-bit signed floating-point format that has a 64-bit R component in bytes 0..7, a 64-bit G component in bytes 8..15, and a 64-bit B component in bytes 16..23.
+    const R64G64B64A64Uint [tokenizer(12)] @ 256-bit unsigned integer format that has a 64-bit R component in bytes 0..7, a 64-bit G component in bytes 8..15, a 64-bit B component in bytes 16..23, and a 64-bit A component in bytes 24..31.
+    const R64G64B64A64Sint [tokenizer(12)] @ 256-bit signed integer format that has a 64-bit R component in bytes 0..7, a 64-bit G component in bytes 8..15, a 64-bit B component in bytes 16..23, and a 64-bit A component in bytes 24..31.
+    const R64G64B64A64Sfloat [tokenizer(12)] @ 256-bit signed floating-point format that has a 64-bit R component in bytes 0..7, a 64-bit G component in bytes 8..15, a 64-bit B component in bytes 16..23, and a 64-bit A component in bytes 24..31.
+    const B4G4R4A4Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 4-bit B component in bits 12..15, a 4-bit G component in bits 8..11, a 4-bit R component in bits 4..7, and a 4-bit A component in bits 0..3.
+    const B5G5R5A1Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 5-bit B component in bits 11..15, a 5-bit G component in bits 6..10, a 5-bit R component in bits 1..5, and a 1-bit A component in bit 0.
+    const B5G6R5Unorm [tokenizer(6)] @ 16-bit packed unsigned normalized format that has a 5-bit B component in bits 11..15, a 6-bit G component in bits 5..10, and a 5-bit R component in bits 0..4.
+    const B8G8R8Unorm [tokenizer(6)] @ 24-bit unsigned normalized format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, and an 8-bit R component in byte 2.
+    const B8G8R8Snorm [tokenizer(6)] @ 24-bit signed normalized format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, and an 8-bit R component in byte 2.
+    const B8G8R8Uint [tokenizer(6)] @ 24-bit unsigned integer format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, and an 8-bit R component in byte 2.
+    const B8G8R8Sint [tokenizer(6)] @ 24-bit signed integer format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, and an 8-bit R component in byte 2.
+    const B8G8R8Srgb [tokenizer(6)] @ 24-bit unsigned normalized format that has an 8-bit B component stored with sRGB nonlinear encoding in byte 0, an 8-bit G component stored with sRGB nonlinear encoding in byte 1, and an 8-bit R component stored with sRGB nonlinear encoding in byte 2.
+    const B8G8R8Uscaled [tokenizer(6)] @ 24-bit unsigned scaled format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, and an 8-bit R component in byte 2.
+    const B8G8R8Sscaled [tokenizer(6)] @ 24-bit signed scaled format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, and an 8-bit R component in byte 2.
+    const B8G8R8A8Unorm [tokenizer(8)] @ 32-bit unsigned normalized format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, an 8-bit R component in byte 2, and an 8-bit A component in byte 3.
+    const B8G8R8A8Snorm [tokenizer(8)] @ 32-bit signed normalized format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, an 8-bit R component in byte 2, and an 8-bit A component in byte 3.
+    const B8G8R8A8Uint [tokenizer(8)] @ 32-bit unsigned integer format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, an 8-bit R component in byte 2, and an 8-bit A component in byte 3.
+    const B8G8R8A8Sint [tokenizer(8)] @ 32-bit signed integer format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, an 8-bit R component in byte 2, and an 8-bit A component in byte 3.
+    const B8G8R8A8Srgb [tokenizer(8)] @ 32-bit unsigned normalized format that has an 8-bit B component stored with sRGB nonlinear encoding in byte 0, an 8-bit G component stored with sRGB nonlinear encoding in byte 1, an 8-bit R component stored with sRGB nonlinear encoding in byte 2, and an 8-bit A component in byte 3.
+    const B8G8R8A8Uscaled [tokenizer(8)] @ 32-bit unsigned scaled format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, an 8-bit R component in byte 2, and an 8-bit A component in byte 3.
+    const B8G8R8A8Sscaled [tokenizer(8)] @ 32-bit signed scaled format that has an 8-bit B component in byte 0, an 8-bit G component in byte 1, an 8-bit R component in byte 2, and an 8-bit A component in byte 3.
+    const B10G11R11Ufloat [tokenizer(9)] @ 32-bit packed unsigned floating-point format that has a 10-bit B component in bits 22..31, an 11-bit G component in bits 11..21, an 11-bit R component in bits 0..10.
+    const A1B5G5R5Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 1-bit A component in bit 15, a 5-bit B component in bits 10..14, a 5-bit G component in bits 5..9, and a 5-bit R component in bits 0..4.
+    const A1R5G5B5Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 1-bit A component in bit 15, a 5-bit R component in bits 10..14, a 5-bit G component in bits 5..9, and a 5-bit B component in bits 0..4.
+    const A2B10G10R10Unorm [tokenizer(11)] @ 32-bit packed unsigned normalized format that has a 2-bit A component in bits 30..31, a 10-bit B component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit R component in bits 0..9.
+    const A2B10G10R10Snorm [tokenizer(11)] @ 32-bit packed signed normalized format that has a 2-bit A component in bits 30..31, a 10-bit B component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit R component in bits 0..9.
+    const A2B10G10R10Uint [tokenizer(11)] @ 32-bit packed unsigned integer format that has a 2-bit A component in bits 30..31, a 10-bit B component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit R component in bits 0..9.
+    const A2B10G10R10Sint [tokenizer(11)] @ 32-bit packed signed integer format that has a 2-bit A component in bits 30..31, a 10-bit B component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit R component in bits 0..9.
+    const A2B10G10R10Uscaled [tokenizer(11)] @ 32-bit packed unsigned scaled integer format that has a 2-bit A component in bits 30..31, a 10-bit B component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit R component in bits 0..9.
+    const A2B10G10R10Sscaled [tokenizer(11)] @ 32-bit packed signed scaled integer format that has a 2-bit A component in bits 30..31, a 10-bit B component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit R component in bits 0..9.
+    const A2R10G10B10Unorm [tokenizer(11)] @ 32-bit packed unsigned normalized format that has a 2-bit A component in bits 30..31, a 10-bit R component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit B component in bits 0..9.
+    const A2R10G10B10Snorm [tokenizer(11)] @ 32-bit packed signed normalized format that has a 2-bit A component in bits 30..31, a 10-bit R component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit B component in bits 0..9.
+    const A2R10G10B10Uint [tokenizer(11)] @ 32-bit packed unsigned integer format that has a 2-bit A component in bits 30..31, a 10-bit R component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit B component in bits 0..9.
+    const A2R10G10B10Sint [tokenizer(11)] @ 32-bit packed signed integer format that has a 2-bit A component in bits 30..31, a 10-bit R component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit B component in bits 0..9.
+    const A2R10G10B10Uscaled [tokenizer(11)] @ 32-bit packed unsigned scaled integer format that has a 2-bit A component in bits 30..31, a 10-bit R component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit B component in bits 0..9.
+    const A2R10G10B10Sscaled [tokenizer(11)] @ 32-bit packed signed scaled integer format that has a 2-bit A component in bits 30..31, a 10-bit R component in bits 20..29, a 10-bit G component in bits 10..19, and a 10-bit B component in bits 0..9.
+    const A4B4G4R4Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 4-bit A component in bits 12..15, a 4-bit B component in bits 8..11, a 4-bit G component in bits 4..7, and a 4-bit R component in bits 0..3.
+    const A4R4G4B4Unorm [tokenizer(8)] @ 16-bit packed unsigned normalized format that has a 4-bit A component in bits 12..15, a 4-bit R component in bits 8..11, a 4-bit G component in bits 4..7, and a 4-bit B component in bits 0..3.
+    const A8Unorm [tokenizer(2)] @ 8-bit unsigned normalized format that has a single 8-bit A component.
+    const A8B8G8R8Unorm [tokenizer(8)] @ 32-bit packed unsigned normalized format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
+    const A8B8G8R8Snorm [tokenizer(8)] @ 32-bit packed signed normalized format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
+    const A8B8G8R8Uint [tokenizer(8)] @ 32-bit packed unsigned integer format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
+    const A8B8G8R8Sint [tokenizer(8)] @ 32-bit packed signed integer format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
+    const A8B8G8R8Srgb [tokenizer(8)] @ 32-bit packed unsigned normalized format that has an 8-bit A component in bits 24..31, an 8-bit B component stored with sRGB nonlinear encoding in bits 16..23, an 8-bit G component stored with sRGB nonlinear encoding in bits 8..15, and an 8-bit R component stored with sRGB nonlinear encoding in bits 0..7.
+    const A8B8G8R8Uscaled [tokenizer(8)] @ 32-bit packed unsigned scaled integer format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
+    const A8B8G8R8Sscaled [tokenizer(8)] @ 32-bit packed signed scaled integer format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
+    const S8Uint [tokenizer(2)] @ 8-bit unsigned integer format that has 8 bits in the stencil component.
+    const X8D24Unorm [tokenizer(5)] @ 32-bit format that has 24 unsigned normalized bits in the depth component and, optionally, 8 bits that are unused.
+    const D16Unorm [tokenizer(3)] @ 16-bit unsigned normalized format that has a single 16-bit depth component.
+    const D16UnormS8Uint [tokenizer(3)] @ 24-bit format that has 16 unsigned normalized bits in the depth component and 8 unsigned integer bits in the stencil component.
+    const D24UnormS8Uint [tokenizer(3)] @ 32-bit packed format that has 8 unsigned integer bits in the stencil component, and 24 unsigned normalized bits in the depth component.
+    const D32Sfloat [tokenizer(3)] @ 32-bit signed floating-point format that has 32 bits in the depth component.
+    const D32SfloatS8Uint [tokenizer(3-6-2)] @ 32 signed float bits in the depth component and 8 unsigned integer bits in the stencil component. There are optionally 24 bits that are unused.
+    const ASTC4x4Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data.
+    const ASTC4x4Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC4x4Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of signed floating-point RGBA texel data.
+    const ASTC5x4Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 5×4 rectangle of unsigned normalized RGBA texel data.
+    const ASTC5x4Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 5×4 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC5x4Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 5×4 rectangle of signed floating-point RGBA texel data.
+    const ASTC5x5Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 5×5 rectangle of unsigned normalized RGBA texel data.
+    const ASTC5x5Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 5×5 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC5x5Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 5×5 rectangle of signed floating-point RGBA texel data.
+    const ASTC6x5Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 6×5 rectangle of unsigned normalized RGBA texel data.
+    const ASTC6x5Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 6×5 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC6x5Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 6×5 rectangle of signed floating-point RGBA texel data.
+    const ASTC6x6Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 6×6 rectangle of unsigned normalized RGBA texel data.
+    const ASTC6x6Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 6×6 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC6x6Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 6×6 rectangle of signed floating-point RGBA texel data.
+    const ASTC8x5Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes an 8×5 rectangle of unsigned normalized RGBA texel data.
+    const ASTC8x5Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes an 8×5 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC8x5Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 8×5 rectangle of signed floating-point RGBA texel data.
+    const ASTC8x6Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes an 8×6 rectangle of unsigned normalized RGBA texel data.
+    const ASTC8x6Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes an 8×6 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC8x6Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 8×6 rectangle of signed floating-point RGBA texel data.
+    const ASTC8x8Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes an 8×8 rectangle of unsigned normalized RGBA texel data.
+    const ASTC8x8Srgb [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes an 8×8 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC8x8Sfloat [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 8×8 rectangle of signed floating-point RGBA texel data.
+    const ASTC10x5Unorm [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×5 rectangle of unsigned normalized RGBA texel data.
+    const ASTC10x5Srgb [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×5 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC10x5Sfloat [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×5 rectangle of signed floating-point RGBA texel data.
+    const ASTC10x6Unorm [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×6 rectangle of unsigned normalized RGBA texel data.
+    const ASTC10x6Srgb [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×6 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC10x6Sfloat [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×6 rectangle of signed floating-point RGBA texel data.
+    const ASTC10x8Unorm [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×8 rectangle of unsigned normalized RGBA texel data.
+    const ASTC10x8Srgb [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×8 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC10x8Sfloat [tokenizer(4-4)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×8 rectangle of signed floating-point RGBA texel data.
+    const ASTC10x10Unorm [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×10 rectangle of unsigned normalized RGBA texel data.
+    const ASTC10x10Srgb [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×10 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC10x10Sfloat [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 10×10 rectangle of signed floating-point RGBA texel data.
+    const ASTC12x10Unorm [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 12×10 rectangle of unsigned normalized RGBA texel data.
+    const ASTC12x10Srgb [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 12×10 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC12x10Sfloat [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 12×10 rectangle of signed floating-point RGBA texel data.
+    const ASTC12x12Unorm [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 12×12 rectangle of unsigned normalized RGBA texel data.
+    const ASTC12x12Srgb [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 12×12 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ASTC12x12Sfloat [tokenizer(4-5)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 12×12 rectangle of signed floating-point RGBA texel data.
+    const BC1RgbUnorm [tokenizer(3-3)] @ block-compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data. This format has no alpha and is considered opaque.
+    const BC1RgbSrgb [tokenizer(3-3)] @ block-compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data with sRGB nonlinear encoding. This format has no alpha and is considered opaque.
+    const BC1RgbaUnorm [tokenizer(3-4)] @ block-compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data, and provides 1 bit of alpha.
+    const BC1RgbaSrgb [tokenizer(3-4)] @ block-compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data with sRGB nonlinear encoding, and provides 1 bit of alpha.
+    const BC2Unorm [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with the first 64 bits encoding alpha values followed by 64 bits encoding RGB values.
+    const BC2Srgb [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with the first 64 bits encoding alpha values followed by 64 bits encoding RGB values with sRGB nonlinear encoding.
+    const BC3Unorm [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with the first 64 bits encoding alpha values followed by 64 bits encoding RGB values.
+    const BC3Srgb [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with the first 64 bits encoding alpha values followed by 64 bits encoding RGB values with sRGB nonlinear encoding.
+    const BC4Unorm [tokenizer(3)] @ block-compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized red texel data.
+    const BC4Snorm [tokenizer(3)] @ block-compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of signed normalized red texel data.
+    const BC5Unorm [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RG texel data with the first 64 bits encoding red values followed by 64 bits encoding green values.
+    const BC5Snorm [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of signed normalized RG texel data with the first 64 bits encoding red values followed by 64 bits encoding green values.
+    const BC6HUfloat [tokenizer(4)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned floating-point RGB texel data.
+    const BC6HSfloat [tokenizer(4)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of signed floating-point RGB texel data.
+    const BC7Unorm [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data.
+    const BC7Srgb [tokenizer(3)] @ block-compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const ETC2R8G8B8Unorm [tokenizer(4-6)] @ ETC2 compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data. This format has no alpha and is considered opaque.
+    const ETC2R8G8B8Srgb [tokenizer(4-6)] @ ETC2 compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data with sRGB nonlinear encoding. This format has no alpha and is considered opaque.
+    const ETC2R8G8B8A1Unorm [tokenizer(4-8)] @ ETC2 compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data, and provides 1 bit of alpha.
+    const ETC2R8G8B8A1Srgb [tokenizer(4-8)] @ ETC2 compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGB texel data with sRGB nonlinear encoding, and provides 1 bit of alpha.
+    const ETC2R8G8B8A8Unorm [tokenizer(4-8)] @ ETC2 compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with the first 64 bits encoding alpha values followed by 64 bits encoding RGB values.
+    const ETC2R8G8B8A8Srgb [tokenizer(4-8)] @ ETC2 compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with the first 64 bits encoding alpha values followed by 64 bits encoding RGB values with sRGB nonlinear encoding applied.
+    const EACR11Unorm [tokenizer(3-3)] @ EAC compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized red texel data.
+    const EACR11Snorm [tokenizer(3-3)] @ EAC compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of signed normalized red texel data.
+    const EACR11G11Unorm [tokenizer(3-6)] @ EAC compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RG texel data with the first 64 bits encoding red values followed by 64 bits encoding green values.
+    const EACR11G11Snorm [tokenizer(3-6)] @ EAC compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of signed normalized RG texel data with the first 64 bits encoding red values followed by 64 bits encoding green values.
+    const PVRTC1v2BppUnorm [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes an 8×4 rectangle of unsigned normalized RGBA texel data.
+    const PVRTC1v2BppSrgb [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes an 8×4 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const PVRTC1v4BppUnorm [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data.
+    const PVRTC1v4BppSrgb [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const PVRTC2v2BppUnorm [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes an 8×4 rectangle of unsigned normalized RGBA texel data.
+    const PVRTC2v2BppSrgb [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes an 8×4 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+    const PVRTC2v4BppUnorm [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data.
+    const PVRTC2v4BppSrgb [tokenizer(6-^1-4)] @ PVRTC compressed format where each 64-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data with sRGB nonlinear encoding applied to the RGB components.
+
+@ Polygon rendering modes.
+@ Controls how polygons are rasterized. [detail]
+enum PolygonMode
+    const Fill @ Renders filled polygon (standard solid rendering mode).
+    const Line @ Renders polygon edges as lines (wireframe mode).
+    const Point @ Renders only polygon vertices as points.
+
+@ Primitive topologies.
+@ Defines how vertices are assembled into primitives. [detail]
+enum PrimitiveTopology
+    const PointList @ Treats each vertex as individual point primitive.
+    const LineList @ Connects every 2 vertices as separate line segments.
+    const LineStrip @ Connects vertices as continuous line strip.
+    const TriangleList @ Groups every 3 vertices as separate triangles.
+    const TriangleStrip @ Creates triangle strip from vertex sequence.
+    const TriangleFan @ Forms triangle fan from shared first vertex.
+
+@ Face culling modes.
+@ Controls which polygon faces are discarded. [detail]
+enum CullMode
+    const None @ Disables face culling (renders all polygons).
+    const Front @ Culls front-facing polygons.
+    const Back @ Culls back-facing polygons.
+    const FrontAndBack @ Culls all faces.
+
+@ Front face orientation.
+@ Defines what constitutes a front-facing polygon. [detail]
+enum FrontFace
+    const CounterClockwise @ Front face has counter-clockwise winding.
+    const Clockwise @ Front face has clockwise winding.
+
+@ Comparison operator for depth, stencil, and sampler operations.
+@ Comparison operators compare a *reference* and a *test* value, and return a true or false value depending on the comparison operator chosen. [detail]
+enum CompareOp
+    const Never @ Comparison always evaluates false.
+    const Always @ Comparison always evaluates true.
+    const Less @ Comparison evaluates whether *reference* is less than *test*.
+    const LessOrEqual @ Comparison evaluates whether *reference* is less than or equal to *test*.
+    const Greater @ Comparison evaluates whether *reference* is greater than *test*.
+    const GreaterOrEqual @ Comparison evaluates whether *reference* is greater than or equal to *test*.
+    const Equal @ Comparison evaluates *reference* and *test* for equality.
+    const NotEqual @ Comparison evaluates that *reference* is not equal to *test*.
+
+@ Stencil comparison function.
+@ ```
+    Possible values of the {StencilOpState.FailOp}, {StencilOpState.PassOp} and 
+    {StencilOpState.DepthFailOp}, specifying what happens to the stored stencil 
+    value if this or certain subsequent tests fail or pass.``` [detail]
+@ {StencilOpState} [see]
+enum StencilOp
+    const Keep @ Keeps the current value.
+    const Zero @ Sets the value to 0.
+    const Replace @ Sets the value to *reference*.
+    const Invert @ Bitwise-inverts the current value.
+    const IncrementAndClamp @ Increments the current value and clamps to the maximum representable unsigned value.
+    const DecrementAndClamp @ Decrements the current value and clamps to 0.
+    const IncrementAndWrap @ Increments the current value and wraps to 0 when the maximum value would have been exceeded.
+    const DecrementAndWrap @ Decrements the current value and wraps to the maximum possible value when the value would go below 0.
+
+@ Logical operations.
+@ Pixel-wise logical operations between source and destination. [detail]
+@ Logical operations are controlled by the {ColorBlendState.LogicOpEnable} and {ColorBlendState.LogicOp}. [note]
+@ {ColorBlendState} [see]
+enum LogicOp
+    const Clear @ Clears destination to 0 (`0`).
+    const Set @ Sets destination to 1 (`1`).
+    const NoOp @ Leaves destination unchanged (`dst`).
+    const Copy @ Copies source to destination (`src`).
+    const CopyInverted @ Copies inverted source to destination (`~src`).
+    const And @ Performs bitwise AND (`src & dst`).
+    const AndReverse @ Performs bitwise AND with inverted dst (`src & ~dst`).
+    const AndInverted @ Performs bitwise AND with inverted src (`~src & dst`).
+    const Nand @ Performs bitwise NAND (`~(src & dst)`).
+    const Or @ Performs bitwise OR (`src | dst`).
+    const OrReverse @ Performs bitwise OR with inverted dst (`src | ~dst`).
+    const OrInverted @ Performs bitwise OR with inverted src (`~src | dst`).
+    const Nor @ Performs bitwise NOR (`~(src | dst)`).
+    const Xor @ Performs bitwise XOR (`src ^ dst`).
+    const Equivalent @ Performs bitwise equality (`~(src ^ dst)`).
+    const Invert @ Inverts destination (`~dst`).
+
+@ Blending operations.
+@ ```
+    Once the source and destination blend factors have been selected, they along with 
+    the source and destination components are passed to the blending operations. RGB 
+    and alpha components can use different operations.``` [detail]
+enum BlendOp
+    const Add @ Adds source and destination (`src + dst`).
+    const Subtract @ Subtracts destination from source (`src - dst`).
+    const ReverseSubtract @ Subtracts source from destination (`dst - src`).
+    const Min @ Takes component-wise minimum (`min(src, dst)`).
+    const Max @ Takes component-wise maximum (`max(src, dst)`).
+
+@ Render pass operations.
+@ Initial load/store operations for render passes. [detail]
+@ {ResourceOutput} [see]
+enum RenderPassOp
+    const DontCare @ Contents may be discarded.
+    const Clear @ Clears attachment to specified value ({ResourceOutput.ClearColorAttachment} or {ResourceOutput.ClearDepthStencilAttachment}).
+
+@ Blending factors.
+@ Multiplicative factors for blending operations. [detail]
+enum BlendFactor
+    const Zero @ Multiplies by `RGB(0,0,0)` and `A(0)`.
+    const One @ Multiplies by `RGB(1,1,1)` and `A(1)`.
+    const SrcColor @ Multiplies by source color `RGB(src0.rgb)` and `A(src0.a)`.
+    const SrcAlpha @ Multiplies by source alpha `RGB(src0.aaa)` and `A(src0.a)`.
+    const SrcAlphaSaturate @ Multiplies by `RGB(min(src0.a,1-dst.a))` and `A(1)`.
+    const DstColor @ Multiplies by destination color `RGB(dst.rgb)` and `A(dst.a)`.
+    const DstAlpha @ Multiplies by destination alpha `RGB(dst.aaa)` and `A(dst.a)`.
+    const ConstantColor @ Multiplies by blend constant color `RGB(cnst.rgb)` and `A(cnst.a)`.
+    const ConstantAlpha @ Multiplies by blend constant alpha `RGB(cnst.aaa)` and `A(cnst.a)`.
+    const Src1Color [tokenizer(4)] @ Multiplies by source1 color `RGB(src1.rgb)` and `A(src1.a)` (dual-source blending).
+    const Src1Alpha [tokenizer(4)] @ Multiplies by source1 alpha `RGB(src1.aaa)` and `A(src1.a)` (dual-source blending).
+    const OneMinusSrcColor @ Multiplies by `RGB(1-src0.rgb)` and `A(1-src0.a)`.
+    const OneMinusSrcAlpha @ Multiplies by `RGB(1-src0.aaa)` and `A(1-src0.a)`.
+    const OneMinusDstColor @ Multiplies by `RGB(1-dst.rgb)` and `A(1-dst.a)`.
+    const OneMinusDstAlpha @ Multiplies by `RGB(1-dst.aaa)` and `A(1-dst.a)`.
+    const OneMinusConstantColor @ Multiplies by `RGB(1-cnst.rgb)` and `A(1-cnst.a)`.
+    const OneMinusConstantAlpha @ Multiplies by `RGB(1-cnst.aaa)` and `A(1-cnst.a)`.
+    const OneMinusSrc1Color [tokenizer(3-5-4)] @ Multiplies by `RGB(1-src1.rgb)` and `A(1-src1.a)`.
+    const OneMinusSrc1Alpha [tokenizer(3-5-4)] @ Multiplies by `RGB(1-src1.aaa)` and `A(1-src1.a)`.
+
+@ Color components.
+@ Bitmask controlling which components are written to the framebuffer. [detail]
+enum ColorComponent [flags]
+    const R : 1 @ Red channel.
+    const G : 2 @ Green channel.
+    const B : 4 @ Blue channel.
+    const A : 8 @ Alpha channel.
+
+@ Buffer usage flags.
+@ Bitmask specifying allowed usage of a buffer. [detail]
+enum BufferUsage [flags]
+    const None     : 0 @ No specific usage.
+    const Vertex   : 1 @ The buffer is suitable for passing as an vertex buffer to {CommandBuffer.BindVertexBuffer}.
+    const Index    : 2 @ The buffer is suitable for passing as an index buffer to {CommandBuffer.BindIndexBuffer}.
+    const Uniform  : 4 @ The buffer is suitable for use as a uniform buffer (UBO).
+    const Storage  : 8 @ The buffer is suitable for use as a storage buffer (SSBO).
+    const Indirect : 16 @ Used for indirect drawing parameters. The buffer is suitable for passing as the buffer parameter to {CommandBuffer.DrawIndirect}, {CommandBuffer.DrawIndexedIndirect} and {CommandBuffer.DrawMeshTasksIndirect}.
+
+@ Texture dimensionality.
+@ Specifies the type of texture. [detail]
+enum TextureType
+    const Texture1D [cname(1D)] @ 1-dimensional texture.
+    const Texture2D [cname(2D)] @ 2-dimensional texture.
+    const Texture3D [cname(3D)] @ 3-dimensional texture.
+    const Cube @ Cube map texture (6 square faces).
+
+@ Texture filtering modes.
+@ Texel sampling methods. [detail]
+enum Filter
+    const Nearest @ Point sampling (returns nearest texel without interpolation).
+    const Linear  @ Bilinear/trilinear interpolation.
+
+@ Texture addressing modes.
+@ Behavior when sampling beyond texture coordinates. [detail]
+enum AddressMode
+    const Repeat @ Tile the texture infinitely (wrap-around).
+    const MirroredRepeat @ Tile with mirroring at boundaries.
+    const ClampToEdge @ Extend edge texels beyond \[0,1\] range.
+    const ClampToBorder @ Use specified border color beyond \[0,1\].
+    const MirrorClampToEdge @ Mirror once then clamp to edge.
+
+@ Sampler reduction modes.
+@ Special texture filtering operations. [detail]
+enum ReductionMode
+    const WeightedAverage @ Texel values are combined by computing a weighted average of values in the footprint.
+    const Min @ Texel values are combined by taking the component-wise minimum of values in the footprint with non-zero weights.
+    const Max @ Texel values are combined by taking the component-wise maximum of values in the footprint with non-zero weights.
+
+@ Specifies how the resource will be used.
+@ This enumeration is necessary for setting barriers for the transition of resources between different stages of the pipeline and for the correct construction of the frame graph. [detail]
+@ {ResourceInput} [see]
+@ {ResourceOutput} [see]
+enum ResourceType
+    const Buffer @ Specifies that the resource will be used as a buffer.
+    const Texture @ Specifies that the resource will be used as a texture.
+    const Attachment @ Specifies that the resource will be used as a render target.
+    const Reference @ Used as reference input resources, which is necessary in some cases to clarify dependencies for correct graph computation during compilation.
+
+@ Vertex input rates.
+@ Frequency of vertex attribute updates. [detail]
+enum VertexRate
+    const PerVertex @ Fetch new data for each vertex.
+    const PerInstance @ Fetch new data for each instance.
+
+@ Index buffer formats.
+@ Index data types for indexed rendering. [detail]
+enum IndexType
+    const UInt16 [tokenizer(0)] @ 16-bit unsigned indices.
+    const UInt32 [tokenizer(0)] @ 32-bit unsigned indices.
+
+@ Shader stage types
+@ Pipeline programmable stages [detail]
+enum ShaderType
+    const Vertex @ Vertex processing stage
+    const Fragment @ Pixel shading stage
+    const Geometry @ Geometry processing stage
+    const Compute @ General compute operations
+    const Task @ Task shader (mesh shading pipeline)
+    const Mesh @ Mesh shader (mesh shading pipeline)
+
+@ Shader languages
+@ Supported shading languages [detail]
+enum ShaderLanguage
+    const Unknown @ Unknown language
+    const SpirV [tokenizer(0)] @ Standard Portable Intermediate Representation
+    const GLSL @ OpenGL Shading Language
+    const HLSL @ High-Level Shading Language

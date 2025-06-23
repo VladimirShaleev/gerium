@@ -1,0 +1,1128 @@
+@ Current library version as packed 32-bit value.
+@ Format: (major << 16) | (minor << 8) | micro. [detail]
+@ Return packed version number [return]
+func Version {Uint32}
+
+@ Current library version as human-readable string.
+@ Format: "major.minor.micro", eg: "{Major}.{Minor}.{Micro}". [detail]
+@ Return version string. [return]
+func VersionString {Str}
+
+@ Converts error code to descriptive string.
+@ Provides error message for debugging. [detail]
+@ Corresponding error message. [return]
+func ResultToString {Str} [errorcode]
+    arg Result {Result} @ Error code value.
+
+@ Logging system interface.
+@ Provides logging facilities with multiple severity levels. [detail]
+interface Logger
+    prop Level [get(GetLevel),set(SetLevel)] @ Current log severity threshold.
+
+    @ Creates new logger instance
+    @ Initializes logging subsystem with specific tag. [detail]
+    @ Operation result [return]
+    @ The tag string is specified in the format: "mygame:logic:health". [note]
+    @ See {SetLevelByTag} to enable or disable specific nested tags. [see]
+    method Create {Result} [ctor]
+        arg Tag {Str} @ Tag string.
+        arg Logger {Logger} [result] @ New logger instance.
+
+    @ Increments reference count.
+    @ Manages logger instance lifetime. [detail]
+    @ Reference to same logger. [return]
+    @ {Destroy} [see]
+    method Reference {Logger} [ref]
+        arg Logger {Logger} [this] @ Target logger instance.
+
+    @ Releases logger instance.
+    @ Destroys when reference count reaches zero. [detail]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg Logger {Logger} [this] @ Logger to destroy.
+
+    @ Gets current severity level.
+    @ Returns minimum level for logged messages. [detail]
+    @ Current severity threshold. [return]
+    @ {SetLevel} [see]
+    method GetLevel {LoggerLevel} [const]
+        arg Logger {Logger} [this] @ Target logger.
+
+    @ Sets logging severity level.
+    @ Filters messages below specified level. [detail]
+    @ {GetLevel} [see]
+    method SetLevel
+        arg Logger {Logger} [this] @ Target logger.
+        arg Level {LoggerLevel} @  severity threshold.
+
+    @ Configures level by category tag.
+    @ Applies level to all loggers with matching prefix. [detail]
+    @ The tag string is specified in the format: "mygame:logic". [note]
+    method SetLevelByTag [static]
+        arg Tag {Str} @ Logger category prefix.
+        arg Level {LoggerLevel} @ New severity level.
+
+    @ Print message.
+    @ Outputs message if level meets threshold. [detail]
+    method Print
+        arg Logger {Logger} [this] @ Target logger.
+        arg Level {LoggerLevel} @ Message severity.
+        arg Message {Str} @ Log message.
+
+@ File I/O abstraction.
+@ Platform-independent file operations interface supporting. [detail]
+interface File
+    prop CacheDir [static,get(GetCacheDir)] @ Application cache directory.
+    prop AppDir [static,get(GetAppDir)] @ Application install directory.
+    prop Size [get(GetSize)] @ Current file size in bytes.
+
+    @ Gets cache directory path.
+    @ Returns writable per-user cache location. [detail]
+    @ Absolute cache path. [return]
+    method GetCacheDir {Str} [static]
+
+    @ Gets application directory.
+    @ Returns the installation location of the executable or the directory where application support files are stored, depending on the system. [detail]
+    @ Absolute application path. [return]
+    method GetAppDir {Str} [static]
+
+    @ Checks directory existence.
+    @ Verifies directory at specified path. [detail]
+    @ *{True}* if directory exists. [return]
+    method ExistsDir {Bool} [static]
+        arg Path {Str} @ Directory path to check.
+
+    @ Deletes file.
+    @ Removes file at specified path. [detail]
+    method DeleteFile [static]
+        arg Path {Str} @ File to delete.
+
+    @ Opens file.
+    @ Accesses file with specified mode. [detail]
+    @ Operation result. [return]
+    @ For creating temporary files see {CreateTemp}. [see]
+    method Open {Result} [ctor]
+        arg Path {Str} @ File location.
+        arg ReadOnly {Bool} @ Open in read-only mode.
+        arg File {File} [result] @ New file instance.
+
+    @ Creates temporary file.
+    @ Once the application is terminated, the file is considered invalid. [detail]
+    @ Operation result. [return]
+    method CreateTemp {Result} [ctor]
+        arg Size {Uint64} @ Initial size in bytes. If 0, the space is not reserved.
+        arg File {File} [result] @ New file instance.
+
+    @ Increments reference count.
+    @ Manages file instance lifetime. [detail]
+    @ Reference to same file. [return]
+    @ {Destroy} [see]
+    method Reference {File} [ref]
+        arg File {File} [this] @ Target file.
+
+    @ Releases file instance.
+    @ Destroys when reference count reaches zero. [detail]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg File {File} [this] @ File to close.
+
+    @ Gets current file size.
+    @ Returns size in bytes. [detail]
+    @ File size. [return]
+    method GetSize {Uint64} [const]
+        arg File {File} [this] @ Target file.
+
+    @ Moves file pointer.
+    @ Changes read/write position. [detail]
+    method Seek
+        arg File {File} [this] @ Target file.
+        arg Offset {Uint64} @ Position offset.
+        arg Seek {FileSeek} @ Seek mode.
+
+    @ Writes data to file.
+    @ Outputs binary data at current position. [detail]
+    @ Operation result. [return]
+    method Write {Result}
+        arg File {File} [this] @ Target file.
+        arg Data {ConstData} @ Source data.
+        arg Size {Uint32} @ Data size.
+
+    @ Reads file contents.
+    @ Inputs binary data from current position. [detail]
+    @ Bytes read. [return]
+    method Read {Uint32}
+        arg File {File} [this] @ Target file.
+        arg Data {Data} @ Destination buffer.
+        arg Size {Uint32} @ Buffer size in bytes.
+
+    @ Memory-maps file contents.
+    @ Provides direct access to file data. [detail]
+    @ Pointer to mapped memory region. [return]
+    @ The Mapping closes when the file is closed. [note]
+    method Map {Data}
+        arg File {File} [this] @ Target file.
+
+@ Thread synchronization primitive.
+@ Provides mutual exclusion for thread-safe resource access. [detail]
+interface Mutex
+    @ Creates new mutex instance.
+    @ Initializes synchronization object. [detail]
+    @ Operation result. [return]
+    method Create {Result} [ctor]
+        arg Mutex {Mutex} [result] @ New mutex instance.
+
+    @ Increments reference count.
+    @ Manages mutex instance lifetime. [detail]
+    @ Reference to same mutex. [return]
+    @ {Destroy} [see]
+    method Reference {Mutex} [ref]
+        arg Mutex {Mutex} [this] @ Target mutex.
+
+    @ Releases mutex instance.
+    @ Destroys when reference count reaches zero. [detail]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg Mutex {Mutex} [this] @ Mutex to destroy.
+
+    @ Acquires mutex lock.
+    @ Blocks until lock is obtained. [detail]
+    @ May deadlock if recursively locked. [warning]
+    @ See also {Unlock}. [see]
+    method Lock
+        arg Mutex {Mutex} [this] @ Mutex to lock.
+
+    @ Releases mutex lock.
+    @ Allows other threads to proceed. [detail]
+    @ See also {Lock}. [see]
+    method Unlock
+        arg Mutex {Mutex} [this] @ Mutex to unlock.
+
+@ Event/signal handling.
+@ Coordinates thread execution via wait/signal mechanism. [detail]
+interface Signal
+    prop IsSetProp [get(IsSet),tokenizer(5)] @ Current signal state.
+
+    @ Creates new signal instance.
+    @ Initializes in unsignaled state. [detail]
+    @ Operation result. [return]
+    method Create {Result} [ctor]
+        arg Signal {Signal} [result] @ New signal instance.
+
+    @ Increments reference count.
+    @ Manages signal instance lifetime. [detail]
+    @ Reference to same signal. [return]
+    @ {Destroy} [see]
+    method Reference {Signal} [ref]
+        arg Signal {Signal} [this] @ Target signal.
+
+    @ Releases signal instance.
+    @ Destroys when reference count reaches zero. [detail]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg Signal {Signal} [this] @ Signal to destroy.
+
+    @ Checks signal state.
+    @ Tests if signal has been raised. [detail]
+    @ *{True}* if signaled. [return]
+    method IsSet {Bool} [const]
+        arg Signal {Signal} [this] @ Target signal.
+
+    @ Raises the signal.
+    @ Wakes all waiting threads. [detail]
+    method Set
+        arg Signal {Signal} [this] @ Signal to raise.
+
+    @ Blocks until signaled.
+    @ Waits for signal to be raised. [detail]
+    method Wait
+        arg Signal {Signal} [this] @ Signal to wait for.
+
+    @ Resets signal state.
+    @ Returns to unsignaled condition. [detail]
+    method Clear
+        arg Signal {Signal} [this] @ Signal to reset.
+
+@ Main application controller.
+@ Manages application lifecycle, window system and main event loop. [detail]
+@ Only one instance per process is allowed. [note]
+interface Application
+    prop Platform [get(GetPlatform)] @ Current runtime platform.
+    prop PropIsFullscreen [get(IsFullscreen),tokenizer(^4)] @ Fullscreen state.
+    prop Style [get(GetStyle),set(SetStyle)] @ Window decoration style.
+    prop Title [get(GetTitle),set(SetTitle)] @ Window title text.
+    prop BackgroundWait [get(GetBackgroundWait),set(SetBackgroundWait)] @ Background processing policy.
+    prop PropShowCursor [get(IsShowCursor),set(ShowCursor),tokenizer(^4)] @ Cursor visibility state.
+    prop Density [get(GetDensity)] @ Display density scaling factor.
+
+    event FrameCallback [get(GetFrameCallback),set(SetFrameCallback)] @ Frame rendering callback.
+    event StateCallback [get(GetStateCallback),set(SetStateCallback)] @ Application state change callback.
+
+    @ Creates new application instance.
+    @ Initializes window system and core subsystems. [detail]
+    @ Operation result. [return]
+    method Create {Result} [ctor]
+        arg Title {Str} @ Window title.
+        arg Width {Uint32} @ Initial window width.
+        arg Height {Uint32} @ Initial window height.
+        arg Application {Application} [result] @ Created application instance.
+
+    @ Increments reference count.
+    @ Manages application instance lifetime. [detail]
+    @ Reference to same application. [return]
+    @ {Destroy} [see]
+    method Reference {Application} [ref]
+        arg Application {Application} [this] @ Target application
+
+    @ Releases application instance.
+    @ Destroys when reference count reaches zero. [detail]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg Application {Application} [this] @ Application to destroy.
+
+    @ Gets current platform.
+    @ Identifies operating system. [detail]
+    @ Runtime platform identifier. [return]
+    method GetPlatform {RuntimePlatform} [const]
+        arg Application {Application} [this] @ Target application.
+
+    @ Gets current frame callback.
+    @ Retrieves registered rendering handler. [detail]
+    @ Current frame callback function. [return]
+    method GetFrameCallback {ApplicationFrameCallback} [const]
+        arg Application {Application} [this] @ Target application.
+        arg Data {Data} [out,userdata] @ Callback user data pointer.
+
+    @ Sets frame rendering callback.
+    @ Registers handler for frame rendering events. [detail]
+    @ Called every frame. [note]
+    method SetFrameCallback
+        arg Application {Application} [this] @ Target application.
+        arg Callback {ApplicationFrameCallback} @ Callback function.
+        arg Data {Data} [userdata] @ Callback user data.
+
+    @ Gets application state callback.
+    @ Retrieves registered state change handler. [detail]
+    @ Current state callback function. [return]
+    method GetStateCallback {ApplicationStateCallback} [const]
+        arg Application {Application} [this] @ Target application.
+        arg Data {Data} [out,userdata] @ Callback user data pointer.
+
+    @ Sets state change callback.
+    @ Registers handler for application state changes. [detail]
+    @ Called when minimizing/resizing/etc. [note]
+    method SetStateCallback
+        arg Application {Application} [this] @ Target application.
+        arg Callback {ApplicationStateCallback} @ State handler function.
+        arg Data {Data} [userdata] @ Callback user data.
+
+    @ Gets display information.
+    @ Retrieves connected display configurations. [detail]
+    @ Operation result. [return]
+    method GetDisplayInfo {Result} [const]
+        arg Application {Application} [this] @ Target application.
+        arg DisplayCount {Uint32} [in,out] @ Receives display count (if {Displays} is null, then {DisplayCount} will be set to the available count).
+        arg Displays {DisplayInfo} [array(DisplayCount)] @ Display info array.
+
+    @ Checks fullscreen state.
+    @ Determines if window is fullscreen. [detail]
+    @ *{True}* if in fullscreen mode. [return]
+    method IsFullscreen {Bool} [const]
+        arg Application {Application} [this] @ Target application.
+
+    @ Gets window style.
+    @ Retrieves current window decoration style. [detail]
+    @ Current window style flags. [return]
+    method GetStyle {ApplicationStyle} [const]
+        arg Application {Application} [this] @ Target application.
+
+    @ Sets window style.
+    @ Changes window decoration and behavior. [detail]
+    method SetStyle
+        arg Application {Application} [this] @ Target application.
+        arg Style {ApplicationStyle} @ New style flags.
+
+    @ Gets minimum window size
+    @ Retrieves smallest allowed window dimensions. [detail]
+    method GetMinSize [const]
+        arg Application {Application} [this] @ Target application.
+        arg Width {Uint16} [out] @ Receives minimum width.
+        arg Height {Uint16} [out] @ Receives minimum height.
+
+    @ Sets minimum window size.
+    @ Constrains window resizing below these dimensions. [detail]
+    method SetMinSize
+        arg Application {Application} [this] @ Target application.
+        arg Width {Uint16} @ Minimum width in pixels.
+        arg Height {Uint16} @ Minimum height in pixels.
+
+    @ Gets maximum window size.
+    @ Retrieves largest allowed window dimensions. [detail]
+    method GetMaxSize [const]
+        arg Application {Application} [this] @ Target application.
+        arg Width {Uint16} [out] @ Receives maximum width.
+        arg Height {Uint16} [out] @ Receives maximum height.
+
+    @ Sets maximum window size.
+    @ Constrains window resizing above these dimensions. [detail]
+    method SetMaxSize
+        arg Application {Application} [this] @ Target application.
+        arg Width {Uint16} @ Maximum width in pixels.
+        arg Height {Uint16} @ Maximum height in pixels.
+
+    @ Gets current window size.
+    @ Retrieves actual window dimensions. [detail]
+    method GetSize [const]
+        arg Application {Application} [this] @ Target application.
+        arg Width {Uint16} [out] @ Receives current width.
+        arg Height {Uint16} [out] @ Receives current height.
+
+    @ Changes window size.
+    @ Resizes window to specified dimensions. [detail]
+    @ May be constrained by min/max sizes. [note]
+    method SetSize
+        arg Application {Application} [this] @ Target application.
+        arg Width {Uint16} @ New width in pixels.
+        arg Height {Uint16} @ New height in pixels.
+
+    @ Gets window title.
+    @ Retrieves current window title text. [detail]
+    @ Current title string. [return]
+    method GetTitle {Str} [const]
+        arg Application {Application} [this] @ Target application instance.
+
+    @ Sets window title.
+    @ Updates the window title bar text. [detail]
+    method SetTitle
+        arg Application {Application} [this] @ Target application.
+        arg Title {Str} @ New title text.
+
+    @ Gets background wait policy.
+    @ Checks if application sleeps when inactive. [detail]
+    @ *{True}* if suspends when backgrounded [return]
+    method GetBackgroundWait {Bool} [const]
+        arg Application {Application} [this] @ Target application.
+
+    @ Sets background wait policy.
+    @ Controls whether application sleeps when inactive. [detail]
+    method SetBackgroundWait
+        arg Application {Application} [this] @ Target application.
+        arg Enable {Bool} @ *{True}* to enable background waiting.
+
+    @ Checks cursor visibility.
+    @ Determines if system cursor is visible. [detail]
+    @ *{True}* if cursor is shown. [return]
+    method IsShowCursor {Bool} [const]
+        arg Application {Application} [this] @ Target application.
+
+    @ Shows/hides system cursor.
+    @ Controls cursor visibility in application window. [detail]
+    method ShowCursor
+        arg Application {Application} [this] @ Target application.
+        arg Show {Bool} @ *{True}* to show cursor
+
+    @ Gets display density.
+    @ Retrieves screen DPI scaling factor. [detail]
+    @ Density ratio. [return]
+    method GetDensity {Float32} [const]
+        arg Application {Application} [this] @ Target application.
+
+    @ Converts dimension units.
+    @ Translates between pixels and other units. [detail]
+    @ Converted value in pixels. [return]
+    method GetDimension {Float32} [const]
+        arg Application {Application} [this] @ Target application.
+        arg Unit {DimensionUnit} @ The unit to convert from.
+        arg Value {Float32} @ The value to apply the unit to.
+
+    @ Starts main event loop.
+    @ Begins processing system events and callbacks. [detail]
+    @ Execution result code. [return]
+    method Run {Result}
+        arg Application {Application} [this] @ Target application.
+
+    @ Requests application exit.
+    @ Initiates graceful shutdown sequence. [detail]
+    method Exit 
+        arg Application {Application} [this] @ Target application.
+
+    @ Polls system events.
+    @ Retrieves next pending event without blocking. [detail]
+    @ *{True}* if event was available. [return]
+    method PollEvents {Bool}
+        arg Application {Application} [this] @ Target application.
+        arg Event {Event} [result] @ Receives event data if available.
+
+    @ Checks key state by scancode.
+    @ Tests if specified key is currently pressed. [detail]
+    @ *{True}* if key is pressed [return]
+    method IsPressScancode {Bool} [const]
+        arg Application {Application} [this] @ Target application.
+        arg Scancode {Scancode} [result] @ Platform-independent key identifier.
+
+    @ Executes callback in fiber.
+    @ Schedules function for thread execution. [detail]
+    method Execute
+        arg Application {Application} [this] @ Target application.
+        arg Callback {ApplicationExecutorCallback} @ Function to execute.
+        arg Data {Data} [userdata] @ Callback context data.
+
+    @ Shows system message dialog.
+    @ Displays modal alert to user. [detail]
+    @ Blocks current thread until dismissed. [note]
+    method ShowMessage
+        arg Application {Application} [this] @ Target application.
+        arg Title {Str} @ Dialog title.
+        arg Message {Str} @ Message content.
+
+@ Graphics rendering subsystem.
+@ Provides cross-platform, multi-API rendering abstraction. [detail]
+interface Renderer
+    prop EnabledFeatures [get(GetEnabledFeatures)] @ Active rendering features.
+    prop ProfilerEnable [get(GetProfilerEnable),set(SetProfilerEnable)] @ Profiling system state.
+    prop FramesInFlight [get(GetFramesInFlight)] @ Number of frames in flight.
+
+    @ Creates renderer instance.
+    @ Initializes graphics subsystem. [detail]
+    @ Operation result. [return]
+    method Create {Result} [ctor]
+        arg Application {Application} @ Host application.
+        arg Features {Feature} @ Requested rendering features.
+        arg Options {RendererOptions} [const,ref] @ Configuration parameters.
+        arg Renderer {Renderer} [result] @ New renderer.
+
+    @ Increments reference count.
+    @ Manages renderer instance lifetime. [detail]
+    @ Reference to same renderer. [return]
+    @ {Destroy} [see]
+    method Reference {Renderer} [ref]
+        arg Renderer {Renderer} [this] @ Target renderer.
+
+    @ Releases renderer instance.
+    @ Destroys when reference count reaches zero. [detail]
+    @ Destroys all GPU resources and contexts. [note]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg Renderer {Renderer} [this] @ Renderer to destroy
+
+    @ Gets active features.
+    @ Retrieves actually supported features. [detail]
+    @ Bitmask of enabled features. [return]
+    method GetEnabledFeatures {Feature} [const]
+        arg Renderer {Renderer} [this] @ Target renderer.
+
+    @ Checks profiling state.
+    @ Determines if performance metrics are collected. [detail]
+    @ *{True}* if profiling enabled. [return]
+    method GetProfilerEnable {Bool} [const]
+        arg Renderer {Renderer} [this] @ Target renderer.
+
+    @ Enables/disables profiling.
+    @ Controls performance metric collection. [detail]
+    method SetProfilerEnable
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Enable {Bool} @  profiling state.
+
+    @ Gets Number of frames in flight.
+    @ Returns number of simultaneous in-flight frames. [detail]
+    @ Frames-in-flight count. [return]
+    method GetFramesInFlight {Bool} [const]
+        arg Renderer {Renderer} [this] @ Target renderer.
+
+    @ Checks format support.
+    @ Verifies if texture format is supported. [detail]
+    @ *{True}* if format is supported. [return]
+    method IsSupportedFormat {Bool} [const]
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Format {Format} @ Texture format to check.
+
+    @ Retrieves texture information.
+    @ Gets metadata for existing texture. [detail]
+    method GetTextureInfo [const]
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Texture} @ Texture to inspect.
+        arg Info {TextureInfo} [result] @ Output texture info.
+
+    @ Creates GPU buffer.
+    @ Allocates and initializes buffer resource. [detail]
+    @ Operation result. [return]
+    @ ```
+        A dynamic buffer is available only for one frame. It is effective for frequently changing data or
+        as an intermediate buffer. Dynamic buffer is allocated much more efficiently than static. A large
+        number of buffers can be allocated per frame. For maximum sizes, use limits settings with
+        {RendererOptions.DynamicUboSize} and {RendererOptions.DynamicSsboSize}.``` [note]
+    method CreateBuffer {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg BufferUsage {BufferUsage} @ Usage flags.
+        arg Dynamic {Bool} @ Allocate the dynamic buffer.
+        arg Name {Str} @ Debug name.
+        arg Data {ConstData} @ Initial data. May be null.
+        arg Size {Uint32} @ Buffer size in bytes.
+        arg Handle {Buffer} [result] @ New buffer handle.
+
+    @ Creates texture resource.
+    @ Allocates and initializes texture. [detail]
+    @ Operation result. [return]
+    method CreateTexture {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Info {TextureInfo} [const,ref] @ Texture properties.
+        arg Data {ConstData} @ Initial data.
+        arg Handle {Texture} [result] @ New texture handle.
+
+    @ Creates texture view.
+    @ Makes alternative view of existing texture. [detail]
+    @ Operation result. [return]
+    method CreateTextureView {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Texture {Texture} @ Source texture.
+        arg Type {TextureType} @ View type.
+        arg MipBaseLevel {Uint16} @ First mip level.
+        arg MipLevelCount {Uint16} @ Number of mip levels.
+        arg LayerBase {Uint16} @ First array layer.
+        arg LayerCount {Uint16} @ Number of layers.
+        arg Name {Str} @ Debug identifier.
+        arg Handle {Texture} [result] @ New texture view handle.
+
+    @ Creates rendering technique.
+    @ Compiles shader pipelines for rendering. [detail]
+    @ Operation result. [return]
+    method CreateTechnique {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg FrameGraph {FrameGraph} @ Frame graph.
+        arg Name {Str} @ Debug name.
+        arg PipelineCount {Uint32} @ Number of pipelines.
+        arg Pipelines {Pipeline} [const,array(PipelineCount)] @ Pipeline configurations.
+        arg Handle {Technique} [result] @ New technique handle.
+
+    @ Creates descriptor set.
+    @ Allocates resource binding points. [detail]
+    @ Operation result. [return]
+    @ ```
+        A non-global set descriptor differs from a global one in that it is allocated anew
+        each frame. This is useful if we need to change the bindings each frame.``` [note]
+    method CreateDescriptorSet {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Global {Bool} @ *{True}* for globally set.
+        arg Handle {DescriptorSet} [result] @ New descriptor set handle.
+
+    @ Asynchronously loads texture.
+    @ Loads texture file in background fiber. [detail]
+    @ Operation result. [return]
+    method AsyncLoadTexture {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Filename {Str} @ Image file path.
+        arg Callback {TextureLoadedCallback} @ Completion handler.
+        arg Data {Data} [userdata] @ User context data.
+        arg Handle {Texture} [result] @ New texture handle.
+
+    @ Asynchronously uploads texture data.
+    @ Transfers texture data in background. [detail]
+    @ Operation result. [return]
+    method AsyncUploadTextureData {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Texture} @ Destination texture.
+        arg TextureData {ConstData} @ Pixel data to upload.
+        arg Callback {TextureLoadedCallback} @ Completion handler.
+        arg Data {Data} [userdata] @ Callback data.
+
+    @ Configures texture sampler.
+    @ Sets filtering and addressing modes. [detail]
+    @ Operation result. [return]
+    method TextureSampler {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Texture} @ Target texture.
+        arg MinFilter {Filter} @ Minification filter.
+        arg MagFilter {Filter} @ Magnification filter.
+        arg MipFilter {Filter} @ Mipmap filter.
+        arg AddressModeU {AddressMode} @ U addressing mode.
+        arg AddressModeV {AddressMode} @ V addressing mode.
+        arg AddressModeW {AddressMode} @ W addressing mode.
+        arg ReductionMode {ReductionMode} @ Sample reduction mode (to use {ReductionMode.Min} or {ReductionMode.Max}, you must request the {Feature.SamplerFilterMinmax} feature).
+
+    @ Gets buffer by name.
+    @ Get buffer from frame graph. [detail]
+    @ Operation result. [return]
+    method GetBuffer {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Resource {Str} @ Resource name.
+        arg Handle {Buffer} [result] @ Found buffer.
+
+    @ Gets texture by name.
+    @ Get texture from frame graph. [detail]
+    @ Operation result. [return]
+    method GetTexture {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Resource {Str} @ Resource name.
+        arg FromPreviousFrame {Bool} @ Take resource from previous frame.
+        arg Handle {Texture} [result] @ Found texture.
+
+    @ Destroys buffer.
+    @ Releases GPU buffer resources. [detail]
+    @ ```
+        You can release a resource directly in the frame where it was used. The rendering 
+        system will release the resource when the GPU stops using it.``` [note]
+    method DestroyBuffer
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Buffer} @ Buffer to destroy.
+
+    @ Destroys texture.
+    @ Releases GPU texture resources. [detail]
+    @ ```
+        You can release a resource directly in the frame where it was used. The rendering 
+        system will release the resource when the GPU stops using it.``` [note]
+    method DestroyTexture
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Texture} @ Texture to destroy.
+
+    @ Destroys technique.
+    @ Releases pipeline resources. [detail]
+    @ ```
+        You can release a resource directly in the frame where it was used. The rendering 
+        system will release the resource when the GPU stops using it.``` [note]
+    method DestroyTechnique
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Technique} @ Technique to destroy.
+
+    @ Destroys descriptor set.
+    @ Releases resource binding points. [detail]
+    @ ```
+        You can release a resource directly in the frame where it was used. The rendering 
+        system will release the resource when the GPU stops using it.``` [note]
+    method DestroyDescriptorSet
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {DescriptorSet} @ Descriptor set to destroy.
+
+    @ Binds buffer to descriptor set.
+    @ Attaches buffer to binding point. [detail]
+    method BindBuffer
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {DescriptorSet} @ Descriptor set.
+        arg Binding {Uint16} @ Binding index.
+        arg Buffer {Buffer} @ Buffer to bind.
+
+    @ Binds texture to descriptor set.
+    @ Attaches texture to binding point. [detail]
+    method BindTexture
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {DescriptorSet} @ Descriptor set.
+        arg Binding {Uint16} @ Binding index.
+        arg Element {Uint16} @ Array element.
+        arg Texture {Texture} @ Texture to bind.
+        
+    @ Binds resource by name.
+    @ Attaches named resource to binding point. [detail]
+    method BindResource
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {DescriptorSet} @ Descriptor set.
+        arg Binding {Uint16} @ Binding index.
+        arg ResourceInput {Str} @ Resource name.
+        arg FromPreviousFrame {Bool} @ Take resource from previous frame.
+
+    @ Maps buffer memory.
+    @ Provides CPU access to GPU buffer. [detail]
+    @ Mapped memory pointer. [return]
+    method MapBuffer {Data}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Buffer} @ Buffer to map.
+        arg Offset {Uint32} @ Byte offset.
+        arg Size {Uint32} @ Mapping size.
+
+    @ Unmaps buffer memory.
+    @ Finalizes CPU buffer modifications. [detail]
+    method UnmapBuffer
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg Handle {Buffer} @ Buffer to unmap.
+
+    @ Begins new frame.
+    @ Prepares renderer for new frame. [detail]
+    @ Operation result. [return]
+    method NewFrame {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+
+    @ Executes frame rendering.
+    @ Performs passes on the frame graph. [detail]
+    @ Operation result. [return]
+    method Render {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+        arg FrameGraph {FrameGraph} @ Frame graph.
+
+    @ Presents frame.
+    @ Displays rendered frame. [detail]
+    @ Operation result. [return]
+    @ ```
+        Note that the {Present} does not wait for the GPU frame to be rendered. Instead,
+        the rendering system allows the next frame to be rendered (you can call {NewFrame}).``` [note]
+    method Present {Result}
+        arg Renderer {Renderer} [this] @ Target renderer.
+
+@ GPU command recording interface.
+@ Command buffers are objects used to store commands that are later sent to the device queue for execution. [detail]
+interface CommandBuffer
+    @ Set the viewport.
+    @ Set the viewport transformation parameters. [detail]
+    method SetViewport
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg X {Uint16} @ Left viewport coordinate.
+        arg Y {Uint16} @ Top viewport coordinate.
+        arg Width {Uint16} @ Viewport width.
+        arg Height {Uint16} @ Viewport height.
+        arg MinDepth {Float32} @ Minimum depth value (typically `0.0`).
+        arg MaxDepth {Float32} @ Maximum depth value (typically `1.0`).
+
+    @ Sets scissor rectangle.
+    @ Defines the rectangular region where rendering can occur. [detail]
+    method SetScissor
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg X {Uint16} @ Left scissor coordinate.
+        arg Y {Uint16} @ Top scissor coordinate.
+        arg Width {Uint16} @ Scissor width.
+        arg Height {Uint16} @ Scissor height.
+
+    @ Binds rendering technique.
+    @ Sets the active shader pipeline state for render pass. [detail]
+    method BindTechnique
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Technique} @ Technique to bind.
+
+    @ Bind vertex buffer.
+    @ Bind an vertex buffer to a command buffer for use in subsequent drawing commands. [detail]
+    method BindVertexBuffer
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Vertex buffer handle.
+        arg Binding {Uint32} @ Binding index.
+        arg Offset {Uint32} @ Buffer offset.
+
+    @ Bind index buffer.
+    @ Bind an index buffer to a command buffer. [detail]
+    method BindIndexBuffer
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Index buffer handle.
+        arg Offset {Uint32} @ Buffer offset.
+        arg Type {IndexType} @ Type of indices (16-bit or 32-bit).
+
+    @ Bind descriptor set.
+    @ Bind descriptor set to a command buffer. [detail]
+    method BindDescriptorSet
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {DescriptorSet} @ Descriptor set handle.
+        arg Set {Uint32} @ Set number.
+
+    @ Dispatches compute work.
+    @ Executes compute shader with specified workgroup counts. [detail]
+    method Dispatch
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg GroupX {Uint32} @ Number of local workgroups to dispatch in the X dimension.
+        arg GroupY {Uint32} @ Number of local workgroups to dispatch in the X dimension.
+        arg GroupZ {Uint32} @ Number of local workgroups to dispatch in the X dimension.
+
+    @ Draw primitives.
+    @ Draws non-indexed primitives. [detail]
+    method Draw
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg FirstVertex {Uint32} @ Index of the first vertex to draw
+        arg VertexCount {Uint32} @ Number of vertices to draw.
+        arg FirstInstance {Uint32} @ Instance ID of the first instance to draw.
+        arg InstanceCount {Uint32} @ Number of instances to draw.
+
+    @ Draw primitives with indirect parameters.
+    @ Draws non-indexed primitives using indirect parameters. [detail]
+    @ ```
+        The {Handle} buffer should contain a list of GPU commands starting at {Offset} 
+        bytes and separated by {Stride} bytes with the following structure:
+        
+            struct DrawIndirectCommand \{
+                uint vertexCount;
+                uint instanceCount;
+                uint firstVertex;
+                uint firstInstance;
+            \};``` [note]
+    @ ```
+        If the value {DrawCountHandle} is passed (i.e. not equal to 65535), then the 
+        number of draws will be read from {DrawCountHandle} as uint by offset {DrawCountOffset}``` [note]
+    @ To use {DrawIndirect}, you need to request the {Feature.DrawIndirect} feature. [note]
+    @ To use {DrawCountHandle}, you need to request the {Feature.DrawIndirectCount} feature. [note]
+    @ The {Handle} and {DrawCountHandle} buffers must be created with the {BufferUsage.Indirect} flag. [note]
+    method DrawIndirect
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Buffer containing draw parameters.
+        arg Offset {Uint32} @ Byte offset into {Handle} where parameters begin.
+        arg DrawCountHandle {Buffer} @ Buffer containing the draw count
+        arg DrawCountOffset {Uint32} @ Byte offset into {DrawCountHandle} where the draw count begins.
+        arg DrawCount {Uint32} @ Number of draws to execute, and can be zero.
+        arg Stride {Uint32} @ Byte stride between successive sets of draw parameters.
+
+    @ Draws indexed primitives.
+    @ Draw primitives with indexed vertices. [detail]
+    method DrawIndexed
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg FirstIndex {Uint32} @ Base index within the index buffer.
+        arg IndexCount {Uint32} @ Number of vertices to draw.
+        arg VertexOffset {Uint32} @ Value added to the vertex index before indexing into the vertex buffer.
+        arg FirstInstance {Uint32} @ Instance ID of the first instance to draw.
+        arg InstanceCount {Uint32} @ Number of instances to draw.
+
+    @ Draws indexed primitives with indirect parameters.
+    @ Draw primitives with indirect parameters and indexed vertices. [detail]
+    @ ```
+        The {Handle} buffer should contain a list of GPU commands starting at {Offset} 
+        bytes and separated by {Stride} bytes with the following structure:
+        
+            struct DrawIndexedIndirectCommand \{
+                uint indexCount;
+                uint instanceCount;
+                uint firstIndex;
+                int  vertexOffset;
+                uint firstInstance;
+            \};``` [note]
+    @ ```
+        If the value {DrawCountHandle} is passed (i.e. not equal to 65535), then the 
+        number of draws will be read from {DrawCountHandle} as uint by offset {DrawCountOffset}``` [note]
+    @ To use {DrawIndexedIndirect}, you need to request the {Feature.DrawIndirect} feature. [note]
+    @ To use {DrawCountHandle}, you need to request the {Feature.DrawIndirectCount} feature. [note]
+    @ The {Handle} and {DrawCountHandle} buffers must be created with the {BufferUsage.Indirect} flag. [note]
+    method DrawIndexedIndirect
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Buffer containing draw parameters.
+        arg Offset {Uint32} @ Byte offset into buffer where parameters begin.
+        arg DrawCountHandle {Buffer} @ Buffer containing the draw count.
+        arg DrawCountOffset {Uint32} @ Byte offset into countBuffer where the draw count begins.
+        arg DrawCount {Uint32} @ Number of draws to execute, and can be zero.
+        arg Stride {Uint32} @ Byte stride between successive sets of draw parameters.
+
+    @ Draw mesh task work items.
+    @ ```
+        Executes mesh shader with specified workgroup counts. When the command is 
+        executed, a global workgroup consisting of groupCountX × groupCountY × 
+        groupCountZ local workgroups is assembled``` [detail]
+    @ To use {DrawMeshTasks}, you need to request the {Feature.MeshShader} feature. [note]
+    method DrawMeshTasks
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg GroupX {Uint32} @ Number of local workgroups to dispatch in the X dimension.
+        arg GroupY {Uint32} @ Number of local workgroups to dispatch in the Y dimension.
+        arg GroupZ {Uint32} @ Number of local workgroups to dispatch in the Z dimension.
+
+    @ Dispatches mesh shading work with indirect parameters.
+    @ Executes mesh shader with indirect workgroup counts. [detail]
+    @ ```
+        The {Handle} buffer should contain a list of GPU commands starting at {Offset} 
+        bytes and separated by {Stride} bytes with the following structure:
+        
+            struct DrawMeshTasksIndirectCommand \{
+                uint groupCountX;
+                uint groupCountY;
+                uint groupCountZ;
+            \};``` [note]
+    @ ```
+        If the value {DrawCountHandle} is passed (i.e. not equal to 65535), then the 
+        number of draws will be read from {DrawCountHandle} as uint by offset {DrawCountOffset}``` [note]
+    @ To use {DrawMeshTasksIndirect}, you need to request the {Feature.DrawIndirect} and {Feature.MeshShader} features. [note]
+    @ To use {DrawCountHandle}, you need to request the {Feature.DrawIndirectCount} feature. [note]
+    @ The {Handle} and {DrawCountHandle} buffers must be created with the {BufferUsage.Indirect} flag. [note]
+    method DrawMeshTasksIndirect
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Buffer containing draw parameters.
+        arg Offset {Uint32} @ Byte offset into buffer where parameters begin.
+        arg DrawCountHandle {Buffer} @ Buffer containing the draw count.
+        arg DrawCountOffset {Uint32} @ Byte offset into countBuffer where the draw count begins.
+        arg DrawCount {Uint32} @ Number of draws to execute, and can be zero.
+        arg Stride {Uint32} @ Byte stride between successive sets of draw parameters.
+
+    @ Draw profiler UI.
+    @ Renders performance metrics overlay. [detail]
+    method DrawProfiler
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Show {Bool} [in,out] @ Flag storing the visibility state of the metrics window; if null, the user will not be shown a cross to close the window.
+
+    @ Fills buffer.
+    @ Fill a region of a buffer with a fixed value. [detail]
+    method FillBuffer
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Buffer to fill.
+        arg Offset {Uint32} @ Byte offset into the buffer at which to start filling, and must be a multiple of 4.
+        arg Size {Uint32} @ Number of bytes to fill, and must be either a multiple of 4.
+        arg Data {Uint32} @ The 4-byte word written repeatedly to the buffer to fill size bytes of data. The data word is written to memory according to the host endianness.
+
+    @ Copy data between buffer regions.
+    @ To copy data between buffer objects. [detail]
+    method CopyBuffer
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg SourceHandle {Buffer} @ Source buffer.
+        arg SourceOffset {Uint32} @ Source starting byte offset.
+        arg DestHandle {Buffer} @ Destination buffer.
+        arg DestOffset {Uint32} @ Destination starting byte offset.
+        arg Size {Uint32} @ Number of bytes to copy.
+
+    @ Inserts write barrier for buffer.
+    @ Ensures previous writes to buffer are completed. [detail]
+    @ ```
+        Please note that the frame graph automatically places barriers in the right places, 
+        including for external resources. But there are situations when within one pass, 
+        for example, a computational shader, it is necessary to read and write to the 
+        texture several times in succession. For example, when computing a depth pyramid, 
+        which is quite acceptable to do within one computational pass.``` [note]
+    method BarrierBufferWrite
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Buffer to synchronize.
+
+    @ Inserts write barrier for texture.
+    @ Ensures previous writes to texture are completed. [detail]
+    @ ```
+        Please note that the frame graph automatically places barriers in the right places, 
+        including for external resources. But there are situations when within one pass, 
+        for example, a computational shader, it is necessary to read and write to the 
+        texture several times in succession. For example, when computing a depth pyramid, 
+        which is quite acceptable to do within one computational pass.``` [note]
+    method BarrierBufferRead
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Buffer} @ Texture to synchronize.
+
+    @ Inserts write barrier for texture.
+    @ Ensures previous writes to texture are completed. [detail]
+    @ ```
+        Please note that the frame graph automatically places barriers in the right places, 
+        including for external resources. But there are situations when within one pass, 
+        for example, a computational shader, it is necessary to read and write to the 
+        texture several times in succession. For example, when computing a depth pyramid, 
+        which is quite acceptable to do within one computational pass.``` [note]
+    method BarrierTextureWrite
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Texture} @ Texture to synchronize.
+
+    @ Inserts read barrier for texture.
+    @ Ensures previous reads from texture are completed. [detail]
+    @ ```
+        Please note that the frame graph automatically places barriers in the right places, 
+        including for external resources. But there are situations when within one pass, 
+        for example, a computational shader, it is necessary to read and write to the 
+        texture several times in succession. For example, when computing a depth pyramid, 
+        which is quite acceptable to do within one computational pass.``` [note]
+    method BarrierTextureRead
+        arg CommandBuffer {CommandBuffer} [this] @ Target command buffer.
+        arg Handle {Texture} @ Texture to synchronize.
+
+@ Render pass dependency graph.
+@ Manages render graph with: automatic pass ordering, resource transitions, memory aliasing, async compute. [detail]
+interface FrameGraph
+    @ Creates frame graph instance.
+    @ Initializes render pass dependency graph system. [detail]
+    @ Operation result. [return]
+    method Create {Result} [ctor]
+        arg Renderer {Renderer} @ Associated renderer instance.
+        arg FrameGraph {FrameGraph} [result] @ New frame graph instance.
+
+    @ Increments reference count.
+    @ Manages frame graph instance lifetime. [detail]
+    @ Reference to same frame graph. [return]
+    @ {Destroy} [see]
+    method Reference {FrameGraph} [ref]
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+
+    @ Releases frame graph instance.
+    @ Destroys when reference count reaches zero. [detail]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg FrameGraph {FrameGraph} [this] @ Frame graph to destroy.
+
+    @ Adds render pass to graph.
+    @ Registers a render pass. [detail]
+    @ Operation result. [return]
+    method AddPass {Result}
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+        arg Name {Str} @ Unique pass identifier.
+        arg RenderPass {RenderPass} [const,ref] @ Render pass description.
+        arg Data {Data} [userdata] @ User-defined pass data.
+
+    @ Removes render pass from graph.
+    @ Unregisters previously added render pass. [detail]
+    @ Operation result. [return]
+    method RemovePass {Result}
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+        arg Name {Str} @ Name of pass to remove.
+
+    @ Adds node to graph.
+    @ Creates a node with the specified inputs/outputs. [detail]
+    @ Operation result. [return]
+    method AddNode {Result}
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+        arg Name {Str} @ Node identifier.
+        arg Compute {Bool} @ Whether node is compute.
+        arg InputCount {Uint32} @ Number of input resources.
+        arg Inputs {ResourceInput} [const,array(InputCount)] @ Input resource descriptions.
+        arg OutputCount {Uint32} @ Number of output resources.
+        arg Outputs {ResourceOutput} [const,array(OutputCount)] @ Output resource descriptions.
+
+    @ Enables or disables graph node.
+    @ Controls whether node participates in graph execution. [detail]
+    @ Operation result. [return]
+    method EnableNode {Result}
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+        arg Name {Str} @ Node identifier.
+        arg Enable {Bool} @ New state.
+
+    @ Registers external buffer resource.
+    @ In order for the frame graph to be able to control the synchronization of an external resource, it must be added to the graph. [detail]
+    @ Operation result. [return]
+    @ Please note that, unlike resources created by the frame graph itself, the frame graph is not responsible for the creation and release of external resources. [note]
+    method AddBuffer {Result}
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+        arg Name {Str} @ Resource name.
+        arg Handle {Buffer} @ Buffer handle.
+
+    @ Registers external texture resource.
+    @ In order for the frame graph to be able to control the synchronization of an external resource, it must be added to the graph. [detail]
+    @ Operation result. [return]
+    @ Please note that, unlike resources created by the frame graph itself, the frame graph is not responsible for the creation and release of external resources. [note]
+    method AddTexture {Result}
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+        arg Name {Str} @ Resource name.
+        arg Handle {Texture} @ Texture handle.
+
+    @ Clears frame graph.
+    @ Removes all passes, nodes and resources. [detail]
+    method Clear
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+
+    @ Compiles frame graph.
+    @ Performs dependency analysis and optimization. [detail]
+    @ Operation result. [return]
+    method Compile {Result}
+        arg FrameGraph {FrameGraph} [this] @ Target frame graph.
+
+@ Performance measurement tool.
+@ Profiling GPU timings and GPU memory statistics. [detail]
+interface Profiler
+    prop GpuTimestamps [get(GetGpuTimestamps)] @ Get GPU performance measurements.
+    prop GpuTotalMemoryUsed [get(GetGpuTotalMemoryUsed)] @ Total GPU memory consumption.
+
+    @ Creates profiler instance.
+    @ Initializes performance measurement system. [detail]
+    @ Operation result. [return]
+    method Create {Result} [ctor]
+        arg Renderer {Renderer} @ Associated renderer.
+        arg Profiler {Profiler} [result] @ New profiler instance.
+
+    @ Increments reference count.
+    @ Manages profiler instance lifetime. [detail]
+    @ Reference to same profiler. [return]
+    @ {Destroy} [see]
+    method Reference {Profiler} [ref]
+        arg Profiler {Profiler} [this] @ Target profiler.
+
+    @ Increments reference count.
+    @ Manages profiler instance lifetime. [detail]
+    @ Reference to same profiler. [return]
+    @ {Reference} [see]
+    method Destroy [destroy]
+        arg Profiler {Profiler} [this] @ Profiler to destroy.
+
+    @ Retrieves GPU timestamps.
+    @ Gets detailed timing measurements. [detail]
+    method GetGpuTimestamps [const]
+        arg Profiler {Profiler} [this] @ Target profiler.
+        arg GpuTimestampsCount {Uint32} [in,out] @ Receives timestamp count (if {GpuTimestamps} is null, then {GpuTimestampsCount} will be set to the available count).
+        arg GpuTimestamps {GpuTimestamp} [array(GpuTimestampsCount),result] @ Receives timing data.
+
+    @ Gets total GPU memory usage.
+    @ Returns current GPU memory consumption. [detail]
+    @ Memory used in bytes. [return]
+    method GetGpuTotalMemoryUsed {Uint32} [const]
+        arg Profiler {Profiler} [this] @ Target profiler.

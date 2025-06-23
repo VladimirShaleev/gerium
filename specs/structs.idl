@@ -1,0 +1,238 @@
+@ Keyboard input event.
+@ Contains detailed information about keyboard state changes. [detail]
+struct KeyboardEvent
+    field Scancode {Scancode} @ Physical key position identifier (layout-independent).
+    field Code {KeyCode} @ Logical key code (layout-dependent character mapping).
+    field State {KeyState} @ Key press/release transition (Pressed/Released).
+    field Modifiers {KeyMod} @ Bitmask of active modifier keys (Shift/Ctrl/Alt etc.).
+    field Symbol {Char} [array(5)] @ UTF-8 encoded character representation.
+
+@ Mouse input event.
+@ Tracks mouse movement and button states. [detail]
+struct MouseEvent
+    field Id {Uint32} @ Input device identifier (for multi-pointer systems).
+    field Buttons {MouseButton} @ Bitmask of pressed/released mouse buttons.
+    field AbsoluteX {Int16} @ Current absolute X position in window coordinates.
+    field AbsoluteY {Int16} @ Current absolute Y position in window coordinates.
+    field DeltaX {Int16} @ Relative X movement since last event (taken from OS).
+    field DeltaY {Int16} @ Relative Y movement since last event (taken from OS).
+    field RawDeltaX {Int16} @ Relative X movement since last event (taken from device, may be the same as {DeltaX} on some platforms).
+    field RawDeltaY {Int16} @ Relative Y movement since last event (taken from device, may be the same as {DeltaY} on some platforms).
+    field WheelVertical {Float32} @ Vertical scroll wheel delta.
+    field WheelHorizontal {Float32} @ Horizontal scroll wheel delta.
+
+@ Input event.
+@ Unified input event structure with timestamp [detail]
+struct Event
+    field Type {EventType} @ Event category (Keyboard/Mouse etc.).
+    field Timestamp {Uint64} @ Monotonic clock time in nanoseconds.
+    field Keyboard {KeyboardEvent} @ Keyboard-specific data.
+    field Mouse {MouseEvent} @ Mouse-specific data.
+
+@ Display mode configuration.
+@ Contains resolution and refresh rate settings. [detail]
+struct DisplayMode
+    field Width {Uint16} @ Horizontal resolution in pixels.
+    field Height {Uint16} @ Vertical resolution in pixels.
+    field RefreshRate {Uint16} @ Refresh rate in Hz (may be 0).
+
+@ Display device information.
+@ Describes connected display properties and supported modes. [detail]
+struct DisplayInfo
+    field Id {Uint32} @ Unique display identifier
+    field Name {Str} @ User-friendly display name (may be "Unknown")
+    field GpuName {Str} @ Associated GPU/adapter name (may be "Unknown")
+    field DeviceName {Str} @ Hardware device identifier string (may be "Unknown")
+    field ModeCount {Uint32} @ Number of supported display modes.
+    field Modes {DisplayMode} [const,array(ModeCount)] @ Array of supported display modes.
+
+@ Renderer configuration options.
+@ Parameters controlling renderer initialization and behavior. [detail]
+struct RendererOptions
+    field DebugMode {Bool} @ Enables validation layers, debug logs and debug utilities when *{True}*.
+    field AppVersion {Uint32} @ User application version number.
+    field CommandBuffersPerFrame {Uint32} @ Number of command buffers allocated per frame (if 0, then the default value is 10).
+    field DescriptorSetsPoolSize {Uint32} @ Number of descriptor sets per pool (if 0, then the default value is 4096).
+    field DescriptorPoolElements {Uint32} @ Size of descriptor pool element arrays (if 0, then the default value is 4096).
+    field DynamicUboSize {Uint32} @ Size of dynamic uniform buffer allocation (if 0, then the default value is 64 Kb).
+    field DynamicSsboSize {Uint32} @ Size of dynamic storage buffer allocation (if 0, then the default value is 256 Mb).
+
+@ Texture specification.
+@ Parameters defining texture resource properties. [detail]
+struct TextureInfo
+    field Width {Uint16} @ Texture width.
+    field Height {Uint16} @ Texture height.
+    field Depth {Uint16} @ Texture depth.
+    field Mipmaps {Uint16} @ Number of mipmap levels.
+    field Layers {Uint16} @ Array layer count.
+    field Format {Format} @ Texture format.
+    field Type {TextureType} @ Texture dimensionality.
+    field Name {Str} @ Debug name.
+
+@ GPU timing measurement.
+@ Contains profiling data for GPU execution intervals. [detail]
+struct GpuTimestamp
+    field Name {Str} @ Name of the render pass.
+    field Elapsed {Float64} @ Duration in milliseconds.
+    field Frame {Uint32} @ Frame number when measurement was taken.
+    field Depth {Uint32} @ Nesting level.
+
+@ Render pass definition.
+@ Contains callbacks for different stages of pass execution. [detail]
+struct RenderPass
+    field Prepare {FrameGraphPrepareCallback} @ Preparing a frame before rendering (mey be null).
+    field Resize {FrameGraphResizeCallback} @ Resolution change handler, called when swapchain resizes (mey be null).
+    field Render {FrameGraphRenderCallback} @ Rendering Pass.
+
+@ Rasterization state.
+@ Controls polygon rendering behavior. [detail]
+struct RasterizationState
+    field PolygonMode {PolygonMode} @ Polygon rendering mode.
+    field PrimitiveTopology {PrimitiveTopology} @ Primitive assembly type.
+    field CullMode {CullMode} @ Face culling behavior.
+    field FrontFace {FrontFace} @ Front face winding order.
+    field DepthClampEnable {Bool} @ Enables depth value clamping to \[0,1\] range.
+    field DepthBiasEnable {Bool} @ Enables depth bias.
+    field DepthBiasConstantFactor {Float32} @ Constant depth bias factor.
+    field DepthBiasClamp {Float32} @ Maximum depth bias value.
+    field DepthBiasSlopeFactor {Float32} @ Slope-scaled depth bias factor.
+    field LineWidth {Float32} @ Rasterized line width.
+
+@ Stencil operation state.
+@ Controls stencil test behavior for a single face. [detail]
+struct StencilOpState
+    field FailOp {StencilOp} @ Action when stencil test fails.
+    field PassOp {StencilOp} @ Action when both stencil and depth tests pass.
+    field DepthFailOp {StencilOp} @ Action when stencil passes but depth fails.
+    field CompareOp {CompareOp} @ Comparison operator for stencil test.
+    field CompareMask {Uint32} @ Bitmask for stencil reference value comparison.
+    field WriteMask {Uint32} @ Bitmask controlling which stencil bits get written.
+    field Reference {Uint32} @ Reference value used for stencil comparisons.
+
+@ Depth/stencil state.
+@ Controls depth and stencil testing behavior. [detail]
+struct DepthStencilState
+    field DepthTestEnable {Bool} @ Enables depth buffer testing.
+    field DepthWriteEnable {Bool} @ Enables depth buffer writes.
+    field DepthBoundsTestEnable {Bool} @ Activates depth bounds testing.
+    field StencilTestEnable {Bool} @ Enables stencil testing operations.
+    field DepthCompareOp {CompareOp} @ Depth comparison function.
+    field Front {StencilOpState} @ Stencil operations for front-facing polygons.
+    field Back {StencilOpState} @ Stencil operations for back-facing polygons.
+    field MinDepthBounds {Float32} @ Minimum depth bound for depth test.
+    field MaxDepthBounds {Float32} @ Maximum depth bound for depth test.
+
+@ Color blending state.
+@ Color blending configuration. [detail]
+struct ColorBlendState
+    field LogicOpEnable {Bool} @ Enable logical operations.
+    field LogicOp {LogicOp} @ Logical operation to apply.
+    field BlendConstants {Float32} [array(4)] @ RGBA blend constants.
+
+@ Color blend attachment state.
+@ Specifying a pipeline color blend attachment state. [detail]
+struct ColorBlendAttachmentState
+    field BlendEnable {Bool} @ Controls whether blending is enabled for the corresponding color attachment; if blending is not enabled, the source fragment’s color for that attachment is passed through unmodified.
+    field SrcColorBlendFactor {BlendFactor} @ Source color blend factor.
+    field DstColorBlendFactor {BlendFactor} @ Destination color blend factor.
+    field ColorBlendOp {BlendOp} @ Selects which blend operation is used to calculate the RGB values to write to the color attachment.
+    field SrcAlphaBlendFactor {BlendFactor} @ Source alpha blend factor.
+    field DstAlphaBlendFactor {BlendFactor} @ Destination alpha blend factor.
+    field AlphaBlendOp {BlendOp} @ Selects which blend operation is used to calculate the alpha values to write to the color attachment.
+
+@ Color clear values.
+@ Specifies RGBA values for color attachment clearing. [detail]
+struct ClearColorAttachmentState
+    field Red {Float32} @ Red channel clear value.
+    field Green {Float32} @ Green channel clear value.
+    field Blue {Float32} @ Blue channel clear value.
+    field Alpha {Float32} @ Alpha channel clear value.
+
+@ Depth/stencil clear values.
+@ Specifies values for depth/stencil attachment clearing. [detail]
+struct ClearDepthStencilAttachmentState
+    field Depth {Float32} @ Depth buffer clear value.
+    field Value {Uint32} @ Stencil buffer clear value.
+
+@ Vertex attribute description.
+@ Defines vertex input attribute description. [detail]
+@ {VertexBinding} [see]
+struct VertexAttribute
+    field Location {Uint16} @ Shader input location number for this attribute.
+    field Binding {Uint16} @ Binding number which this attribute takes its data from.
+    field Offset {Uint16} @ Byte offset of this attribute relative to the start of an element in the vertex input binding.
+    field Format {Format} @ Size and type of the vertex attribute data.
+
+@ Vertex binding description.
+@ Defines vertex input binding description. [detail]
+@ {VertexAttribute} [see]
+struct VertexBinding
+    field Binding {Uint16} @ Binding number that this structure describes.
+    field Stride {Uint16} @ Byte stride between consecutive elements within the buffer.
+    field InputRate {VertexRate} @ Specifying whether vertex attribute addressing is a function of the vertex index or of the instance index.
+
+@ Shader macro definition.
+@ Preprocessor macro for shader compilation. [detail]
+struct MacroDefinition
+    field Name {Char} [array(128)] @ Macro identifier.
+    field Value {Char} [array(128)] @ Macro substitution value.
+
+@ Shader program.
+@ Contains shader code and compilation parameters. [detail]
+struct Shader
+    field Type {ShaderType} @ Shader stage.
+    field Lang {ShaderLanguage} @ Source language.
+    field Name {Str} @ Debug name.
+    field EntryPoint {Str} @ Main function name (considered "main" if null).
+    field Data {ConstData} @ Pointer to shader source.
+    field Size {Uint32} @ Shader size in bytes.
+    field MacroCount {Uint32} @ Number of preprocessor macros.
+    field Macros {MacroDefinition} [const,array(MacroCount)] @ Macro definitions array.
+
+@ Resource input.
+@ Describes an input resource for a render pass. [detail]
+struct ResourceInput
+    field Type {ResourceType} @ Resource type.
+    field Name {Str} @ Resource name.
+    field PreviousFrame {Bool} @ Whether to use a resource from the previous frame (for example, when a reprojection of the previous frame is needed to render the current frame, as in TAA).
+
+@ Resource output.
+@ Describes the output resource of a rendering pass. [detail]
+struct ResourceOutput
+    field Type {ResourceType} @ Resource type.
+    field Name {Str} @ Resource name.
+    field External {Bool} @ The resource is external and is not managed by the frame graph (the frame graph, unlike external resources, automatically manages the life of the resource).
+    field Format {Format} @ Resource format (used only if the resource type is not {ResourceType.Buffer}).
+    field Width {Uint16} @ Resource width, if 0, then the value is taken from the swapchain size (used only if the resource type is not {ResourceType.Buffer}).
+    field Height {Uint16} @ Resource height, if 0, then the value is taken from the swapchain size (used only if the resource type is not {ResourceType.Buffer}).
+    field Depth {Uint16} @ Resource height, should be set to 1 if it is not a 3D texture (used only if the resource type is not {ResourceType.Buffer}).
+    field Layers {Uint16} @ Number of layers, should be set to 1 if multiple layers are not needed (used only if the resource type is not {ResourceType.Buffer}).
+    field AutoScale {Float32} @ ```
+        Attachment scaling factor during initialization resource and resizing window; for example, 
+        a value of 1.0 means that the size will always match the size of the swapchain, and a value 
+        of 0.5 will correspond to half the size of the swapchain, regardless of how the swapchain 
+        is resized; value 0 disables auto-resizing, and the attachment will not resize when the 
+        swapchain size changes (used only if the resource type is not {ResourceType.Buffer}) 
+        (used only if the resource type is not {ResourceType.Buffer}).```
+    field RenderPassOp {RenderPassOp} @ Operation performed during the rendering pass (used only if the resource type is not {ResourceType.Buffer}).
+    field ColorWriteMask {ColorComponent} @ Specifying which of the R, G, B, and/or A components are enabled for writing (used only if the resource type is not {ResourceType.Buffer}).
+    field ColorBlendAttachment {ColorBlendAttachmentState} @ Color blend attachment state (used only if the resource type is not {ResourceType.Buffer}).
+    field ClearColorAttachment {ClearColorAttachmentState} @ Clear color target, only used if {RenderPassOp} is set to {RenderPassOp.Clear} (used only if the resource type is not {ResourceType.Buffer}).
+    field ClearDepthStencilAttachment {ClearDepthStencilAttachmentState} @ Clear depth/stencil target, only used if {RenderPassOp} is set to {RenderPassOp.Clear} (used only if the resource type is not {ResourceType.Buffer}).
+    field Size {Uint32} @ Buffer size in bytes (used only if the resource type is {ResourceType.Buffer}).
+    field FillValue {Uint32} @ The value that the buffer will be filled with when allocated (used only if the resource type is {ResourceType.Buffer}).
+    field Usage {BufferUsage} @ Buffer usage flags (used only if the resource type is {ResourceType.Buffer}).
+
+@ Pipeline configuration.
+@ Complete specification of rendering pipeline state. [detail]
+struct Pipeline
+    field RenderPass {Str} @ Target render pass name.
+    field Rasterization {RasterizationState} [const,ref] @ Polygon rasterization configuration.
+    field DepthStencil {DepthStencilState} [const,ref] @ Depth/stencil test configuration.
+    field ColorBlend {ColorBlendState} [const,ref] @ Color blending configuration.
+    field VertexAttributeCount {Uint32} @ Number of vertex input attributes.
+    field VertexAttributes {VertexAttribute} [const,array(VertexAttributeCount)] @ Vertex attribute descriptions.
+    field VertexBindingCount {Uint32} @ Number of vertex buffer bindings.
+    field VertexBindings {VertexBinding} [const,array(VertexBindingCount)] @ Vertex buffer binding descriptions.
+    field ShaderCount {Uint32} @ Number of shader stages.
+    field Shaders {Shader} [const,array(ShaderCount)] @ Shader programs for each pipeline stage.
