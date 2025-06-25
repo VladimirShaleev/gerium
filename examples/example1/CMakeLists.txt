@@ -1,3 +1,5 @@
+include(${PROJECT_SOURCE_DIR}/cmake/assets.cmake)
+
 file(GLOB GERIUM_EXAMPLE
     "*.hpp" "*.cpp"
     "utils/*.hpp" "utils/*.cpp"
@@ -11,8 +13,11 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${GERIUM_EXAMPLE})
 
 file(GLOB GERIUM_GRAPH_RESOURCES "frame-graphs/*.yaml")
 file(GLOB GERIUM_TECH_RESOURCES "techniques/*.yaml")
-file(GLOB GERIUM_MODEL_RESOURCES "models/*.gltf")
-file(GLOB GERIUM_TEXTURES_RESOURCES "models/textures/*.png" "models/textures/*.ktx" "models/textures/*.ktx2")
+file(GLOB GERIUM_MODEL_RESOURCES "${gerium_assets_SOURCE_DIR}/sample1/*.gltf")
+file(GLOB GERIUM_TEXTURES_RESOURCES
+    "${gerium_assets_SOURCE_DIR}/sample1/textures/*.png"
+    "${gerium_assets_SOURCE_DIR}/sample1/textures/*.ktx"
+    "${gerium_assets_SOURCE_DIR}/sample1/textures/*.ktx2")
 
 set(LIST_IDS "")
 set(ARRAY_IDS "")
@@ -119,28 +124,7 @@ elseif(NOT APPLE)
     target_compile_options(example1 PUBLIC -fno-rtti)
 endif()
 
-function(copy_dir target src dst)
-    if(ANDROID)
-        set(OUTPUT_PATH "${CMAKE_CURRENT_BINARY_DIR}/../../../../../assets")
-    elseif(APPLE)
-        set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>/../Resources")
-    else()
-        set(OUTPUT_PATH "$<TARGET_FILE_DIR:${target}>")
-    endif()
-    if(CMAKE_VERSION VERSION_LESS "3.26.0")
-        set(COPY_ARG copy_directory)
-    else()
-        set(COPY_ARG copy_directory_if_different)
-    endif()
-    add_custom_command(
-        TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E ${COPY_ARG}
-            "${src}"
-            "${OUTPUT_PATH}/${dst}"
-        COMMENT "Copying files")
-endfunction()
-
 copy_dir(example1 ${CMAKE_CURRENT_SOURCE_DIR}/shaders/ shaders)
 copy_dir(example1 ${CMAKE_CURRENT_SOURCE_DIR}/techniques/ techniques)
 copy_dir(example1 ${CMAKE_CURRENT_SOURCE_DIR}/frame-graphs/ frame-graphs)
-copy_dir(example1 ${CMAKE_CURRENT_SOURCE_DIR}/models/ models)
+copy_dir(example1 ${gerium_assets_SOURCE_DIR}/sample1/ models)
