@@ -11,8 +11,8 @@ namespace gerium::macos {
 
 gerium_inline std::pair<gerium_scancode_t, gerium_key_code_t> toScanCode(gerium_uint16_t keyCode,
                                                                          gerium_key_mod_flags_t mods) noexcept {
-    bool shift   = mods & GERIUM_KEY_MOD_SHIFT;
-    bool numlock = mods & GERIUM_KEY_MOD_NUM_LOCK;
+    bool shift   = mods & GERIUM_KEY_MOD_SHIFT_BIT;
+    bool numlock = mods & GERIUM_KEY_MOD_NUM_LOCK_BIT;
 
     switch (keyCode) {
         case kVK_ANSI_0:

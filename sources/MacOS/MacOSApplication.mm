@@ -297,36 +297,36 @@
 
 - (void)addKeyboardEvent:(NSEvent*)event pressed:(BOOL)down {
     const auto flags = [event modifierFlags];
-    auto mods        = GERIUM_KEY_MOD_NONE;
+    auto mods        = GERIUM_KEY_MOD_NONE_BIT;
     if (application->isPressed(GERIUM_SCANCODE_SHIFT_LEFT)) {
-        mods |= GERIUM_KEY_MOD_LSHIFT;
+        mods |= GERIUM_KEY_MOD_LSHIFT_BIT;
     }
     if (application->isPressed(GERIUM_SCANCODE_SHIFT_RIGHT)) {
-        mods |= GERIUM_KEY_MOD_RSHIFT;
+        mods |= GERIUM_KEY_MOD_RSHIFT_BIT;
     }
     if (application->isPressed(GERIUM_SCANCODE_CONTROL_LEFT)) {
-        mods |= GERIUM_KEY_MOD_LCTRL;
+        mods |= GERIUM_KEY_MOD_LCTRL_BIT;
     }
     if (application->isPressed(GERIUM_SCANCODE_CONTROL_RIGHT)) {
-        mods |= GERIUM_KEY_MOD_RCTRL;
+        mods |= GERIUM_KEY_MOD_RCTRL_BIT;
     }
     if (application->isPressed(GERIUM_SCANCODE_ALT_LEFT)) {
-        mods |= GERIUM_KEY_MOD_LALT;
+        mods |= GERIUM_KEY_MOD_LALT_BIT;
     }
     if (application->isPressed(GERIUM_SCANCODE_ALT_RIGHT)) {
-        mods |= GERIUM_KEY_MOD_RALT;
+        mods |= GERIUM_KEY_MOD_RALT_BIT;
     }
     if (application->isPressed(GERIUM_SCANCODE_META_LEFT)) {
-        mods |= GERIUM_KEY_MOD_LMETA;
+        mods |= GERIUM_KEY_MOD_LMETA_BIT;
     }
     if (application->isPressed(GERIUM_SCANCODE_META_RIGHT)) {
-        mods |= GERIUM_KEY_MOD_RMETA;
+        mods |= GERIUM_KEY_MOD_RMETA_BIT;
     }
     if (flags & NSEventModifierFlagCapsLock) {
-        mods |= GERIUM_KEY_MOD_CAPS_LOCK;
+        mods |= GERIUM_KEY_MOD_CAPS_LOCK_BIT;
     }
     if (flags & NSEventModifierFlagNumericPad) {
-        mods |= GERIUM_KEY_MOD_NUM_LOCK;
+        mods |= GERIUM_KEY_MOD_NUM_LOCK_BIT;
     }
 
     const auto [scancode, keycode] = gerium::macos::toScanCode([event keyCode], mods);
@@ -370,7 +370,7 @@
         pos = NSMakePoint(pos.x, view.bounds.size.height - pos.y);
     }
 
-    auto buttons   = GERIUM_MOUSE_BUTTON_NONE;
+    auto buttons   = GERIUM_MOUSE_BUTTON_NONE_BIT;
     auto absoluteX = gerium_sint16_t(pos.x * application->scale());
     auto absoluteY = gerium_sint16_t(pos.y * application->scale());
     auto deltaX    = absoluteX - self.lastMouseEvent.absolute_x;
@@ -379,17 +379,17 @@
     auto wheelY    = 0.0;
 
     if (event.type == NSEventTypeLeftMouseDown) {
-        buttons = GERIUM_MOUSE_BUTTON_LEFT_DOWN;
+        buttons = GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT;
     } else if (event.type == NSEventTypeRightMouseDown) {
-        buttons = GERIUM_MOUSE_BUTTON_RIGHT_UP;
+        buttons = GERIUM_MOUSE_BUTTON_RIGHT_UP_BIT;
     } else if (event.type == NSEventTypeOtherMouseDown) {
-        buttons = GERIUM_MOUSE_BUTTON_MIDDLE_DOWN;
+        buttons = GERIUM_MOUSE_BUTTON_MIDDLE_DOWN_BIT;
     } else if (event.type == NSEventTypeLeftMouseUp) {
-        buttons = GERIUM_MOUSE_BUTTON_LEFT_UP;
+        buttons = GERIUM_MOUSE_BUTTON_LEFT_UP_BIT;
     } else if (event.type == NSEventTypeRightMouseUp) {
-        buttons = GERIUM_MOUSE_BUTTON_RIGHT_UP;
+        buttons = GERIUM_MOUSE_BUTTON_RIGHT_UP_BIT;
     } else if (event.type == NSEventTypeOtherMouseUp) {
-        buttons = GERIUM_MOUSE_BUTTON_LEFT_UP;
+        buttons = GERIUM_MOUSE_BUTTON_LEFT_UP_BIT;
     } else if (event.type == NSEventTypeScrollWheel && event.phase != NSEventPhaseCancelled) {
         if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6) {
             wheelX = [event scrollingDeltaX];
@@ -428,7 +428,7 @@
 }
 
 - (void)initializeDevices {
-    modifiers = GERIUM_KEY_MOD_NONE;
+    modifiers = GERIUM_KEY_MOD_NONE_BIT;
 
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(handleKeyboardConnected:)
@@ -480,40 +480,40 @@
             newEvent.keyboard.state     = pressed ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
             newEvent.keyboard.modifiers = modifiers;
 
-            auto newModifiers = GERIUM_KEY_MOD_NONE;
+            auto newModifiers = GERIUM_KEY_MOD_NONE_BIT;
 
             if (keyCode == GCKeyCodeLeftControl) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_CONTROL_LEFT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_CONTROL_LEFT;
-                newModifiers               = GERIUM_KEY_MOD_LCTRL;
+                newModifiers               = GERIUM_KEY_MOD_LCTRL_BIT;
             } else if (keyCode == GCKeyCodeLeftShift) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_SHIFT_LEFT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_SHIFT_LEFT;
-                newModifiers               = GERIUM_KEY_MOD_LSHIFT;
+                newModifiers               = GERIUM_KEY_MOD_LSHIFT_BIT;
             } else if (keyCode == GCKeyCodeLeftAlt) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_ALT_LEFT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_ALT_LEFT;
-                newModifiers               = GERIUM_KEY_MOD_LALT;
+                newModifiers               = GERIUM_KEY_MOD_LALT_BIT;
             } else if (keyCode == GCKeyCodeLeftGUI) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_META_LEFT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_META_LEFT;
-                newModifiers               = GERIUM_KEY_MOD_LMETA;
+                newModifiers               = GERIUM_KEY_MOD_LMETA_BIT;
             } else if (keyCode == GCKeyCodeRightControl) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_CONTROL_RIGHT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_CONTROL_RIGHT;
-                newModifiers               = GERIUM_KEY_MOD_RCTRL;
+                newModifiers               = GERIUM_KEY_MOD_RCTRL_BIT;
             } else if (keyCode == GCKeyCodeRightShift) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_SHIFT_RIGHT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_SHIFT_RIGHT;
-                newModifiers               = GERIUM_KEY_MOD_RSHIFT;
+                newModifiers               = GERIUM_KEY_MOD_RSHIFT_BIT;
             } else if (keyCode == GCKeyCodeRightAlt) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_ALT_RIGHT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_ALT_RIGHT;
-                newModifiers               = GERIUM_KEY_MOD_RALT;
+                newModifiers               = GERIUM_KEY_MOD_RALT_BIT;
             } else if (keyCode == GCKeyCodeRightGUI) {
                 newEvent.keyboard.scancode = GERIUM_SCANCODE_META_RIGHT;
                 newEvent.keyboard.code     = GERIUM_KEY_CODE_META_RIGHT;
-                newModifiers               = GERIUM_KEY_MOD_RMETA;
+                newModifiers               = GERIUM_KEY_MOD_RMETA_BIT;
             } else {
                 return;
             }
