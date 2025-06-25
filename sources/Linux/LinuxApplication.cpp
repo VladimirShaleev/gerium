@@ -1121,34 +1121,34 @@ void LinuxApplication::handleEvent(XEvent& event) {
                                 e.keyboard.state    = press ? GERIUM_KEY_STATE_PRESSED : GERIUM_KEY_STATE_RELEASED;
 
                                 if (isPressScancode(GERIUM_SCANCODE_SHIFT_LEFT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LSHIFT;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LSHIFT_BIT;
                                 }
                                 if (isPressScancode(GERIUM_SCANCODE_SHIFT_RIGHT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RSHIFT;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RSHIFT_BIT;
                                 }
                                 if (isPressScancode(GERIUM_SCANCODE_CONTROL_LEFT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LCTRL;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LCTRL_BIT;
                                 }
                                 if (isPressScancode(GERIUM_SCANCODE_CONTROL_RIGHT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RCTRL;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RCTRL_BIT;
                                 }
                                 if (isPressScancode(GERIUM_SCANCODE_ALT_LEFT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LALT;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LALT_BIT;
                                 }
                                 if (isPressScancode(GERIUM_SCANCODE_ALT_RIGHT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RALT;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RALT_BIT;
                                 }
                                 if (isPressScancode(GERIUM_SCANCODE_META_LEFT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LMETA;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_LMETA_BIT;
                                 }
                                 if (isPressScancode(GERIUM_SCANCODE_META_RIGHT)) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RMETA;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_RMETA_BIT;
                                 }
                                 if (keyEvent->mods.locked & LockMask) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_CAPS_LOCK_BIT;
                                 }
                                 if (keyEvent->mods.locked & Mod2Mask) {
-                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
+                                    e.keyboard.modifiers |= GERIUM_KEY_MOD_NUM_LOCK_BIT;
                                 }
 
                                 if (_ic) {
@@ -1211,21 +1211,21 @@ void LinuxApplication::handleEvent(XEvent& event) {
                             e.type             = GERIUM_EVENT_TYPE_MOUSE;
                             e.timestamp        = motionEvent->time;
                             e.mouse.id         = 0;
-                            e.mouse.buttons    = GERIUM_MOUSE_BUTTON_NONE;
+                            e.mouse.buttons    = GERIUM_MOUSE_BUTTON_NONE_BIT;
                             e.mouse.absolute_x = gerium_sint16_t(motionEvent->event_x + 0.5);
                             e.mouse.absolute_y = gerium_sint16_t(motionEvent->event_y + 0.5);
 
                             switch (motionEvent->detail) {
                                 case Button1:
-                                    e.mouse.buttons |= gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_LEFT_DOWN << up);
+                                    e.mouse.buttons |= gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT << up);
                                     break;
                                 case Button3:
                                     e.mouse.buttons |=
-                                        gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_RIGHT_DOWN << up);
+                                        gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_RIGHT_DOWN_BIT << up);
                                     break;
                                 case Button2:
                                     e.mouse.buttons |=
-                                        gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_MIDDLE_DOWN << up);
+                                        gerium_mouse_button_flags_t(GERIUM_MOUSE_BUTTON_MIDDLE_DOWN_BIT << up);
                                     break;
                             }
 
@@ -1275,7 +1275,7 @@ void LinuxApplication::handleEvent(XEvent& event) {
                             e.type                   = GERIUM_EVENT_TYPE_MOUSE;
                             e.timestamp              = motionEvent->time;
                             e.mouse.id               = 0;
-                            e.mouse.buttons          = GERIUM_MOUSE_BUTTON_NONE;
+                            e.mouse.buttons          = GERIUM_MOUSE_BUTTON_NONE_BIT;
                             e.mouse.absolute_x       = gerium_sint16_t(motionEvent->event_x + 0.5);
                             e.mouse.absolute_y       = gerium_sint16_t(motionEvent->event_y + 0.5);
                             e.mouse.delta_x          = e.mouse.absolute_x - prevPointer.x;
@@ -1356,10 +1356,10 @@ bool LinuxApplication::imguiHandleEvent(const gerium_event_t& event) const {
 
     switch (event.type) {
         case GERIUM_EVENT_TYPE_KEYBOARD: {
-            io.AddKeyEvent(ImGuiMod_Ctrl, (event.keyboard.modifiers & GERIUM_KEY_MOD_CTRL) != 0);
-            io.AddKeyEvent(ImGuiMod_Shift, (event.keyboard.modifiers & GERIUM_KEY_MOD_SHIFT) != 0);
-            io.AddKeyEvent(ImGuiMod_Alt, (event.keyboard.modifiers & GERIUM_KEY_MOD_ALT) != 0);
-            io.AddKeyEvent(ImGuiMod_Super, (event.keyboard.modifiers & GERIUM_KEY_MOD_META) != 0);
+            io.AddKeyEvent(ImGuiMod_Ctrl, (event.keyboard.modifiers & GERIUM_KEY_MOD_CTRL_BIT) != 0);
+            io.AddKeyEvent(ImGuiMod_Shift, (event.keyboard.modifiers & GERIUM_KEY_MOD_SHIFT_BIT) != 0);
+            io.AddKeyEvent(ImGuiMod_Alt, (event.keyboard.modifiers & GERIUM_KEY_MOD_ALT_BIT) != 0);
+            io.AddKeyEvent(ImGuiMod_Super, (event.keyboard.modifiers & GERIUM_KEY_MOD_META_BIT) != 0);
 
             auto key = toImguiKey(event.keyboard.scancode);
             if (key != ImGuiKey_None) {
@@ -1374,19 +1374,19 @@ bool LinuxApplication::imguiHandleEvent(const gerium_event_t& event) const {
             if (event.mouse.delta_x != 0 || event.mouse.delta_y != 0) {
                 io.AddMousePosEvent(event.mouse.absolute_x, event.mouse.absolute_y);
             }
-            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_DOWN) {
+            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT) {
                 io.AddMouseButtonEvent(0, true);
-            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_UP) {
+            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_LEFT_UP_BIT) {
                 io.AddMouseButtonEvent(0, false);
             }
-            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_RIGHT_DOWN) {
+            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_RIGHT_DOWN_BIT) {
                 io.AddMouseButtonEvent(1, true);
-            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_RIGHT_UP) {
+            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_RIGHT_UP_BIT) {
                 io.AddMouseButtonEvent(1, false);
             }
-            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_MIDDLE_DOWN) {
+            if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_MIDDLE_DOWN_BIT) {
                 io.AddMouseButtonEvent(2, true);
-            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_MIDDLE_UP) {
+            } else if (event.mouse.buttons & GERIUM_MOUSE_BUTTON_MIDDLE_UP_BIT) {
                 io.AddMouseButtonEvent(2, false);
             }
             if (event.mouse.wheel_vertical != 0.0f || event.mouse.wheel_horizontal != 0.0f) {
