@@ -17,6 +17,15 @@
         "imgui",
         "joltphysics"
       ]
+    },
+    {
+      "kind": "git",
+      "baseline": "2814886c336c90ded08dfcd381439c06439c69fe",
+      "reference": "vcpkg-registry",
+      "repository": "https://github.com/VladimirShaleev/idlc",
+      "packages": [
+        "idlc"
+      ]
     }
   ],
   "overlay-triplets": [

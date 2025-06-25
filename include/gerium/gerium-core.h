@@ -1,1532 +1,857 @@
 /**
- * \file      gerium-core.h
- * \brief     gerium API Core
- * \author    Vladimir Shaleev
- * \copyright MIT License
+ * @file      gerium-core.h
+ * @brief     Core functionality.
+ * @details   Fundamental system interfaces.
+ * @author    Vladimir Shaleev <vladimirshaleev@gmail.com>
+ * @copyright MIT License
  */
-
 #ifndef GERIUM_CORE_H
 #define GERIUM_CORE_H
 
-#include "gerium-version.h"
-#include "gerium-platform.h"
+#include "gerium-structs.h"
 
 GERIUM_BEGIN
 
-GERIUM_TYPE(gerium_logger)
-GERIUM_TYPE(gerium_file)
-GERIUM_TYPE(gerium_mutex)
-GERIUM_TYPE(gerium_signal)
-GERIUM_TYPE(gerium_application)
-GERIUM_TYPE(gerium_renderer)
-GERIUM_TYPE(gerium_command_buffer)
-GERIUM_TYPE(gerium_frame_graph)
-GERIUM_TYPE(gerium_profiler)
-
-GERIUM_HANDLE(gerium_buffer)
-GERIUM_HANDLE(gerium_texture)
-GERIUM_HANDLE(gerium_technique)
-GERIUM_HANDLE(gerium_descriptor_set)
-
-typedef enum
-{
-    GERIUM_RESULT_SUCCESS                           = 0,
-    GERIUM_RESULT_SKIP_FRAME                        = 1,
-    GERIUM_RESULT_ERROR_UNKNOWN                     = 2,
-    GERIUM_RESULT_ERROR_OUT_OF_MEMORY               = 3,
-    GERIUM_RESULT_ERROR_NOT_IMPLEMENTED             = 4,
-    GERIUM_RESULT_ERROR_FILE_OPEN                   = 5,
-    GERIUM_RESULT_ERROR_FILE_ALLOCATE               = 6,
-    GERIUM_RESULT_ERROR_FILE_WRITE                  = 7,
-    GERIUM_RESULT_ERROR_APPLICATION_CREATE          = 8,
-    GERIUM_RESULT_ERROR_APPLICATION_ALREADY_RUNNING = 9,
-    GERIUM_RESULT_ERROR_APPLICATION_NOT_RUNNING     = 10,
-    GERIUM_RESULT_ERROR_APPLICATION_TERMINATED      = 11,
-    GERIUM_RESULT_ERROR_NO_DISPLAY                  = 12,
-    GERIUM_RESULT_ERROR_DEVICE_SELECTION            = 13,
-    GERIUM_RESULT_ERROR_DEVICE_LOST                 = 14,
-    GERIUM_RESULT_ERROR_ALREADY_EXISTS              = 15,
-    GERIUM_RESULT_ERROR_NOT_FOUND                   = 16,
-    GERIUM_RESULT_ERROR_FROM_CALLBACK               = 17,
-    GERIUM_RESULT_ERROR_FEATURE_NOT_SUPPORTED       = 18,
-    GERIUM_RESULT_ERROR_FORMAT_NOT_SUPPORTED        = 19,
-    GERIUM_RESULT_ERROR_FIDELITY_FX_NOT_SUPPORTED   = 20,
-    GERIUM_RESULT_ERROR_INVALID_ARGUMENT            = 21,
-    GERIUM_RESULT_ERROR_INVALID_FRAME_GRAPH         = 22,
-    GERIUM_RESULT_ERROR_INVALID_RESOURCE            = 23,
-    GERIUM_RESULT_ERROR_INVALID_OPERATION           = 24,
-    GERIUM_RESULT_ERROR_PARSE_SPIRV                 = 25,
-    GERIUM_RESULT_ERROR_DETECT_SHADER_LANGUAGE      = 26,
-    GERIUM_RESULT_ERROR_COMPILE_SHADER              = 27,
-    GERIUM_RESULT_ERROR_BINDING                     = 28,
-    GERIUM_RESULT_ERROR_DESCRIPTOR                  = 29,
-    GERIUM_RESULT_ERROR_LOAD_TEXTURE                = 30,
-    GERIUM_RESULT_ERROR_CHANGE_DISPLAY_MODE         = 31,
-    GERIUM_RESULT_MAX_ENUM                          = 0x7FFFFFFF
-} gerium_result_t;
-
-typedef enum
-{
-    GERIUM_FILE_SEEK_BEGIN    = 0,
-    GERIUM_FILE_SEEK_CURRENT  = 1,
-    GERIUM_FILE_SEEK_END      = 2,
-    GERIUM_FILE_SEEK_MAX_ENUM = 0x7FFFFFFF
-} gerium_file_seek_t;
-
-typedef enum {
-    GERIUM_LOGGER_LEVEL_VERBOSE  = 0,
-    GERIUM_LOGGER_LEVEL_DEBUG    = 1,
-    GERIUM_LOGGER_LEVEL_INFO     = 2,
-    GERIUM_LOGGER_LEVEL_WARNING  = 3,
-    GERIUM_LOGGER_LEVEL_ERROR    = 4,
-    GERIUM_LOGGER_LEVEL_FATAL    = 5,
-    GERIUM_LOGGER_LEVEL_OFF      = 6,
-    GERIUM_LOGGER_LEVEL_MAX_ENUM = 0x7FFFFFFF
-} gerium_logger_level_t;
-
-typedef enum
-{
-    GERIUM_RUNTIME_PLATFORM_UNKNOWN  = 0,
-    GERIUM_RUNTIME_PLATFORM_ANDROID  = 1,
-    GERIUM_RUNTIME_PLATFORM_IOS      = 2,
-    GERIUM_RUNTIME_PLATFORM_WEB      = 3,
-    GERIUM_RUNTIME_PLATFORM_WINDOWS  = 4,
-    GERIUM_RUNTIME_PLATFORM_LINUX    = 5,
-    GERIUM_RUNTIME_PLATFORM_MAC_OS   = 6,
-    GERIUM_RUNTIME_PLATFORM_MAX_ENUM = 0x7FFFFFFF
-} gerium_runtime_platform_t;
-
-typedef enum
-{
-    GERIUM_APPLICATION_STATE_UNKNOWN       = 0,
-    GERIUM_APPLICATION_STATE_CREATE        = 1,
-    GERIUM_APPLICATION_STATE_DESTROY       = 2,
-    GERIUM_APPLICATION_STATE_INITIALIZE    = 3,
-    GERIUM_APPLICATION_STATE_UNINITIALIZE  = 4,
-    GERIUM_APPLICATION_STATE_GOT_FOCUS     = 5,
-    GERIUM_APPLICATION_STATE_LOST_FOCUS    = 6,
-    GERIUM_APPLICATION_STATE_VISIBLE       = 7,
-    GERIUM_APPLICATION_STATE_INVISIBLE     = 8,
-    GERIUM_APPLICATION_STATE_NORMAL        = 9,
-    GERIUM_APPLICATION_STATE_MINIMIZE      = 10,
-    GERIUM_APPLICATION_STATE_MAXIMIZE      = 11,
-    GERIUM_APPLICATION_STATE_FULLSCREEN    = 12,
-    GERIUM_APPLICATION_STATE_RESIZE        = 13,
-    GERIUM_APPLICATION_STATE_RESIZED       = 14,
-    GERIUM_APPLICATION_STATE_MAX_ENUM      = 0x7FFFFFFF
-} gerium_application_state_t;
-
-typedef enum
-{
-    GERIUM_APPLICATION_STYLE_NONE_BIT        = 0,
-    GERIUM_APPLICATION_STYLE_RESIZABLE_BIT   = 1,
-    GERIUM_APPLICATION_STYLE_MINIMIZABLE_BIT = 2,
-    GERIUM_APPLICATION_STYLE_MAXIMIZABLE_BIT = 4,
-    GERIUM_APPLICATION_STYLE_MAX_ENUM        = 0x7FFFFFFF
-} gerium_application_style_flags_t;
-GERIUM_FLAGS(gerium_application_style_flags_t)
-
-typedef enum
-{
-    GERIUM_EVENT_TYPE_KEYBOARD = 0,
-    GERIUM_EVENT_TYPE_MOUSE    = 1,
-    GERIUM_EVENT_TYPE_MAX_ENUM = 0x7FFFFFFF
-} gerium_event_type_t;
-
-typedef enum
-{
-    GERIUM_KEY_STATE_PRESSED  = 0,
-    GERIUM_KEY_STATE_RELEASED = 1,
-    GERIUM_KEY_STATE_MAX_ENUM = 0x7FFFFFFF
-} gerium_key_state_t;
-
-typedef enum
-{
-    GERIUM_KEY_MOD_NONE        = 0,
-    GERIUM_KEY_MOD_LSHIFT      = 1,
-    GERIUM_KEY_MOD_RSHIFT      = 2,
-    GERIUM_KEY_MOD_LCTRL       = 4,
-    GERIUM_KEY_MOD_RCTRL       = 8,
-    GERIUM_KEY_MOD_LALT        = 16,
-    GERIUM_KEY_MOD_RALT        = 32,
-    GERIUM_KEY_MOD_LMETA       = 64,
-    GERIUM_KEY_MOD_RMETA       = 128,
-    GERIUM_KEY_MOD_NUM_LOCK    = 256,
-    GERIUM_KEY_MOD_CAPS_LOCK   = 512,
-    GERIUM_KEY_MOD_SCROLL_LOCK = 1024,
-    GERIUM_KEY_MOD_SHIFT       = GERIUM_KEY_MOD_LSHIFT | GERIUM_KEY_MOD_RSHIFT,
-    GERIUM_KEY_MOD_CTRL        = GERIUM_KEY_MOD_LCTRL | GERIUM_KEY_MOD_RCTRL, 
-    GERIUM_KEY_MOD_ALT         = GERIUM_KEY_MOD_LALT | GERIUM_KEY_MOD_RALT,
-    GERIUM_KEY_MOD_META        = GERIUM_KEY_MOD_LMETA | GERIUM_KEY_MOD_RMETA,
-    GERIUM_KEY_MOD_MAX_ENUM    = 0x7FFFFFFF 
-} gerium_key_mod_flags_t;
-GERIUM_FLAGS(gerium_key_mod_flags_t)
-
-typedef enum
-{
-    GERIUM_SCANCODE_UNKNOWN              = 0,
-    GERIUM_SCANCODE_0                    = 1,
-    GERIUM_SCANCODE_1                    = 2,
-    GERIUM_SCANCODE_2                    = 3,
-    GERIUM_SCANCODE_3                    = 4,
-    GERIUM_SCANCODE_4                    = 5,
-    GERIUM_SCANCODE_5                    = 6,
-    GERIUM_SCANCODE_6                    = 7,
-    GERIUM_SCANCODE_7                    = 8,
-    GERIUM_SCANCODE_8                    = 9,
-    GERIUM_SCANCODE_9                    = 10,
-    GERIUM_SCANCODE_A                    = 11,
-    GERIUM_SCANCODE_B                    = 12,
-    GERIUM_SCANCODE_C                    = 13,
-    GERIUM_SCANCODE_D                    = 14,
-    GERIUM_SCANCODE_E                    = 15,
-    GERIUM_SCANCODE_F                    = 16,
-    GERIUM_SCANCODE_G                    = 17,
-    GERIUM_SCANCODE_H                    = 18,
-    GERIUM_SCANCODE_I                    = 19,
-    GERIUM_SCANCODE_J                    = 20,
-    GERIUM_SCANCODE_K                    = 21,
-    GERIUM_SCANCODE_L                    = 22,
-    GERIUM_SCANCODE_M                    = 23,
-    GERIUM_SCANCODE_N                    = 24,
-    GERIUM_SCANCODE_O                    = 25,
-    GERIUM_SCANCODE_P                    = 26,
-    GERIUM_SCANCODE_Q                    = 27,
-    GERIUM_SCANCODE_R                    = 28,
-    GERIUM_SCANCODE_S                    = 29,
-    GERIUM_SCANCODE_T                    = 30,
-    GERIUM_SCANCODE_U                    = 31,
-    GERIUM_SCANCODE_V                    = 32,
-    GERIUM_SCANCODE_W                    = 33,
-    GERIUM_SCANCODE_X                    = 34,
-    GERIUM_SCANCODE_Y                    = 35,
-    GERIUM_SCANCODE_Z                    = 36,
-    GERIUM_SCANCODE_F1                   = 37,
-    GERIUM_SCANCODE_F2                   = 38,
-    GERIUM_SCANCODE_F3                   = 39,
-    GERIUM_SCANCODE_F4                   = 40,
-    GERIUM_SCANCODE_F5                   = 41,
-    GERIUM_SCANCODE_F6                   = 42,
-    GERIUM_SCANCODE_F7                   = 43,
-    GERIUM_SCANCODE_F8                   = 44,
-    GERIUM_SCANCODE_F9                   = 45,
-    GERIUM_SCANCODE_F10                  = 46,
-    GERIUM_SCANCODE_F11                  = 47,
-    GERIUM_SCANCODE_F12                  = 48,
-    GERIUM_SCANCODE_F13                  = 49,
-    GERIUM_SCANCODE_F14                  = 50,
-    GERIUM_SCANCODE_F15                  = 51,
-    GERIUM_SCANCODE_F16                  = 52,
-    GERIUM_SCANCODE_F17                  = 53,
-    GERIUM_SCANCODE_F18                  = 54,
-    GERIUM_SCANCODE_F19                  = 55,
-    GERIUM_SCANCODE_F20                  = 56,
-    GERIUM_SCANCODE_F21                  = 57,
-    GERIUM_SCANCODE_F22                  = 58,
-    GERIUM_SCANCODE_F23                  = 59,
-    GERIUM_SCANCODE_F24                  = 60,
-    GERIUM_SCANCODE_NUMPAD_0             = 61,
-    GERIUM_SCANCODE_NUMPAD_1             = 62,
-    GERIUM_SCANCODE_NUMPAD_2             = 63,
-    GERIUM_SCANCODE_NUMPAD_3             = 64,
-    GERIUM_SCANCODE_NUMPAD_4             = 65,
-    GERIUM_SCANCODE_NUMPAD_5             = 66,
-    GERIUM_SCANCODE_NUMPAD_6             = 67,
-    GERIUM_SCANCODE_NUMPAD_7             = 68,
-    GERIUM_SCANCODE_NUMPAD_8             = 69,
-    GERIUM_SCANCODE_NUMPAD_9             = 70,
-    GERIUM_SCANCODE_NUMPAD_COMMA         = 71,
-    GERIUM_SCANCODE_NUMPAD_ENTER         = 72,
-    GERIUM_SCANCODE_NUMPAD_EQUAL         = 73,
-    GERIUM_SCANCODE_NUMPAD_SUBTRACT      = 74,
-    GERIUM_SCANCODE_NUMPAD_DECIMAL       = 75,
-    GERIUM_SCANCODE_NUMPAD_ADD           = 76,
-    GERIUM_SCANCODE_NUMPAD_DIVIDE        = 77,
-    GERIUM_SCANCODE_NUMPAD_MULTIPLY      = 78,
-    GERIUM_SCANCODE_NUM_LOCK             = 79,
-    GERIUM_SCANCODE_MEDIA_PLAY_PAUSE     = 80,
-    GERIUM_SCANCODE_MEDIA_TRACK_PREVIOUS = 81,
-    GERIUM_SCANCODE_MEDIA_TRACK_NEXT     = 82,
-    GERIUM_SCANCODE_MEDIA_STOP           = 83,
-    GERIUM_SCANCODE_LAUNCH_MEDIA_PLAYER  = 84,
-    GERIUM_SCANCODE_AUDIO_VOLUME_MUTE    = 85,
-    GERIUM_SCANCODE_AUDIO_VOLUME_DOWN    = 86,
-    GERIUM_SCANCODE_AUDIO_VOLUME_UP      = 87,
-    GERIUM_SCANCODE_ESCAPE               = 88,
-    GERIUM_SCANCODE_TAB                  = 89,
-    GERIUM_SCANCODE_CAPS_LOCK            = 90,
-    GERIUM_SCANCODE_ENTER                = 91,
-    GERIUM_SCANCODE_BACKSLASH            = 92,
-    GERIUM_SCANCODE_BACKSPACE            = 93,
-    GERIUM_SCANCODE_INTL_BACKSLASH       = 94,
-    GERIUM_SCANCODE_INTL_RO              = 95,
-    GERIUM_SCANCODE_INTL_YEN             = 96,
-    GERIUM_SCANCODE_MINUS                = 97,
-    GERIUM_SCANCODE_COLON                = 98,
-    GERIUM_SCANCODE_COMMA                = 99,
-    GERIUM_SCANCODE_CONVERT              = 100,
-    GERIUM_SCANCODE_NONCONVERT           = 101,
-    GERIUM_SCANCODE_EQUAL                = 102,
-    GERIUM_SCANCODE_PERIOD               = 103,
-    GERIUM_SCANCODE_POWER                = 104,
-    GERIUM_SCANCODE_SEMICOLON            = 105,
-    GERIUM_SCANCODE_SLASH                = 106,
-    GERIUM_SCANCODE_SLEEP                = 107,
-    GERIUM_SCANCODE_WAKE                 = 108,
-    GERIUM_SCANCODE_SPACE                = 109,
-    GERIUM_SCANCODE_QUOTE                = 110,
-    GERIUM_SCANCODE_BACKQUOTE            = 111,
-    GERIUM_SCANCODE_ALT_LEFT             = 112,
-    GERIUM_SCANCODE_ALT_RIGHT            = 113,
-    GERIUM_SCANCODE_BRACKET_LEFT         = 114,
-    GERIUM_SCANCODE_BRACKET_RIGHT        = 115,
-    GERIUM_SCANCODE_CONTROL_LEFT         = 116,
-    GERIUM_SCANCODE_CONTROL_RIGHT        = 117,
-    GERIUM_SCANCODE_SHIFT_LEFT           = 118,
-    GERIUM_SCANCODE_SHIFT_RIGHT          = 119,
-    GERIUM_SCANCODE_META_LEFT            = 120,
-    GERIUM_SCANCODE_META_RIGHT           = 121,
-    GERIUM_SCANCODE_ARROW_UP             = 122,
-    GERIUM_SCANCODE_ARROW_LEFT           = 123,
-    GERIUM_SCANCODE_ARROW_RIGHT          = 124,
-    GERIUM_SCANCODE_ARROW_DOWN           = 125,
-    GERIUM_SCANCODE_SCROLL_LOCK          = 126,
-    GERIUM_SCANCODE_PAUSE                = 127,
-    GERIUM_SCANCODE_CTRL_PAUSE           = 128,
-    GERIUM_SCANCODE_INSERT               = 129,
-    GERIUM_SCANCODE_DELETE               = 130,
-    GERIUM_SCANCODE_HOME                 = 131,
-    GERIUM_SCANCODE_END                  = 132,
-    GERIUM_SCANCODE_PAGE_UP              = 133,
-    GERIUM_SCANCODE_PAGE_DOWN            = 134,
-    GERIUM_SCANCODE_LAUNCH_MAIL          = 135,
-    GERIUM_SCANCODE_MYCOMPUTER           = 136,
-    GERIUM_SCANCODE_CONTEXT_MENU         = 137,
-    GERIUM_SCANCODE_PRINT_SCREEN         = 138,
-    GERIUM_SCANCODE_ALT_PRINT_SCREEN     = 139,
-    GERIUM_SCANCODE_LAUNCH_APPLICATION_1 = 140,
-    GERIUM_SCANCODE_LAUNCH_APPLICATION_2 = 141,
-    GERIUM_SCANCODE_KANA_MODE            = 142,
-    GERIUM_SCANCODE_BROWSER_BACK         = 143,
-    GERIUM_SCANCODE_BROWSER_FAVORITES    = 144,
-    GERIUM_SCANCODE_BROWSER_FORWARD      = 145,
-    GERIUM_SCANCODE_BROWSER_HOME         = 146,
-    GERIUM_SCANCODE_BROWSER_REFRESH      = 147,
-    GERIUM_SCANCODE_BROWSER_SEARCH       = 148,
-    GERIUM_SCANCODE_BROWSER_STOP         = 149,
-    GERIUM_SCANCODE_MAX_ENUM             = 0x7FFFFFFF
-} gerium_scancode_t;
-
-typedef enum
-{
-    GERIUM_KEY_CODE_UNKNOWN              = 0,
-    GERIUM_KEY_CODE_0                    = 1,
-    GERIUM_KEY_CODE_1                    = 2,
-    GERIUM_KEY_CODE_2                    = 3,
-    GERIUM_KEY_CODE_3                    = 4,
-    GERIUM_KEY_CODE_4                    = 5,
-    GERIUM_KEY_CODE_5                    = 6,
-    GERIUM_KEY_CODE_6                    = 7,
-    GERIUM_KEY_CODE_7                    = 8,
-    GERIUM_KEY_CODE_8                    = 9,
-    GERIUM_KEY_CODE_9                    = 10,
-    GERIUM_KEY_CODE_A                    = 11,
-    GERIUM_KEY_CODE_B                    = 12,
-    GERIUM_KEY_CODE_C                    = 13,
-    GERIUM_KEY_CODE_D                    = 14,
-    GERIUM_KEY_CODE_E                    = 15,
-    GERIUM_KEY_CODE_F                    = 16,
-    GERIUM_KEY_CODE_G                    = 17,
-    GERIUM_KEY_CODE_H                    = 18,
-    GERIUM_KEY_CODE_I                    = 19,
-    GERIUM_KEY_CODE_J                    = 20,
-    GERIUM_KEY_CODE_K                    = 21,
-    GERIUM_KEY_CODE_L                    = 22,
-    GERIUM_KEY_CODE_M                    = 23,
-    GERIUM_KEY_CODE_N                    = 24,
-    GERIUM_KEY_CODE_O                    = 25,
-    GERIUM_KEY_CODE_P                    = 26,
-    GERIUM_KEY_CODE_Q                    = 27,
-    GERIUM_KEY_CODE_R                    = 28,
-    GERIUM_KEY_CODE_S                    = 29,
-    GERIUM_KEY_CODE_T                    = 30,
-    GERIUM_KEY_CODE_U                    = 31,
-    GERIUM_KEY_CODE_V                    = 32,
-    GERIUM_KEY_CODE_W                    = 33,
-    GERIUM_KEY_CODE_X                    = 34,
-    GERIUM_KEY_CODE_Y                    = 35,
-    GERIUM_KEY_CODE_Z                    = 36,
-    GERIUM_KEY_CODE_F1                   = 37,
-    GERIUM_KEY_CODE_F2                   = 38,
-    GERIUM_KEY_CODE_F3                   = 39,
-    GERIUM_KEY_CODE_F4                   = 40,
-    GERIUM_KEY_CODE_F5                   = 41,
-    GERIUM_KEY_CODE_F6                   = 42,
-    GERIUM_KEY_CODE_F7                   = 43,
-    GERIUM_KEY_CODE_F8                   = 44,
-    GERIUM_KEY_CODE_F9                   = 45,
-    GERIUM_KEY_CODE_F10                  = 46,
-    GERIUM_KEY_CODE_F11                  = 47,
-    GERIUM_KEY_CODE_F12                  = 48,
-    GERIUM_KEY_CODE_F13                  = 49,
-    GERIUM_KEY_CODE_F14                  = 50,
-    GERIUM_KEY_CODE_F15                  = 51,
-    GERIUM_KEY_CODE_F16                  = 52,
-    GERIUM_KEY_CODE_F17                  = 53,
-    GERIUM_KEY_CODE_F18                  = 54,
-    GERIUM_KEY_CODE_F19                  = 55,
-    GERIUM_KEY_CODE_F20                  = 56,
-    GERIUM_KEY_CODE_F21                  = 57,
-    GERIUM_KEY_CODE_F22                  = 58,
-    GERIUM_KEY_CODE_F23                  = 59,
-    GERIUM_KEY_CODE_F24                  = 60,
-    GERIUM_KEY_CODE_EXCLAIM              = 61,
-    GERIUM_KEY_CODE_AT                   = 62,
-    GERIUM_KEY_CODE_HASH                 = 63,
-    GERIUM_KEY_CODE_DOLLAR               = 64,
-    GERIUM_KEY_CODE_PERCENT              = 65,
-    GERIUM_KEY_CODE_CARET                = 66,
-    GERIUM_KEY_CODE_AMPERSAND            = 67,
-    GERIUM_KEY_CODE_ASTERISK             = 68,
-    GERIUM_KEY_CODE_PAREN_LEFT           = 69,
-    GERIUM_KEY_CODE_PAREN_RIGHT          = 70,
-    GERIUM_KEY_CODE_UNDERSCORE           = 71,
-    GERIUM_KEY_CODE_NUMPAD_0             = 72,
-    GERIUM_KEY_CODE_NUMPAD_1             = 73,
-    GERIUM_KEY_CODE_NUMPAD_2             = 74,
-    GERIUM_KEY_CODE_NUMPAD_3             = 75,
-    GERIUM_KEY_CODE_NUMPAD_4             = 76,
-    GERIUM_KEY_CODE_NUMPAD_5             = 77,
-    GERIUM_KEY_CODE_NUMPAD_6             = 78,
-    GERIUM_KEY_CODE_NUMPAD_7             = 79,
-    GERIUM_KEY_CODE_NUMPAD_8             = 80,
-    GERIUM_KEY_CODE_NUMPAD_9             = 81,
-    GERIUM_KEY_CODE_DECIMAL              = 82,
-    GERIUM_KEY_CODE_SUBTRACT             = 83,
-    GERIUM_KEY_CODE_ADD                  = 84,
-    GERIUM_KEY_CODE_DIVIDE               = 85,
-    GERIUM_KEY_CODE_MULTIPLY             = 86,
-    GERIUM_KEY_CODE_EQUAL                = 87,
-    GERIUM_KEY_CODE_LESS                 = 88,
-    GERIUM_KEY_CODE_GREATER              = 89,
-    GERIUM_KEY_CODE_NUM_LOCK             = 90,
-    GERIUM_KEY_CODE_MEDIA_PLAY_PAUSE     = 91,
-    GERIUM_KEY_CODE_MEDIA_TRACK_PREVIOUS = 92,
-    GERIUM_KEY_CODE_MEDIA_TRACK_NEXT     = 93,
-    GERIUM_KEY_CODE_MEDIA_STOP           = 94,
-    GERIUM_KEY_CODE_LAUNCH_MEDIA_PLAYER  = 95,
-    GERIUM_KEY_CODE_AUDIO_VOLUME_MUTE    = 96,
-    GERIUM_KEY_CODE_AUDIO_VOLUME_DOWN    = 97,
-    GERIUM_KEY_CODE_AUDIO_VOLUME_UP      = 98,
-    GERIUM_KEY_CODE_ESCAPE               = 99,
-    GERIUM_KEY_CODE_TAB                  = 100,
-    GERIUM_KEY_CODE_CAPS_LOCK            = 101,
-    GERIUM_KEY_CODE_ENTER                = 102,
-    GERIUM_KEY_CODE_BACKSLASH            = 103,
-    GERIUM_KEY_CODE_PIPE                 = 104,
-    GERIUM_KEY_CODE_QUESTION             = 105,
-    GERIUM_KEY_CODE_BACKSPACE            = 106,
-    GERIUM_KEY_CODE_COLON                = 107,
-    GERIUM_KEY_CODE_COMMA                = 108,
-    GERIUM_KEY_CODE_CONVERT              = 109,
-    GERIUM_KEY_CODE_NONCONVERT           = 110,
-    GERIUM_KEY_CODE_PERIOD               = 111,
-    GERIUM_KEY_CODE_POWER                = 112,
-    GERIUM_KEY_CODE_SEMICOLON            = 113,
-    GERIUM_KEY_CODE_SLASH                = 114,
-    GERIUM_KEY_CODE_SLEEP                = 115,
-    GERIUM_KEY_CODE_WAKE                 = 116,
-    GERIUM_KEY_CODE_SPACE                = 117,
-    GERIUM_KEY_CODE_DOUBLE_QUOTE         = 118,
-    GERIUM_KEY_CODE_QUOTE                = 119,
-    GERIUM_KEY_CODE_BACKQUOTE            = 120,
-    GERIUM_KEY_CODE_TILDE                = 121,
-    GERIUM_KEY_CODE_ALT_LEFT             = 122,
-    GERIUM_KEY_CODE_ALT_RIGHT            = 123,
-    GERIUM_KEY_CODE_BRACKET_LEFT         = 124,
-    GERIUM_KEY_CODE_BRACKET_RIGHT        = 125,
-    GERIUM_KEY_CODE_BRACE_LEFT           = 126,
-    GERIUM_KEY_CODE_BRACE_RIGHT          = 127,
-    GERIUM_KEY_CODE_CONTROL_LEFT         = 128,
-    GERIUM_KEY_CODE_CONTROL_RIGHT        = 129,
-    GERIUM_KEY_CODE_SHIFT_LEFT           = 130,
-    GERIUM_KEY_CODE_SHIFT_RIGHT          = 131,
-    GERIUM_KEY_CODE_META_LEFT            = 132,
-    GERIUM_KEY_CODE_META_RIGHT           = 133,
-    GERIUM_KEY_CODE_ARROW_UP             = 134,
-    GERIUM_KEY_CODE_ARROW_LEFT           = 135,
-    GERIUM_KEY_CODE_ARROW_RIGHT          = 136,
-    GERIUM_KEY_CODE_ARROW_DOWN           = 137,
-    GERIUM_KEY_CODE_SCROLL_LOCK          = 138,
-    GERIUM_KEY_CODE_PAUSE                = 139,
-    GERIUM_KEY_CODE_INSERT               = 140,
-    GERIUM_KEY_CODE_DELETE               = 141,
-    GERIUM_KEY_CODE_HOME                 = 142,
-    GERIUM_KEY_CODE_END                  = 143,
-    GERIUM_KEY_CODE_PAGE_UP              = 144,
-    GERIUM_KEY_CODE_PAGE_DOWN            = 145,
-    GERIUM_KEY_CODE_LAUNCH_MAIL          = 146,
-    GERIUM_KEY_CODE_CONTEXT_MENU         = 147,
-    GERIUM_KEY_CODE_PRINT_SCREEN         = 148,
-    GERIUM_KEY_CODE_LAUNCH_APPLICATION_1 = 149,
-    GERIUM_KEY_CODE_LAUNCH_APPLICATION_2 = 150,
-    GERIUM_KEY_CODE_KANA_MODE            = 151,
-    GERIUM_KEY_CODE_BROWSER_BACK         = 152,
-    GERIUM_KEY_CODE_BROWSER_FAVORITES    = 153,
-    GERIUM_KEY_CODE_BROWSER_FORWARD      = 154,
-    GERIUM_KEY_CODE_BROWSER_HOME         = 155,
-    GERIUM_KEY_CODE_BROWSER_REFRESH      = 156,
-    GERIUM_KEY_CODE_BROWSER_SEARCH       = 157,
-    GERIUM_KEY_CODE_BROWSER_STOP         = 158,
-    GERIUM_KEY_CODE_MAX_ENUM             = 0x7FFFFFFF
-} gerium_key_code_t;
-
-typedef enum
-{
-    GERIUM_MOUSE_BUTTON_NONE        = 0,
-    GERIUM_MOUSE_BUTTON_LEFT_DOWN   = 1,
-    GERIUM_MOUSE_BUTTON_LEFT_UP     = 2,
-    GERIUM_MOUSE_BUTTON_RIGHT_DOWN  = 4,
-    GERIUM_MOUSE_BUTTON_RIGHT_UP    = 8,
-    GERIUM_MOUSE_BUTTON_MIDDLE_DOWN = 16,
-    GERIUM_MOUSE_BUTTON_MIDDLE_UP   = 32,
-    GERIUM_MOUSE_BUTTON_4_DOWN      = 64,
-    GERIUM_MOUSE_BUTTON_4_UP        = 128,
-    GERIUM_MOUSE_BUTTON_5_DOWN      = 256,
-    GERIUM_MOUSE_BUTTON_5_UP        = 512,
-    GERIUM_MOUSE_BUTTON_MAX_ENUM    = 0x7FFFFFFF
-} gerium_mouse_button_flags_t;
-GERIUM_FLAGS(gerium_mouse_button_flags_t)
-
-typedef enum
-{
-    GERIUM_DIMENSION_UNIT_PX       = 0,
-    GERIUM_DIMENSION_UNIT_MM       = 1,
-    GERIUM_DIMENSION_UNIT_DIP      = 2,
-    GERIUM_DIMENSION_UNIT_SP       = 3,
-    GERIUM_DIMENSION_UNIT_PT       = 4,
-    GERIUM_DIMENSION_UNIT_IN       = 5,
-    GERIUM_DIMENSION_UNIT_MAX_ENUM = 0x7FFFFFFF
-} gerium_dimension_unit_t;
-
-typedef enum
-{
-    GERIUM_FEATURE_NONE_BIT                  = 0,
-    GERIUM_FEATURE_BINDLESS_BIT              = 1,
-    GERIUM_FEATURE_GEOMETRY_SHADER_BIT       = 2,
-    GERIUM_FEATURE_MESH_SHADER_BIT           = 4,
-    GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT = 8,
-    GERIUM_FEATURE_DRAW_INDIRECT_BIT         = 16,
-    GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT   = 32,
-    GERIUM_FEATURE_8_BIT_STORAGE_BIT         = 64,
-    GERIUM_FEATURE_16_BIT_STORAGE_BIT        = 128,
-    GERIUM_FEATURE_MAX_ENUM                  = 0x7FFFFFFF
-} gerium_feature_flags_t;
-GERIUM_FLAGS(gerium_feature_flags_t)
-
-typedef enum
-{
-    GERIUM_FORMAT_R4G4_UNORM           = 0,
-    GERIUM_FORMAT_R4G4B4A4_UNORM       = 1,
-    GERIUM_FORMAT_R5G5B5A1_UNORM       = 2,
-    GERIUM_FORMAT_R5G6B5_UNORM         = 3,
-    GERIUM_FORMAT_R8_UNORM             = 4,
-    GERIUM_FORMAT_R8_SNORM             = 5,
-    GERIUM_FORMAT_R8_UINT              = 6,
-    GERIUM_FORMAT_R8_SINT              = 7,
-    GERIUM_FORMAT_R8_SRGB              = 8,
-    GERIUM_FORMAT_R8_USCALED           = 9,
-    GERIUM_FORMAT_R8_SSCALED           = 10,
-    GERIUM_FORMAT_R8G8_UNORM           = 11,
-    GERIUM_FORMAT_R8G8_SNORM           = 12,
-    GERIUM_FORMAT_R8G8_UINT            = 13,
-    GERIUM_FORMAT_R8G8_SINT            = 14,
-    GERIUM_FORMAT_R8G8_SRGB            = 15,
-    GERIUM_FORMAT_R8G8_USCALED         = 16,
-    GERIUM_FORMAT_R8G8_SSCALED         = 17,
-    GERIUM_FORMAT_R8G8B8_UNORM         = 18,
-    GERIUM_FORMAT_R8G8B8_SNORM         = 19,
-    GERIUM_FORMAT_R8G8B8_UINT          = 20,
-    GERIUM_FORMAT_R8G8B8_SINT          = 21,
-    GERIUM_FORMAT_R8G8B8_SRGB          = 22,
-    GERIUM_FORMAT_R8G8B8_USCALED       = 23,
-    GERIUM_FORMAT_R8G8B8_SSCALED       = 24,
-    GERIUM_FORMAT_R8G8B8A8_UNORM       = 25,
-    GERIUM_FORMAT_R8G8B8A8_SNORM       = 26,
-    GERIUM_FORMAT_R8G8B8A8_UINT        = 27,
-    GERIUM_FORMAT_R8G8B8A8_SINT        = 28,
-    GERIUM_FORMAT_R8G8B8A8_SRGB        = 29,
-    GERIUM_FORMAT_R8G8B8A8_USCALED     = 30,
-    GERIUM_FORMAT_R8G8B8A8_SSCALED     = 31,
-    GERIUM_FORMAT_R16_UNORM            = 32,
-    GERIUM_FORMAT_R16_SNORM            = 33,
-    GERIUM_FORMAT_R16_UINT             = 34,
-    GERIUM_FORMAT_R16_SINT             = 35,
-    GERIUM_FORMAT_R16_SFLOAT           = 36,
-    GERIUM_FORMAT_R16_USCALED          = 37,
-    GERIUM_FORMAT_R16_SSCALED          = 38,
-    GERIUM_FORMAT_R16G16_UNORM         = 39,
-    GERIUM_FORMAT_R16G16_SNORM         = 40,
-    GERIUM_FORMAT_R16G16_UINT          = 41,
-    GERIUM_FORMAT_R16G16_SINT          = 42,
-    GERIUM_FORMAT_R16G16_SFLOAT        = 43,
-    GERIUM_FORMAT_R16G16_USCALED       = 44,
-    GERIUM_FORMAT_R16G16_SSCALED       = 45,
-    GERIUM_FORMAT_R16G16B16_UNORM      = 46,
-    GERIUM_FORMAT_R16G16B16_SNORM      = 47,
-    GERIUM_FORMAT_R16G16B16_UINT       = 48,
-    GERIUM_FORMAT_R16G16B16_SINT       = 49,
-    GERIUM_FORMAT_R16G16B16_SFLOAT     = 50,
-    GERIUM_FORMAT_R16G16B16_USCALED    = 51,
-    GERIUM_FORMAT_R16G16B16_SSCALED    = 52,
-    GERIUM_FORMAT_R16G16B16A16_UNORM   = 53,
-    GERIUM_FORMAT_R16G16B16A16_SNORM   = 54,
-    GERIUM_FORMAT_R16G16B16A16_UINT    = 55,
-    GERIUM_FORMAT_R16G16B16A16_SINT    = 56,
-    GERIUM_FORMAT_R16G16B16A16_SFLOAT  = 57,
-    GERIUM_FORMAT_R16G16B16A16_USCALED = 58,
-    GERIUM_FORMAT_R16G16B16A16_SSCALED = 59,
-    GERIUM_FORMAT_R32_UINT             = 60,
-    GERIUM_FORMAT_R32_SINT             = 61,
-    GERIUM_FORMAT_R32_SFLOAT           = 62,
-    GERIUM_FORMAT_R32G32_UINT          = 63,
-    GERIUM_FORMAT_R32G32_SINT          = 64,
-    GERIUM_FORMAT_R32G32_SFLOAT        = 65,
-    GERIUM_FORMAT_R32G32B32_UINT       = 66,
-    GERIUM_FORMAT_R32G32B32_SINT       = 67,
-    GERIUM_FORMAT_R32G32B32_SFLOAT     = 68,
-    GERIUM_FORMAT_R32G32B32A32_UINT    = 69,
-    GERIUM_FORMAT_R32G32B32A32_SINT    = 70,
-    GERIUM_FORMAT_R32G32B32A32_SFLOAT  = 71,
-    GERIUM_FORMAT_R64_UINT             = 72,
-    GERIUM_FORMAT_R64_SINT             = 73,
-    GERIUM_FORMAT_R64_SFLOAT           = 74,
-    GERIUM_FORMAT_R64G64_UINT          = 75,
-    GERIUM_FORMAT_R64G64_SINT          = 76,
-    GERIUM_FORMAT_R64G64_SFLOAT        = 77,
-    GERIUM_FORMAT_R64G64B64_UINT       = 78,
-    GERIUM_FORMAT_R64G64B64_SINT       = 79,
-    GERIUM_FORMAT_R64G64B64_SFLOAT     = 80,
-    GERIUM_FORMAT_R64G64B64A64_UINT    = 81,
-    GERIUM_FORMAT_R64G64B64A64_SINT    = 82,
-    GERIUM_FORMAT_R64G64B64A64_SFLOAT  = 83,
-    GERIUM_FORMAT_B4G4R4A4_UNORM       = 84,
-    GERIUM_FORMAT_B5G5R5A1_UNORM       = 85,
-    GERIUM_FORMAT_B5G6R5_UNORM         = 86,
-    GERIUM_FORMAT_B8G8R8_UNORM         = 87,
-    GERIUM_FORMAT_B8G8R8_SNORM         = 88,
-    GERIUM_FORMAT_B8G8R8_UINT          = 89,
-    GERIUM_FORMAT_B8G8R8_SINT          = 90,
-    GERIUM_FORMAT_B8G8R8_SRGB          = 91,
-    GERIUM_FORMAT_B8G8R8_USCALED       = 92,
-    GERIUM_FORMAT_B8G8R8_SSCALED       = 93,
-    GERIUM_FORMAT_B8G8R8A8_UNORM       = 94,
-    GERIUM_FORMAT_B8G8R8A8_SNORM       = 95,
-    GERIUM_FORMAT_B8G8R8A8_UINT        = 96,
-    GERIUM_FORMAT_B8G8R8A8_SINT        = 97,
-    GERIUM_FORMAT_B8G8R8A8_SRGB        = 98,
-    GERIUM_FORMAT_B8G8R8A8_USCALED     = 99,
-    GERIUM_FORMAT_B8G8R8A8_SSCALED     = 100,
-    GERIUM_FORMAT_B10G11R11_UFLOAT     = 101,
-    GERIUM_FORMAT_A1B5G5R5_UNORM       = 102,
-    GERIUM_FORMAT_A1R5G5B5_UNORM       = 103,
-    GERIUM_FORMAT_A2B10G10R10_UNORM    = 104,
-    GERIUM_FORMAT_A2B10G10R10_SNORM    = 105,
-    GERIUM_FORMAT_A2B10G10R10_UINT     = 106,
-    GERIUM_FORMAT_A2B10G10R10_SINT     = 107,
-    GERIUM_FORMAT_A2B10G10R10_USCALED  = 108,
-    GERIUM_FORMAT_A2B10G10R10_SSCALED  = 109,
-    GERIUM_FORMAT_A2R10G10B10_UNORM    = 110,
-    GERIUM_FORMAT_A2R10G10B10_SNORM    = 111,
-    GERIUM_FORMAT_A2R10G10B10_UINT     = 112,
-    GERIUM_FORMAT_A2R10G10B10_SINT     = 113,
-    GERIUM_FORMAT_A2R10G10B10_USCALED  = 114,
-    GERIUM_FORMAT_A2R10G10B10_SSCALED  = 115,
-    GERIUM_FORMAT_A4B4G4R4_UNORM       = 116,
-    GERIUM_FORMAT_A4R4G4B4_UNORM       = 117,
-    GERIUM_FORMAT_A8_UNORM             = 118,
-    GERIUM_FORMAT_A8B8G8R8_UNORM       = 119,
-    GERIUM_FORMAT_A8B8G8R8_SNORM       = 120,
-    GERIUM_FORMAT_A8B8G8R8_UINT        = 121,
-    GERIUM_FORMAT_A8B8G8R8_SINT        = 122,
-    GERIUM_FORMAT_A8B8G8R8_SRGB        = 123,
-    GERIUM_FORMAT_A8B8G8R8_USCALED     = 124,
-    GERIUM_FORMAT_A8B8G8R8_SSCALED     = 125,
-    GERIUM_FORMAT_S8_UINT              = 126,
-    GERIUM_FORMAT_X8_D24_UNORM         = 127,
-    GERIUM_FORMAT_D16_UNORM            = 128,
-    GERIUM_FORMAT_D16_UNORM_S8_UINT    = 129,
-    GERIUM_FORMAT_D24_UNORM_S8_UINT    = 130,
-    GERIUM_FORMAT_D32_SFLOAT           = 131,
-    GERIUM_FORMAT_D32_SFLOAT_S8_UINT   = 132,
-    GERIUM_FORMAT_ASTC_4x4_UNORM       = 133,
-    GERIUM_FORMAT_ASTC_4x4_SRGB        = 134,
-    GERIUM_FORMAT_ASTC_4x4_SFLOAT      = 135,
-    GERIUM_FORMAT_ASTC_5x4_UNORM       = 136,
-    GERIUM_FORMAT_ASTC_5x4_SRGB        = 137,
-    GERIUM_FORMAT_ASTC_5x4_SFLOAT      = 138,
-    GERIUM_FORMAT_ASTC_5x5_UNORM       = 139,
-    GERIUM_FORMAT_ASTC_5x5_SRGB        = 140,
-    GERIUM_FORMAT_ASTC_5x5_SFLOAT      = 141,
-    GERIUM_FORMAT_ASTC_6x5_UNORM       = 142,
-    GERIUM_FORMAT_ASTC_6x5_SRGB        = 143,
-    GERIUM_FORMAT_ASTC_6x5_SFLOAT      = 144,
-    GERIUM_FORMAT_ASTC_6x6_UNORM       = 145,
-    GERIUM_FORMAT_ASTC_6x6_SRGB        = 146,
-    GERIUM_FORMAT_ASTC_6x6_SFLOAT      = 147,
-    GERIUM_FORMAT_ASTC_8x5_UNORM       = 148,
-    GERIUM_FORMAT_ASTC_8x5_SRGB        = 149,
-    GERIUM_FORMAT_ASTC_8x5_SFLOAT      = 150,
-    GERIUM_FORMAT_ASTC_8x6_UNORM       = 151,
-    GERIUM_FORMAT_ASTC_8x6_SRGB        = 152,
-    GERIUM_FORMAT_ASTC_8x6_SFLOAT      = 153,
-    GERIUM_FORMAT_ASTC_8x8_UNORM       = 154,
-    GERIUM_FORMAT_ASTC_8x8_SRGB        = 155,
-    GERIUM_FORMAT_ASTC_8x8_SFLOAT      = 156,
-    GERIUM_FORMAT_ASTC_10x5_UNORM      = 157,
-    GERIUM_FORMAT_ASTC_10x5_SRGB       = 158,
-    GERIUM_FORMAT_ASTC_10x5_SFLOAT     = 159,
-    GERIUM_FORMAT_ASTC_10x6_UNORM      = 160,
-    GERIUM_FORMAT_ASTC_10x6_SRGB       = 161,
-    GERIUM_FORMAT_ASTC_10x6_SFLOAT     = 162,
-    GERIUM_FORMAT_ASTC_10x8_UNORM      = 163,
-    GERIUM_FORMAT_ASTC_10x8_SRGB       = 164,
-    GERIUM_FORMAT_ASTC_10x8_SFLOAT     = 165,
-    GERIUM_FORMAT_ASTC_10x10_UNORM     = 166,
-    GERIUM_FORMAT_ASTC_10x10_SRGB      = 167,
-    GERIUM_FORMAT_ASTC_10x10_SFLOAT    = 168,
-    GERIUM_FORMAT_ASTC_12x10_UNORM     = 169,
-    GERIUM_FORMAT_ASTC_12x10_SRGB      = 170,
-    GERIUM_FORMAT_ASTC_12x10_SFLOAT    = 171,
-    GERIUM_FORMAT_ASTC_12x12_UNORM     = 172,
-    GERIUM_FORMAT_ASTC_12x12_SRGB      = 173,
-    GERIUM_FORMAT_ASTC_12x12_SFLOAT    = 174,
-    GERIUM_FORMAT_BC1_RGB_UNORM        = 175,
-    GERIUM_FORMAT_BC1_RGB_SRGB         = 176,
-    GERIUM_FORMAT_BC1_RGBA_UNORM       = 177,
-    GERIUM_FORMAT_BC1_RGBA_SRGB        = 178,
-    GERIUM_FORMAT_BC2_UNORM            = 179,
-    GERIUM_FORMAT_BC2_SRGB             = 180,
-    GERIUM_FORMAT_BC3_UNORM            = 181,
-    GERIUM_FORMAT_BC3_SRGB             = 182,
-    GERIUM_FORMAT_BC4_UNORM            = 183,
-    GERIUM_FORMAT_BC4_SNORM            = 184,
-    GERIUM_FORMAT_BC5_UNORM            = 185,
-    GERIUM_FORMAT_BC5_SNORM            = 186,
-    GERIUM_FORMAT_BC6H_UFLOAT          = 187,
-    GERIUM_FORMAT_BC6H_SFLOAT          = 188,
-    GERIUM_FORMAT_BC7_UNORM            = 189,
-    GERIUM_FORMAT_BC7_SRGB             = 190,
-    GERIUM_FORMAT_ETC2_R8G8B8_UNORM    = 191,
-    GERIUM_FORMAT_ETC2_R8G8B8_SRGB     = 192,
-    GERIUM_FORMAT_ETC2_R8G8B8A1_UNORM  = 193,
-    GERIUM_FORMAT_ETC2_R8G8B8A1_SRGB   = 194,
-    GERIUM_FORMAT_ETC2_R8G8B8A8_UNORM  = 195,
-    GERIUM_FORMAT_ETC2_R8G8B8A8_SRGB   = 196,
-    GERIUM_FORMAT_EAC_R11_UNORM        = 197,
-    GERIUM_FORMAT_EAC_R11_SNORM        = 198,
-    GERIUM_FORMAT_EAC_R11G11_UNORM     = 199,
-    GERIUM_FORMAT_EAC_R11G11_SNORM     = 200,
-    GERIUM_FORMAT_PVRTC1_2BPP_UNORM    = 201,
-    GERIUM_FORMAT_PVRTC1_2BPP_SRGB     = 202,
-    GERIUM_FORMAT_PVRTC1_4BPP_UNORM    = 203,
-    GERIUM_FORMAT_PVRTC1_4BPP_SRGB     = 204,
-    GERIUM_FORMAT_PVRTC2_2BPP_UNORM    = 205,
-    GERIUM_FORMAT_PVRTC2_2BPP_SRGB     = 206,
-    GERIUM_FORMAT_PVRTC2_4BPP_UNORM    = 207,
-    GERIUM_FORMAT_PVRTC2_4BPP_SRGB     = 208,
-    GERIUM_FORMAT_MAX_ENUM             = 0x7FFFFFFF
-} gerium_format_t;
-
-typedef enum
-{
-    GERIUM_POLYGON_MODE_FILL     = 0,
-    GERIUM_POLYGON_MODE_LINE     = 1,
-    GERIUM_POLYGON_MODE_POINT    = 2,
-    GERIUM_POLYGON_MODE_MAX_ENUM = 0x7FFFFFFF
-} gerium_polygon_mode_t;
-
-typedef enum
-{
-    GERIUM_PRIMITIVE_TOPOLOGY_POINT_LIST     = 0,
-    GERIUM_PRIMITIVE_TOPOLOGY_LINE_LIST      = 1,
-    GERIUM_PRIMITIVE_TOPOLOGY_LINE_STRIP     = 2,
-    GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST  = 3,
-    GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP = 4,
-    GERIUM_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN   = 5,
-    GERIUM_PRIMITIVE_TOPOLOGY_MAX_ENUM       = 0x7FFFFFFF
-} gerium_primitive_topology_t;
-
-typedef enum
-{
-    GERIUM_CULL_MODE_NONE           = 0,
-    GERIUM_CULL_MODE_FRONT          = 1,
-    GERIUM_CULL_MODE_BACK           = 2,
-    GERIUM_CULL_MODE_FRONT_AND_BACK = 3,
-    GERIUM_CULL_MODE_MAX_ENUM       = 0x7FFFFFFF
-} gerium_cull_mode_t;
-
-typedef enum
-{
-    GERIUM_FRONT_FACE_COUNTER_CLOCKWISE = 0,
-    GERIUM_FRONT_FACE_CLOCKWISE         = 1,
-    GERIUM_FRONT_FACE_MAX_ENUM          = 0x7FFFFFFF
-} gerium_front_face_t;
-
-typedef enum
-{
-    GERIUM_COMPARE_OP_NEVER            = 0,
-    GERIUM_COMPARE_OP_ALWAYS           = 1,
-    GERIUM_COMPARE_OP_LESS             = 2,
-    GERIUM_COMPARE_OP_LESS_OR_EQUAL    = 3,
-    GERIUM_COMPARE_OP_GREATER          = 4,
-    GERIUM_COMPARE_OP_GREATER_OR_EQUAL = 5,
-    GERIUM_COMPARE_OP_EQUAL            = 6,
-    GERIUM_COMPARE_OP_NOT_EQUAL        = 7,
-    GERIUM_COMPARE_OP_MAX_ENUM         = 0X7FFFFFFF
-} gerium_compare_op_t;
-
-typedef enum
-{
-    GERIUM_STENCIL_OP_KEEP                = 0,
-    GERIUM_STENCIL_OP_ZERO                = 1,
-    GERIUM_STENCIL_OP_REPLACE             = 2,
-    GERIUM_STENCIL_OP_INVERT              = 3,
-    GERIUM_STENCIL_OP_INCREMENT_AND_CLAMP = 4,
-    GERIUM_STENCIL_OP_DECREMENT_AND_CLAMP = 5,
-    GERIUM_STENCIL_OP_INCREMENT_AND_WRAP  = 6,
-    GERIUM_STENCIL_OP_DECREMENT_AND_WRAP  = 7,
-    GERIUM_STENCIL_OP_MAX_ENUM            = 0X7FFFFFFF
-} gerium_stencil_op_t;
-
-typedef enum
-{
-    GERIUM_LOGIC_OP_CLEAR         = 0,
-    GERIUM_LOGIC_OP_SET           = 1,
-    GERIUM_LOGIC_OP_NO_OP         = 2,
-    GERIUM_LOGIC_OP_COPY          = 3,
-    GERIUM_LOGIC_OP_COPY_INVERTED = 4,
-    GERIUM_LOGIC_OP_AND           = 5,
-    GERIUM_LOGIC_OP_AND_REVERSE   = 6,
-    GERIUM_LOGIC_OP_AND_INVERTED  = 7,
-    GERIUM_LOGIC_OP_NAND          = 8,
-    GERIUM_LOGIC_OP_OR            = 9,
-    GERIUM_LOGIC_OP_OR_REVERSE    = 10,
-    GERIUM_LOGIC_OP_OR_INVERTED   = 11,
-    GERIUM_LOGIC_OP_NOR           = 12,
-    GERIUM_LOGIC_OP_XOR           = 13,
-    GERIUM_LOGIC_OP_EQUIVALENT    = 14,
-    GERIUM_LOGIC_OP_INVERT        = 15,
-    GERIUM_LOGIC_OP_MAX_ENUM      = 0X7FFFFFFF
-} gerium_logic_op_t;
-
-typedef enum
-{
-    GERIUM_BLEND_OP_ADD              = 0,
-    GERIUM_BLEND_OP_SUBTRACT         = 1,
-    GERIUM_BLEND_OP_REVERSE_SUBTRACT = 2,
-    GERIUM_BLEND_OP_MIN              = 3,
-    GERIUM_BLEND_OP_MAX              = 4,
-    GERIUM_BLEND_OP_MAX_ENUM         = 0X7FFFFFFF
-} gerium_blend_op_t;
-
-typedef enum
-{
-    GERIUM_RENDER_PASS_OP_DONT_CARE = 0,
-    GERIUM_RENDER_PASS_OP_CLEAR     = 1,
-    GERIUM_RENDER_PASS_OP_MAX_ENUM  = 0x7FFFFFFF
-} gerium_render_pass_op_t;
-
-typedef enum
-{
-    GERIUM_BLEND_FACTOR_ZERO                     = 0,
-    GERIUM_BLEND_FACTOR_ONE                      = 1,
-    GERIUM_BLEND_FACTOR_SRC_COLOR                = 2,
-    GERIUM_BLEND_FACTOR_SRC_ALPHA                = 3,
-    GERIUM_BLEND_FACTOR_SRC_ALPHA_SATURATE       = 4,
-    GERIUM_BLEND_FACTOR_DST_COLOR                = 5,
-    GERIUM_BLEND_FACTOR_DST_ALPHA                = 6,
-    GERIUM_BLEND_FACTOR_CONSTANT_COLOR           = 7,
-    GERIUM_BLEND_FACTOR_CONSTANT_ALPHA           = 8,
-    GERIUM_BLEND_FACTOR_SRC1_COLOR               = 9,
-    GERIUM_BLEND_FACTOR_SRC1_ALPHA               = 10,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC_COLOR      = 11,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA      = 12,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_DST_COLOR      = 13,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_DST_ALPHA      = 14,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR = 15,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA = 16,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR     = 17,
-    GERIUM_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA     = 18,
-    GERIUM_BLEND_FACTOR_MAX_ENUM = 0X7FFFFFFF
-} gerium_blend_factor_t;
-
-typedef enum
-{
-    GERIUM_COLOR_COMPONENT_R_BIT    = 1,
-    GERIUM_COLOR_COMPONENT_G_BIT    = 2,
-    GERIUM_COLOR_COMPONENT_B_BIT    = 4,
-    GERIUM_COLOR_COMPONENT_A_BIT    = 8,
-    GERIUM_COLOR_COMPONENT_MAX_ENUM = 0X7FFFFFFF
-} gerium_color_component_flags_t;
-GERIUM_FLAGS(gerium_color_component_flags_t)
-
-typedef enum
-{
-    GERIUM_BUFFER_USAGE_NONE_BIT     = 0,
-    GERIUM_BUFFER_USAGE_VERTEX_BIT   = 1,
-    GERIUM_BUFFER_USAGE_INDEX_BIT    = 2,
-    GERIUM_BUFFER_USAGE_UNIFORM_BIT  = 4,
-    GERIUM_BUFFER_USAGE_STORAGE_BIT  = 8,
-    GERIUM_BUFFER_USAGE_INDIRECT_BIT = 16,
-    GERIUM_BUFFER_USAGE_MAX_ENUM     = 0x7FFFFFFF
-} gerium_buffer_usage_flags_t;
-GERIUM_FLAGS(gerium_buffer_usage_flags_t)
-
-typedef enum
-{
-    GERIUM_TEXTURE_TYPE_1D       = 0,
-    GERIUM_TEXTURE_TYPE_2D       = 1,
-    GERIUM_TEXTURE_TYPE_3D       = 2,
-    GERIUM_TEXTURE_TYPE_CUBE     = 3,
-    GERIUM_TEXTURE_TYPE_MAX_ENUM = 0x7FFFFFFF
-} gerium_texture_type_t;
-
-typedef enum
-{
-    GERIUM_FILTER_NEAREST  = 0,
-    GERIUM_FILTER_LINEAR   = 1,
-    GERIUM_FILTER_MAX_ENUM = 0x7FFFFFFF
-} gerium_filter_t;
-
-typedef enum
-{
-    GERIUM_ADDRESS_MODE_REPEAT               = 0,
-    GERIUM_ADDRESS_MODE_MIRRORED_REPEAT      = 1,
-    GERIUM_ADDRESS_MODE_CLAMP_TO_EDGE        = 2,
-    GERIUM_ADDRESS_MODE_CLAMP_TO_BORDER      = 3,
-    GERIUM_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE = 4,
-    GERIUM_ADDRESS_MODE_MAX_ENUM             = 0x7FFFFFFF
-} gerium_address_mode_t;
-
-typedef enum
-{
-    GERIUM_REDUCTION_MODE_WEIGHTED_AVERAGE  = 0,
-    GERIUM_REDUCTION_MODE_MIN               = 1,
-    GERIUM_REDUCTION_MODE_MAX               = 2,
-    GERIUM_REDUCTION_MODE_MAX_ENUM          = 0x7FFFFFFF
-} gerium_reduction_mode_t;
-
-typedef enum
-{
-    GERIUM_RESOURCE_TYPE_BUFFER     = 0,
-    GERIUM_RESOURCE_TYPE_TEXTURE    = 1,
-    GERIUM_RESOURCE_TYPE_ATTACHMENT = 2,
-    GERIUM_RESOURCE_TYPE_REFERENCE  = 3,
-    GERIUM_RESOURCE_TYPE_MAX_ENUM   = 0x7FFFFFFF
-} gerium_resource_type_t;
-
-typedef enum
-{
-    GERIUM_VERTEX_RATE_PER_VERTEX   = 0,
-    GERIUM_VERTEX_RATE_PER_INSTANCE = 1,
-    GERIUM_VERTEX_RATE_MAX_ENUM     = 0x7FFFFFFF
-} gerium_vertex_rate_t;
-
-typedef enum
-{
-    GERIUM_INDEX_TYPE_UINT16   = 0,
-    GERIUM_INDEX_TYPE_UINT32   = 1,
-    GERIUM_INDEX_TYPE_MAX_ENUM = 0x7FFFFFFF
-} gerium_index_type_t;
-
-typedef enum {
-    GERIUM_SHADER_TYPE_VERTEX   = 0,
-    GERIUM_SHADER_TYPE_FRAGMENT = 1,
-    GERIUM_SHADER_TYPE_GEOMETRY = 2,
-    GERIUM_SHADER_TYPE_COMPUTE  = 3,
-    GERIUM_SHADER_TYPE_TASK     = 4,
-    GERIUM_SHADER_TYPE_MESH     = 5,
-    GERIUM_SHADER_TYPE_MAX_ENUM = 0x7FFFFFFF
-} gerium_shader_type_t;
-
-typedef enum
-{
-    GERIUM_SHADER_LANGUAGE_UNKNOWN = 0,
-    GERIUM_SHADER_LANGUAGE_SPIRV   = 1,
-    GERIUM_SHADER_LANGUAGE_GLSL    = 2,
-    GERIUM_SHADER_LANGUAGE_HLSL    = 3,
-    GERIUM_SHADER_LANGUAGE_MAX_ENUM = 0x7FFFFFFF
-} gerium_shader_languge_t;
-
-typedef gerium_bool_t
-(*gerium_application_frame_func_t)(gerium_application_t application,
-                                   gerium_data_t data,
-                                   gerium_uint64_t elapsed_ms);
-
-typedef gerium_bool_t
-(*gerium_application_state_func_t)(gerium_application_t application,
-                                   gerium_data_t data,
-                                   gerium_application_state_t state);
-
-typedef void
-(*gerium_application_executor_func_t)(gerium_application_t application,
-                                      gerium_data_t data);
-
-typedef gerium_uint32_t
-(*gerium_frame_graph_prepare_func_t)(gerium_frame_graph_t frame_graph,
-                                     gerium_renderer_t renderer,
-                                     gerium_uint32_t max_workers,
-                                     gerium_data_t data);
-
-typedef gerium_bool_t
-(*gerium_frame_graph_resize_func_t)(gerium_frame_graph_t frame_graph,
-                                    gerium_renderer_t renderer,
-                                    gerium_data_t data);
-
-typedef gerium_bool_t
-(*gerium_frame_graph_render_func_t)(gerium_frame_graph_t frame_graph,
-                                    gerium_renderer_t renderer,
-                                    gerium_command_buffer_t command_buffer,
-                                    gerium_uint32_t worker,
-                                    gerium_uint32_t total_workers,
-                                    gerium_data_t data);
-
-typedef void
-(*gerium_texture_loaded_func_t)(gerium_renderer_t renderer,
-                                gerium_texture_h texture,
-                                gerium_data_t data);
-
-typedef struct
-{
-    gerium_scancode_t      scancode;
-    gerium_key_code_t      code;
-    gerium_key_state_t     state;
-    gerium_key_mod_flags_t modifiers;
-    gerium_char_t          symbol[5];
-} gerium_keyboard_event_t;
-
-typedef struct
-{
-    gerium_uint32_t             id;
-    gerium_mouse_button_flags_t buttons;
-    gerium_sint16_t             absolute_x;
-    gerium_sint16_t             absolute_y;
-    gerium_sint16_t             delta_x;
-    gerium_sint16_t             delta_y;
-    gerium_sint16_t             raw_delta_x;
-    gerium_sint16_t             raw_delta_y;
-    gerium_float32_t            wheel_vertical;
-    gerium_float32_t            wheel_horizontal;
-} gerium_mouse_event_t;
-
-typedef struct
-{
-    gerium_event_type_t     type;
-    gerium_uint64_t         timestamp;
-    gerium_keyboard_event_t keyboard;
-    gerium_mouse_event_t    mouse;
-} gerium_event_t;
-
-typedef struct
-{
-    gerium_uint16_t width;
-    gerium_uint16_t height;
-    gerium_uint16_t refresh_rate;
-} gerium_display_mode_t;
-
-typedef struct
-{
-    gerium_uint32_t              id;
-    gerium_utf8_t                name;
-    gerium_utf8_t                gpu_name;
-    gerium_utf8_t                device_name;
-    gerium_uint32_t              mode_count;
-    const gerium_display_mode_t* modes;
-} gerium_display_info_t;
-
-typedef struct
-{
-    gerium_bool_t   debug_mode;
-    gerium_uint32_t app_version;
-    gerium_uint32_t command_buffers_per_frame;
-    gerium_uint32_t descriptor_sets_pool_size;
-    gerium_uint32_t descriptor_pool_elements;
-    gerium_uint32_t dynamic_ubo_size;
-    gerium_uint32_t dynamic_ssbo_size;
-} gerium_renderer_options_t;
-
-typedef struct
-{
-    gerium_uint16_t       width;
-    gerium_uint16_t       height;
-    gerium_uint16_t       depth;
-    gerium_uint16_t       mipmaps;
-    gerium_uint16_t       layers;
-    gerium_format_t       format;
-    gerium_texture_type_t type;
-    gerium_utf8_t         name;
-} gerium_texture_info_t;
-
-typedef struct
-{
-    gerium_utf8_t    name;
-    gerium_float64_t elapsed;
-    gerium_uint32_t  frame;
-    gerium_uint32_t  depth;
-} gerium_gpu_timestamp_t;
-
-typedef struct
-{
-    gerium_frame_graph_prepare_func_t prepare;
-    gerium_frame_graph_resize_func_t  resize;
-    gerium_frame_graph_render_func_t  render;
-} gerium_render_pass_t;
-
-typedef struct
-{
-    gerium_polygon_mode_t       polygon_mode;
-    gerium_primitive_topology_t primitive_topology;
-    gerium_cull_mode_t          cull_mode;
-    gerium_front_face_t         front_face;
-    gerium_bool_t               depth_clamp_enable;
-    gerium_bool_t               depth_bias_enable;
-    gerium_float32_t            depth_bias_constant_factor;
-    gerium_float32_t            depth_bias_clamp;
-    gerium_float32_t            depth_bias_slope_factor;
-    gerium_float32_t            line_width;
-} gerium_rasterization_state_t;
-
-typedef struct
-{
-    gerium_stencil_op_t fail_op;
-    gerium_stencil_op_t pass_op;
-    gerium_stencil_op_t depth_fail_op;
-    gerium_compare_op_t compare_op;
-    gerium_uint32_t     compare_mask;
-    gerium_uint32_t     write_mask;
-    gerium_uint32_t     reference;
-} gerium_stencil_op_state_t;
-
-typedef struct
-{
-    gerium_bool_t             depth_test_enable;
-    gerium_bool_t             depth_write_enable;
-    gerium_bool_t             depth_bounds_test_enable;
-    gerium_bool_t             stencil_test_enable;
-    gerium_compare_op_t       depth_compare_op;
-    gerium_stencil_op_state_t front;
-    gerium_stencil_op_state_t back;
-    gerium_float32_t          min_depth_bounds;
-    gerium_float32_t          max_depth_bounds;
-} gerium_depth_stencil_state_t;
-
-typedef struct
-{
-    gerium_bool_t     logic_op_enable;
-    gerium_logic_op_t logic_op;
-    gerium_float32_t  blend_constants[4];
-} gerium_color_blend_state_t;
-
-typedef struct
-{
-    gerium_bool_t         blend_enable;
-    gerium_blend_factor_t src_color_blend_factor;
-    gerium_blend_factor_t dst_color_blend_factor;
-    gerium_blend_op_t     color_blend_op;
-    gerium_blend_factor_t src_alpha_blend_factor;
-    gerium_blend_factor_t dst_alpha_blend_factor;
-    gerium_blend_op_t     alpha_blend_op;
-} gerium_color_blend_attachment_state_t;
-
-typedef struct
-{
-    gerium_float32_t red;
-    gerium_float32_t green;
-    gerium_float32_t blue;
-    gerium_float32_t alpha;
-} gerium_clear_color_attachment_state_t;
-
-typedef struct
-{
-    gerium_float32_t depth;
-    gerium_uint32_t  value;
-} gerium_clear_depth_stencil_attachment_state_t;
-
-typedef struct
-{
-    gerium_uint16_t location;
-    gerium_uint16_t binding;
-    gerium_uint32_t offset;
-    gerium_format_t format;
-} gerium_vertex_attribute_t;
-
-typedef struct
-{
-    gerium_uint16_t      binding;
-    gerium_uint16_t      stride;
-    gerium_vertex_rate_t input_rate;
-} gerium_vertex_binding_t;
-
-typedef struct
-{
-    gerium_char_t name[128];
-    gerium_char_t value[128];
-} gerium_macro_definition_t;
-
-typedef struct
-{
-    gerium_shader_type_t             type;
-    gerium_shader_languge_t          lang;
-    gerium_utf8_t                    name;
-    gerium_utf8_t                    entry_point;
-    gerium_cdata_t                   data;
-    gerium_uint32_t                  size;
-    gerium_uint32_t                  macro_count;
-    const gerium_macro_definition_t* macros;
-} gerium_shader_t;
-
-typedef struct
-{
-    gerium_resource_type_t type;
-    gerium_utf8_t          name;
-    gerium_bool_t          previous_frame;
-} gerium_resource_input_t;
-
-typedef struct
-{
-    gerium_resource_type_t                        type;
-    gerium_utf8_t                                 name;
-    gerium_bool_t                                 external;
-    gerium_format_t                               format;
-    gerium_uint16_t                               width;
-    gerium_uint16_t                               height;
-    gerium_uint16_t                               depth;
-    gerium_uint16_t                               layers;
-    gerium_float32_t                              auto_scale;
-    gerium_render_pass_op_t                       render_pass_op;
-    gerium_color_component_flags_t                color_write_mask;
-    gerium_color_blend_attachment_state_t         color_blend_attachment;
-    gerium_clear_color_attachment_state_t         clear_color_attachment;
-    gerium_clear_depth_stencil_attachment_state_t clear_depth_stencil_attachment;
-    gerium_uint32_t                               size;
-    gerium_uint32_t                               fill_value;
-    gerium_buffer_usage_flags_t                   usage;
-} gerium_resource_output_t;
-
-typedef struct
-{
-    gerium_utf8_t                       render_pass;
-    const gerium_rasterization_state_t* rasterization;
-    const gerium_depth_stencil_state_t* depth_stencil;
-    const gerium_color_blend_state_t*   color_blend;
-    gerium_uint32_t                     vertex_attribute_count;
-    const gerium_vertex_attribute_t*    vertex_attributes;
-    gerium_uint32_t                     vertex_binding_count;
-    const gerium_vertex_binding_t*      vertex_bindings;
-    gerium_uint32_t                     shader_count;
-    const gerium_shader_t*              shaders;
-} gerium_pipeline_t;
-
-gerium_public gerium_uint32_t
+/**
+ * @brief   Current library version as packed 32-bit value.
+ * @details Format: (major << 16) | (minor << 8) | micro.
+ * @return  Return packed version number
+ */
+gerium_api gerium_uint32_t
 gerium_version(void);
 
-gerium_public gerium_utf8_t
+/**
+ * @brief   Current library version as human-readable string.
+ * @details Format: "major.minor.micro", eg: "1.0.0".
+ * @return  Return version string.
+ */
+gerium_api gerium_utf8_t
 gerium_version_string(void);
 
-gerium_public gerium_utf8_t
+/**
+ * @brief     Converts error code to descriptive string.
+ * @details   Provides error message for debugging.
+ * @param[in] result Error code value.
+ * @return    Corresponding error message.
+ */
+gerium_api gerium_utf8_t
 gerium_result_to_string(gerium_result_t result);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates new logger instance
+ * @details    Initializes logging subsystem with specific tag.
+ * @param[in]  tag Tag string.
+ * @param[out] logger New logger instance.
+ * @return     Operation result
+ * @note       The tag string is specified in the format: "mygame:logic:health".
+ * @sa         See ::gerium_logger_set_level_by_tag to enable or disable specific nested tags.
+ */
+gerium_api gerium_result_t
 gerium_logger_create(gerium_utf8_t tag,
                      gerium_logger_t* logger);
 
-gerium_public gerium_logger_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages logger instance lifetime.
+ * @param[in] logger Target logger instance.
+ * @return    Reference to same logger.
+ * @sa        ::gerium_logger_destroy
+ */
+gerium_api gerium_logger_t
 gerium_logger_reference(gerium_logger_t logger);
 
-gerium_public void
+/**
+ * @brief     Releases logger instance.
+ * @details   Destroys when reference count reaches zero.
+ * @param[in] logger Logger to destroy.
+ * @sa        ::gerium_logger_reference
+ */
+gerium_api void
 gerium_logger_destroy(gerium_logger_t logger);
 
-gerium_public gerium_logger_level_t
+/**
+ * @brief     Gets current severity level.
+ * @details   Returns minimum level for logged messages.
+ * @param[in] logger Target logger.
+ * @return    Current severity threshold.
+ * @sa        ::gerium_logger_set_level
+ */
+gerium_api gerium_logger_level_t
 gerium_logger_get_level(gerium_logger_t logger);
 
-gerium_public void
+/**
+ * @brief     Sets logging severity level.
+ * @details   Filters messages below specified level.
+ * @param[in] logger Target logger.
+ * @param[in] level New severity threshold.
+ * @sa        ::gerium_logger_get_level
+ */
+gerium_api void
 gerium_logger_set_level(gerium_logger_t logger,
                         gerium_logger_level_t level);
 
-gerium_public void
+/**
+ * @brief     Configures level by category tag.
+ * @details   Applies level to all loggers with matching prefix.
+ * @param[in] tag Logger category prefix.
+ * @param[in] level New severity level.
+ * @note      The tag string is specified in the format: "mygame:logic".
+ */
+gerium_api void
 gerium_logger_set_level_by_tag(gerium_utf8_t tag,
                                gerium_logger_level_t level);
 
-gerium_public void
+/**
+ * @brief     Print message.
+ * @details   Outputs message if level meets threshold.
+ * @param[in] logger Target logger.
+ * @param[in] level Message severity.
+ * @param[in] message Log message.
+ */
+gerium_api void
 gerium_logger_print(gerium_logger_t logger,
                     gerium_logger_level_t level,
                     gerium_utf8_t message);
 
-gerium_public gerium_utf8_t
+/**
+ * @brief   Gets cache directory path.
+ * @details Returns writable per-user cache location.
+ * @return  Absolute cache path.
+ */
+gerium_api gerium_utf8_t
 gerium_file_get_cache_dir(void);
 
-gerium_public gerium_utf8_t
+/**
+ * @brief   Gets application directory.
+ * @details Returns the installation location of the executable or the directory where application support files are stored, depending on the system.
+ * @return  Absolute application path.
+ */
+gerium_api gerium_utf8_t
 gerium_file_get_app_dir(void);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks file existence.
+ * @details   Verifies file at specified path.
+ * @param[in] path File path to check.
+ * @return    *TRUE* if file exists.
+ */
+gerium_api gerium_bool_t
 gerium_file_exists_file(gerium_utf8_t path);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks directory existence.
+ * @details   Verifies directory at specified path.
+ * @param[in] path Directory path to check.
+ * @return    *TRUE* if directory exists.
+ */
+gerium_api gerium_bool_t
 gerium_file_exists_dir(gerium_utf8_t path);
 
-gerium_public void
+/**
+ * @brief     Deletes file.
+ * @details   Removes file at specified path.
+ * @param[in] path File to delete.
+ */
+gerium_api void
 gerium_file_delete_file(gerium_utf8_t path);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Opens file.
+ * @details    Accesses file with specified mode.
+ * @param[in]  path File location.
+ * @param[in]  read_only Open in read-only mode.
+ * @param[out] file New file instance.
+ * @return     Operation result.
+ * @sa         For creating temporary files see ::gerium_file_create_temp.
+ */
+gerium_api gerium_result_t
 gerium_file_open(gerium_utf8_t path,
                  gerium_bool_t read_only,
                  gerium_file_t* file);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Create file.
+ * @details    Create file with the possibility of reserving space
+ * @param[in]  path Path to create file
+ * @param[in]  size Initial size in bytes. If 0, the space is not reserved.
+ * @param[out] file New file instance.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_file_create(gerium_utf8_t path,
                    gerium_uint64_t size,
                    gerium_file_t* file);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates temporary file.
+ * @details    Once the application is terminated, the file is considered invalid.
+ * @param[in]  size Initial size in bytes. If 0, the space is not reserved.
+ * @param[out] file New file instance.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_file_create_temp(gerium_uint64_t size,
                         gerium_file_t* file);
 
-gerium_public gerium_file_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages file instance lifetime.
+ * @param[in] file Target file.
+ * @return    Reference to same file.
+ * @sa        ::gerium_file_destroy
+ */
+gerium_api gerium_file_t
 gerium_file_reference(gerium_file_t file);
 
-gerium_public void
+/**
+ * @brief     Releases file instance.
+ * @details   Destroys when reference count reaches zero.
+ * @param[in] file File to close.
+ * @sa        ::gerium_file_reference
+ */
+gerium_api void
 gerium_file_destroy(gerium_file_t file);
 
-gerium_public gerium_uint64_t
+/**
+ * @brief     Gets current file size.
+ * @details   Returns size in bytes.
+ * @param[in] file Target file.
+ * @return    File size.
+ */
+gerium_api gerium_uint64_t
 gerium_file_get_size(gerium_file_t file);
 
-gerium_public void
+/**
+ * @brief     Moves file pointer.
+ * @details   Changes read/write position.
+ * @param[in] file Target file.
+ * @param[in] offset Position offset.
+ * @param[in] seek Seek mode.
+ */
+gerium_api void
 gerium_file_seek(gerium_file_t file,
                  gerium_uint64_t offset,
                  gerium_file_seek_t seek);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Writes data to file.
+ * @details   Outputs binary data at current position.
+ * @param[in] file Target file.
+ * @param[in] data Source data.
+ * @param[in] size Data size.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_file_write(gerium_file_t file,
                   gerium_cdata_t data,
                   gerium_uint32_t size);
 
-gerium_public gerium_uint32_t
+/**
+ * @brief     Reads file contents.
+ * @details   Inputs binary data from current position.
+ * @param[in] file Target file.
+ * @param[in] data Destination buffer.
+ * @param[in] size Buffer size in bytes.
+ * @return    Bytes read.
+ */
+gerium_api gerium_uint32_t
 gerium_file_read(gerium_file_t file,
                  gerium_data_t data,
                  gerium_uint32_t size);
 
-gerium_public gerium_data_t
+/**
+ * @brief     Memory-maps file contents.
+ * @details   Provides direct access to file data.
+ * @param[in] file Target file.
+ * @return    Pointer to mapped memory region.
+ * @note      The Mapping closes when the file is closed.
+ */
+gerium_api gerium_data_t
 gerium_file_map(gerium_file_t file);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates new mutex instance.
+ * @details    Initializes synchronization object.
+ * @param[out] mutex New mutex instance.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_mutex_create(gerium_mutex_t* mutex);
 
-gerium_public gerium_mutex_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages mutex instance lifetime.
+ * @param[in] mutex Target mutex.
+ * @return    Reference to same mutex.
+ * @sa        ::gerium_mutex_destroy
+ */
+gerium_api gerium_mutex_t
 gerium_mutex_reference(gerium_mutex_t mutex);
 
-gerium_public void
+/**
+ * @brief     Releases mutex instance.
+ * @details   Destroys when reference count reaches zero.
+ * @param[in] mutex Mutex to destroy.
+ * @sa        ::gerium_mutex_reference
+ */
+gerium_api void
 gerium_mutex_destroy(gerium_mutex_t mutex);
 
-gerium_public void
+/**
+ * @brief     Acquires mutex lock.
+ * @details   Blocks until lock is obtained.
+ * @param[in] mutex Mutex to lock.
+ * @warning   May deadlock if recursively locked.
+ * @sa        See also ::gerium_mutex_unlock.
+ */
+gerium_api void
 gerium_mutex_lock(gerium_mutex_t mutex);
 
-gerium_public void
+/**
+ * @brief     Releases mutex lock.
+ * @details   Allows other threads to proceed.
+ * @param[in] mutex Mutex to unlock.
+ * @sa        See also ::gerium_mutex_lock.
+ */
+gerium_api void
 gerium_mutex_unlock(gerium_mutex_t mutex);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates new signal instance.
+ * @details    Initializes in unsignaled state.
+ * @param[out] signal New signal instance.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_signal_create(gerium_signal_t* signal);
 
-gerium_public gerium_signal_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages signal instance lifetime.
+ * @param[in] signal Target signal.
+ * @return    Reference to same signal.
+ * @sa        ::gerium_signal_destroy
+ */
+gerium_api gerium_signal_t
 gerium_signal_reference(gerium_signal_t signal);
 
-gerium_public void
+/**
+ * @brief     Releases signal instance.
+ * @details   Destroys when reference count reaches zero.
+ * @param[in] signal Signal to destroy.
+ * @sa        ::gerium_signal_reference
+ */
+gerium_api void
 gerium_signal_destroy(gerium_signal_t signal);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks signal state.
+ * @details   Tests if signal has been raised.
+ * @param[in] signal Target signal.
+ * @return    *TRUE* if signaled.
+ */
+gerium_api gerium_bool_t
 gerium_signal_is_set(gerium_signal_t signal);
 
-gerium_public void
+/**
+ * @brief     Raises the signal.
+ * @details   Wakes all waiting threads.
+ * @param[in] signal Signal to raise.
+ */
+gerium_api void
 gerium_signal_set(gerium_signal_t signal);
 
-gerium_public void
+/**
+ * @brief     Blocks until signaled.
+ * @details   Waits for signal to be raised.
+ * @param[in] signal Signal to wait for.
+ */
+gerium_api void
 gerium_signal_wait(gerium_signal_t signal);
 
-gerium_public void
+/**
+ * @brief     Resets signal state.
+ * @details   Returns to unsignaled condition.
+ * @param[in] signal Signal to reset.
+ */
+gerium_api void
 gerium_signal_clear(gerium_signal_t signal);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates new application instance.
+ * @details    Initializes window system and core subsystems.
+ * @param[in]  title Window title.
+ * @param[in]  width Initial window width.
+ * @param[in]  height Initial window height.
+ * @param[out] application Created application instance.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_application_create(gerium_utf8_t title,
                           gerium_uint32_t width,
                           gerium_uint32_t height,
                           gerium_application_t* application);
 
-gerium_public gerium_application_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages application instance lifetime.
+ * @param[in] application Target application
+ * @return    Reference to same application.
+ * @sa        ::gerium_application_destroy
+ */
+gerium_api gerium_application_t
 gerium_application_reference(gerium_application_t application);
 
-gerium_public void
+/**
+ * @brief     Releases application instance.
+ * @details   Destroys when reference count reaches zero.
+ * @param[in] application Application to destroy.
+ * @sa        ::gerium_application_reference
+ */
+gerium_api void
 gerium_application_destroy(gerium_application_t application);
 
-gerium_public gerium_runtime_platform_t
+/**
+ * @brief     Gets current platform.
+ * @details   Identifies operating system.
+ * @param[in] application Target application.
+ * @return    Runtime platform identifier.
+ */
+gerium_api gerium_runtime_platform_t
 gerium_application_get_platform(gerium_application_t application);
 
-gerium_public gerium_application_frame_func_t
-gerium_application_get_frame_func(gerium_application_t application,
-                                  gerium_data_t* data);
+/**
+ * @brief      Gets current frame callback.
+ * @details    Retrieves registered rendering handler.
+ * @param[in]  application Target application.
+ * @param[out] data Callback user data pointer.
+ * @return     Current frame callback function.
+ */
+gerium_api gerium_application_frame_callback_t
+gerium_application_get_frame_callback(gerium_application_t application,
+                                      gerium_data_t* data);
 
-gerium_public void
-gerium_application_set_frame_func(gerium_application_t application,
-                                  gerium_application_frame_func_t callback,
-                                  gerium_data_t data);
+/**
+ * @brief     Sets frame rendering callback.
+ * @details   Registers handler for frame rendering events.
+ * @param[in] application Target application.
+ * @param[in] callback Callback function.
+ * @param[in] data Callback user data.
+ * @note      Called every frame.
+ */
+gerium_api void
+gerium_application_set_frame_callback(gerium_application_t application,
+                                      gerium_application_frame_callback_t callback,
+                                      gerium_data_t data);
 
-gerium_public gerium_application_state_func_t
-gerium_application_get_state_func(gerium_application_t application,
-                                  gerium_data_t* data);
+/**
+ * @brief      Gets application state callback.
+ * @details    Retrieves registered state change handler.
+ * @param[in]  application Target application.
+ * @param[out] data Callback user data pointer.
+ * @return     Current state callback function.
+ */
+gerium_api gerium_application_state_callback_t
+gerium_application_get_state_callback(gerium_application_t application,
+                                      gerium_data_t* data);
 
-gerium_public void
-gerium_application_set_state_func(gerium_application_t application,
-                                  gerium_application_state_func_t callback,
-                                  gerium_data_t data);
+/**
+ * @brief     Sets state change callback.
+ * @details   Registers handler for application state changes.
+ * @param[in] application Target application.
+ * @param[in] callback State handler function.
+ * @param[in] data Callback user data.
+ * @note      Called when minimizing/resizing/etc.
+ */
+gerium_api void
+gerium_application_set_state_callback(gerium_application_t application,
+                                      gerium_application_state_callback_t callback,
+                                      gerium_data_t data);
 
-gerium_public gerium_result_t
+/**
+ * @brief         Gets display information.
+ * @details       Retrieves connected display configurations.
+ * @param[in]     application Target application.
+ * @param[in,out] display_count Receives display count (if *displays* is null, then *display_count* will be set to the available count).
+ * @param[in]     displays Display info array.
+ * @return        Operation result.
+ */
+gerium_api gerium_result_t
 gerium_application_get_display_info(gerium_application_t application,
                                     gerium_uint32_t* display_count,
                                     gerium_display_info_t* displays);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks fullscreen state.
+ * @details   Determines if window is fullscreen.
+ * @param[in] application Target application.
+ * @return    *TRUE* if in fullscreen mode.
+ */
+gerium_api gerium_bool_t
 gerium_application_is_fullscreen(gerium_application_t application);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Change fullscreen state.
+ * @details   Change fullscreen state and display mode.
+ * @param[in] application Target application.
+ * @param[in] fullscreen Change to fullscreen.
+ * @param[in] display_id Display id.
+ * @param[in] mode Mode, may be null.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_application_fullscreen(gerium_application_t application,
                               gerium_bool_t fullscreen,
                               gerium_uint32_t display_id,
                               const gerium_display_mode_t* mode);
 
-gerium_public gerium_application_style_flags_t
+/**
+ * @brief     Gets window style.
+ * @details   Retrieves current window decoration style.
+ * @param[in] application Target application.
+ * @return    Current window style flags.
+ */
+gerium_api gerium_application_style_flags_t
 gerium_application_get_style(gerium_application_t application);
 
-gerium_public void
+/**
+ * @brief     Sets window style.
+ * @details   Changes window decoration and behavior.
+ * @param[in] application Target application.
+ * @param[in] style New style flags.
+ */
+gerium_api void
 gerium_application_set_style(gerium_application_t application,
                              gerium_application_style_flags_t style);
 
-gerium_public void
+/**
+ * @brief      Gets minimum window size
+ * @details    Retrieves smallest allowed window dimensions.
+ * @param[in]  application Target application.
+ * @param[out] width Receives minimum width.
+ * @param[out] height Receives minimum height.
+ */
+gerium_api void
 gerium_application_get_min_size(gerium_application_t application,
                                 gerium_uint16_t* width,
                                 gerium_uint16_t* height);
 
-gerium_public void
+/**
+ * @brief     Sets minimum window size.
+ * @details   Constrains window resizing below these dimensions.
+ * @param[in] application Target application.
+ * @param[in] width Minimum width in pixels.
+ * @param[in] height Minimum height in pixels.
+ */
+gerium_api void
 gerium_application_set_min_size(gerium_application_t application,
                                 gerium_uint16_t width,
                                 gerium_uint16_t height);
 
-gerium_public void
+/**
+ * @brief      Gets maximum window size.
+ * @details    Retrieves largest allowed window dimensions.
+ * @param[in]  application Target application.
+ * @param[out] width Receives maximum width.
+ * @param[out] height Receives maximum height.
+ */
+gerium_api void
 gerium_application_get_max_size(gerium_application_t application,
                                 gerium_uint16_t* width,
                                 gerium_uint16_t* height);
 
-gerium_public void
+/**
+ * @brief     Sets maximum window size.
+ * @details   Constrains window resizing above these dimensions.
+ * @param[in] application Target application.
+ * @param[in] width Maximum width in pixels.
+ * @param[in] height Maximum height in pixels.
+ */
+gerium_api void
 gerium_application_set_max_size(gerium_application_t application,
                                 gerium_uint16_t width,
                                 gerium_uint16_t height);
 
-gerium_public void
+/**
+ * @brief      Gets current window size.
+ * @details    Retrieves actual window dimensions.
+ * @param[in]  application Target application.
+ * @param[out] width Receives current width.
+ * @param[out] height Receives current height.
+ */
+gerium_api void
 gerium_application_get_size(gerium_application_t application,
                             gerium_uint16_t* width,
                             gerium_uint16_t* height);
 
-gerium_public void
+/**
+ * @brief     Changes window size.
+ * @details   Resizes window to specified dimensions.
+ * @param[in] application Target application.
+ * @param[in] width New width in pixels.
+ * @param[in] height New height in pixels.
+ * @note      May be constrained by min/max sizes.
+ */
+gerium_api void
 gerium_application_set_size(gerium_application_t application,
                             gerium_uint16_t width,
                             gerium_uint16_t height);
 
-gerium_public gerium_utf8_t
+/**
+ * @brief     Gets window title.
+ * @details   Retrieves current window title text.
+ * @param[in] application Target application instance.
+ * @return    Current title string.
+ */
+gerium_api gerium_utf8_t
 gerium_application_get_title(gerium_application_t application);
 
-gerium_public void
+/**
+ * @brief     Sets window title.
+ * @details   Updates the window title bar text.
+ * @param[in] application Target application.
+ * @param[in] title New title text.
+ */
+gerium_api void
 gerium_application_set_title(gerium_application_t application,
                              gerium_utf8_t title);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Gets background wait policy.
+ * @details   Checks if application sleeps when inactive.
+ * @param[in] application Target application.
+ * @return    *TRUE* if suspends when backgrounded
+ */
+gerium_api gerium_bool_t
 gerium_application_get_background_wait(gerium_application_t application);
 
-gerium_public void
+/**
+ * @brief     Sets background wait policy.
+ * @details   Controls whether application sleeps when inactive.
+ * @param[in] application Target application.
+ * @param[in] enable *TRUE* to enable background waiting.
+ */
+gerium_api void
 gerium_application_set_background_wait(gerium_application_t application,
                                        gerium_bool_t enable);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks cursor visibility.
+ * @details   Determines if system cursor is visible.
+ * @param[in] application Target application.
+ * @return    *TRUE* if cursor is shown.
+ */
+gerium_api gerium_bool_t
 gerium_application_is_show_cursor(gerium_application_t application);
 
-gerium_public void
+/**
+ * @brief     Shows/hides system cursor.
+ * @details   Controls cursor visibility in application window.
+ * @param[in] application Target application.
+ * @param[in] show *TRUE* to show cursor
+ */
+gerium_api void
 gerium_application_show_cursor(gerium_application_t application,
                                gerium_bool_t show);
 
-gerium_public gerium_float32_t
+/**
+ * @brief     Gets display density.
+ * @details   Retrieves screen DPI scaling factor.
+ * @param[in] application Target application.
+ * @return    Density ratio.
+ */
+gerium_api gerium_float32_t
 gerium_application_get_density(gerium_application_t application);
 
-gerium_public gerium_float32_t
+/**
+ * @brief     Converts dimension units.
+ * @details   Translates between pixels and other units.
+ * @param[in] application Target application.
+ * @param[in] unit The unit to convert from.
+ * @param[in] value The value to apply the unit to.
+ * @return    Converted value in pixels.
+ */
+gerium_api gerium_float32_t
 gerium_application_get_dimension(gerium_application_t application,
                                  gerium_dimension_unit_t unit,
                                  gerium_float32_t value);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Starts main event loop.
+ * @details   Begins processing system events and callbacks.
+ * @param[in] application Target application.
+ * @return    Execution result code.
+ */
+gerium_api gerium_result_t
 gerium_application_run(gerium_application_t application);
 
-gerium_public void
+/**
+ * @brief     Requests application exit.
+ * @details   Initiates graceful shutdown sequence.
+ * @param[in] application Target application.
+ */
+gerium_api void
 gerium_application_exit(gerium_application_t application);
 
-gerium_public gerium_bool_t
+/**
+ * @brief      Polls system events.
+ * @details    Retrieves next pending event without blocking.
+ * @param[in]  application Target application.
+ * @param[out] event Receives event data if available.
+ * @return     *TRUE* if event was available.
+ */
+gerium_api gerium_bool_t
 gerium_application_poll_events(gerium_application_t application,
                                gerium_event_t* event);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks key state by scancode.
+ * @details   Tests if specified key is currently pressed.
+ * @param[in] application Target application.
+ * @param[in] scancode Platform-independent key identifier.
+ * @return    *TRUE* if key is pressed
+ */
+gerium_api gerium_bool_t
 gerium_application_is_press_scancode(gerium_application_t application,
                                      gerium_scancode_t scancode);
 
-gerium_public void
+/**
+ * @brief     Executes callback in fiber.
+ * @details   Schedules function for thread execution.
+ * @param[in] application Target application.
+ * @param[in] callback Function to execute.
+ * @param[in] data Callback context data.
+ */
+gerium_api void
 gerium_application_execute(gerium_application_t application,
-                           gerium_application_executor_func_t callback,
+                           gerium_application_executor_callback_t callback,
                            gerium_data_t data);
 
-gerium_public void
+/**
+ * @brief     Shows system message dialog.
+ * @details   Displays modal alert to user.
+ * @param[in] application Target application.
+ * @param[in] title Dialog title.
+ * @param[in] message Message content.
+ * @note      Blocks current thread until dismissed.
+ */
+gerium_api void
 gerium_application_show_message(gerium_application_t application,
                                 gerium_utf8_t title,
                                 gerium_utf8_t message);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates renderer instance.
+ * @details    Initializes graphics subsystem.
+ * @param[in]  application Host application.
+ * @param[in]  features Requested rendering features.
+ * @param[in]  options Configuration parameters.
+ * @param[out] renderer New renderer.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_create(gerium_application_t application,
                        gerium_feature_flags_t features,
                        const gerium_renderer_options_t* options,
                        gerium_renderer_t* renderer);
 
-gerium_public gerium_renderer_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages renderer instance lifetime.
+ * @param[in] renderer Target renderer.
+ * @return    Reference to same renderer.
+ * @sa        ::gerium_renderer_destroy
+ */
+gerium_api gerium_renderer_t
 gerium_renderer_reference(gerium_renderer_t renderer);
 
-gerium_public void
+/**
+ * @brief     Releases renderer instance.
+ * @details   Destroys when reference count reaches zero.
+ * @param[in] renderer Renderer to destroy
+ * @note      Destroys all GPU resources and contexts.
+ * @sa        ::gerium_renderer_reference
+ */
+gerium_api void
 gerium_renderer_destroy(gerium_renderer_t renderer);
 
-gerium_public gerium_feature_flags_t
+/**
+ * @brief     Gets active features.
+ * @details   Retrieves actually supported features.
+ * @param[in] renderer Target renderer.
+ * @return    Bitmask of enabled features.
+ */
+gerium_api gerium_feature_flags_t
 gerium_renderer_get_enabled_features(gerium_renderer_t renderer);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks profiling state.
+ * @details   Determines if performance metrics are collected.
+ * @param[in] renderer Target renderer.
+ * @return    *TRUE* if profiling enabled.
+ */
+gerium_api gerium_bool_t
 gerium_renderer_get_profiler_enable(gerium_renderer_t renderer);
 
-gerium_public void
+/**
+ * @brief     Enables/disables profiling.
+ * @details   Controls performance metric collection.
+ * @param[in] renderer Target renderer.
+ * @param[in] enable profiling state.
+ */
+gerium_api void
 gerium_renderer_set_profiler_enable(gerium_renderer_t renderer,
                                     gerium_bool_t enable);
 
-gerium_public gerium_uint32_t
+/**
+ * @brief     Gets Number of frames in flight.
+ * @details   Returns number of simultaneous in-flight frames.
+ * @param[in] renderer Target renderer.
+ * @return    Frames-in-flight count.
+ */
+gerium_api gerium_uint32_t
 gerium_renderer_get_frames_in_flight(gerium_renderer_t renderer);
 
-gerium_public gerium_bool_t
+/**
+ * @brief     Checks format support.
+ * @details   Verifies if texture format is supported.
+ * @param[in] renderer Target renderer.
+ * @param[in] format Texture format to check.
+ * @return    *TRUE* if format is supported.
+ */
+gerium_api gerium_bool_t
 gerium_renderer_is_supported_format(gerium_renderer_t renderer,
                                     gerium_format_t format);
 
-gerium_public void
+/**
+ * @brief      Retrieves texture information.
+ * @details    Gets metadata for existing texture.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  handle Texture to inspect.
+ * @param[out] info Output texture info.
+ */
+gerium_api void
 gerium_renderer_get_texture_info(gerium_renderer_t renderer,
                                  gerium_texture_h handle,
                                  gerium_texture_info_t* info);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates GPU buffer.
+ * @details    Allocates and initializes buffer resource.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  buffer_usage Usage flags.
+ * @param[in]  dynamic Allocate the dynamic buffer.
+ * @param[in]  name Debug name.
+ * @param[in]  data Initial data. May be null.
+ * @param[in]  size Buffer size in bytes.
+ * @param[out] handle New buffer handle.
+ * @return     Operation result.
+ * @note       A dynamic buffer is available only for one frame. It is effective for frequently changing data or
+ *             as an intermediate buffer. Dynamic buffer is allocated much more efficiently than static. A large
+ *             number of buffers can be allocated per frame. For maximum sizes, use limits settings with
+ *             gerium_renderer_options_t::dynamic_ubo_size and gerium_renderer_options_t::dynamic_ssbo_size.
+ */
+gerium_api gerium_result_t
 gerium_renderer_create_buffer(gerium_renderer_t renderer,
                               gerium_buffer_usage_flags_t buffer_usage,
                               gerium_bool_t dynamic,
@@ -1535,13 +860,36 @@ gerium_renderer_create_buffer(gerium_renderer_t renderer,
                               gerium_uint32_t size,
                               gerium_buffer_h* handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates texture resource.
+ * @details    Allocates and initializes texture.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  info Texture properties.
+ * @param[in]  data Initial data.
+ * @param[out] handle New texture handle.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_create_texture(gerium_renderer_t renderer,
                                const gerium_texture_info_t* info,
                                gerium_cdata_t data,
                                gerium_texture_h* handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates texture view.
+ * @details    Makes alternative view of existing texture.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  texture Source texture.
+ * @param[in]  type View type.
+ * @param[in]  mip_base_level First mip level.
+ * @param[in]  mip_level_count Number of mip levels.
+ * @param[in]  layer_base First array layer.
+ * @param[in]  layer_count Number of layers.
+ * @param[in]  name Debug identifier.
+ * @param[out] handle New texture view handle.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_create_texture_view(gerium_renderer_t renderer,
                                     gerium_texture_h texture,
                                     gerium_texture_type_t type,
@@ -1552,7 +900,18 @@ gerium_renderer_create_texture_view(gerium_renderer_t renderer,
                                     gerium_utf8_t name,
                                     gerium_texture_h* handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates rendering technique.
+ * @details    Compiles shader pipelines for rendering.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  frame_graph Frame graph.
+ * @param[in]  name Debug name.
+ * @param[in]  pipeline_count Number of pipelines.
+ * @param[in]  pipelines Pipeline configurations.
+ * @param[out] handle New technique handle.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_create_technique(gerium_renderer_t renderer,
                                  gerium_frame_graph_t frame_graph,
                                  gerium_utf8_t name,
@@ -1560,26 +919,70 @@ gerium_renderer_create_technique(gerium_renderer_t renderer,
                                  const gerium_pipeline_t* pipelines,
                                  gerium_technique_h* handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates descriptor set.
+ * @details    Allocates resource binding points.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  global *TRUE* for globally set.
+ * @param[out] handle New descriptor set handle.
+ * @return     Operation result.
+ * @note       A non-global set descriptor differs from a global one in that it is allocated anew
+ *             each frame. This is useful if we need to change the bindings each frame.
+ */
+gerium_api gerium_result_t
 gerium_renderer_create_descriptor_set(gerium_renderer_t renderer,
                                       gerium_bool_t global,
                                       gerium_descriptor_set_h* handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Asynchronously loads texture.
+ * @details    Loads texture file in background fiber.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  filename Image file path.
+ * @param[in]  callback Completion handler.
+ * @param[in]  data User context data.
+ * @param[out] handle New texture handle.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_async_load_texture(gerium_renderer_t renderer,
                                    gerium_utf8_t filename,
-                                   gerium_texture_loaded_func_t callback,
+                                   gerium_texture_loaded_callback_t callback,
                                    gerium_data_t data,
                                    gerium_texture_h* handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Asynchronously uploads texture data.
+ * @details   Transfers texture data in background.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Destination texture.
+ * @param[in] texture_data Pixel data to upload.
+ * @param[in] callback Completion handler.
+ * @param[in] data Callback data.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
                                           gerium_texture_h handle,
                                           gerium_cdata_t texture_data,
-                                          gerium_texture_loaded_func_t callback,
+                                          gerium_texture_loaded_callback_t callback,
                                           gerium_data_t data);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Configures texture sampler.
+ * @details   Sets filtering and addressing modes.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Target texture.
+ * @param[in] min_filter Minification filter.
+ * @param[in] mag_filter Magnification filter.
+ * @param[in] mip_filter Mipmap filter.
+ * @param[in] address_mode_u U addressing mode.
+ * @param[in] address_mode_v V addressing mode.
+ * @param[in] address_mode_w W addressing mode.
+ * @param[in] reduction_mode Sample reduction mode (to use ::GERIUM_REDUCTION_MODE_MIN or ::GERIUM_REDUCTION_MODE_MAX, you must request the ::GERIUM_FEATURE_SAMPLER_FILTER_MINMAX_BIT feature).
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_texture_sampler(gerium_renderer_t renderer,
                                 gerium_texture_h handle,
                                 gerium_filter_t min_filter,
@@ -1590,74 +993,196 @@ gerium_renderer_texture_sampler(gerium_renderer_t renderer,
                                 gerium_address_mode_t address_mode_w,
                                 gerium_reduction_mode_t reduction_mode);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Gets buffer by name.
+ * @details    Get buffer from frame graph.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  resource Resource name.
+ * @param[out] handle Found buffer.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_get_buffer(gerium_renderer_t renderer,
                            gerium_utf8_t resource,
                            gerium_buffer_h* handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Gets texture by name.
+ * @details    Get texture from frame graph.
+ * @param[in]  renderer Target renderer.
+ * @param[in]  resource Resource name.
+ * @param[in]  from_previous_frame Take resource from previous frame.
+ * @param[out] handle Found texture.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_get_texture(gerium_renderer_t renderer,
                             gerium_utf8_t resource,
                             gerium_bool_t from_previous_frame,
                             gerium_texture_h* handle);
 
-gerium_public void
+/**
+ * @brief     Destroys buffer.
+ * @details   Releases GPU buffer resources.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Buffer to destroy.
+ * @note      You can release a resource directly in the frame where it was used. The rendering
+ *            system will release the resource when the GPU stops using it.
+ */
+gerium_api void
 gerium_renderer_destroy_buffer(gerium_renderer_t renderer,
                                gerium_buffer_h handle);
 
-gerium_public void
+/**
+ * @brief     Destroys texture.
+ * @details   Releases GPU texture resources.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Texture to destroy.
+ * @note      You can release a resource directly in the frame where it was used. The rendering
+ *            system will release the resource when the GPU stops using it.
+ */
+gerium_api void
 gerium_renderer_destroy_texture(gerium_renderer_t renderer,
                                 gerium_texture_h handle);
 
-gerium_public void
+/**
+ * @brief     Destroys technique.
+ * @details   Releases pipeline resources.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Technique to destroy.
+ * @note      You can release a resource directly in the frame where it was used. The rendering
+ *            system will release the resource when the GPU stops using it.
+ */
+gerium_api void
 gerium_renderer_destroy_technique(gerium_renderer_t renderer,
                                   gerium_technique_h handle);
 
-gerium_public void
+/**
+ * @brief     Destroys descriptor set.
+ * @details   Releases resource binding points.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Descriptor set to destroy.
+ * @note      You can release a resource directly in the frame where it was used. The rendering
+ *            system will release the resource when the GPU stops using it.
+ */
+gerium_api void
 gerium_renderer_destroy_descriptor_set(gerium_renderer_t renderer,
                                        gerium_descriptor_set_h handle);
 
-gerium_public void
+/**
+ * @brief     Binds buffer to descriptor set.
+ * @details   Attaches buffer to binding point.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Descriptor set.
+ * @param[in] binding Binding index.
+ * @param[in] buffer Buffer to bind.
+ */
+gerium_api void
 gerium_renderer_bind_buffer(gerium_renderer_t renderer,
                             gerium_descriptor_set_h handle,
                             gerium_uint16_t binding,
                             gerium_buffer_h buffer);
 
-gerium_public void
+/**
+ * @brief     Binds texture to descriptor set.
+ * @details   Attaches texture to binding point.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Descriptor set.
+ * @param[in] binding Binding index.
+ * @param[in] element Array element.
+ * @param[in] texture Texture to bind.
+ */
+gerium_api void
 gerium_renderer_bind_texture(gerium_renderer_t renderer,
                              gerium_descriptor_set_h handle,
                              gerium_uint16_t binding,
                              gerium_uint16_t element,
                              gerium_texture_h texture);
 
-gerium_public void
+/**
+ * @brief     Binds resource by name.
+ * @details   Attaches named resource to binding point.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Descriptor set.
+ * @param[in] binding Binding index.
+ * @param[in] resource_input Resource name.
+ * @param[in] from_previous_frame Take resource from previous frame.
+ */
+gerium_api void
 gerium_renderer_bind_resource(gerium_renderer_t renderer,
                               gerium_descriptor_set_h handle,
                               gerium_uint16_t binding,
                               gerium_utf8_t resource_input,
                               gerium_bool_t from_previous_frame);
 
-gerium_public gerium_data_t
+/**
+ * @brief     Maps buffer memory.
+ * @details   Provides CPU access to GPU buffer.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Buffer to map.
+ * @param[in] offset Byte offset.
+ * @param[in] size Mapping size.
+ * @return    Mapped memory pointer.
+ */
+gerium_api gerium_data_t
 gerium_renderer_map_buffer(gerium_renderer_t renderer,
                            gerium_buffer_h handle,
                            gerium_uint32_t offset,
                            gerium_uint32_t size);
 
-gerium_public void
+/**
+ * @brief     Unmaps buffer memory.
+ * @details   Finalizes CPU buffer modifications.
+ * @param[in] renderer Target renderer.
+ * @param[in] handle Buffer to unmap.
+ */
+gerium_api void
 gerium_renderer_unmap_buffer(gerium_renderer_t renderer,
                              gerium_buffer_h handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Begins new frame.
+ * @details   Prepares renderer for new frame.
+ * @param[in] renderer Target renderer.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_new_frame(gerium_renderer_t renderer);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Executes frame rendering.
+ * @details   Performs passes on the frame graph.
+ * @param[in] renderer Target renderer.
+ * @param[in] frame_graph Frame graph.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_renderer_render(gerium_renderer_t renderer,
                        gerium_frame_graph_t frame_graph);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Presents frame.
+ * @details   Displays rendered frame.
+ * @param[in] renderer Target renderer.
+ * @return    Operation result.
+ * @note      Note that the ::gerium_renderer_present does not wait for the GPU frame to be rendered. Instead,
+ *            the rendering system allows the next frame to be rendered (you can call ::gerium_renderer_new_frame).
+ */
+gerium_api gerium_result_t
 gerium_renderer_present(gerium_renderer_t renderer);
 
-gerium_public void
+/**
+ * @brief     Set the viewport.
+ * @details   Set the viewport transformation parameters.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] x Left viewport coordinate.
+ * @param[in] y Top viewport coordinate.
+ * @param[in] width Viewport width.
+ * @param[in] height Viewport height.
+ * @param[in] min_depth Minimum depth value (typically `0.0`).
+ * @param[in] max_depth Maximum depth value (typically `1.0`).
+ */
+gerium_api void
 gerium_command_buffer_set_viewport(gerium_command_buffer_t command_buffer,
                                    gerium_uint16_t x,
                                    gerium_uint16_t y,
@@ -1666,48 +1191,138 @@ gerium_command_buffer_set_viewport(gerium_command_buffer_t command_buffer,
                                    gerium_float32_t min_depth,
                                    gerium_float32_t max_depth);
 
-gerium_public void
+/**
+ * @brief     Sets scissor rectangle.
+ * @details   Defines the rectangular region where rendering can occur.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] x Left scissor coordinate.
+ * @param[in] y Top scissor coordinate.
+ * @param[in] width Scissor width.
+ * @param[in] height Scissor height.
+ */
+gerium_api void
 gerium_command_buffer_set_scissor(gerium_command_buffer_t command_buffer,
                                   gerium_uint16_t x,
                                   gerium_uint16_t y,
                                   gerium_uint16_t width,
                                   gerium_uint16_t height);
 
-gerium_public void
+/**
+ * @brief     Binds rendering technique.
+ * @details   Sets the active shader pipeline state for render pass.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Technique to bind.
+ */
+gerium_api void
 gerium_command_buffer_bind_technique(gerium_command_buffer_t command_buffer,
                                      gerium_technique_h handle);
 
-gerium_public void
+/**
+ * @brief     Bind vertex buffer.
+ * @details   Bind an vertex buffer to a command buffer for use in subsequent drawing commands.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Vertex buffer handle.
+ * @param[in] binding Binding index.
+ * @param[in] offset Buffer offset.
+ */
+gerium_api void
 gerium_command_buffer_bind_vertex_buffer(gerium_command_buffer_t command_buffer,
                                          gerium_buffer_h handle,
                                          gerium_uint32_t binding,
                                          gerium_uint32_t offset);
 
-gerium_public void
+/**
+ * @brief     Bind index buffer.
+ * @details   Bind an index buffer to a command buffer.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Index buffer handle.
+ * @param[in] offset Buffer offset.
+ * @param[in] type Type of indices (16-bit or 32-bit).
+ */
+gerium_api void
 gerium_command_buffer_bind_index_buffer(gerium_command_buffer_t command_buffer,
                                         gerium_buffer_h handle,
                                         gerium_uint32_t offset,
                                         gerium_index_type_t type);
 
-gerium_public void
+/**
+ * @brief     Bind descriptor set.
+ * @details   Bind descriptor set to a command buffer.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Descriptor set handle.
+ * @param[in] set Set number.
+ */
+gerium_api void
 gerium_command_buffer_bind_descriptor_set(gerium_command_buffer_t command_buffer,
                                           gerium_descriptor_set_h handle,
                                           gerium_uint32_t set);
 
-gerium_public void
+/**
+ * @brief     Dispatches compute work.
+ * @details   Executes compute shader with specified workgroup counts.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] group_x Number of local workgroups to dispatch in the X dimension.
+ * @param[in] group_y Number of local workgroups to dispatch in the X dimension.
+ * @param[in] group_z Number of local workgroups to dispatch in the X dimension.
+ */
+gerium_api void
 gerium_command_buffer_dispatch(gerium_command_buffer_t command_buffer,
                                gerium_uint32_t group_x,
                                gerium_uint32_t group_y,
                                gerium_uint32_t group_z);
 
-gerium_public void
+/**
+ * @brief     Draw primitives.
+ * @details   Draws non-indexed primitives.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] first_vertex Index of the first vertex to draw
+ * @param[in] vertex_count Number of vertices to draw.
+ * @param[in] first_instance Instance ID of the first instance to draw.
+ * @param[in] instance_count Number of instances to draw.
+ */
+gerium_api void
 gerium_command_buffer_draw(gerium_command_buffer_t command_buffer,
                            gerium_uint32_t first_vertex,
                            gerium_uint32_t vertex_count,
                            gerium_uint32_t first_instance,
                            gerium_uint32_t instance_count);
 
-gerium_public void
+/**
+ * @brief     Draw primitives with indirect parameters.
+ * @details   Draws non-indexed primitives using indirect parameters.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Buffer containing draw parameters.
+ * @param[in] offset Byte offset into *handle* where parameters begin.
+ * @param[in] draw_count_handle Buffer containing the draw count
+ * @param[in] draw_count_offset Byte offset into *draw_count_handle* where the draw count begins.
+ * @param[in] draw_count Number of draws to execute, and can be zero.
+ * @param[in] stride Byte stride between successive sets of draw parameters.
+ * @parblock
+ * @note      The *handle* buffer should contain a list of GPU commands starting at *offset*
+ *            bytes and separated by *stride* bytes with the following structure:
+ *            
+ *                struct DrawIndirectCommand {
+ *                    uint vertexCount;
+ *                    uint instanceCount;
+ *                    uint firstVertex;
+ *                    uint firstInstance;
+ *                };
+ * @endparblock
+ * @parblock
+ * @note      If the value *draw_count_handle* is passed (i.e. not equal to 65535), then the
+ *            number of draws will be read from *draw_count_handle* as uint by offset *draw_count_offset*
+ * @endparblock
+ * @parblock
+ * @note      To use ::gerium_command_buffer_draw_indirect, you need to request the ::GERIUM_FEATURE_DRAW_INDIRECT_BIT feature.
+ * @endparblock
+ * @parblock
+ * @note      To use *draw_count_handle*, you need to request the ::GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT feature.
+ * @endparblock
+ * @parblock
+ * @note      The *handle* and *draw_count_handle* buffers must be created with the ::GERIUM_BUFFER_USAGE_INDIRECT_BIT flag.
+ * @endparblock
+ */
+gerium_api void
 gerium_command_buffer_draw_indirect(gerium_command_buffer_t command_buffer,
                                     gerium_buffer_h handle,
                                     gerium_uint32_t offset,
@@ -1716,7 +1331,17 @@ gerium_command_buffer_draw_indirect(gerium_command_buffer_t command_buffer,
                                     gerium_uint32_t draw_count,
                                     gerium_uint32_t stride);
 
-gerium_public void
+/**
+ * @brief     Draws indexed primitives.
+ * @details   Draw primitives with indexed vertices.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] first_index Base index within the index buffer.
+ * @param[in] index_count Number of vertices to draw.
+ * @param[in] vertex_offset Value added to the vertex index before indexing into the vertex buffer.
+ * @param[in] first_instance Instance ID of the first instance to draw.
+ * @param[in] instance_count Number of instances to draw.
+ */
+gerium_api void
 gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
                                    gerium_uint32_t first_index,
                                    gerium_uint32_t index_count,
@@ -1724,7 +1349,43 @@ gerium_command_buffer_draw_indexed(gerium_command_buffer_t command_buffer,
                                    gerium_uint32_t first_instance,
                                    gerium_uint32_t instance_count);
 
-gerium_public void
+/**
+ * @brief     Draws indexed primitives with indirect parameters.
+ * @details   Draw primitives with indirect parameters and indexed vertices.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Buffer containing draw parameters.
+ * @param[in] offset Byte offset into buffer where parameters begin.
+ * @param[in] draw_count_handle Buffer containing the draw count.
+ * @param[in] draw_count_offset Byte offset into countBuffer where the draw count begins.
+ * @param[in] draw_count Number of draws to execute, and can be zero.
+ * @param[in] stride Byte stride between successive sets of draw parameters.
+ * @parblock
+ * @note      The *handle* buffer should contain a list of GPU commands starting at *offset*
+ *            bytes and separated by *stride* bytes with the following structure:
+ *            
+ *                struct DrawIndexedIndirectCommand {
+ *                    uint indexCount;
+ *                    uint instanceCount;
+ *                    uint firstIndex;
+ *                    int  vertexOffset;
+ *                    uint firstInstance;
+ *                };
+ * @endparblock
+ * @parblock
+ * @note      If the value *draw_count_handle* is passed (i.e. not equal to 65535), then the
+ *            number of draws will be read from *draw_count_handle* as uint by offset *draw_count_offset*
+ * @endparblock
+ * @parblock
+ * @note      To use ::gerium_command_buffer_draw_indexed_indirect, you need to request the ::GERIUM_FEATURE_DRAW_INDIRECT_BIT feature.
+ * @endparblock
+ * @parblock
+ * @note      To use *draw_count_handle*, you need to request the ::GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT feature.
+ * @endparblock
+ * @parblock
+ * @note      The *handle* and *draw_count_handle* buffers must be created with the ::GERIUM_BUFFER_USAGE_INDIRECT_BIT flag.
+ * @endparblock
+ */
+gerium_api void
 gerium_command_buffer_draw_indexed_indirect(gerium_command_buffer_t command_buffer,
                                             gerium_buffer_h handle,
                                             gerium_uint32_t offset,
@@ -1733,13 +1394,58 @@ gerium_command_buffer_draw_indexed_indirect(gerium_command_buffer_t command_buff
                                             gerium_uint32_t draw_count,
                                             gerium_uint32_t stride);
 
-gerium_public void
+/**
+ * @brief     Draw mesh task work items.
+ * @details   Executes mesh shader with specified workgroup counts. When the command is
+ *            executed, a global workgroup consisting of groupCountX × groupCountY ×
+ *            groupCountZ local workgroups is assembled
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] group_x Number of local workgroups to dispatch in the X dimension.
+ * @param[in] group_y Number of local workgroups to dispatch in the Y dimension.
+ * @param[in] group_z Number of local workgroups to dispatch in the Z dimension.
+ * @note      To use ::gerium_command_buffer_draw_mesh_tasks, you need to request the ::GERIUM_FEATURE_MESH_SHADER_BIT feature.
+ */
+gerium_api void
 gerium_command_buffer_draw_mesh_tasks(gerium_command_buffer_t command_buffer,
                                       gerium_uint32_t group_x,
                                       gerium_uint32_t group_y,
                                       gerium_uint32_t group_z);
 
-gerium_public void
+/**
+ * @brief     Dispatches mesh shading work with indirect parameters.
+ * @details   Executes mesh shader with indirect workgroup counts.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Buffer containing draw parameters.
+ * @param[in] offset Byte offset into buffer where parameters begin.
+ * @param[in] draw_count_handle Buffer containing the draw count.
+ * @param[in] draw_count_offset Byte offset into countBuffer where the draw count begins.
+ * @param[in] draw_count Number of draws to execute, and can be zero.
+ * @param[in] stride Byte stride between successive sets of draw parameters.
+ * @parblock
+ * @note      The *handle* buffer should contain a list of GPU commands starting at *offset*
+ *            bytes and separated by *stride* bytes with the following structure:
+ *            
+ *                struct DrawMeshTasksIndirectCommand {
+ *                    uint groupCountX;
+ *                    uint groupCountY;
+ *                    uint groupCountZ;
+ *                };
+ * @endparblock
+ * @parblock
+ * @note      If the value *draw_count_handle* is passed (i.e. not equal to 65535), then the
+ *            number of draws will be read from *draw_count_handle* as uint by offset *draw_count_offset*
+ * @endparblock
+ * @parblock
+ * @note      To use ::gerium_command_buffer_draw_mesh_tasks_indirect, you need to request the ::GERIUM_FEATURE_DRAW_INDIRECT_BIT and ::GERIUM_FEATURE_MESH_SHADER_BIT features.
+ * @endparblock
+ * @parblock
+ * @note      To use *draw_count_handle*, you need to request the ::GERIUM_FEATURE_DRAW_INDIRECT_COUNT_BIT feature.
+ * @endparblock
+ * @parblock
+ * @note      The *handle* and *draw_count_handle* buffers must be created with the ::GERIUM_BUFFER_USAGE_INDIRECT_BIT flag.
+ * @endparblock
+ */
+gerium_api void
 gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_buffer,
                                                gerium_buffer_h handle,
                                                gerium_uint32_t offset,
@@ -1748,18 +1454,43 @@ gerium_command_buffer_draw_mesh_tasks_indirect(gerium_command_buffer_t command_b
                                                gerium_uint32_t draw_count,
                                                gerium_uint32_t stride);
 
-gerium_public void
+/**
+ * @brief         Draw profiler UI.
+ * @details       Renders performance metrics overlay.
+ * @param[in]     command_buffer Target command buffer.
+ * @param[in,out] show Flag storing the visibility state of the metrics window; if null, the user will not be shown a cross to close the window.
+ */
+gerium_api void
 gerium_command_buffer_draw_profiler(gerium_command_buffer_t command_buffer,
                                     gerium_bool_t* show);
 
-gerium_public void
+/**
+ * @brief     Fills buffer.
+ * @details   Fill a region of a buffer with a fixed value.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Buffer to fill.
+ * @param[in] offset Byte offset into the buffer at which to start filling, and must be a multiple of 4.
+ * @param[in] size Number of bytes to fill, and must be either a multiple of 4.
+ * @param[in] data The 4-byte word written repeatedly to the buffer to fill size bytes of data. The data word is written to memory according to the host endianness.
+ */
+gerium_api void
 gerium_command_buffer_fill_buffer(gerium_command_buffer_t command_buffer,
                                   gerium_buffer_h handle,
                                   gerium_uint32_t offset,
                                   gerium_uint32_t size,
                                   gerium_uint32_t data);
 
-gerium_public void
+/**
+ * @brief     Copy data between buffer regions.
+ * @details   To copy data between buffer objects.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] source_handle Source buffer.
+ * @param[in] source_offset Source starting byte offset.
+ * @param[in] dest_handle Destination buffer.
+ * @param[in] dest_offset Destination starting byte offset.
+ * @param[in] size Number of bytes to copy.
+ */
+gerium_api void
 gerium_command_buffer_copy_buffer(gerium_command_buffer_t command_buffer,
                                   gerium_buffer_h source_handle,
                                   gerium_uint32_t source_offset,
@@ -1767,43 +1498,135 @@ gerium_command_buffer_copy_buffer(gerium_command_buffer_t command_buffer,
                                   gerium_uint32_t dest_offset,
                                   gerium_uint32_t size);
 
-gerium_public void
+/**
+ * @brief     Inserts write barrier for buffer.
+ * @details   Ensures previous writes to buffer are completed.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Buffer to synchronize.
+ * @note      Please note that the frame graph automatically places barriers in the right places,
+ *            including for external resources. But there are situations when within one pass,
+ *            for example, a computational shader, it is necessary to read and write to the
+ *            texture several times in succession. For example, when computing a depth pyramid,
+ *            which is quite acceptable to do within one computational pass.
+ */
+gerium_api void
 gerium_command_buffer_barrier_buffer_write(gerium_command_buffer_t command_buffer,
                                            gerium_buffer_h handle);
 
-gerium_public void
+/**
+ * @brief     Inserts write barrier for texture.
+ * @details   Ensures previous writes to texture are completed.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Texture to synchronize.
+ * @note      Please note that the frame graph automatically places barriers in the right places,
+ *            including for external resources. But there are situations when within one pass,
+ *            for example, a computational shader, it is necessary to read and write to the
+ *            texture several times in succession. For example, when computing a depth pyramid,
+ *            which is quite acceptable to do within one computational pass.
+ */
+gerium_api void
 gerium_command_buffer_barrier_buffer_read(gerium_command_buffer_t command_buffer,
                                           gerium_buffer_h handle);
 
-gerium_public void
+/**
+ * @brief     Inserts write barrier for texture.
+ * @details   Ensures previous writes to texture are completed.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Texture to synchronize.
+ * @note      Please note that the frame graph automatically places barriers in the right places,
+ *            including for external resources. But there are situations when within one pass,
+ *            for example, a computational shader, it is necessary to read and write to the
+ *            texture several times in succession. For example, when computing a depth pyramid,
+ *            which is quite acceptable to do within one computational pass.
+ */
+gerium_api void
 gerium_command_buffer_barrier_texture_write(gerium_command_buffer_t command_buffer,
                                             gerium_texture_h handle);
 
-gerium_public void
+/**
+ * @brief     Inserts read barrier for texture.
+ * @details   Ensures previous reads from texture are completed.
+ * @param[in] command_buffer Target command buffer.
+ * @param[in] handle Texture to synchronize.
+ * @note      Please note that the frame graph automatically places barriers in the right places,
+ *            including for external resources. But there are situations when within one pass,
+ *            for example, a computational shader, it is necessary to read and write to the
+ *            texture several times in succession. For example, when computing a depth pyramid,
+ *            which is quite acceptable to do within one computational pass.
+ */
+gerium_api void
 gerium_command_buffer_barrier_texture_read(gerium_command_buffer_t command_buffer,
                                            gerium_texture_h handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates frame graph instance.
+ * @details    Initializes render pass dependency graph system.
+ * @param[in]  renderer Associated renderer instance.
+ * @param[out] frame_graph New frame graph instance.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_create(gerium_renderer_t renderer,
                           gerium_frame_graph_t* frame_graph);
 
-gerium_public gerium_frame_graph_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages frame graph instance lifetime.
+ * @param[in] frame_graph Target frame graph.
+ * @return    Reference to same frame graph.
+ * @sa        ::gerium_frame_graph_destroy
+ */
+gerium_api gerium_frame_graph_t
 gerium_frame_graph_reference(gerium_frame_graph_t frame_graph);
 
-gerium_public void
+/**
+ * @brief     Releases frame graph instance.
+ * @details   Destroys when reference count reaches zero.
+ * @param[in] frame_graph Frame graph to destroy.
+ * @sa        ::gerium_frame_graph_reference
+ */
+gerium_api void
 gerium_frame_graph_destroy(gerium_frame_graph_t frame_graph);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Adds render pass to graph.
+ * @details   Registers a render pass.
+ * @param[in] frame_graph Target frame graph.
+ * @param[in] name Unique pass identifier.
+ * @param[in] render_pass Render pass description.
+ * @param[in] data User-defined pass data.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_add_pass(gerium_frame_graph_t frame_graph,
                             gerium_utf8_t name,
                             const gerium_render_pass_t* render_pass,
                             gerium_data_t data);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Removes render pass from graph.
+ * @details   Unregisters previously added render pass.
+ * @param[in] frame_graph Target frame graph.
+ * @param[in] name Name of pass to remove.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_remove_pass(gerium_frame_graph_t frame_graph,
                                gerium_utf8_t name);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Adds node to graph.
+ * @details   Creates a node with the specified inputs/outputs.
+ * @param[in] frame_graph Target frame graph.
+ * @param[in] name Node identifier.
+ * @param[in] compute Whether node is compute.
+ * @param[in] input_count Number of input resources.
+ * @param[in] inputs Input resource descriptions.
+ * @param[in] output_count Number of output resources.
+ * @param[in] outputs Output resource descriptions.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             gerium_utf8_t name,
                             gerium_bool_t compute,
@@ -1812,45 +1635,116 @@ gerium_frame_graph_add_node(gerium_frame_graph_t frame_graph,
                             gerium_uint32_t output_count,
                             const gerium_resource_output_t* outputs);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Enables or disables graph node.
+ * @details   Controls whether node participates in graph execution.
+ * @param[in] frame_graph Target frame graph.
+ * @param[in] name Node identifier.
+ * @param[in] enable New state.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_enable_node(gerium_frame_graph_t frame_graph,
                                gerium_utf8_t name,
                                gerium_bool_t enable);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Registers external buffer resource.
+ * @details   In order for the frame graph to be able to control the synchronization of an external resource, it must be added to the graph.
+ * @param[in] frame_graph Target frame graph.
+ * @param[in] name Resource name.
+ * @param[in] handle Buffer handle.
+ * @return    Operation result.
+ * @note      Please note that, unlike resources created by the frame graph itself, the frame graph is not responsible for the creation and release of external resources.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_add_buffer(gerium_frame_graph_t frame_graph,
                               gerium_utf8_t name,
                               gerium_buffer_h handle);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Registers external texture resource.
+ * @details   In order for the frame graph to be able to control the synchronization of an external resource, it must be added to the graph.
+ * @param[in] frame_graph Target frame graph.
+ * @param[in] name Resource name.
+ * @param[in] handle Texture handle.
+ * @return    Operation result.
+ * @note      Please note that, unlike resources created by the frame graph itself, the frame graph is not responsible for the creation and release of external resources.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_add_texture(gerium_frame_graph_t frame_graph,
                                gerium_utf8_t name,
                                gerium_texture_h handle);
 
-gerium_public void
+/**
+ * @brief     Clears frame graph.
+ * @details   Removes all passes, nodes and resources.
+ * @param[in] frame_graph Target frame graph.
+ */
+gerium_api void
 gerium_frame_graph_clear(gerium_frame_graph_t frame_graph);
 
-gerium_public gerium_result_t
+/**
+ * @brief     Compiles frame graph.
+ * @details   Performs dependency analysis and optimization.
+ * @param[in] frame_graph Target frame graph.
+ * @return    Operation result.
+ */
+gerium_api gerium_result_t
 gerium_frame_graph_compile(gerium_frame_graph_t frame_graph);
 
-gerium_public gerium_result_t
+/**
+ * @brief      Creates profiler instance.
+ * @details    Initializes performance measurement system.
+ * @param[in]  renderer Associated renderer.
+ * @param[out] profiler New profiler instance.
+ * @return     Operation result.
+ */
+gerium_api gerium_result_t
 gerium_profiler_create(gerium_renderer_t renderer,
                        gerium_profiler_t* profiler);
 
-gerium_public gerium_profiler_t
+/**
+ * @brief     Increments reference count.
+ * @details   Manages profiler instance lifetime.
+ * @param[in] profiler Target profiler.
+ * @return    Reference to same profiler.
+ * @sa        ::gerium_profiler_destroy
+ */
+gerium_api gerium_profiler_t
 gerium_profiler_reference(gerium_profiler_t profiler);
 
-gerium_public void
+/**
+ * @brief     Increments reference count.
+ * @details   Manages profiler instance lifetime.
+ * @param[in] profiler Profiler to destroy.
+ * @return    Reference to same profiler.
+ * @sa        ::gerium_profiler_reference
+ */
+gerium_api void
 gerium_profiler_destroy(gerium_profiler_t profiler);
 
-gerium_public void
+/**
+ * @brief         Retrieves GPU timestamps.
+ * @details       Gets detailed timing measurements.
+ * @param[in]     profiler Target profiler.
+ * @param[in,out] gpu_timestamps_count Receives timestamp count (if *gpu_timestamps* is null, then *gpu_timestamps_count* will be set to the available count).
+ * @param[out]    gpu_timestamps Receives timing data.
+ */
+gerium_api void
 gerium_profiler_get_gpu_timestamps(gerium_profiler_t profiler,
                                    gerium_uint32_t* gpu_timestamps_count,
                                    gerium_gpu_timestamp_t* gpu_timestamps);
 
-gerium_public gerium_uint32_t
+/**
+ * @brief     Gets total GPU memory usage.
+ * @details   Returns current GPU memory consumption.
+ * @param[in] profiler Target profiler.
+ * @return    Memory used in bytes.
+ */
+gerium_api gerium_uint32_t
 gerium_profiler_get_gpu_total_memory_used(gerium_profiler_t profiler);
 
 GERIUM_END
 
-#endif
+#endif /* GERIUM_CORE_H */

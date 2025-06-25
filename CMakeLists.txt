@@ -18,6 +18,7 @@ option(GERIUM_INSTALL "Generate installation target" ON)
 option(GERIUM_MSVC_DYNAMIC_RUNTIME "Link dynamic runtime library instead of static" OFF)
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
+find_package(idlc CONFIG REQUIRED)
 find_package(mimalloc CONFIG REQUIRED)
 find_package(CMakeRC CONFIG REQUIRED)
 find_package(ctre CONFIG REQUIRED)
@@ -79,7 +80,19 @@ cmrc_add_resource_library(
         ${GERIUM_RESOURCES})
 set_target_default_properties(gerium-resources)
 
-add_library(gerium ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
+idlc_compile(NAME gerium WARN_AS_ERRORS
+    SOURCE "${PROJECT_SOURCE_DIR}/specs/api.idl"
+    OUTPUT "${PROJECT_SOURCE_DIR}/include/gerium/gerium.h"
+    VERSION ${PROJECT_VERSION}
+    GENERATOR C
+    DEPENDS
+        "${PROJECT_SOURCE_DIR}/specs/api.idl"
+        "${PROJECT_SOURCE_DIR}/specs/core.idl"
+        "${PROJECT_SOURCE_DIR}/specs/enums.idl"
+        "${PROJECT_SOURCE_DIR}/specs/structs.idl"
+        "${PROJECT_SOURCE_DIR}/specs/callbacks.idl")
+
+add_library(gerium ${IDLC_gerium_OUTPUTS} ${GERIUM_INCLUDE} ${GERIUM_SOURCES})
 add_library(gerium::gerium ALIAS gerium)
 
 target_include_directories(gerium PRIVATE ${RAPIDHASH_INCLUDE_DIRS})

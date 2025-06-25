@@ -131,7 +131,7 @@ template <>
 struct convert<gerium_shader_type_t> : convertEnum<gerium_shader_type_t> {};
 
 template <>
-struct convert<gerium_shader_languge_t> : convertEnum<gerium_shader_languge_t> {};
+struct convert<gerium_shader_language_t> : convertEnum<gerium_shader_language_t> {};
 
 template <>
 struct convert<gerium_resource_type_t> : convertEnum<gerium_resource_type_t> {};

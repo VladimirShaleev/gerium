@@ -1350,8 +1350,8 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
     try {
         check(gerium_application_create(title, width, height, &_application));
         gerium_application_set_background_wait(_application, true);
-        gerium_application_set_frame_func(_application, frame, (gerium_data_t) this);
-        gerium_application_set_state_func(_application, state, (gerium_data_t) this);
+        gerium_application_set_frame_callback(_application, frame, (gerium_data_t) this);
+        gerium_application_set_state_callback(_application, state, (gerium_data_t) this);
         auto result = gerium_application_run(_application);
         if (_error) {
             std::rethrow_exception(_error);
@@ -1736,16 +1736,16 @@ void Application::pollInput(gerium_uint64_t elapsedMs) {
     while (gerium_application_poll_events(_application, &event)) {
         if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
             if (event.keyboard.scancode == GERIUM_SCANCODE_ENTER && event.keyboard.state == GERIUM_KEY_STATE_RELEASED &&
-                (event.keyboard.modifiers & GERIUM_KEY_MOD_LALT)) {
+                (event.keyboard.modifiers & GERIUM_KEY_MOD_LALT_BIT)) {
                 swapFullscreen = true;
             } else if (event.keyboard.scancode == GERIUM_SCANCODE_ESCAPE &&
                        event.keyboard.state == GERIUM_KEY_STATE_RELEASED) {
                 showCursor = true;
             }
         } else if (event.type == GERIUM_EVENT_TYPE_MOUSE) {
-            constexpr auto buttonsDown = GERIUM_MOUSE_BUTTON_LEFT_DOWN | GERIUM_MOUSE_BUTTON_RIGHT_DOWN |
-                                         GERIUM_MOUSE_BUTTON_MIDDLE_DOWN | GERIUM_MOUSE_BUTTON_4_DOWN |
-                                         GERIUM_MOUSE_BUTTON_5_DOWN;
+            constexpr auto buttonsDown = GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT | GERIUM_MOUSE_BUTTON_RIGHT_DOWN_BIT |
+                                         GERIUM_MOUSE_BUTTON_MIDDLE_DOWN_BIT | GERIUM_MOUSE_BUTTON_4_DOWN_BIT |
+                                         GERIUM_MOUSE_BUTTON_5_DOWN_BIT;
             if (event.mouse.buttons & buttonsDown) {
                 showCursor = false;
             }

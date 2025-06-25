@@ -44,13 +44,13 @@ enum FileSeek
 @ Logging severity levels.
 @ Hierarchical message importance classification. [detail]
 enum LoggerLevel
-    const Off     @ No logging output.
     const Verbose @ Detailed diagnostic messages.
     const Debug   @ Debugging information.
     const Info    @ Informational messages.
     const Warning @ Potentially problematic situations.
     const Error   @ Recoverable error conditions.
     const Fatal   @ Critical unrecoverable errors.
+    const Off     @ No logging output.
 
 @ Runtime platforms.
 @ Supported operating systems and execution environments. [detail]
@@ -613,10 +613,10 @@ enum Format
     const A8B8G8R8Uscaled [tokenizer(8)] @ 32-bit packed unsigned scaled integer format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
     const A8B8G8R8Sscaled [tokenizer(8)] @ 32-bit packed signed scaled integer format that has an 8-bit A component in bits 24..31, an 8-bit B component in bits 16..23, an 8-bit G component in bits 8..15, and an 8-bit R component in bits 0..7.
     const S8Uint [tokenizer(2)] @ 8-bit unsigned integer format that has 8 bits in the stencil component.
-    const X8D24Unorm [tokenizer(5)] @ 32-bit format that has 24 unsigned normalized bits in the depth component and, optionally, 8 bits that are unused.
+    const X8D24Unorm [tokenizer(2-3)] @ 32-bit format that has 24 unsigned normalized bits in the depth component and, optionally, 8 bits that are unused.
     const D16Unorm [tokenizer(3)] @ 16-bit unsigned normalized format that has a single 16-bit depth component.
-    const D16UnormS8Uint [tokenizer(3)] @ 24-bit format that has 16 unsigned normalized bits in the depth component and 8 unsigned integer bits in the stencil component.
-    const D24UnormS8Uint [tokenizer(3)] @ 32-bit packed format that has 8 unsigned integer bits in the stencil component, and 24 unsigned normalized bits in the depth component.
+    const D16UnormS8Uint [tokenizer(3-5-2)] @ 24-bit format that has 16 unsigned normalized bits in the depth component and 8 unsigned integer bits in the stencil component.
+    const D24UnormS8Uint [tokenizer(3-5-2)] @ 32-bit packed format that has 8 unsigned integer bits in the stencil component, and 24 unsigned normalized bits in the depth component.
     const D32Sfloat [tokenizer(3)] @ 32-bit signed floating-point format that has 32 bits in the depth component.
     const D32SfloatS8Uint [tokenizer(3-6-2)] @ 32 signed float bits in the depth component and 8 unsigned integer bits in the stencil component. There are optionally 24 bits that are unused.
     const ASTC4x4Unorm [tokenizer(4-3)] @ ASTC compressed format where each 128-bit compressed texel block encodes a 4×4 rectangle of unsigned normalized RGBA texel data.

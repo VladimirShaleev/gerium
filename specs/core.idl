@@ -32,7 +32,7 @@ interface Logger
     @ Manages logger instance lifetime. [detail]
     @ Reference to same logger. [return]
     @ {Destroy} [see]
-    method Reference {Logger} [ref]
+    method Reference {Logger} [refinc]
         arg Logger {Logger} [this] @ Target logger instance.
 
     @ Releases logger instance.
@@ -53,7 +53,7 @@ interface Logger
     @ {GetLevel} [see]
     method SetLevel
         arg Logger {Logger} [this] @ Target logger.
-        arg Level {LoggerLevel} @  severity threshold.
+        arg Level {LoggerLevel} @ New severity threshold.
 
     @ Configures level by category tag.
     @ Applies level to all loggers with matching prefix. [detail]
@@ -86,6 +86,12 @@ interface File
     @ Absolute application path. [return]
     method GetAppDir {Str} [static]
 
+    @ Checks file existence.
+    @ Verifies file at specified path. [detail]
+    @ *{True}* if file exists. [return]
+    method ExistsFile {Bool} [static]
+        arg Path {Str} @ File path to check.
+
     @ Checks directory existence.
     @ Verifies directory at specified path. [detail]
     @ *{True}* if directory exists. [return]
@@ -106,6 +112,14 @@ interface File
         arg ReadOnly {Bool} @ Open in read-only mode.
         arg File {File} [result] @ New file instance.
 
+    @ Create file.
+    @ Create file with the possibility of reserving space [detail]
+    @ Operation result. [return]
+    method Create {Result} [ctor]
+        arg Path {Str} @ Path to create file
+        arg Size {Uint64} @ Initial size in bytes. If 0, the space is not reserved.
+        arg File {File} [result] @ New file instance.
+
     @ Creates temporary file.
     @ Once the application is terminated, the file is considered invalid. [detail]
     @ Operation result. [return]
@@ -117,7 +131,7 @@ interface File
     @ Manages file instance lifetime. [detail]
     @ Reference to same file. [return]
     @ {Destroy} [see]
-    method Reference {File} [ref]
+    method Reference {File} [refinc]
         arg File {File} [this] @ Target file.
 
     @ Releases file instance.
@@ -175,7 +189,7 @@ interface Mutex
     @ Manages mutex instance lifetime. [detail]
     @ Reference to same mutex. [return]
     @ {Destroy} [see]
-    method Reference {Mutex} [ref]
+    method Reference {Mutex} [refinc]
         arg Mutex {Mutex} [this] @ Target mutex.
 
     @ Releases mutex instance.
@@ -212,7 +226,7 @@ interface Signal
     @ Manages signal instance lifetime. [detail]
     @ Reference to same signal. [return]
     @ {Destroy} [see]
-    method Reference {Signal} [ref]
+    method Reference {Signal} [refinc]
         arg Signal {Signal} [this] @ Target signal.
 
     @ Releases signal instance.
@@ -270,7 +284,7 @@ interface Application
     @ Manages application instance lifetime. [detail]
     @ Reference to same application. [return]
     @ {Destroy} [see]
-    method Reference {Application} [ref]
+    method Reference {Application} [refinc]
         arg Application {Application} [this] @ Target application
 
     @ Releases application instance.
@@ -328,6 +342,15 @@ interface Application
     @ *{True}* if in fullscreen mode. [return]
     method IsFullscreen {Bool} [const]
         arg Application {Application} [this] @ Target application.
+
+    @ Change fullscreen state.
+    @ Change fullscreen state and display mode. [detail]
+    @ Operation result. [return]
+    method Fullscreen {Result}
+        arg Application {Application} [this] @ Target application.
+        arg Fullscreen {Bool} @ Change to fullscreen.
+        arg DisplayId {Uint32} @ Display id.
+        arg Mode {DisplayMode} [const,ref] @ Mode, may be null.
 
     @ Gets window style.
     @ Retrieves current window decoration style. [detail]
@@ -457,7 +480,7 @@ interface Application
     @ *{True}* if key is pressed [return]
     method IsPressScancode {Bool} [const]
         arg Application {Application} [this] @ Target application.
-        arg Scancode {Scancode} [result] @ Platform-independent key identifier.
+        arg Scancode {Scancode} @ Platform-independent key identifier.
 
     @ Executes callback in fiber.
     @ Schedules function for thread execution. [detail]
@@ -494,7 +517,7 @@ interface Renderer
     @ Manages renderer instance lifetime. [detail]
     @ Reference to same renderer. [return]
     @ {Destroy} [see]
-    method Reference {Renderer} [ref]
+    method Reference {Renderer} [refinc]
         arg Renderer {Renderer} [this] @ Target renderer.
 
     @ Releases renderer instance.
@@ -525,7 +548,7 @@ interface Renderer
     @ Gets Number of frames in flight.
     @ Returns number of simultaneous in-flight frames. [detail]
     @ Frames-in-flight count. [return]
-    method GetFramesInFlight {Bool} [const]
+    method GetFramesInFlight {Uint32} [const]
         arg Renderer {Renderer} [this] @ Target renderer.
 
     @ Checks format support.
@@ -1013,7 +1036,7 @@ interface FrameGraph
     @ Manages frame graph instance lifetime. [detail]
     @ Reference to same frame graph. [return]
     @ {Destroy} [see]
-    method Reference {FrameGraph} [ref]
+    method Reference {FrameGraph} [refinc]
         arg FrameGraph {FrameGraph} [this] @ Target frame graph.
 
     @ Releases frame graph instance.
@@ -1104,7 +1127,7 @@ interface Profiler
     @ Manages profiler instance lifetime. [detail]
     @ Reference to same profiler. [return]
     @ {Destroy} [see]
-    method Reference {Profiler} [ref]
+    method Reference {Profiler} [refinc]
         arg Profiler {Profiler} [this] @ Target profiler.
 
     @ Increments reference count.

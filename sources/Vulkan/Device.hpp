@@ -386,7 +386,7 @@ private:
                                                        VkDescriptorImageInfo* imageInfo);
     std::vector<uint32_t> compile(const char* code,
                                   size_t size,
-                                  gerium_shader_languge_t lang,
+                                  gerium_shader_language_t lang,
                                   VkShaderStageFlagBits stage,
                                   const char* name,
                                   gerium_uint32_t numMacros,

@@ -403,7 +403,7 @@ void VkRenderer::onAsyncUploadTextureData(TextureHandle handle,
                                           bool generateMips,
                                           gerium_uint32_t textureDataSize,
                                           gerium_cdata_t textureData,
-                                          gerium_texture_loaded_func_t callback,
+                                          gerium_texture_loaded_callback_t callback,
                                           gerium_data_t data) {
     const auto request = LoadRequest{ textureDataSize, textureData, mip, generateMips, handle, callback, data };
     if (_isSupportedTransferQueue) {

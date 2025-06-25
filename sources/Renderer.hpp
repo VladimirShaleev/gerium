@@ -46,14 +46,16 @@ public:
                                         const FrameGraphNode* node,
                                         gerium_uint32_t textureIndex);
 
-    TextureHandle asyncLoadTexture(gerium_utf8_t filename, gerium_texture_loaded_func_t callback, gerium_data_t data);
+    TextureHandle asyncLoadTexture(gerium_utf8_t filename,
+                                   gerium_texture_loaded_callback_t callback,
+                                   gerium_data_t data);
 
     void asyncUploadTextureData(TextureHandle handle,
                                 gerium_uint8_t mip,
                                 bool generateMips,
                                 gerium_uint32_t textureDataSize,
                                 gerium_cdata_t textureData,
-                                gerium_texture_loaded_func_t callback,
+                                gerium_texture_loaded_callback_t callback,
                                 gerium_data_t data);
 
     void textureSampler(TextureHandle handle,
@@ -121,7 +123,7 @@ private:
         ktxTexture2* ktxTexture;
         gerium_uint8_t imageGenerateMips;
         std::queue<TaskMip> mips;
-        gerium_texture_loaded_func_t callback;
+        gerium_texture_loaded_callback_t callback;
         gerium_data_t userData;
     };
 
@@ -157,7 +159,7 @@ private:
                                           bool generateMips,
                                           gerium_uint32_t textureDataSize,
                                           gerium_cdata_t textureData,
-                                          gerium_texture_loaded_func_t callback,
+                                          gerium_texture_loaded_callback_t callback,
                                           gerium_data_t data) = 0;
 
     virtual void onTextureSampler(TextureHandle handle,

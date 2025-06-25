@@ -803,7 +803,7 @@ std::chrono::high_resolution_clock::time_point AndroidApplication::getCurrentTim
 
 } // namespace gerium::android
 
-gerium_public void android_main(android_app* state) {
+gerium_api void android_main(android_app* state) {
     typedef int (*mainFunc)(int argc, char* argv[]);
 
     gerium::android::app = state;

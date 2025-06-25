@@ -22,26 +22,26 @@ gerium_runtime_platform_t Application::getPlatform() const noexcept {
     return onGetPlatform();
 }
 
-gerium_application_frame_func_t Application::getFrameFunc(gerium_data_t* data) const noexcept {
+gerium_application_frame_callback_t Application::getFrameCallback(gerium_data_t* data) const noexcept {
     if (data) {
         *data = _frameData;
     }
     return _frameFunc;
 }
 
-gerium_application_state_func_t Application::getStateFunc(gerium_data_t* data) const noexcept {
+gerium_application_state_callback_t Application::getStateCallback(gerium_data_t* data) const noexcept {
     if (data) {
         *data = _stateData;
     }
     return _stateFunc;
 }
 
-void Application::setFrameFunc(gerium_application_frame_func_t callback, gerium_data_t data) noexcept {
+void Application::setFrameCallback(gerium_application_frame_callback_t callback, gerium_data_t data) noexcept {
     _frameFunc = callback;
     _frameData = data;
 }
 
-void Application::setStateFunc(gerium_application_state_func_t callback, gerium_data_t data) noexcept {
+void Application::setStateCallback(gerium_application_state_callback_t callback, gerium_data_t data) noexcept {
     _stateFunc = callback;
     _stateData = data;
 }
@@ -186,7 +186,7 @@ bool Application::isPressScancode(gerium_scancode_t scancode) const noexcept {
     return false;
 }
 
-void Application::execute(gerium_application_executor_func_t callback, gerium_data_t data) noexcept {
+void Application::execute(gerium_application_executor_callback_t callback, gerium_data_t data) noexcept {
     marl::schedule([this, callback, data]() {
         callback(this, data);
     });
@@ -303,30 +303,30 @@ gerium_runtime_platform_t gerium_application_get_platform(gerium_application_t a
     return alias_cast<Application*>(application)->getPlatform();
 }
 
-gerium_application_frame_func_t gerium_application_get_frame_func(gerium_application_t application,
-                                                                  gerium_data_t* data) {
+gerium_application_frame_callback_t gerium_application_get_frame_callback(gerium_application_t application,
+                                                                          gerium_data_t* data) {
     assert(application);
-    return alias_cast<Application*>(application)->getFrameFunc(data);
+    return alias_cast<Application*>(application)->getFrameCallback(data);
 }
 
-void gerium_application_set_frame_func(gerium_application_t application,
-                                       gerium_application_frame_func_t callback,
-                                       gerium_data_t data) {
+void gerium_application_set_frame_callback(gerium_application_t application,
+                                           gerium_application_frame_callback_t callback,
+                                           gerium_data_t data) {
     assert(application);
-    alias_cast<Application*>(application)->setFrameFunc(callback, data);
+    alias_cast<Application*>(application)->setFrameCallback(callback, data);
 }
 
-gerium_application_state_func_t gerium_application_get_state_func(gerium_application_t application,
-                                                                  gerium_data_t* data) {
+gerium_application_state_callback_t gerium_application_get_state_callback(gerium_application_t application,
+                                                                          gerium_data_t* data) {
     assert(application);
-    return alias_cast<Application*>(application)->getStateFunc(data);
+    return alias_cast<Application*>(application)->getStateCallback(data);
 }
 
-void gerium_application_set_state_func(gerium_application_t application,
-                                       gerium_application_state_func_t callback,
-                                       gerium_data_t data) {
+void gerium_application_set_state_callback(gerium_application_t application,
+                                           gerium_application_state_callback_t callback,
+                                           gerium_data_t data) {
     assert(application);
-    alias_cast<Application*>(application)->setStateFunc(callback, data);
+    alias_cast<Application*>(application)->setStateCallback(callback, data);
 }
 
 gerium_result_t gerium_application_get_display_info(gerium_application_t application,
@@ -463,7 +463,7 @@ gerium_bool_t gerium_application_is_press_scancode(gerium_application_t applicat
 }
 
 void gerium_application_execute(gerium_application_t application,
-                                gerium_application_executor_func_t callback,
+                                gerium_application_executor_callback_t callback,
                                 gerium_data_t data) {
     assert(application);
     assert(callback);

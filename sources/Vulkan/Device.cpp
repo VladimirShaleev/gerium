@@ -2415,7 +2415,7 @@ std::tuple<uint32_t, bool> Device::fillWriteDescriptorSets(const DescriptorSetLa
 
 std::vector<uint32_t> Device::compile(const char* code,
                                       size_t size,
-                                      gerium_shader_languge_t lang,
+                                      gerium_shader_language_t lang,
                                       VkShaderStageFlagBits stage,
                                       const char* name,
                                       gerium_uint32_t numMacros,

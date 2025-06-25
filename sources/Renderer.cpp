@@ -111,7 +111,7 @@ FramebufferHandle Renderer::createFramebuffer(const FrameGraph& frameGraph,
 }
 
 TextureHandle Renderer::asyncLoadTexture(gerium_utf8_t filename,
-                                         gerium_texture_loaded_func_t callback,
+                                         gerium_texture_loaded_callback_t callback,
                                          gerium_data_t data) {
     if (!File::existsFile(filename)) {
         error(GERIUM_RESULT_ERROR_NOT_FOUND);
@@ -147,7 +147,7 @@ void Renderer::asyncUploadTextureData(TextureHandle handle,
                                       bool generateMips,
                                       gerium_uint32_t textureDataSize,
                                       gerium_cdata_t textureData,
-                                      gerium_texture_loaded_func_t callback,
+                                      gerium_texture_loaded_callback_t callback,
                                       gerium_data_t data) {
     onAsyncUploadTextureData(handle, mip, generateMips, textureDataSize, textureData, callback, data);
 }
@@ -335,11 +335,11 @@ Renderer::Task* Renderer::createLoadTaskKtx2(ObjectPtr<File> file, const std::st
     if (ktxTexture2_NeedsTranscoding(texture)) {
         auto colorModel = ktxTexture2_GetColorModel_e(texture);
         if (colorModel == KHR_DF_MODEL_UASTC && supportedASTC) {
-            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
+            format = GERIUM_FORMAT_ASTC_4X4_UNORM;
         } else if (colorModel == KHR_DF_MODEL_ETC1S && supportedETC2) {
             format = GERIUM_FORMAT_ETC2_R8G8B8_UNORM;
         } else if (supportedASTC) {
-            format = GERIUM_FORMAT_ASTC_4x4_UNORM;
+            format = GERIUM_FORMAT_ASTC_4X4_UNORM;
         } else if (supportedETC2) {
             format = GERIUM_FORMAT_ETC2_R8G8B8A8_UNORM;
         } else if (supportedBC) {
@@ -632,7 +632,7 @@ gerium_result_t gerium_renderer_create_descriptor_set(gerium_renderer_t renderer
 
 gerium_result_t gerium_renderer_async_load_texture(gerium_renderer_t renderer,
                                                    gerium_utf8_t filename,
-                                                   gerium_texture_loaded_func_t callback,
+                                                   gerium_texture_loaded_callback_t callback,
                                                    gerium_data_t data,
                                                    gerium_texture_h* handle) {
     assert(renderer);
@@ -646,7 +646,7 @@ gerium_result_t gerium_renderer_async_load_texture(gerium_renderer_t renderer,
 gerium_result_t gerium_renderer_async_upload_texture_data(gerium_renderer_t renderer,
                                                           gerium_texture_h handle,
                                                           gerium_cdata_t texture_data,
-                                                          gerium_texture_loaded_func_t callback,
+                                                          gerium_texture_loaded_callback_t callback,
                                                           gerium_data_t data) {
     assert(renderer);
     GERIUM_ASSERT_ARG(texture_data);

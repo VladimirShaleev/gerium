@@ -719,17 +719,17 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
     LARGE_INTEGER currentTime;
     UINT cbSize = sizeof(_rawInput);
 
-    gerium_key_mod_flags_t modifiers = GERIUM_KEY_MOD_NONE;
+    gerium_key_mod_flags_t modifiers = GERIUM_KEY_MOD_NONE_BIT;
     if (_capslock) {
-        modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
+        modifiers |= GERIUM_KEY_MOD_CAPS_LOCK_BIT;
         keyState[VK_CAPITAL] = 0x01;
     }
     if (_scrolllock) {
-        modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK;
+        modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK_BIT;
         keyState[VK_SCROLL] = 0x01;
     }
     if (_numlock) {
-        modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
+        modifiers |= GERIUM_KEY_MOD_NUM_LOCK_BIT;
         keyState[VK_NUMLOCK] = 0x01;
     }
 
@@ -756,31 +756,31 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                     const auto prevKeyUp = !isPressScancode(scanCode);
                     if (keyUp != prevKeyUp) {
                         if (isPressScancode(GERIUM_SCANCODE_SHIFT_LEFT)) {
-                            modifiers |= GERIUM_KEY_MOD_LSHIFT;
+                            modifiers |= GERIUM_KEY_MOD_LSHIFT_BIT;
                         }
                         if (isPressScancode(GERIUM_SCANCODE_SHIFT_RIGHT)) {
-                            modifiers |= GERIUM_KEY_MOD_RSHIFT;
+                            modifiers |= GERIUM_KEY_MOD_RSHIFT_BIT;
                         }
                         if (isPressScancode(GERIUM_SCANCODE_CONTROL_LEFT)) {
-                            modifiers |= GERIUM_KEY_MOD_LCTRL;
+                            modifiers |= GERIUM_KEY_MOD_LCTRL_BIT;
                         }
                         if (isPressScancode(GERIUM_SCANCODE_CONTROL_RIGHT)) {
-                            modifiers |= GERIUM_KEY_MOD_RCTRL;
+                            modifiers |= GERIUM_KEY_MOD_RCTRL_BIT;
                         }
                         if (isPressScancode(GERIUM_SCANCODE_ALT_LEFT)) {
-                            modifiers |= GERIUM_KEY_MOD_LALT;
+                            modifiers |= GERIUM_KEY_MOD_LALT_BIT;
                         }
                         if (isPressScancode(GERIUM_SCANCODE_ALT_RIGHT)) {
-                            modifiers |= GERIUM_KEY_MOD_RALT;
+                            modifiers |= GERIUM_KEY_MOD_RALT_BIT;
                         }
                         if (isPressScancode(GERIUM_SCANCODE_META_LEFT)) {
-                            modifiers |= GERIUM_KEY_MOD_LMETA;
+                            modifiers |= GERIUM_KEY_MOD_LMETA_BIT;
                         }
                         if (isPressScancode(GERIUM_SCANCODE_META_RIGHT)) {
-                            modifiers |= GERIUM_KEY_MOD_RMETA;
+                            modifiers |= GERIUM_KEY_MOD_RMETA_BIT;
                         }
 
-                        if (modifiers & GERIUM_KEY_MOD_SHIFT) {
+                        if (modifiers & GERIUM_KEY_MOD_SHIFT_BIT) {
                             keyState[VK_SHIFT] = 0x80;
                         } else {
                             keyState[VK_SHIFT] = 0;
@@ -789,7 +789,7 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
                         ToUnicodeEx(raw->data.keyboard.VKey, (UINT) result, keyState, keyName, 4, 0, lang);
 
                         const auto code =
-                            toKeyCode(raw->data.keyboard.VKey, scanCode, modifiers & GERIUM_KEY_MOD_SHIFT);
+                            toKeyCode(raw->data.keyboard.VKey, scanCode, modifiers & GERIUM_KEY_MOD_SHIFT_BIT);
 
                         gerium_event_t event{};
                         event.type               = GERIUM_EVENT_TYPE_KEYBOARD;
@@ -862,34 +862,34 @@ void Win32Application::pollInput(LARGE_INTEGER frequency, HKL lang) noexcept {
 
                 if (point.x >= 0 && point.x <= width && point.y >= 0 && point.y <= height) {
                     if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_DOWN;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_DOWN_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_UP;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_RIGHT_UP_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_DOWN;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_DOWN_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_UP;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_MIDDLE_UP_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_DOWN;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_DOWN_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_UP;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_4_UP_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_DOWN;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_DOWN_BIT;
                         hasChanges = true;
                     } else if (mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) {
-                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_UP;
+                        event.mouse.buttons |= GERIUM_MOUSE_BUTTON_5_UP_BIT;
                         hasChanges = true;
                     }
                 }

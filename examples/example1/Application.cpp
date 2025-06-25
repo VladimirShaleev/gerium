@@ -45,8 +45,8 @@ void Application::run(gerium_utf8_t title, gerium_uint32_t width, gerium_uint32_
         check(gerium_application_create(title, width, height, &_application));
         gerium_application_set_background_wait(_application, true);
 
-        gerium_application_set_frame_func(_application, frame, (gerium_data_t) this);
-        gerium_application_set_state_func(_application, state, (gerium_data_t) this);
+        gerium_application_set_frame_callback(_application, frame, (gerium_data_t) this);
+        gerium_application_set_state_callback(_application, state, (gerium_data_t) this);
 
         auto result = gerium_application_run(_application);
         if (_error) {

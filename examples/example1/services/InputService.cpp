@@ -52,16 +52,16 @@ void InputService::update(gerium_uint64_t /* elapsedMs */, gerium_float64_t elap
         // _events.push_back(event);
         if (event.type == GERIUM_EVENT_TYPE_KEYBOARD) {
             if (event.keyboard.scancode == GERIUM_SCANCODE_ENTER && event.keyboard.state == GERIUM_KEY_STATE_RELEASED &&
-                (event.keyboard.modifiers & GERIUM_KEY_MOD_LALT)) {
+                (event.keyboard.modifiers & GERIUM_KEY_MOD_LALT_BIT)) {
                 swapFullscreen = true;
             } else if (event.keyboard.scancode == GERIUM_SCANCODE_ESCAPE &&
                        event.keyboard.state == GERIUM_KEY_STATE_RELEASED) {
                 showCursor = true;
             }
         } else if (event.type == GERIUM_EVENT_TYPE_MOUSE) {
-            constexpr auto buttonsDown = GERIUM_MOUSE_BUTTON_LEFT_DOWN | GERIUM_MOUSE_BUTTON_RIGHT_DOWN |
-                                         GERIUM_MOUSE_BUTTON_MIDDLE_DOWN | GERIUM_MOUSE_BUTTON_4_DOWN |
-                                         GERIUM_MOUSE_BUTTON_5_DOWN;
+            constexpr auto buttonsDown = GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT | GERIUM_MOUSE_BUTTON_RIGHT_DOWN_BIT |
+                                         GERIUM_MOUSE_BUTTON_MIDDLE_DOWN_BIT | GERIUM_MOUSE_BUTTON_4_DOWN_BIT |
+                                         GERIUM_MOUSE_BUTTON_5_DOWN_BIT;
             if (event.mouse.buttons & buttonsDown) {
                 showCursor = false;
             }

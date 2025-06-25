@@ -3,6 +3,7 @@
   "name": "gerium",
   "version": "1.0.0",
   "dependencies": [
+    "idlc",
     "abseil",
     "cmakerc",
     "ctre",

@@ -14,11 +14,11 @@ public:
 
     gerium_runtime_platform_t getPlatform() const noexcept;
 
-    gerium_application_frame_func_t getFrameFunc(gerium_data_t* data) const noexcept;
-    gerium_application_state_func_t getStateFunc(gerium_data_t* data) const noexcept;
+    gerium_application_frame_callback_t getFrameCallback(gerium_data_t* data) const noexcept;
+    gerium_application_state_callback_t getStateCallback(gerium_data_t* data) const noexcept;
 
-    void setFrameFunc(gerium_application_frame_func_t callback, gerium_data_t data) noexcept;
-    void setStateFunc(gerium_application_state_func_t callback, gerium_data_t data) noexcept;
+    void setFrameCallback(gerium_application_frame_callback_t callback, gerium_data_t data) noexcept;
+    void setStateCallback(gerium_application_state_callback_t callback, gerium_data_t data) noexcept;
 
     void getDisplayInfo(gerium_uint32_t& displayCount, gerium_display_info_t* displays) const;
 
@@ -53,7 +53,7 @@ public:
     bool pollEvents(gerium_event_t& event) noexcept;
     bool isPressScancode(gerium_scancode_t scancode) const noexcept;
 
-    void execute(gerium_application_executor_func_t callback, gerium_data_t data) noexcept;
+    void execute(gerium_application_executor_callback_t callback, gerium_data_t data) noexcept;
 
     void showMessage(gerium_utf8_t title, gerium_utf8_t message) noexcept;
 
@@ -117,8 +117,8 @@ private:
     virtual void onNewFrameImGui() = 0;
 
     ObjectPtr<Logger> _logger;
-    gerium_application_frame_func_t _frameFunc;
-    gerium_application_state_func_t _stateFunc;
+    gerium_application_frame_callback_t _frameFunc;
+    gerium_application_state_callback_t _stateFunc;
     gerium_data_t _frameData;
     gerium_data_t _stateData;
     gerium_bool_t _backgroundWait;
