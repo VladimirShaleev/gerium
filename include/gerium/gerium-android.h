@@ -8,6 +8,8 @@
 #ifndef GERIUM_ANDROID_H
 #define GERIUM_ANDROID_H
 
+#ifdef GERIUM_PLATFORM_ANDROID
+
 #include "gerium-core.h"
 
 #include <android/native_window.h>
@@ -16,5 +18,7 @@
 GERIUM_BEGIN
 
 GERIUM_END
+
+#endif
 
 #endif

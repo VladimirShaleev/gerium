@@ -85,6 +85,13 @@ idlc_compile(NAME gerium WARN_AS_ERRORS
     OUTPUT "${PROJECT_SOURCE_DIR}/include/gerium/gerium.h"
     VERSION ${PROJECT_VERSION}
     GENERATOR C
+    ADDITIONS
+        fidelityfx
+        android
+        ios
+        web
+        windows
+        linux
     DEPENDS
         "${PROJECT_SOURCE_DIR}/specs/api.idl"
         "${PROJECT_SOURCE_DIR}/specs/core.idl"

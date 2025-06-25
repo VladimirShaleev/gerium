@@ -8,6 +8,8 @@
 #ifndef GERIUM_WINDOWS_H
 #define GERIUM_WINDOWS_H
 
+#ifdef GERIUM_PLATFORM_WINDOWS
+
 #include "gerium-core.h"
 
 #include <Windows.h>
@@ -24,5 +26,7 @@ gerium_windows_application_create(gerium_utf8_t title,
                                   gerium_application_t* application);
 
 GERIUM_END
+
+#endif
 
 #endif
