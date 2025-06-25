@@ -1,10 +1,10 @@
 /**
- * \file      gerium-android.h
- * \brief     gerium API Android
- * \author    Vladimir Shaleev
- * \copyright MIT License
+ * @file      gerium-android.h
+ * @brief     gerium API Android
+ * @details   Android interfaces.
+ * @author    Vladimir Shaleev <vladimirshaleev@gmail.com>
+ * @copyright MIT License
  */
-
 #ifndef GERIUM_ANDROID_H
 #define GERIUM_ANDROID_H
 

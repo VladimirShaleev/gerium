@@ -1,10 +1,10 @@
 /**
- * \file      gerium-web.h
- * \brief     gerium API WebAssembly
- * \author    Vladimir Shaleev
- * \copyright MIT License
+ * @file      gerium-web.h
+ * @brief     gerium API WebAssembly
+ * @details   Web interfaces.
+ * @author    Vladimir Shaleev <vladimirshaleev@gmail.com>
+ * @copyright MIT License
  */
-
 #ifndef GERIUM_WEB_H
 #define GERIUM_WEB_H
 

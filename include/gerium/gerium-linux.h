@@ -1,10 +1,10 @@
 /**
- * \file      gerium-linux.h
- * \brief     gerium API Linux
- * \author    Vladimir Shaleev
- * \copyright MIT License
+ * @file      gerium-linux.h
+ * @brief     gerium API Linux
+ * @details   Linux interfaces.
+ * @author    Vladimir Shaleev <vladimirshaleev@gmail.com>
+ * @copyright MIT License
  */
-
 #ifndef GERIUM_LINUX_H
 #define GERIUM_LINUX_H
 
