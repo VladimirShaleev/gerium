@@ -744,24 +744,24 @@ int32_t AndroidApplication::onInputEvent(AInputEvent* event) noexcept {
                 newEvent.type             = GERIUM_EVENT_TYPE_MOUSE;
                 newEvent.timestamp        = timestamp.count();
                 newEvent.mouse.id         = (gerium_uint32_t) id;
-                newEvent.mouse.buttons    = GERIUM_MOUSE_BUTTON_NONE;
+                newEvent.mouse.buttons    = GERIUM_MOUSE_BUTTON_NONE_BIT;
                 newEvent.mouse.absolute_x = (gerium_sint16_t) (x + 0.5f);
                 newEvent.mouse.absolute_y = (gerium_sint16_t) (y + 0.5f);
                 newEvent.mouse.delta_x    = 0;
                 newEvent.mouse.delta_y    = 0;
 
                 if (flags == AMOTION_EVENT_ACTION_DOWN || flags == AMOTION_EVENT_ACTION_POINTER_DOWN) {
-                    if (std::get<2>(_pointers[id]) & GERIUM_MOUSE_BUTTON_LEFT_DOWN) {
+                    if (std::get<2>(_pointers[id]) & GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT) {
                         continue;
                     }
-                    newEvent.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN;
+                    newEvent.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_DOWN_BIT;
                     _pointers[id] = { newEvent.mouse.absolute_x, newEvent.mouse.absolute_y, newEvent.mouse.buttons };
                 } else if (flags == AMOTION_EVENT_ACTION_UP || flags == AMOTION_EVENT_ACTION_POINTER_UP ||
                            flags == AMOTION_EVENT_ACTION_CANCEL) {
-                    if (std::get<2>(_pointers[id]) & GERIUM_MOUSE_BUTTON_LEFT_UP) {
+                    if (std::get<2>(_pointers[id]) & GERIUM_MOUSE_BUTTON_LEFT_UP_BIT) {
                         continue;
                     }
-                    newEvent.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP;
+                    newEvent.mouse.buttons |= GERIUM_MOUSE_BUTTON_LEFT_UP_BIT;
                     _pointers[id] = { newEvent.mouse.absolute_x, newEvent.mouse.absolute_y, newEvent.mouse.buttons };
                 } else if (flags == AMOTION_EVENT_ACTION_MOVE) {
                     const auto& [prevX, prevY, prevButtons] = _pointers[id];

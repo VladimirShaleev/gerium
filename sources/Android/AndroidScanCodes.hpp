@@ -920,40 +920,40 @@ gerium_inline gerium_key_code_t toKeyCode(int32_t keycode) {
 }
 
 gerium_inline gerium_key_mod_flags_t toModifiers(int32_t meta) noexcept {
-    auto modifiers = GERIUM_KEY_MOD_NONE;
+    auto modifiers = GERIUM_KEY_MOD_NONE_BIT;
 
     if (meta & AMETA_ALT_LEFT_ON) {
-        modifiers |= GERIUM_KEY_MOD_LALT;
+        modifiers |= GERIUM_KEY_MOD_LALT_BIT;
     }
     if (meta & AMETA_ALT_RIGHT_ON) {
-        modifiers |= GERIUM_KEY_MOD_RALT;
+        modifiers |= GERIUM_KEY_MOD_RALT_BIT;
     }
     if (meta & AMETA_SHIFT_LEFT_ON) {
-        modifiers |= GERIUM_KEY_MOD_LSHIFT;
+        modifiers |= GERIUM_KEY_MOD_LSHIFT_BIT;
     }
     if (meta & AMETA_SHIFT_RIGHT_ON) {
-        modifiers |= GERIUM_KEY_MOD_RSHIFT;
+        modifiers |= GERIUM_KEY_MOD_RSHIFT_BIT;
     }
     if (meta & AMETA_CTRL_LEFT_ON) {
-        modifiers |= GERIUM_KEY_MOD_LCTRL;
+        modifiers |= GERIUM_KEY_MOD_LCTRL_BIT;
     }
     if (meta & AMETA_CTRL_RIGHT_ON) {
-        modifiers |= GERIUM_KEY_MOD_RCTRL;
+        modifiers |= GERIUM_KEY_MOD_RCTRL_BIT;
     }
     if (meta & AMETA_META_LEFT_ON) {
-        modifiers |= GERIUM_KEY_MOD_LMETA;
+        modifiers |= GERIUM_KEY_MOD_LMETA_BIT;
     }
     if (meta & AMETA_META_RIGHT_ON) {
-        modifiers |= GERIUM_KEY_MOD_RMETA;
+        modifiers |= GERIUM_KEY_MOD_RMETA_BIT;
     }
     if (meta & AMETA_CAPS_LOCK_ON) {
-        modifiers |= GERIUM_KEY_MOD_CAPS_LOCK;
+        modifiers |= GERIUM_KEY_MOD_CAPS_LOCK_BIT;
     }
     if (meta & AMETA_NUM_LOCK_ON) {
-        modifiers |= GERIUM_KEY_MOD_NUM_LOCK;
+        modifiers |= GERIUM_KEY_MOD_NUM_LOCK_BIT;
     }
     if (meta & AMETA_SCROLL_LOCK_ON) {
-        modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK;
+        modifiers |= GERIUM_KEY_MOD_SCROLL_LOCK_BIT;
     }
 
     return modifiers;
