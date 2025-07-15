@@ -38,6 +38,12 @@ gerium_api gerium_utf8_t
 gerium_result_to_string(gerium_result_t result);
 
 /**
+ * @name Functions of Logger.
+ * @brief Functions for opaque type ::gerium_logger_t.
+ * @{
+ */
+
+/**
  * @brief      Creates new logger instance
  * @details    Initializes logging subsystem with specific tag.
  * @param[in]  tag Tag string.
@@ -112,6 +118,14 @@ gerium_api void
 gerium_logger_print(gerium_logger_t logger,
                     gerium_logger_level_t level,
                     gerium_utf8_t message);
+
+/** @} */
+
+/**
+ * @name Functions of File.
+ * @brief Functions for opaque type ::gerium_file_t.
+ * @{
+ */
 
 /**
  * @brief   Gets cache directory path.
@@ -269,6 +283,14 @@ gerium_file_read(gerium_file_t file,
 gerium_api gerium_data_t
 gerium_file_map(gerium_file_t file);
 
+/** @} */
+
+/**
+ * @name Functions of Mutex.
+ * @brief Functions for opaque type ::gerium_mutex_t.
+ * @{
+ */
+
 /**
  * @brief      Creates new mutex instance.
  * @details    Initializes synchronization object.
@@ -315,6 +337,14 @@ gerium_mutex_lock(gerium_mutex_t mutex);
  */
 gerium_api void
 gerium_mutex_unlock(gerium_mutex_t mutex);
+
+/** @} */
+
+/**
+ * @name Functions of Signal.
+ * @brief Functions for opaque type ::gerium_signal_t.
+ * @{
+ */
 
 /**
  * @brief      Creates new signal instance.
@@ -376,6 +406,14 @@ gerium_signal_wait(gerium_signal_t signal);
  */
 gerium_api void
 gerium_signal_clear(gerium_signal_t signal);
+
+/** @} */
+
+/**
+ * @name Functions of Application.
+ * @brief Functions for opaque type ::gerium_application_t.
+ * @{
+ */
 
 /**
  * @brief      Creates new application instance.
@@ -739,6 +777,14 @@ gerium_api void
 gerium_application_show_message(gerium_application_t application,
                                 gerium_utf8_t title,
                                 gerium_utf8_t message);
+
+/** @} */
+
+/**
+ * @name Functions of Renderer.
+ * @brief Functions for opaque type ::gerium_renderer_t.
+ * @{
+ */
 
 /**
  * @brief      Creates renderer instance.
@@ -1171,6 +1217,14 @@ gerium_renderer_render(gerium_renderer_t renderer,
 gerium_api gerium_result_t
 gerium_renderer_present(gerium_renderer_t renderer);
 
+/** @} */
+
+/**
+ * @name Functions of Command Buffer.
+ * @brief Functions for opaque type ::gerium_command_buffer_t.
+ * @{
+ */
+
 /**
  * @brief     Set the viewport.
  * @details   Set the viewport transformation parameters.
@@ -1558,6 +1612,14 @@ gerium_api void
 gerium_command_buffer_barrier_texture_read(gerium_command_buffer_t command_buffer,
                                            gerium_texture_h handle);
 
+/** @} */
+
+/**
+ * @name Functions of Frame Graph.
+ * @brief Functions for opaque type ::gerium_frame_graph_t.
+ * @{
+ */
+
 /**
  * @brief      Creates frame graph instance.
  * @details    Initializes render pass dependency graph system.
@@ -1693,6 +1755,14 @@ gerium_frame_graph_clear(gerium_frame_graph_t frame_graph);
 gerium_api gerium_result_t
 gerium_frame_graph_compile(gerium_frame_graph_t frame_graph);
 
+/** @} */
+
+/**
+ * @name Functions of Profiler.
+ * @brief Functions for opaque type ::gerium_profiler_t.
+ * @{
+ */
+
 /**
  * @brief      Creates profiler instance.
  * @details    Initializes performance measurement system.
@@ -1744,6 +1814,8 @@ gerium_profiler_get_gpu_timestamps(gerium_profiler_t profiler,
  */
 gerium_api gerium_uint32_t
 gerium_profiler_get_gpu_total_memory_used(gerium_profiler_t profiler);
+
+/** @} */
 
 GERIUM_END
 

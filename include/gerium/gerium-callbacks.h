@@ -13,6 +13,12 @@
 GERIUM_BEGIN
 
 /**
+ * @name Function pointer types.
+ * @brief Function pointers definitions.
+ * @{
+ */
+
+/**
  * @brief     Application frame update callback.
  * @details   Called every frame to start rendering passes.
  * @param[in] application Application instance.
@@ -106,6 +112,8 @@ typedef void
 (*gerium_texture_loaded_callback_t)(gerium_renderer_t renderer,
                                     gerium_texture_h texture,
                                     gerium_data_t data);
+
+/** @} */
 
 GERIUM_END
 

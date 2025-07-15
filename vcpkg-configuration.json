@@ -20,7 +20,7 @@
     },
     {
       "kind": "git",
-      "baseline": "b513051d4b2608d6eec7565b56133e6de1fef7d3",
+      "baseline": "124f27dfa5e457147722d976eeecba8332937f2f",
       "reference": "vcpkg-registry",
       "repository": "https://github.com/VladimirShaleev/idlc",
       "packages": [

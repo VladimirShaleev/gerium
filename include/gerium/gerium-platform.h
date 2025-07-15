@@ -95,26 +95,26 @@
 #endif
 
 /**
- * @name  Platform-independent type definitions
- * @brief Fixed-size types guaranteed to work across all supported platforms
+ * @name  Platform-independent type definitions.
+ * @brief Fixed-size types guaranteed to work across all supported platforms.
  * @{
  */
 #include <stdint.h>
-typedef char        gerium_char_t;    /**< symbol type */
-typedef int32_t     gerium_bool_t;    /**< boolean type */
-typedef int8_t      gerium_sint8_t;   /**< 8 bit signed integer */
-typedef uint8_t     gerium_uint8_t;   /**< 8 bit unsigned integer */
-typedef int16_t     gerium_sint16_t;  /**< 16 bit signed integer */
-typedef uint16_t    gerium_uint16_t;  /**< 16 bit unsigned integer */
-typedef int32_t     gerium_sint32_t;  /**< 32 bit signed integer */
-typedef uint32_t    gerium_uint32_t;  /**< 32 bit unsigned integer */
-typedef int64_t     gerium_sint64_t;  /**< 64 bit signed integer */
-typedef uint64_t    gerium_uint64_t;  /**< 64 bit unsigned integer */
-typedef float       gerium_float32_t; /**< 32 bit float point */
-typedef double      gerium_float64_t; /**< 64 bit float point */
-typedef const char* gerium_utf8_t;    /**< utf8 string */
-typedef void*       gerium_data_t;    /**< pointer to data */
-typedef const void* gerium_cdata_t;   /**< pointer to immutable data */
+typedef char        gerium_char_t;    /**< symbol type. */
+typedef int32_t     gerium_bool_t;    /**< boolean type. */
+typedef int8_t      gerium_sint8_t;   /**< 8 bit signed integer. */
+typedef uint8_t     gerium_uint8_t;   /**< 8 bit unsigned integer. */
+typedef int16_t     gerium_sint16_t;  /**< 16 bit signed integer. */
+typedef uint16_t    gerium_uint16_t;  /**< 16 bit unsigned integer. */
+typedef int32_t     gerium_sint32_t;  /**< 32 bit signed integer. */
+typedef uint32_t    gerium_uint32_t;  /**< 32 bit unsigned integer. */
+typedef int64_t     gerium_sint64_t;  /**< 64 bit signed integer. */
+typedef uint64_t    gerium_uint64_t;  /**< 64 bit unsigned integer. */
+typedef float       gerium_float32_t; /**< 32 bit float point. */
+typedef double      gerium_float64_t; /**< 64 bit float point. */
+typedef const char* gerium_utf8_t;    /**< utf8 string. */
+typedef void*       gerium_data_t;    /**< pointer to data. */
+typedef const void* gerium_cdata_t;   /**< pointer to immutable data. */
 /** @} */
 
 /**
@@ -126,7 +126,7 @@ typedef const void* gerium_cdata_t;   /**< pointer to immutable data */
  *            - AND (&, &=)
  *            - XOR (^, ^=)
  * 
- * @param[in] gerium_enum_t Enumeration type to enhance with flag operations
+ * @param[in] gerium_enum_t Enumeration type to enhance with flag operations.
  * @note      Only active in C++ mode. In C, expands to nothing.
  */
 
@@ -164,7 +164,7 @@ inline GERIUM_CONSTEXPR_14 gerium_enum_t& operator^=(gerium_enum_t& lhr, gerium_
  * @brief     Declares an opaque handle type.
  * @details   Creates a typedef for a pointer to an incomplete struct type,
  *            providing type safety while hiding implementation details.
- * @param[in] gerium_name Base name for the type (suffix `_t` will be added)
+ * @param[in] gerium_name Base name for the type (suffix `_t` will be added).
  */
 #define GERIUM_TYPE(gerium_name) \
 typedef struct _##gerium_name* gerium_name##_t;
@@ -174,7 +174,7 @@ typedef struct _##gerium_name* gerium_name##_t;
  * @brief     Declares an index-based handle type.
  * @details   Creates a struct containing an index value, typically used for
  *            resource handles in API designs that avoid direct pointers.
- * @param[in] gerium_name Base name for the handle type (suffix `_h` will be added)
+ * @param[in] gerium_name Base name for the handle type (suffix `_h` will be added).
  */
 #define GERIUM_HANDLE(gerium_name) \
 typedef struct _##gerium_name { \
