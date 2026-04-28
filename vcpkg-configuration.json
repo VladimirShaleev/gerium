@@ -9,5 +9,8 @@
         "fidelityfx"
       ]
     }
+  ],
+  "overlay-triplets": [
+    "./cmake/vcpkg/triplets"
   ]
 }
