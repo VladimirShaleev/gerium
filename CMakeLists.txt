@@ -18,7 +18,7 @@ else()
     FetchContent_Declare(
         vcpkg
         GIT_REPOSITORY https://github.com/microsoft/vcpkg/
-        GIT_TAG 2024.12.16)
+        GIT_TAG 2026.03.18)
     FetchContent_MakeAvailable(vcpkg)
     set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 endif()

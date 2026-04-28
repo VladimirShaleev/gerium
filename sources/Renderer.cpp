@@ -373,7 +373,7 @@ void Renderer::loadThread() noexcept {
                 auto supportedBC   = (compressions & TextureCompressionFlags::BC) == TextureCompressionFlags::BC;
 
                 if (ktxTexture2_NeedsTranscoding(task->ktxTexture)) {
-                    ktx_texture_transcode_fmt_e tf;
+                    ktx_transcode_fmt_e tf;
                     auto colorModel = ktxTexture2_GetColorModel_e(task->ktxTexture);
                     if (colorModel == KHR_DF_MODEL_UASTC && supportedASTC) {
                         tf = KTX_TTF_ASTC_4x4_RGBA;

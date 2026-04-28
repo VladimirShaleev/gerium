@@ -84,7 +84,7 @@ public:
 
     uint32_t totalMemoryUsed();
 
-    const vk::DispatchLoaderDynamic& vkTable() const noexcept {
+    const vk::detail::DispatchLoaderDynamic& vkTable() const noexcept {
         return _vkTable;
     }
 
@@ -420,7 +420,7 @@ private:
     gerium_uint16_t _appHeight{};
     ObjectPtr<Logger> _logger;
 
-    vk::DispatchLoaderDynamic _vkTable;
+    vk::detail::DispatchLoaderDynamic _vkTable;
     VkInstance _instance{};
     VkSurfaceKHR _surface{};
     VkPhysicalDevice _physicalDevice{};

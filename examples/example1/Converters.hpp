@@ -44,7 +44,7 @@ T* allocate(size_t n = 1) {
 
     size = (size + 3) & ~3;
     if (offset + size >= std::size(buffer)) {
-        std::bad_alloc();
+        throw std::bad_alloc();
     }
     auto results = new (buffer + offset) T[n]{};
     offset += size;

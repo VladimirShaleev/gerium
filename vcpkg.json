@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "gerium",
   "version": "1.0.0",
-  "builtin-baseline": "80d54ff62d528339c626a6fbc3489a7f25956ade",
+  "builtin-baseline": "c3867e714dd3a51c272826eea77267876517ed99",
   "dependencies": [
     "mimalloc",
     "cmakerc",
@@ -22,7 +22,6 @@
         "vulkan"
       ]
     },
-
     "nlohmann-json",
     "yaml-cpp",
     "glm",
@@ -36,10 +35,6 @@
     {
       "name": "wyhash",
       "version": "2023-01-25"
-    },
-    {
-      "name": "glslang",
-      "version": "15.0.0"
     },
     {
       "name": "ctre",
