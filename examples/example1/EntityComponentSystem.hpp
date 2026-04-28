@@ -78,7 +78,7 @@ public:
         _components(other._components) {
         other._poolSize   = 0;
         other._head       = 0;
-        other.other       = nullptr;
+        other._indices    = nullptr;
         other._components = nullptr;
     }
 

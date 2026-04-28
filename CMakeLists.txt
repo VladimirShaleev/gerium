@@ -26,8 +26,8 @@ endif()
 if(APPLE)
     FetchContent_Declare(
         moltenVK
-        URL https://github.com/KhronosGroup/MoltenVK/releases/download/v1.2.9/MoltenVK-all.tar
-        URL_HASH MD5=1219a051a60c0cf71021983a91b82c0a
+        URL https://github.com/KhronosGroup/MoltenVK/releases/download/v1.4.1/MoltenVK-all.tar
+        URL_HASH MD5=c144c0a7729889b88653fcf604451839
         GIT_PROGRESS TRUE
     )
     FetchContent_MakeAvailable(moltenVK)
