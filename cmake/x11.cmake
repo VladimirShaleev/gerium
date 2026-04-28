@@ -6,7 +6,7 @@ include(ExternalProject)
 
 FetchContent_Declare(
     x11
-    GIT_REPOSITORY https://github.com/hexops/x11-headers.git
-    GIT_TAG 29aefb525d5c08b05b0351e34b1623854a138c21
+    GIT_REPOSITORY https://github.com/LordMZTE/x11-headers.git
+    GIT_TAG 040c368534fc28c20ac01ef810e9a693271d2ff0
 )
 FetchContent_MakeAvailable(x11)
